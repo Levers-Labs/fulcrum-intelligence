@@ -10,7 +10,6 @@ from pathlib import Path
 import httpx
 import typer
 import uvicorn
-from honcho.manager import Manager as HonchoManager
 from tortoise import Tortoise, connections
 
 from app.config import settings
@@ -30,6 +29,8 @@ def migrate_db():
 @cli.command("work")
 def work():
     """Run all the dev services in a single command."""
+    from honcho.manager import Manager as HonchoManager
+
     manager = HonchoManager()
     project_env = {
         **os.environ,

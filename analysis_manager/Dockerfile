@@ -24,7 +24,7 @@ RUN pip install --no-cache-dir --upgrade -r /code/requirements.txt
 
 COPY . /code
 
-EXPOSE 80
+EXPOSE 8000
 
 CMD ["python", "manage.py", "run-prod-server"]
 

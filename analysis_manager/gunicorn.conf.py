@@ -16,7 +16,7 @@ timeout_str = os.getenv("TIMEOUT", "60")
 keepalive_str = os.getenv("KEEP_ALIVE", "5")
 
 # Gunicorn config variables
-bind = "0.0.0.0:80"
+bind = "0.0.0.0:8000"
 worker_class = "uvicorn.workers.UvicornWorker"
 workers = multiprocessing.cpu_count() * 2 + 1 if multiprocessing.cpu_count() > 0 else 3
 
