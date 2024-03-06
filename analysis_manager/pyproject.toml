@@ -1,0 +1,67 @@
+[tool.poetry]
+name = "analysis-manager"
+version = "0.1.0"
+description = "Analysis Manager for fulcrum intelligence"
+authors = ["leverlabs"]
+license = "Proprietary"
+package-mode = false
+
+[tool.poetry.dependencies]
+python = "^3.9"
+fastapi = "^0.110.0"
+uvicorn = "^0.27.1"
+gunicorn = "^21.2.0"
+pydantic = { extras = ["email", "dotenv"], version = "^2.6.3" }
+tortoise-orm = { extras = ["asyncpg"], version = "^0.20.0" }
+aerich = "^0.7.2"
+hupper = "^1.12.1"
+rich = "^13.7.1"
+typer = "^0.9.0"
+watchgod = "^0.8.2"
+httpx = "^0.27.0"
+pydantic-settings = "^2.2.1"
+psycopg2-binary = "^2.9.9"
+
+[tool.poetry.group.dev.dependencies]
+black = "^24.2.0"
+pytest = "^8.0.2"
+factory-boy = "^3.3.0"
+pre-commit = "^3.6.2"
+mypy = "^1.8.0"
+isort = "^5.13.2"
+flake8 = "^7.0.0"
+ipython = "^8.11.0"
+honcho = "^1.1.0"
+
+[tool.aerich]
+tortoise_orm = "app.db.config.TORTOISE_ORM"
+location = "./migrations"
+src_folder = "./."
+
+[tool.isort]
+profile = "black"
+
+[tool.mypy]
+warn_unreachable = true
+pretty = true
+show_column_numbers = true
+show_error_codes = true
+show_error_context = true
+ignore_missing_imports = true
+
+[tool.ruff]
+line-length = 120
+select = [
+    "E", # https://github.com/charliermarsh/ruff#pycodestylet
+    "F", # https://github.com/charliermarsh/ruff#pyflakes
+    "UP", # https://github.com/charliermarsh/ruff#pyupgrade
+    "N", # https://github.com/charliermarsh/ruff#pep8-naming
+    "S", # https://github.com/charliermarsh/ruff#flake8-bandit
+    "C", # https://github.com/charliermarsh/ruff#flake8-comprehensions
+    "B", # https://github.com/charliermarsh/ruff#flake8-bugbear
+    "T" # https://github.com/charliermarsh/ruff#flake8-print
+]
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
