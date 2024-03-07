@@ -1,9 +1,8 @@
-"""initial
+"""Initial
 
 Revision ID: b0345215b68d
-Revises: 
+Revises: Initial Migration
 Create Date: 2024-03-07 22:19:49.746325
-
 """
 
 from typing import Sequence, Union
