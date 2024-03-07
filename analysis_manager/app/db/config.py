@@ -1,23 +1,35 @@
-from fastapi import FastAPI
-from tortoise.contrib.fastapi import register_tortoise
+from typing import Annotated
+
+from fastapi import Depends
+from sqlalchemy.ext.asyncio import create_async_engine
+from sqlalchemy.orm import sessionmaker
+from sqlmodel import Session, create_engine
+from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.config import settings
 
-TORTOISE_ORM = {
-    "connections": {"default": settings.DATABASE_URL},
-    "apps": {
-        "models": {
-            "models": ["aerich.models"],
-            "default_connection": "default",
-        },
-    },
-}
+# Used to load models for alembic migrations
+MODEL_PATHS = ["app.db.models", "app.core.models"]
+
+engine = create_engine(str(settings.DATABASE_URL))
+async_engine = create_async_engine(str(settings.DATABASE_URL))
 
 
-def register_db(app: FastAPI) -> None:
-    register_tortoise(
-        app,
-        config=TORTOISE_ORM,
-        generate_schemas=False,
-        add_exception_handlers=True,
-    )
+# sync session
+def get_session() -> Session:
+    with Session(engine) as session:
+        yield session
+
+
+# async session
+async def get_async_session() -> AsyncSession:
+    async_session = sessionmaker(
+        bind=async_engine, class_=AsyncSession, expire_on_commit=False
+    )  # noqa
+    async with async_session() as session:
+        yield session
+
+
+# Session Dependency
+SessionDep = Annotated[Session, Depends(get_session)]
+AsyncSessionDep = Annotated[Session, Depends(get_async_session)]

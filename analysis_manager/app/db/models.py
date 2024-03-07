@@ -1,16 +1,66 @@
-from tortoise import fields, models
+from datetime import datetime
+from typing import Optional
+from zoneinfo import ZoneInfo
+
+from pydantic import BaseModel, ConfigDict
+from sqlalchemy import text
+from sqlmodel import Field, SQLModel
 
 
-class BaseModel(models.Model):
-    id = fields.IntField(pk=True)
+def convert_datetime_to_utc(dt: datetime) -> str:
+    """
+    Convert datetime to UTC string
+    """
+    if not dt.tzinfo:
+        dt = dt.replace(tzinfo=ZoneInfo("UTC"))
 
-    class Meta:
-        abstract = True
+    return dt.strftime("%Y-%m-%dT%H:%M:%S%z")
 
 
-class TimeStampedModel(models.Model):
-    created_at = fields.DatetimeField(auto_now_add=True)
-    updated_at = fields.DatetimeField(auto_now=True)
+class CustomBase(BaseModel):
+    """
+    Custom base class for pydantic models
+    """
 
-    class Meta:
-        abstract = True
+    model_config = ConfigDict(
+        json_encoders={datetime: convert_datetime_to_utc}, populate_by_name=True
+    )
+
+
+class CustomSQLBase(SQLModel):
+    """
+    Custom base class for sqlmodel models
+    """
+
+    model_config = ConfigDict(
+        json_encoders={datetime: convert_datetime_to_utc},
+        populate_by_name=True,
+    )
+
+
+class ModelBase(CustomSQLBase):
+    """
+    Base class for all models
+    """
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+
+
+class TimeStampedBase(ModelBase):
+    """
+    Base class for all models with time stamps
+    """
+
+    created_at: datetime = Field(
+        default_factory=datetime.utcnow,
+        nullable=False,
+        sa_column_kwargs={"server_default": text("current_timestamp(0)")},
+    )
+    updated_at: datetime = Field(
+        default_factory=datetime.utcnow,
+        nullable=False,
+        sa_column_kwargs={
+            "server_default": text("current_timestamp(0)"),
+            "onupdate": text("current_timestamp(0)"),
+        },
+    )
