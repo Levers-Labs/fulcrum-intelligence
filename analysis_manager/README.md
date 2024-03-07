@@ -1,4 +1,5 @@
 # analysis-manager
+
 Analysis Manager for fulcrum intelligence
 
 ## Prerequisites
@@ -6,7 +7,6 @@ Analysis Manager for fulcrum intelligence
 - `Python 3.9+`
 - `Poetry 1.2+`
 - `Postgresql 10+`
-
 
 ## Development
 
@@ -22,30 +22,10 @@ DATABASE_URL=postgres://postgres:password@localhost/fulcrum_db
 REDIS_URL=redis://localhost
 ```
 
-### Database setup
-
-Create your first migration
-
-```shell
-aerich init-db
-```
-
-Adding new migrations.
-
-```shell
-aerich migrate --name <migration_name>
-```
-
-Upgrading the database when new migrations are created.
-
-```shell
-aerich upgrade
-```
-
 ### Run the fastapi app
 
 ```shell
-python manage.py work
+python manage.py run-server
 ```
 
 ### Cli
