@@ -11,7 +11,6 @@ DATE_FORMAT = "%Y-%m-%dT%H:%M:%S%z"
 LOGGER_FORMAT = "%(name)s | %(levelname)s | %(asctime)s | %(filename)s | %(funcName)s:%(lineno)d | %(message)s"
 
 
-
 class LoggerConfig(BaseModel):
     handlers: list
     format: str
