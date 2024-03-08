@@ -141,7 +141,7 @@ def work():
     sys.exit(manager.returncode)
 
 
-@cli.command("run-server")
+@cli.command("run-local-server")
 def run_server(
     port: int = 8000,
     host: str = "localhost",

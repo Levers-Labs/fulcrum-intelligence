@@ -8,7 +8,8 @@ from pydantic import BaseModel
 from app.config import Environment, settings
 
 DATE_FORMAT = "%d %b %Y | %H:%M:%S"
-LOGGER_FORMAT = "%(name)s - %(levelname)s - %(asctime)s - %(message)s"
+LOGGER_FORMAT = "%(name)s | %(levelname)s | %(asctime)s | %(filename)s | %(funcName)s:%(lineno)d | %(message)s"
+
 
 
 class LoggerConfig(BaseModel):
