@@ -1,8 +1,8 @@
 """correlate_table
 
-Revision ID: 40a74ae40eb2
+Revision ID: aa60f32deff2
 Revises: 2365755b16e0
-Create Date: 2024-03-08 18:10:31.848144
+Create Date: 2024-03-08 18:35:46.803538
 
 """
 from typing import Sequence, Union
@@ -13,7 +13,7 @@ import sqlmodel
 
 
 # revision identifiers, used by Alembic.
-revision: str = '40a74ae40eb2'
+revision: str = 'aa60f32deff2'
 down_revision: Union[str, None] = '2365755b16e0'
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -29,7 +29,7 @@ def upgrade() -> None:
     sa.Column('metric_id_2', sqlmodel.sql.sqltypes.AutoString(), nullable=False),
     sa.Column('start_date', sa.Date(), nullable=False),
     sa.Column('end_date', sa.Date(), nullable=False),
-    sa.Column('correlation', sa.Float(), nullable=False),
+    sa.Column('correlation_coefficient', sa.Float(), nullable=False),
     sa.PrimaryKeyConstraint('id')
     )
     op.create_index(op.f('ix_correlate_metric_id_1'), 'correlate', ['metric_id_1'], unique=False)

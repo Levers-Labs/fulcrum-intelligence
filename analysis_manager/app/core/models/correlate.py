@@ -8,4 +8,4 @@ class Correlate(TimeStampedBase, table=True):
     metric_id_2: str = Field(max_length=255, index=True)
     start_date: date
     end_date: date
-    correlation: float
+    correlation_coefficient: float
