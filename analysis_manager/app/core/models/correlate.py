@@ -1,6 +1,8 @@
-from sqlmodel import Field
-from app.db.models import TimeStampedBase
 from datetime import date
+
+from sqlmodel import Field
+
+from app.db.models import TimeStampedBase
 
 
 class Correlate(TimeStampedBase, table=True):
