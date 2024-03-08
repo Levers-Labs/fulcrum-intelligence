@@ -5,6 +5,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from app.config import settings
 from app.core.routes import router as core_router
 from app.health import router as health_check_router
+from app.utilities.logger import setup_rich_logger
 from app.utilities.middleware import process_time_log_middleware
 
 
@@ -25,6 +26,9 @@ def get_application() -> FastAPI:
     )
     # add process time log middleware
     _app.add_middleware(BaseHTTPMiddleware, dispatch=process_time_log_middleware)
+
+    # setup logging
+    setup_rich_logger()
 
     return _app
 

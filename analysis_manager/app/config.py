@@ -38,6 +38,9 @@ class Settings(BaseSettings):
     PAGINATION_PER_PAGE: int = 20
 
     DATABASE_URL: str
+    SQLALCHEMY_ENGINE_OPTIONS: dict = dict(
+        pool_pre_ping=True, pool_size=5, max_overflow=80, echo=True
+    )
 
     BACKEND_CORS_ORIGINS: list[AnyHttpUrl] = []
 

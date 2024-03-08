@@ -1,11 +1,11 @@
+import logging
 import time
 from typing import Any, Callable, TypeVar
 
 from fastapi import Request, Response
 
-from app.utilities.logger import logger
-
 F = TypeVar("F", bound=Callable[..., Any])
+logger = logging.getLogger(__name__)
 
 
 async def process_time_log_middleware(request: Request, call_next: F) -> Response:
