@@ -25,7 +25,7 @@ REDIS_URL=redis://localhost
 ### Run the fastapi app
 
 ```shell
-python manage.py run-server
+python manage.py run-local-server
 ```
 
 ### Cli

@@ -15,7 +15,7 @@ def get_application() -> FastAPI:
         description="Analysis Manager for Fulcrum Intelligence",
         debug=settings.DEBUG,
     )
-    _app.include_router(core_router)
+    _app.include_router(core_router, prefix="/v1")
     _app.include_router(health_check_router)
     _app.add_middleware(
         CORSMiddleware,

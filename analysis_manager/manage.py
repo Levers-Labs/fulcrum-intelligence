@@ -1,9 +1,7 @@
 from __future__ import annotations
 
 import importlib
-import os
 import secrets
-import sys
 from pathlib import Path
 from typing import List, Optional
 
@@ -120,25 +118,6 @@ def create_alembic_revision(
     except CommandError as exc:
         typer.secho(f"Error: {exc}", fg=typer.colors.RED, bold=True)
         raise typer.Exit(code=1)
-
-
-@cli.command("work")
-def work():
-    """Run all the dev services in a single command."""
-    from honcho.manager import Manager as HonchoManager
-
-    manager = HonchoManager()
-    project_env = {
-        **os.environ,
-        "PYTHONPATH": str(Path().resolve(strict=True)),
-        "PYTHONUNBUFFERED": "true",
-    }
-    manager.add_process("redis", "redis-server")
-    manager.add_process(
-        "server", "aerich upgrade && python manage.py run-server", env=project_env
-    )
-    manager.loop()
-    sys.exit(manager.returncode)
 
 
 @cli.command("run-local-server")
