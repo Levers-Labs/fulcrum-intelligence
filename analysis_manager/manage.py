@@ -190,7 +190,7 @@ def start_app(app_name: str):
     app_dir = settings.BASE_DIR / package_name
     files = {
         "__init__.py": "",
-        "models.py": "from app.db.models import TimeStampedBase",
+        "models/__init__.py": "",
         "schemas.py": "from pydantic import BaseModel",
         "dependencies.py": "from fastapi import Depends",
         "routes.py": f"from fastapi import APIRouter\n\nrouter = APIRouter(prefix='/{package_name}')",
