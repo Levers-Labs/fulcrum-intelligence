@@ -11,8 +11,8 @@ from app.utilities.middleware import process_time_log_middleware
 
 def get_application() -> FastAPI:
     _app = FastAPI(
-        title="Analysis Manager",
-        description="Analysis Manager for Fulcrum Intelligence",
+        title="Query Manager",
+        description="Query Manager for Fulcrum Intelligence",
         debug=settings.DEBUG,
     )
     _app.include_router(core_router, prefix="/v1")

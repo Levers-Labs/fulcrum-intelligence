@@ -1,6 +1,6 @@
-# analysis-manager
+# query-manager
 
-Analysis Manager for fulcrum intelligence
+Query Manager for fulcrum intelligence
 
 ## Prerequisites
 
@@ -18,8 +18,6 @@ DEBUG=True
 SERVER_HOST=http://localhost:8000
 SECRET_KEY=qwtqwubYA0pN1GMmKsFKHMw_WCbboJvdTAgM9Fq
 BACKEND_CORS_ORIGINS=["http://localhost"]
-DATABASE_URL=postgres://postgres:password@localhost/fulcrum_db
-REDIS_URL=redis://localhost
 ```
 
 ### Run the fastapi app
