@@ -1,8 +1,8 @@
 """describe_table
 
-Revision ID: 784d2c9f747c
+Revision ID: 2365755b16e0
 Revises: b0345215b68d
-Create Date: 2024-03-08 17:21:06.438357
+Create Date: 2024-03-08 17:25:56.792727
 
 """
 from typing import Sequence, Union
@@ -13,7 +13,7 @@ import sqlmodel
 
 
 # revision identifiers, used by Alembic.
-revision: str = '784d2c9f747c'
+revision: str = '2365755b16e0'
 down_revision: Union[str, None] = 'b0345215b68d'
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -43,7 +43,7 @@ def upgrade() -> None:
     sa.Column('max', sa.Float(), nullable=False),
     sa.Column('count', sa.Integer(), nullable=False),
     sa.Column('sum', sa.Float(), nullable=False),
-    sa.Column('distinct', sa.Integer(), nullable=False),
+    sa.Column('unique', sa.Integer(), nullable=False),
     sa.PrimaryKeyConstraint('id')
     )
     op.create_index(op.f('ix_describe_dimension'), 'describe', ['dimension'], unique=False)

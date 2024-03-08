@@ -22,4 +22,4 @@ class Describe(TimeStampedBase, table=True):
     max: float
     count: int
     sum: float
-    distinct: int
+    unique: int
