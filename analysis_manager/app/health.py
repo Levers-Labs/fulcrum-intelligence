@@ -1,11 +1,13 @@
+import logging
+
 from fastapi import APIRouter, Response, status
 from pydantic import BaseModel
 from sqlalchemy import select
 
 from app.db.config import AsyncSessionDep
-from app.utilities.logger import logger
 
 router = APIRouter(prefix="/health")
+logger = logging.getLogger(__name__)
 
 
 class APIHealth(BaseModel):

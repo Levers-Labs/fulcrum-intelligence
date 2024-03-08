@@ -11,8 +11,10 @@ from app.config import settings
 # Used to load models for alembic migrations
 MODEL_PATHS = ["app.db.models", "app.core.models"]
 
-engine = create_engine(str(settings.DATABASE_URL))
-async_engine = create_async_engine(str(settings.DATABASE_URL))
+engine = create_engine(str(settings.DATABASE_URL), **settings.SQLALCHEMY_ENGINE_OPTIONS)
+async_engine = create_async_engine(
+    str(settings.DATABASE_URL), **settings.SQLALCHEMY_ENGINE_OPTIONS
+)
 
 
 # sync session

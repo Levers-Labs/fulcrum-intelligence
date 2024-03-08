@@ -2,7 +2,7 @@
 name = "analysis-manager"
 version = "0.1.0"
 description = "Analysis Manager for fulcrum intelligence"
-authors = ["leverlabs"]
+authors = ["leverslabs"]
 license = "Proprietary"
 package-mode = false
 
