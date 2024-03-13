@@ -4,7 +4,6 @@ version = "0.1.0"
 description = "Query Manager for fulcrum intelligence"
 authors = ["leverslabs"]
 license = "Proprietary"
-package-mode = false
 
 [tool.poetry.dependencies]
 python = "^3.9"
@@ -43,7 +42,7 @@ show_error_context = true
 ignore_missing_imports = true
 
 [tool.black]
-max-line-length = 120
+line-length = 120
 
 [tool.ruff]
 line-length = 120

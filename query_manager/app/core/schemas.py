@@ -1,7 +1,12 @@
+import datetime
+
 from app.utilities.schema import BaseModel
 
 
 class Metric(BaseModel):
     id: int
+    date: str
     name: str
-    # more fields to be added
+    dimension: str
+    slice: str
+    value: int
