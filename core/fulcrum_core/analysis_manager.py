@@ -151,20 +151,29 @@ class AnalysisManager:
 
         precomputed_metric_values = {}
         for metric_id, group in data.groupby("METRIC_ID"):
-            precomputed_metric_values[metric_id] = group["METRIC_VALUE"]
+            precomputed_metric_values[metric_id] = group[["METRIC_VALUE", "DAY"]]
 
         response = []
 
         for metric_id1, metric_id2 in combinations(precomputed_metric_values.keys(), 2):
-            series1 = precomputed_metric_values[metric_id1]
-            series2 = precomputed_metric_values[metric_id2]
 
-            len_series1 = len(series1)
-            len_series2 = len(series2)
-            if len_series1 < len_series2:
-                series2 = series2[:len_series1]
-            else:
-                series1 = series1[:len_series2]
+            df1 = precomputed_metric_values[metric_id1]
+            df2 = precomputed_metric_values[metric_id2]
+
+            df1.drop_duplicates(subset=["DAY"]).reset_index(drop=True)
+            df2.drop_duplicates(subset=["DAY"]).reset_index(drop=True)
+
+            df1.dropna(inplace=True)
+            df2.dropna(inplace=True)
+
+            common_days = set(df1["DAY"]).intersection(df2["DAY"])
+
+            df1 = df1[df1["DAY"].isin(common_days)]
+            df2 = df2[df2["DAY"].isin(common_days)]
+
+            series1 = df1["METRIC_VALUE"]
+            series2 = df2["METRIC_VALUE"]
+
             correlation = np.corrcoef(series1, series2)[0, 1]
             response.append(
                 {
