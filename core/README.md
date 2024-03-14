@@ -2,7 +2,7 @@ Core Engine for Fulcrum Intelligence
 
 ## Prerequisites
 
-- `Python 3.9+`
+- `Python 3.10+`
 - `Poetry 1.2+`
 
 ## Development
