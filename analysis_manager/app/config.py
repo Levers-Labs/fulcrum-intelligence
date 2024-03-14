@@ -34,7 +34,7 @@ class Settings(BaseSettings):
     ENV: Environment = Environment.dev
     LOGGING_LEVEL: str = "INFO"
 
-    SERVER_HOST: Union[str, AnyHttpUrl] = "http://localhost:8000"
+    SERVER_HOST: Union[str, AnyHttpUrl]
     PAGINATION_PER_PAGE: int = 20
 
     DATABASE_URL: str
