@@ -1,8 +1,5 @@
 from datetime import date
-from typing import Annotated, List, Optional
-
-from fastapi import Body
-from pydantic import Field
+from typing import List, Optional
 
 from app.core.models import UserRead
 from app.db.models import CustomBase
@@ -44,7 +41,3 @@ class DescribeRequest(CustomBase):
     start_date: date
     end_date: date
     dimensions:  Optional[List[DimensionFilter]] = None
-
-    model_config = {
-        "arbitrary_types_allowed": True
-    }
