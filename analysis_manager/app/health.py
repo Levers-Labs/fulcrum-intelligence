@@ -17,9 +17,7 @@ class APIHealth(BaseModel):
 @router.get(
     "/",
     response_model=APIHealth,
-    responses={
-        503: {"description": "Some or all services are unavailable", "model": APIHealth}
-    },
+    responses={503: {"description": "Some or all services are unavailable", "model": APIHealth}},
 )
 async def check_health(response: Response, session: AsyncSessionDep):
     """Check availability of several's service to get an idea of the api health."""

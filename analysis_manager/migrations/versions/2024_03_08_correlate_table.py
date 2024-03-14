@@ -43,12 +43,8 @@ def upgrade() -> None:
         sa.Column("correlation_coefficient", sa.Float(), nullable=False),
         sa.PrimaryKeyConstraint("id"),
     )
-    op.create_index(
-        op.f("ix_correlate_metric_id_1"), "correlate", ["metric_id_1"], unique=False
-    )
-    op.create_index(
-        op.f("ix_correlate_metric_id_2"), "correlate", ["metric_id_2"], unique=False
-    )
+    op.create_index(op.f("ix_correlate_metric_id_1"), "correlate", ["metric_id_1"], unique=False)
+    op.create_index(op.f("ix_correlate_metric_id_2"), "correlate", ["metric_id_2"], unique=False)
     # ### end Alembic commands ###
 
 

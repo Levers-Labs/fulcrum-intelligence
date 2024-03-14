@@ -67,11 +67,11 @@ def show_migration(config_file: Path = Path("alembic.ini"), rev: str = "head") -
 
 @db_cli.command("merge")
 def merge_migrations(
-    revisions: List[str],
+    revisions: list[str],
     config_file: Path = Path("alembic.ini"),
-    message: Annotated[Optional[str], typer.Argument()] = None,
-    branch_label: Annotated[Optional[List[str]], typer.Argument()] = None,
-    rev_id: Annotated[Optional[str], typer.Argument()] = None,
+    message: Annotated[str | None, typer.Argument()] = None,
+    branch_label: Annotated[list[str] | None, typer.Argument()] = None,
+    rev_id: Annotated[str | None, typer.Argument()] = None,
 ):
     """Merge two revisions, creating a new migration file"""
     config = Config(config_file)
@@ -95,9 +95,9 @@ def create_alembic_revision(
     autogenerate: bool = True,
     head: str = "head",
     splice: bool = False,
-    version_path: Annotated[Optional[str], typer.Argument()] = None,
-    rev_id: Annotated[Optional[str], typer.Argument()] = None,
-    depends_on: Annotated[Optional[str], typer.Argument()] = None,
+    version_path: Annotated[str | None, typer.Argument()] = None,
+    rev_id: Annotated[str | None, typer.Argument()] = None,
+    depends_on: Annotated[str | None, typer.Argument()] = None,
 ) -> None:
     """Create a new Alembic revision"""
     # Import all the models to be able to autogenerate migrations
@@ -144,9 +144,7 @@ def run_prod_server():
     from gunicorn import util
     from gunicorn.app.base import Application
 
-    config_file = str(
-        settings.PATHS.ROOT_DIR.joinpath("gunicorn.conf.py").resolve(strict=True)
-    )
+    config_file = str(settings.PATHS.ROOT_DIR.joinpath("gunicorn.conf.py").resolve(strict=True))
 
     class APPServer(Application):
         def init(self, parser, opts, args):
@@ -211,13 +209,9 @@ def info():
         try:
             resp = client.get("/health", follow_redirects=True)
         except httpx.ConnectError:
-            app_health = typer.style(
-                "❌ API is not responding", fg=typer.colors.RED, bold=True
-            )
+            app_health = typer.style("❌ API is not responding", fg=typer.colors.RED, bold=True)
         else:
-            app_health = "\n".join(
-                [f"{key.upper()}={value}" for key, value in resp.json().items()]
-            )
+            app_health = "\n".join([f"{key.upper()}={value}" for key, value in resp.json().items()])
 
     envs = "\n".join([f"{key}={value}" for key, value in settings.dict().items()])
     title = typer.style("===> APP INFO <==============\n", fg=typer.colors.BLUE)

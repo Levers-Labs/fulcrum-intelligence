@@ -12,9 +12,7 @@ from app.config import settings
 MODEL_PATHS = ["app.db.models", "app.core.models"]
 
 engine = create_engine(str(settings.DATABASE_URL), **settings.SQLALCHEMY_ENGINE_OPTIONS)
-async_engine = create_async_engine(
-    str(settings.DATABASE_URL), **settings.SQLALCHEMY_ENGINE_OPTIONS
-)
+async_engine = create_async_engine(str(settings.DATABASE_URL), **settings.SQLALCHEMY_ENGINE_OPTIONS)
 
 
 # sync session
@@ -25,9 +23,7 @@ def get_session() -> Session:
 
 # async session
 async def get_async_session() -> AsyncSession:
-    async_session = sessionmaker(
-        bind=async_engine, class_=AsyncSession, expire_on_commit=False
-    )  # noqa
+    async_session = sessionmaker(bind=async_engine, class_=AsyncSession, expire_on_commit=False)  # noqa
     async with async_session() as session:
         yield session
 

@@ -29,9 +29,7 @@ def get_logger_config():
 
         return LoggerConfig(
             handlers=[
-                RichHandler(
-                    rich_tracebacks=True, tracebacks_show_locals=True, show_time=False
-                ),
+                RichHandler(rich_tracebacks=True, tracebacks_show_locals=True, show_time=False),
             ],
             format=LOGGER_FORMAT,
             date_format=DATE_FORMAT,

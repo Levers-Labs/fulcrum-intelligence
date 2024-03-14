@@ -22,9 +22,7 @@ class CustomBase(BaseModel):
     Custom base class for pydantic models
     """
 
-    model_config = ConfigDict(
-        json_encoders={datetime: convert_datetime_to_utc}, populate_by_name=True
-    )
+    model_config = ConfigDict(json_encoders={datetime: convert_datetime_to_utc}, populate_by_name=True)
 
 
 class CustomSQLBase(SQLModel):

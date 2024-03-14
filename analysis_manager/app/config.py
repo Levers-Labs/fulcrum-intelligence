@@ -38,11 +38,11 @@ class Settings(BaseSettings):
     PAGINATION_PER_PAGE: int = 20
 
     DATABASE_URL: str
-    SQLALCHEMY_ENGINE_OPTIONS: dict = dict(
-        pool_pre_ping=True, pool_size=5, max_overflow=80, echo=True
-    )
+    SQLALCHEMY_ENGINE_OPTIONS: dict = dict(pool_pre_ping=True, pool_size=5, max_overflow=80, echo=True)
 
     BACKEND_CORS_ORIGINS: list[AnyHttpUrl] = []
+
+    QUERY_MANAGER_SERVER_HOST: str | AnyHttpUrl = "http://localhost:8001/v1"
 
     @field_validator("BACKEND_CORS_ORIGINS", mode="before")
     @classmethod
