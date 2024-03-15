@@ -1,5 +1,4 @@
-import datetime
-from typing import Annotated, Any, List, Optional
+from typing import Annotated, Any
 
 import pandas as pd
 from fastapi import APIRouter, Body
@@ -10,7 +9,7 @@ from app.core.dependencies import (
     UsersCRUDDep,
 )
 from app.core.models import User, UserRead
-from app.core.schema import DescribeRequest, DescribeResponse, DimensionFilter, UserList
+from app.core.schema import DescribeRequest, DescribeResponse, UserList
 
 router = APIRouter(prefix="")
 
@@ -34,28 +33,32 @@ async def get_user(user_id: int, users: UsersCRUDDep) -> Any:
     return user
 
 
-@router.post("/analyze/describe", response_model=List[DescribeResponse])
+@router.post("/analyze/describe", response_model=list[DescribeResponse])
 async def describe_analysis(
     analysis_manager: AnalysisManagerDep,
     query_manager: QueryManagerClientDep,
-    body: Annotated[DescribeRequest, Body(
-        examples=[
-            {
-                "metric_id": 5,
-                "start_date": "2024-01-01",
-                "end_date": "2024-04-30",
-                "dimensions": [
-                    {
-                        "dimension": "Geosegmentation",
-                        "slices": ["Rest of World", "other"],
-                    },
-                    {
-                        "dimension": "Creating Org",
-                        "slices": [],
-                    },
-                ]
-            }
-        ])],
+    body: Annotated[
+        DescribeRequest,
+        Body(
+            examples=[
+                {
+                    "metric_id": 5,
+                    "start_date": "2024-01-01",
+                    "end_date": "2024-04-30",
+                    "dimensions": [
+                        {
+                            "dimension": "Geosegmentation",
+                            "slices": ["Rest of World", "other"],
+                        },
+                        {
+                            "dimension": "Creating Org",
+                            "slices": [],
+                        },
+                    ],
+                }
+            ]
+        ),
+    ],
 ) -> Any:
     """
     Describe an analysis.
@@ -63,6 +66,8 @@ async def describe_analysis(
     metrics = await query_manager.get_metric_values(
         metric_ids=[body.metric_id], start_date=body.start_date, end_date=body.end_date, dimensions=body.dimensions
     )
+    if not metrics:
+        return []
     # metrics to dataframe
     metrics_df = pd.DataFrame(metrics)
     # column names mapping

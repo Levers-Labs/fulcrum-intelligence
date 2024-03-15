@@ -1,5 +1,4 @@
 from datetime import date
-from typing import List, Optional
 
 from app.core.models import UserRead
 from app.db.models import CustomBase
@@ -10,34 +9,34 @@ class UserList(CustomBase):
     results: list[UserRead]
 
 
-class DimensionFilter(CustomBase):
+class DimensionRequest(CustomBase):
     dimension: str
-    slices: Optional[List[str]] = None
+    slices: list[str] | None = None
 
 
 class DescribeResponse(CustomBase):
-    metric_id: Optional[str] = None
+    metric_id: str | None = None
     dimension: str
-    slice: Optional[str]
-    mean: Optional[float] = None
-    median: Optional[float] = None
-    variance: Optional[float] = None
-    standard_deviation: Optional[float]
-    percentile_25: Optional[float]
-    percentile_50: Optional[float]
-    percentile_75: Optional[float]
-    percentile_90: Optional[float]
-    percentile_95: Optional[float]
-    percentile_99: Optional[float]
-    min: Optional[float] = None
-    max: Optional[float] = None
-    count: Optional[int] = None
-    sum: Optional[float] = None
-    unique: Optional[int] = None
+    slice: str | None
+    mean: float | None = None
+    median: float | None = None
+    variance: float | None = None
+    standard_deviation: float | None
+    percentile_25: float | None
+    percentile_50: float | None
+    percentile_75: float | None
+    percentile_90: float | None
+    percentile_95: float | None
+    percentile_99: float | None
+    min: float | None = None
+    max: float | None = None
+    count: int | None = None
+    sum: float | None = None
+    unique: int | None = None
 
 
 class DescribeRequest(CustomBase):
     metric_id: int
     start_date: date
     end_date: date
-    dimensions:  Optional[List[DimensionFilter]] = None
+    dimensions: list[DimensionRequest] | None = None

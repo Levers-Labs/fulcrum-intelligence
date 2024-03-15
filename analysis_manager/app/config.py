@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Union
 
 from pydantic import AnyHttpUrl, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -34,7 +33,7 @@ class Settings(BaseSettings):
     ENV: Environment = Environment.dev
     LOGGING_LEVEL: str = "INFO"
 
-    SERVER_HOST: Union[str, AnyHttpUrl]
+    SERVER_HOST: str | AnyHttpUrl
     PAGINATION_PER_PAGE: int = 20
 
     DATABASE_URL: str
@@ -42,7 +41,7 @@ class Settings(BaseSettings):
 
     BACKEND_CORS_ORIGINS: list[AnyHttpUrl] = []
 
-    QUERY_MANAGER_SERVER_HOST: str | AnyHttpUrl = "http://localhost:8001/v1"
+    QUERY_MANAGER_SERVER_HOST: str | AnyHttpUrl
 
     @field_validator("BACKEND_CORS_ORIGINS", mode="before")
     @classmethod
