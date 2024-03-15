@@ -43,9 +43,7 @@ def run_prod_server():
     from gunicorn import util
     from gunicorn.app.base import Application
 
-    config_file = str(
-        settings.PATHS.ROOT_DIR.joinpath("gunicorn.conf.py").resolve(strict=True)
-    )
+    config_file = str(settings.PATHS.ROOT_DIR.joinpath("gunicorn.conf.py").resolve(strict=True))
 
     class APPServer(Application):
         def init(self, parser, opts, args):
@@ -108,13 +106,9 @@ def info():
         try:
             resp = client.get("/health", follow_redirects=True)
         except httpx.ConnectError:
-            app_health = typer.style(
-                "❌ API is not responding", fg=typer.colors.RED, bold=True
-            )
+            app_health = typer.style("❌ API is not responding", fg=typer.colors.RED, bold=True)
         else:
-            app_health = "\n".join(
-                [f"{key.upper()}={value}" for key, value in resp.json().items()]
-            )
+            app_health = "\n".join([f"{key.upper()}={value}" for key, value in resp.json().items()])
 
     envs = "\n".join([f"{key}={value}" for key, value in settings.dict().items()])
     title = typer.style("===> APP INFO <==============\n", fg=typer.colors.BLUE)

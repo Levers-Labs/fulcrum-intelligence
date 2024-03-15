@@ -57,12 +57,8 @@ def upgrade() -> None:
         sa.Column("unique", sa.Integer(), nullable=False),
         sa.PrimaryKeyConstraint("id"),
     )
-    op.create_index(
-        op.f("ix_describe_dimension"), "describe", ["dimension"], unique=False
-    )
-    op.create_index(
-        op.f("ix_describe_metric_id"), "describe", ["metric_id"], unique=False
-    )
+    op.create_index(op.f("ix_describe_dimension"), "describe", ["dimension"], unique=False)
+    op.create_index(op.f("ix_describe_metric_id"), "describe", ["metric_id"], unique=False)
     # ### end Alembic commands ###
 
 

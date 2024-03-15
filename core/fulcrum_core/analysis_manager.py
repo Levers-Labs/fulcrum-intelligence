@@ -1,4 +1,3 @@
-from itertools import combinations
 from typing import List
 
 import numpy as np
@@ -55,39 +54,39 @@ class AnalysisManager:
             ]
         """
 
-        grouped_data = data.groupby(["DIMENSION_NAME", "SLICE"])
-
+        grouped_data = data.groupby(['DIMENSION_NAME', 'SLICE'])
+        metric_id = data['METRIC_ID'].iloc[0]
         # Calculate additional percentiles and variance for each group
-        grouped_stats = grouped_data["METRIC_VALUE"].describe(
-            percentiles=[0.25, 0.50, 0.75, 0.90, 0.95, 0.99]
-        )
-        grouped_stats["variance"] = grouped_data["METRIC_VALUE"].var()
-        grouped_stats["sum"] = grouped_data["METRIC_VALUE"].sum()
-        grouped_stats["unique"] = grouped_data["METRIC_VALUE"].unique()
+        grouped_stats = grouped_data['METRIC_VALUE'].describe(percentiles=[0.25, 0.50, 0.75, 0.90, 0.95, 0.99])
+        grouped_stats['variance'] = grouped_data['METRIC_VALUE'].var()
+        grouped_stats['sum'] = grouped_data['METRIC_VALUE'].sum()
+        grouped_stats['unique'] = grouped_data['METRIC_VALUE'].unique()
 
-        grouped_stats.index.names = ["DIMENSION_NAME", "SLICE"]
+        grouped_stats.index.names = ['DIMENSION_NAME', 'SLICE']
 
         result = []
 
         # Iterate through the grouped DataFrame
         for index, row in grouped_stats.iterrows():
             stats_dict = {
-                "DIMENSION_NAME": index[0],
-                "SLICE": index[1],
-                "mean": row["mean"],
-                "std": row["std"],
-                "p25": row["25%"],
-                "p50": row["50%"],
-                "p75": row["75%"],
-                "p90": row["90%"],
-                "p95": row["95%"],
-                "p99": row["99%"],
-                "min": row["min"],
-                "max": row["max"],
-                "variance": row["variance"],
-                "count": row["count"],
-                "sum": row["sum"],
-                "unique": len(row["unique"]),
+                'metric_id': metric_id,
+                'dimension': index[0],
+                'slice': index[1],
+                'mean': row['mean'],
+                'median': row['50%'],
+                'standard_deviation': row['std'],
+                'percentile_25': row['25%'],
+                'percentile_50': row['50%'],
+                'percentile_75': row['75%'],
+                'percentile_90': row['90%'],
+                'percentile_95': row['95%'],
+                'percentile_99': row['99%'],
+                'min': row['min'],
+                'max': row['max'],
+                'variance': row['variance'],
+                'count': row['count'],
+                'sum': row['sum'],
+                'unique': len(row['unique'])
             }
             result.append(stats_dict)
 

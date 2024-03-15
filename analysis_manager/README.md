@@ -20,6 +20,7 @@ SECRET_KEY=qwtqwubYA0pN1GMmKsFKHMw_WCbboJvdTAgM9Fq
 BACKEND_CORS_ORIGINS=["http://localhost"]
 DATABASE_URL=postgres://postgres:password@localhost/fulcrum_db
 REDIS_URL=redis://localhost
+QUERY_MANAGER_SERVER_HOST=http://localhost:8001
 ```
 
 ### Run the fastapi app
@@ -36,4 +37,3 @@ help you manage your project more easily. To get all available commands type thi
 ```shell
 python manage.py --help
 ```
-

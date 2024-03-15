@@ -36,9 +36,7 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
         return instance
 
     async def list(self, *, offset: int = 0, limit: int = 100) -> List[ModelType]:
-        results = await self.session.execute(
-            select(self.model).offset(offset).limit(limit)
-        )
+        results = await self.session.execute(select(self.model).offset(offset).limit(limit))
         records: list[ModelType] = results.scalars().all()  # noqa
         return records
 
@@ -50,9 +48,7 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
         await self.session.refresh(obj)
         return obj
 
-    async def update(
-        self, *, obj: ModelType, obj_in: Union[UpdateSchemaType, Dict[str, Any]]
-    ) -> ModelType:
+    async def update(self, *, obj: ModelType, obj_in: Union[UpdateSchemaType, Dict[str, Any]]) -> ModelType:
         obj_data = obj.dict()
         if isinstance(obj_in, dict):
             update_data = obj_in

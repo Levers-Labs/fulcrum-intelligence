@@ -4,7 +4,6 @@ version = "0.1.0"
 description = "Analysis Manager for fulcrum intelligence"
 authors = ["leverslabs"]
 license = "Proprietary"
-package-mode = false
 
 [tool.poetry.dependencies]
 python = "^3.10"
@@ -23,6 +22,7 @@ sqlmodel = "^0.0.16"
 alembic = "^1.13.1"
 asyncpg = "^0.29.0"
 greenlet = "^3.0.3"
+fulcrum-core = { path = "../core" , develop = true }
 
 [tool.poetry.group.dev.dependencies]
 black = "^24.2.0"
@@ -48,7 +48,7 @@ show_error_context = true
 ignore_missing_imports = true
 
 [tool.black]
-max-line-length = 120
+line-length = 120
 
 [tool.ruff]
 line-length = 120

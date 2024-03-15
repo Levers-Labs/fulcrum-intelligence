@@ -4,8 +4,8 @@ import logging
 from typing import Annotated, Any, List, Optional
 
 import aiofiles
-from fastapi import APIRouter, Body
 import pandas as pd
+from fastapi import APIRouter, Body
 
 from app.core.schemas import DimensionFilter, Metric
 
