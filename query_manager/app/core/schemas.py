@@ -15,4 +15,4 @@ class Metric(BaseModel):
 
 class DimensionFilter(BaseModel):
     dimension: str
-    slices: Optional[List[str]] = None
+    slices: list[str] | None = None

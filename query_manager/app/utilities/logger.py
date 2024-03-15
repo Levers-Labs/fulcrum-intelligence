@@ -14,8 +14,8 @@ LOGGER_FORMAT = "%(name)s | %(levelname)s | %(asctime)s | %(filename)s | %(funcN
 class LoggerConfig(BaseModel):
     handlers: list
     format: str
-    date_format: Union[str, None] = None
-    level: Union[str, int] = logging.INFO
+    date_format: str | None = None
+    level: str | int = logging.INFO
 
 
 @lru_cache

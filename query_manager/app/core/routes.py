@@ -15,11 +15,11 @@ router = APIRouter(prefix="/metrics", tags=["metrics"])
 
 @router.post("/values", response_model=list[Metric])
 async def read_metric_values(
-    metric_ids: List[int],
+    metric_ids: list[int],
     start_date: Annotated[datetime.date, Body()],
     end_date: Annotated[datetime.date, Body()],
     dimensions: Annotated[
-        Optional[List[DimensionFilter]],
+        list[DimensionFilter] | None,
         Body(
             examples=[
                 [

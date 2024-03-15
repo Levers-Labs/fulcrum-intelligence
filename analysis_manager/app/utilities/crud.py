@@ -13,7 +13,7 @@ UpdateSchemaType = TypeVar("UpdateSchemaType", bound=CustomBase)
 
 
 class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
-    def __init__(self, model: Type[ModelType], session: AsyncSession):
+    def __init__(self, model: type[ModelType], session: AsyncSession):
         """
         CRUD object with default methods to Create, Read, Update, Delete.
 
@@ -25,17 +25,17 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
         self.model = model
         self.session = session
 
-    async def get(self, id: int) -> Optional[ModelType]:
+    async def get(self, id: int) -> ModelType | None:
         statement = select(self.model).filter_by(id=id)
         results = await self.session.execute(statement=statement)
-        instance: Union[ModelType, None] = results.scalar_one_or_none()
+        instance: ModelType | None = results.scalar_one_or_none()
 
         if instance is None:
             raise HTTPException(status_code=HTTP_404_NOT_FOUND)
 
         return instance
 
-    async def list(self, *, offset: int = 0, limit: int = 100) -> List[ModelType]:
+    async def list(self, *, offset: int = 0, limit: int = 100) -> list[ModelType]:
         results = await self.session.execute(select(self.model).offset(offset).limit(limit))
         records: list[ModelType] = results.scalars().all()  # noqa
         return records
@@ -48,7 +48,7 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
         await self.session.refresh(obj)
         return obj
 
-    async def update(self, *, obj: ModelType, obj_in: Union[UpdateSchemaType, Dict[str, Any]]) -> ModelType:
+    async def update(self, *, obj: ModelType, obj_in: UpdateSchemaType | dict[str, Any]) -> ModelType:
         obj_data = obj.dict()
         if isinstance(obj_in, dict):
             update_data = obj_in
