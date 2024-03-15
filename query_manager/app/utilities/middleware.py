@@ -1,7 +1,7 @@
 import logging
 import time
-from typing import Any, TypeVar
 from collections.abc import Callable
+from typing import Any, TypeVar
 
 from fastapi import Request, Response
 

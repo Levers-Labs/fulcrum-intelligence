@@ -3,8 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
 
 from app.config import settings
-from app.core.routes import router as core_router
-from app.core.routes import user_router
+from app.core.routes import router as core_router, user_router
 from app.health import router as health_check_router
 from app.utilities.logger import setup_rich_logger
 from app.utilities.middleware import process_time_log_middleware

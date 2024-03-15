@@ -5,7 +5,6 @@ Revises: Initial Migration
 Create Date: 2024-03-07 22:19:49.746325
 """
 
-from typing import Union
 from collections.abc import Sequence
 
 import sqlalchemy as sa

@@ -11,6 +11,7 @@ import uvicorn
 from alembic import command
 from alembic.config import Config
 from alembic.util import CommandError
+
 from app.config import settings
 from app.db.config import MODEL_PATHS
 

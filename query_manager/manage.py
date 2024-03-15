@@ -5,6 +5,7 @@ import secrets
 import httpx
 import typer
 import uvicorn
+
 from app.config import settings
 
 cli = typer.Typer()
@@ -15,8 +16,8 @@ def format_code():
     """Format code using black and isort."""
     import subprocess
 
-    subprocess.run(["isort", "."]) # noqa
-    subprocess.run(["black", "."]) # noqa
+    subprocess.run(["isort", "."])  # noqa
+    subprocess.run(["black", "."])  # noqa
 
 
 @cli.command("run-local-server")

@@ -1,10 +1,9 @@
 from datetime import datetime
-from typing import Optional
+from zoneinfo import ZoneInfo
 
 from pydantic import BaseModel, ConfigDict
 from sqlalchemy import text
 from sqlmodel import Field, SQLModel
-from zoneinfo import ZoneInfo
 
 
 def convert_datetime_to_utc(dt: datetime) -> str:

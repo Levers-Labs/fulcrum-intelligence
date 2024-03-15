@@ -43,4 +43,4 @@ log_data = {
     "accesslog": accesslog,
 }
 
-print(json.dumps(log_data)) # noqa : T201
+print(json.dumps(log_data))  # noqa : T201

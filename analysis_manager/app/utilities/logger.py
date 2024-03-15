@@ -1,7 +1,6 @@
 import logging
 import sys
 from functools import lru_cache
-from typing import Union
 
 from pydantic import BaseModel
 

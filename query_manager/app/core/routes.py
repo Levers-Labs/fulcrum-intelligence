@@ -1,7 +1,7 @@
 import datetime
 import json
 import logging
-from typing import Annotated, Any, List, Optional
+from typing import Annotated, Any
 
 import aiofiles
 import pandas as pd

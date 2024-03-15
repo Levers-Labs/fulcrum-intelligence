@@ -1,13 +1,13 @@
 from typing import Annotated
 
 from fastapi import Depends
-from fulcrum_core.analysis_manager import AnalysisManager
 
 from app.config import settings
 from app.core.crud import CRUDUser
 from app.core.models import User
 from app.db.config import AsyncSessionDep
 from app.services.query_manager_client import QueryManagerClient
+from fulcrum_core.analysis_manager import AnalysisManager
 
 
 async def get_users_crud(session: AsyncSessionDep) -> CRUDUser:
