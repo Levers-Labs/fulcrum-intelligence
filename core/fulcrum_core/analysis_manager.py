@@ -1,4 +1,4 @@
-from typing import List
+from itertools import combinations
 
 import numpy as np
 import pandas as pd
@@ -92,13 +92,7 @@ class AnalysisManager:
 
         return result
 
-    def correlate(
-        self,
-        data: pd.DataFrame,
-        metric_ids: list[str],
-        start_date: pd.Timestamp,
-        end_date: pd.Timestamp,
-    ) -> list[dict]:
+    def correlate(self, data: pd.DataFrame, start_date: pd.Timestamp, end_date: pd.Timestamp) -> list[dict]:
         """
         Compute the correlation between all the nC2 pairs generated from the given list metric_ids.
 
