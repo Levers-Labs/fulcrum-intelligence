@@ -133,7 +133,7 @@ dmypy.json
 .ruff_cache/
 
 # Pycharm config
-**/.idea/**
+**/.idea/
 
 /dump.rdb
 .DS_Store
