@@ -1,10 +1,10 @@
 from datetime import datetime
 from typing import Optional
-from zoneinfo import ZoneInfo
 
 from pydantic import BaseModel, ConfigDict
 from sqlalchemy import text
 from sqlmodel import Field, SQLModel
+from zoneinfo import ZoneInfo
 
 
 def convert_datetime_to_utc(dt: datetime) -> str:
@@ -41,7 +41,7 @@ class ModelBase(CustomSQLBase):
     Base class for all models
     """
 
-    id: Optional[int] = Field(default=None, primary_key=True)
+    id: int | None = Field(default=None, primary_key=True)
 
 
 class TimeStampedBase(ModelBase):

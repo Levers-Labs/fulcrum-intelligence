@@ -3,6 +3,7 @@ from __future__ import annotations
 import importlib
 import secrets
 from pathlib import Path
+from typing import Annotated
 
 import httpx
 import typer
@@ -10,8 +11,6 @@ import uvicorn
 from alembic import command
 from alembic.config import Config
 from alembic.util import CommandError
-from typing import Annotated
-
 from app.config import settings
 from app.db.config import MODEL_PATHS
 
@@ -21,12 +20,12 @@ cli.add_typer(db_cli, name="db")
 
 
 @cli.command("format")
-def format_code():
+def format_code(path: Path = Path(".")):
     """Format code using black and isort."""
     import subprocess
 
-    subprocess.run(["isort", "."])
-    subprocess.run(["black", "."])
+    subprocess.run(["isort", path])  # noqa : S603
+    subprocess.run(["black", path])  # noqa : S603
 
 
 @db_cli.command("upgrade")
@@ -38,7 +37,7 @@ def migrate_db(rev: str = "head", config_file: Path = Path("alembic.ini")):
         command.upgrade(config, rev)
     except CommandError as exc:
         typer.secho(f"Error: {exc}", fg=typer.colors.RED, bold=True)
-        raise typer.Exit(code=1)
+        raise typer.Exit(code=1) from exc
 
 
 @db_cli.command("downgrade")
@@ -50,7 +49,7 @@ def downgrade_db(rev: str = "head", config_file: Path = Path("alembic.ini")):
         command.downgrade(config, rev)
     except CommandError as exc:
         typer.secho(f"Error: {exc}", fg=typer.colors.RED, bold=True)
-        raise typer.Exit(code=1)
+        raise typer.Exit(code=1) from exc
 
 
 @db_cli.command("show")
@@ -61,7 +60,7 @@ def show_migration(config_file: Path = Path("alembic.ini"), rev: str = "head") -
         command.show(config, rev)
     except CommandError as exc:
         typer.secho(f"Error: {exc}", fg=typer.colors.RED, bold=True)
-        raise typer.Exit(code=1)
+        raise typer.Exit(code=1) from exc
 
 
 @db_cli.command("merge")
@@ -84,7 +83,7 @@ def merge_migrations(
         )
     except CommandError as exc:
         typer.secho(f"Error: {exc}", fg=typer.colors.RED, bold=True)
-        raise typer.Exit(code=1)
+        raise typer.Exit(code=1) from exc
 
 
 @db_cli.command("revision")
@@ -116,7 +115,7 @@ def create_alembic_revision(
         )
     except CommandError as exc:
         typer.secho(f"Error: {exc}", fg=typer.colors.RED, bold=True)
-        raise typer.Exit(code=1)
+        raise typer.Exit(code=1) from exc
 
 
 @cli.command("run-local-server")
@@ -186,12 +185,12 @@ def shell():
     """Opens an interactive shell with objects auto imported"""
     try:
         from IPython import start_ipython
-    except ImportError:
+    except ImportError as exc:
         typer.secho(
             "Install iPython using `poetry add ipython` to use this feature.",
             fg=typer.colors.RED,
         )
-        raise typer.Exit()
+        raise typer.Exit() from exc
     start_ipython(argv=[])
 
 

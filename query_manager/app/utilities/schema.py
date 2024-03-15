@@ -1,8 +1,8 @@
 from datetime import datetime
-from zoneinfo import ZoneInfo
 
 from pydantic import BaseModel as _BaseModel
 from pydantic import ConfigDict
+from zoneinfo import ZoneInfo
 
 
 def convert_datetime_to_utc(dt: datetime) -> str:

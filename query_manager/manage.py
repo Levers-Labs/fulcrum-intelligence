@@ -5,7 +5,6 @@ import secrets
 import httpx
 import typer
 import uvicorn
-
 from app.config import settings
 
 cli = typer.Typer()
@@ -16,8 +15,8 @@ def format_code():
     """Format code using black and isort."""
     import subprocess
 
-    subprocess.run(["isort", "."])
-    subprocess.run(["black", "."])
+    subprocess.run(["isort", "."]) # noqa
+    subprocess.run(["black", "."]) # noqa
 
 
 @cli.command("run-local-server")
@@ -84,12 +83,12 @@ def shell():
     """Opens an interactive shell with objects auto imported"""
     try:
         from IPython import start_ipython
-    except ImportError:
+    except ImportError as exc:
         typer.secho(
             "Install iPython using `poetry add ipython` to use this feature.",
             fg=typer.colors.RED,
         )
-        raise typer.Exit()
+        raise typer.Exit() from exc
     start_ipython(argv=[])
 
 
