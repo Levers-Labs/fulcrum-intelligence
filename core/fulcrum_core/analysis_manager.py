@@ -98,7 +98,6 @@ class AnalysisManager:
 
         param:
             data: pd.DataFrame. Already filtered on metric_ids, start_date, and end_date.
-            metric_ids: given list metric_ids.
             start_date: pandas timestamp formatted in YYYY-MM-DD
             end_date: pandas timestamp formatted in YYYY-MM-DD
 

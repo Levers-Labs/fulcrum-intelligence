@@ -6,7 +6,7 @@ from app.utilities.async_http_client import AsyncHttpClient
 
 
 class QueryManagerClient(AsyncHttpClient):
-    METRICS_VALUES_BASE_URL = "/metrics/values"
+    METRICS_VALUES_BASE_URL = "metrics/values"
     DATE_FORMAT = "%Y-%m-%d"
 
     async def get_metric_values(
