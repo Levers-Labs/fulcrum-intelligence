@@ -16,7 +16,7 @@ def get_application() -> FastAPI:
         debug=settings.DEBUG,
     )
     _app.include_router(core_router, prefix="/v1")
-    _app.include_router(health_check_router)
+    _app.include_router(health_check_router, prefix="/v1")
     _app.add_middleware(
         CORSMiddleware,
         allow_origins=[str(origin) for origin in settings.BACKEND_CORS_ORIGINS],

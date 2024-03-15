@@ -40,3 +40,9 @@ class DescribeRequest(CustomBase):
     start_date: date
     end_date: date
     dimensions: list[DimensionRequest] | None = None
+
+
+class CorrelateRequest(CustomBase):
+    metric_ids: list[str]
+    start_date: date
+    end_date: date

@@ -3,7 +3,6 @@ from __future__ import annotations
 import importlib
 import secrets
 from pathlib import Path
-from typing import List, Optional
 
 import httpx
 import typer
@@ -11,7 +10,7 @@ import uvicorn
 from alembic import command
 from alembic.config import Config
 from alembic.util import CommandError
-from typing_extensions import Annotated
+from typing import Annotated
 
 from app.config import settings
 from app.db.config import MODEL_PATHS
