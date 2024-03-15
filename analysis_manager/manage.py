@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import importlib
-import secrets
 from pathlib import Path
 from typing import Annotated
 
@@ -18,15 +17,6 @@ from app.db.config import MODEL_PATHS
 cli = typer.Typer()
 db_cli = typer.Typer()
 cli.add_typer(db_cli, name="db")
-
-
-@cli.command("format")
-def format_code(path: Path = Path(".")):
-    """Format code using black and isort."""
-    import subprocess
-
-    subprocess.run(["isort", path])  # noqa : S603
-    subprocess.run(["black", path])  # noqa : S603
 
 
 @db_cli.command("upgrade")
@@ -193,12 +183,6 @@ def shell():
         )
         raise typer.Exit() from exc
     start_ipython(argv=[])
-
-
-@cli.command("secret-key")
-def secret_key():
-    """Generate a secret key for your application"""
-    typer.secho(f"{secrets.token_urlsafe(64)}", fg=typer.colors.GREEN)
 
 
 @cli.command()

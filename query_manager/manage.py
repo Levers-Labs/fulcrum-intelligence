@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-import secrets
-
 import httpx
 import typer
 import uvicorn
@@ -9,15 +7,6 @@ import uvicorn
 from app.config import settings
 
 cli = typer.Typer()
-
-
-@cli.command("format")
-def format_code():
-    """Format code using black and isort."""
-    import subprocess
-
-    subprocess.run(["isort", "."])  # noqa
-    subprocess.run(["black", "."])  # noqa
 
 
 @cli.command("run-local-server")
@@ -91,12 +80,6 @@ def shell():
         )
         raise typer.Exit() from exc
     start_ipython(argv=[])
-
-
-@cli.command("secret-key")
-def secret_key():
-    """Generate a secret key for your application"""
-    typer.secho(f"{secrets.token_urlsafe(64)}", fg=typer.colors.GREEN)
 
 
 @cli.command()
