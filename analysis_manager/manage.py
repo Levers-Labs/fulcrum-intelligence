@@ -79,7 +79,7 @@ def merge_migrations(
 
 @db_cli.command("revision")
 def create_alembic_revision(
-    message: str = None,
+    message: str | None = None,
     config_file: Path = Path("alembic.ini"),
     autogenerate: bool = True,
     head: str = "head",
@@ -153,7 +153,7 @@ def run_prod_server():
 def start_app(app_name: str):
     """Create a new fastapi component, similar to django startapp"""
     package_name = app_name.lower().strip().replace(" ", "_").replace("-", "_")
-    app_dir = settings.BASE_DIR / package_name
+    app_dir = settings.PATHS.BASE_DIR / package_name
     files = {
         "__init__.py": "",
         "models/__init__.py": "",

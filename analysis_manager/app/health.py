@@ -30,7 +30,7 @@ async def check_health(response: Response, session: AsyncSessionDep):
 
     # database check
     try:
-        await session.exec(select(1))
+        await session.execute(select(1))
     except Exception as e:
         health.database_is_online = False
         logger.exception("Database connection failed: %s", e)
@@ -38,8 +38,8 @@ async def check_health(response: Response, session: AsyncSessionDep):
     # check if query_manager is online
     async with httpx.AsyncClient() as client:
         try:
-            response = await client.get(urljoin(settings.QUERY_MANAGER_SERVER_HOST, "health"))
-            response.raise_for_status()
+            res = await client.get(urljoin(str(settings.QUERY_MANAGER_SERVER_HOST), "health"))
+            res.raise_for_status()
         except Exception as e:
             health.query_manager_is_online = False
             logger.exception("Query Manager is offline: %s", e)

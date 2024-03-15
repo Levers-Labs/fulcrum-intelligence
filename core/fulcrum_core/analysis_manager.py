@@ -73,8 +73,8 @@ class AnalysisManager:
         for index, row in grouped_stats.iterrows():
             stats_dict = {
                 "metric_id": metric_id,
-                "dimension": index[0],
-                "slice": index[1],
+                "dimension": index[0],  # type: ignore
+                "slice": index[1],  # type: ignore
                 "mean": row["mean"],
                 "median": row["50%"],
                 "standard_deviation": row["std"],

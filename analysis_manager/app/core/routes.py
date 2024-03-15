@@ -23,8 +23,8 @@ async def list_users(users: UsersCRUDDep, offset: int = 0, limit: int = 100) -> 
     Retrieve users.
     """
     count = await users.total_count()
-    users: list[User] = await users.list(offset=offset, limit=limit)
-    return UserList(results=users, count=count)
+    results: list[UserRead] = [UserRead.from_orm(user) for user in await users.list(offset=offset, limit=limit)]
+    return UserList(results=results, count=count)
 
 
 @user_router.get("/{user_id}", response_model=UserRead)
@@ -67,7 +67,7 @@ async def describe_analysis(
     Describe an analysis.
     """
     metrics = await query_manager.get_metric_values(
-        metric_ids=[body.metric_id], start_date=body.start_date, end_date=body.end_date, dimensions=body.dimensions
+        metric_ids=[str(body.metric_id)], start_date=body.start_date, end_date=body.end_date, dimensions=body.dimensions
     )
     if not metrics:
         return []

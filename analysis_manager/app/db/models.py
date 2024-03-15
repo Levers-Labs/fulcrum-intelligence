@@ -29,7 +29,7 @@ class CustomSQLBase(SQLModel):
     Custom base class for sqlmodel models
     """
 
-    model_config = ConfigDict(
+    model_config = ConfigDict(  # type: ignore
         json_encoders={datetime: convert_datetime_to_utc},
         populate_by_name=True,
     )

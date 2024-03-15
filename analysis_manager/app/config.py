@@ -1,17 +1,14 @@
 from __future__ import annotations
 
+from enum import Enum
 from pathlib import Path
 
 from pydantic import AnyHttpUrl, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-try:
-    from enum import StrEnum
-except ImportError:
-    from enum import Enum
 
-    class StrEnum(str, Enum):
-        pass
+class StrEnum(str, Enum):
+    pass
 
 
 class Environment(StrEnum):
@@ -56,4 +53,4 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
 
-settings = Settings()
+settings = Settings()  # type: ignore

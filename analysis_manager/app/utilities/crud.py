@@ -1,15 +1,21 @@
-from typing import Any, Generic, TypeVar
+from typing import (
+    Any,
+    Generic,
+    TypeVar,
+    cast,
+)
 
 from fastapi import HTTPException
+from pydantic import BaseModel
 from sqlalchemy import func, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 from starlette.status import HTTP_404_NOT_FOUND
 
-from app.db.models import CustomBase, ModelBase
+from app.db.models import ModelBase
 
 ModelType = TypeVar("ModelType", bound=ModelBase)
-CreateSchemaType = TypeVar("CreateSchemaType", bound=CustomBase)
-UpdateSchemaType = TypeVar("UpdateSchemaType", bound=CustomBase)
+CreateSchemaType = TypeVar("CreateSchemaType", bound=BaseModel)
+UpdateSchemaType = TypeVar("UpdateSchemaType", bound=BaseModel)
 
 
 class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
@@ -25,7 +31,7 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
         self.model = model
         self.session = session
 
-    async def get(self, id: int) -> ModelType | None:
+    async def get(self, id: int) -> ModelType:
         statement = select(self.model).filter_by(id=id)
         results = await self.session.execute(statement=statement)
         instance: ModelType | None = results.scalar_one_or_none()
@@ -37,7 +43,7 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
 
     async def list(self, *, offset: int = 0, limit: int = 100) -> list[ModelType]:
         results = await self.session.execute(select(self.model).offset(offset).limit(limit))
-        records: list[ModelType] = results.scalars().all()  # noqa
+        records: list[ModelType] = cast(list[ModelType], results.scalars().all())
         return records
 
     async def create(self, *, obj_in: CreateSchemaType) -> ModelType:
@@ -69,5 +75,5 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
         await self.session.commit()
 
     async def total_count(self) -> int:
-        result = await self.session.exec(select(func.count()).select_from(self.model))
-        return result.one()[0]  # noqa
+        result = await self.session.execute(select(func.count()).select_from(self.model))
+        return result.one()[0]  # type: ignore

@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import date
 from typing import Any
 
 from app.core.schema import DimensionRequest
@@ -12,8 +12,8 @@ class QueryManagerClient(AsyncHttpClient):
     async def get_metric_values(
         self,
         metric_ids: list[str],
-        start_date: datetime,
-        end_date: datetime,
+        start_date: date,
+        end_date: date,
         dimensions: list[DimensionRequest] | None = None,
     ) -> dict[str, Any]:
         """
@@ -25,24 +25,11 @@ class QueryManagerClient(AsyncHttpClient):
 
         Returns: dict
         {
-            "metric_id": "29",
+            "id": "29",
+            "date": "2024-03-15",
             "dimension": "Geosegmentation",
             "slice": "Americas",
-            "mean": 2.6490066225165565,
-            "median": 1,
-            "variance": 23.60264900662251,
-            "standard_deviation": 4.858255757637973,
-            "percentile_25": 1,
-            "percentile_50": 1,
-            "percentile_75": 2,
-            "percentile_90": 5,
-            "percentile_95": 8.5,
-            "percentile_99": 23.5,
-            "min": 1,
-            "max": 44,
-            "count": 151,
-            "sum": 400,
-            "unique": 14
+            "value": 0
         }
         """
         start_date_str = start_date.strftime(self.DATE_FORMAT)
