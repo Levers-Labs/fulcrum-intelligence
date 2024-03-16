@@ -4,7 +4,7 @@ import httpx
 import typer
 import uvicorn
 
-from app.config import settings
+from query_manager.config import settings
 
 cli = typer.Typer()
 
@@ -18,7 +18,7 @@ def run_server(
 ):
     """Run the API development server(uvicorn)."""
     uvicorn.run(
-        "app.main:app",
+        "query_manager.main:app",
         host=host,
         port=port,
         log_level=log_level,
@@ -42,7 +42,7 @@ def run_prod_server():
             self.load_config_from_file(config_file)
 
         def load(self):
-            return util.import_app("app.main:app")
+            return util.import_app("query_manager.main:app")
 
     APPServer().run()
 

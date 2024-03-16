@@ -19,7 +19,7 @@ class Environment(StrEnum):
 class Paths:
     # query_manager
     ROOT_DIR: Path = Path(__file__).parent.parent
-    BASE_DIR: Path = ROOT_DIR / "app"
+    BASE_DIR: Path = ROOT_DIR / "query_manager"
 
 
 class Settings(BaseSettings):

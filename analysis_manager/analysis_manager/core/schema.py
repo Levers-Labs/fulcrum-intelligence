@@ -1,7 +1,7 @@
 from datetime import date
 
-from app.core.models import UserRead
-from app.db.models import CustomBase
+from analysis_manager.core.models import UserRead
+from analysis_manager.db.models import CustomBase
 
 
 class UserList(CustomBase):

@@ -1,8 +1,8 @@
 from datetime import date
 from typing import Any
 
-from app.core.schema import DimensionRequest
-from app.utilities.async_http_client import AsyncHttpClient
+from analysis_manager.core.schema import DimensionRequest
+from analysis_manager.utilities.async_http_client import AsyncHttpClient
 
 
 class QueryManagerClient(AsyncHttpClient):

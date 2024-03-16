@@ -7,7 +7,7 @@ import aiofiles
 import pandas as pd
 from fastapi import APIRouter, Body
 
-from app.core.schemas import DimensionFilter, Metric
+from query_manager.core.schemas import DimensionFilter, Metric
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/metrics", tags=["metrics"])
@@ -41,7 +41,7 @@ async def read_metric_values(
     logger.debug("end_date: ", end_date)
     logger.debug("dimensions: ", dimensions)
 
-    async with aiofiles.open("app/core/data/metric_values.json") as f:
+    async with aiofiles.open("query_manager/core/data/metric_values.json") as f:
         contents = await f.read()
     metrics = json.loads(contents)
 

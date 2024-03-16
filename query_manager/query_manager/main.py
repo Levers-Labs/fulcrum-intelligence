@@ -2,21 +2,20 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
 
-from app.config import settings
-from app.core.routes import router as core_router, user_router
-from app.health import router as health_check_router
-from app.utilities.logger import setup_rich_logger
-from app.utilities.middleware import process_time_log_middleware
+from query_manager.config import settings
+from query_manager.core.routes import router as core_router
+from query_manager.health import router as health_check_router
+from query_manager.utilities.logger import setup_rich_logger
+from query_manager.utilities.middleware import process_time_log_middleware
 
 
 def get_application() -> FastAPI:
     _app = FastAPI(
-        title="Analysis Manager",
-        description="Analysis Manager for Fulcrum Intelligence",
+        title="Query Manager",
+        description="Query Manager for Fulcrum Intelligence",
         debug=settings.DEBUG,
     )
     _app.include_router(core_router, prefix="/v1")
-    _app.include_router(user_router, prefix="/v1")
     _app.include_router(health_check_router, prefix="/v1")
     _app.add_middleware(
         CORSMiddleware,

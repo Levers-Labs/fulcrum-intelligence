@@ -2,11 +2,11 @@ from typing import Annotated
 
 from fastapi import Depends
 
-from app.config import settings
-from app.core.crud import CRUDUser
-from app.core.models import User
-from app.db.config import AsyncSessionDep
-from app.services.query_manager_client import QueryManagerClient
+from analysis_manager.config import settings
+from analysis_manager.core.crud import CRUDUser
+from analysis_manager.core.models import User
+from analysis_manager.db.config import AsyncSessionDep
+from analysis_manager.services.query_manager_client import QueryManagerClient
 from fulcrum_core.analysis_manager import AnalysisManager
 
 

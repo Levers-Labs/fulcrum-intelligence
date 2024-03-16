@@ -3,10 +3,10 @@ from typing import Annotated, Any
 import pandas as pd
 from fastapi import APIRouter, Body
 
-from app.core.dependencies import AnalysisManagerDep, QueryManagerClientDep, UsersCRUDDep
-from app.core.models import User, UserRead
-from app.core.models.correlate import CorrelateRead
-from app.core.schema import (
+from analysis_manager.core.dependencies import AnalysisManagerDep, QueryManagerClientDep, UsersCRUDDep
+from analysis_manager.core.models import User, UserRead
+from analysis_manager.core.models.correlate import CorrelateRead
+from analysis_manager.core.schema import (
     CorrelateRequest,
     DescribeRequest,
     DescribeResponse,

@@ -2,7 +2,7 @@ from datetime import date
 
 from sqlmodel import Field
 
-from app.db.models import CustomSQLBase, TimeStampedBase
+from analysis_manager.db.models import CustomSQLBase, TimeStampedBase
 
 
 class CorrelateBase(CustomSQLBase):

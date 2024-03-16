@@ -1,6 +1,6 @@
 import datetime
 
-from app.utilities.schema import BaseModel
+from query_manager.utilities.schema import BaseModel
 
 
 class Metric(BaseModel):

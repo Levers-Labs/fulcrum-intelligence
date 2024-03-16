@@ -19,7 +19,7 @@ class Environment(StrEnum):
 class Paths:
     # analysis_manager
     ROOT_DIR: Path = Path(__file__).parent.parent
-    BASE_DIR: Path = ROOT_DIR / "app"
+    BASE_DIR: Path = ROOT_DIR / "analysis_manager"
 
 
 class Settings(BaseSettings):

@@ -6,8 +6,8 @@ from fastapi import APIRouter, Response, status
 from pydantic import BaseModel
 from sqlalchemy import select
 
-from app.config import settings
-from app.db.config import AsyncSessionDep
+from analysis_manager.config import settings
+from analysis_manager.db.config import AsyncSessionDep
 
 router = APIRouter(prefix="/health")
 logger = logging.getLogger(__name__)

@@ -1,7 +1,7 @@
 from pydantic import EmailStr
 from sqlmodel import AutoString, Field
 
-from app.db.models import TimeStampedBase
+from analysis_manager.db.models import TimeStampedBase
 
 
 class UserBase(TimeStampedBase):

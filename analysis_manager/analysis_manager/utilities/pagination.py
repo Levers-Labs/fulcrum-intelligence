@@ -5,7 +5,7 @@ from typing import Generic, TypeVar
 from pydantic import BaseModel, Field
 from pydantic.generics import GenericModel
 
-from app.config import settings
+from analysis_manager.config import settings
 
 T = TypeVar("T", bound=BaseModel)
 

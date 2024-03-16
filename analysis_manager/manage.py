@@ -11,8 +11,8 @@ from alembic import command
 from alembic.config import Config
 from alembic.util import CommandError
 
-from app.config import settings
-from app.db.config import MODEL_PATHS
+from analysis_manager.config import settings
+from analysis_manager.db.config import MODEL_PATHS
 
 cli = typer.Typer()
 db_cli = typer.Typer()
@@ -119,7 +119,7 @@ def run_server(
     """Run the API development server(uvicorn)."""
     migrate_db()
     uvicorn.run(
-        "app.main:app",
+        "analysis_manager.main:app",
         host=host,
         port=port,
         log_level=log_level,
@@ -143,7 +143,7 @@ def run_prod_server():
             self.load_config_from_file(config_file)
 
         def load(self):
-            return util.import_app("app.main:app")
+            return util.import_app("analysis_manager.main:app")
 
     migrate_db()
     APPServer().run()

@@ -11,7 +11,7 @@ from sqlalchemy import func, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 from starlette.status import HTTP_404_NOT_FOUND
 
-from app.db.models import ModelBase
+from analysis_manager.db.models import ModelBase
 
 ModelType = TypeVar("ModelType", bound=ModelBase)
 CreateSchemaType = TypeVar("CreateSchemaType", bound=BaseModel)

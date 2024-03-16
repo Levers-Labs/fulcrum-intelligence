@@ -2,7 +2,7 @@ from datetime import date
 
 from sqlmodel import Field
 
-from app.db.models import TimeStampedBase
+from analysis_manager.db.models import TimeStampedBase
 
 
 class Describe(TimeStampedBase, table=True):
