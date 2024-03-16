@@ -22,12 +22,12 @@ repos:
   - repo: local
     hooks:
       - id: manage-py-format
-        name: format
+        name: format (black & isort)
         entry: python manage.py format
         language: system
         files: \.py$
       - id: manage-py-lint
-        name: lint check
-        entry: python manage.py lint
+        name: lint check (ruff & mypy)
+        entry: make lint
         language: system
         files: \.py$
