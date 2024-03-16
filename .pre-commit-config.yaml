@@ -26,8 +26,10 @@ repos:
         entry: python manage.py format
         language: system
         files: \.py$
+        verbose: true
       - id: manage-py-lint
         name: lint check (ruff & mypy)
-        entry: make lint
+        entry: python manage.py lint
         language: system
         files: \.py$
+        verbose: true
