@@ -33,7 +33,7 @@ combine_as_imports = true
 use_parentheses = true
 force_grid_wrap = 4
 include_trailing_comma = true
-known_first_party= "app,fulcrum_core,analysis_manager,query_manager"
+known_first_party = "app,fulcrum_core,analysis_manager,query_manager"
 
 [tool.black]
 line-length = 120
@@ -45,6 +45,12 @@ show_column_numbers = true
 show_error_codes = true
 show_error_context = true
 ignore_missing_imports = true
+exclude = [
+    "query_manager/gunicorn.conf.py",
+    "analysis_manager/gunicorn.conf.py",
+    "query_manager/manage.py",
+    "analysis_manager/manage.py",
+]
 
 [tool.ruff]
 output-format = "concise"

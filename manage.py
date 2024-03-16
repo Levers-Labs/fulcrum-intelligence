@@ -29,7 +29,7 @@ def format_code(
 @cli.command("lint")
 def lint_code(
     path: Annotated[Path, typer.Argument()] = Path("."),
-    fix: Annotated[bool, typer.Option(help="Fix possible linting errors")] = None,
+    fix: Annotated[bool, typer.Option(help="Fix possible linting errors")] = False,
 ):
     """Lint code using ruff and mypy."""
     import subprocess
@@ -40,7 +40,11 @@ def lint_code(
         args.append("--fix")
 
     typer.secho(f"Checking code @Path: {path} using ruff...", fg=typer.colors.GREEN)
-    subprocess.run(args)  # noqa : S603
+    subprocess.run(args)   # type: ignore # noqa : S603
+
+    # run mypy
+    typer.secho(f"Checking code @Path: {path} using mypy...", fg=typer.colors.GREEN)
+    subprocess.run(["mypy", path]) # type: ignore # noqa : S603
 
 
 @cli.command("secret-key")

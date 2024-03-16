@@ -1,3 +1,4 @@
+from datetime import date
 from itertools import combinations
 
 import numpy as np
@@ -95,7 +96,7 @@ class AnalysisManager:
 
         return result
 
-    def correlate(self, data: pd.DataFrame, start_date: pd.Timestamp, end_date: pd.Timestamp) -> list[dict]:
+    def correlate(self, data: pd.DataFrame, start_date: date, end_date: date) -> list[dict]:
         """
         Compute the correlation between all the nC2 pairs generated from the given list metric_ids.
 
