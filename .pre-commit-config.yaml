@@ -18,3 +18,16 @@ repos:
     hooks:
       - id: pyupgrade
         args: [ --py310-plus ]
+
+  - repo: local
+    hooks:
+      - id: manage-py-format
+        name: format
+        entry: python manage.py format
+        language: system
+        files: \.py$
+      - id: manage-py-lint
+        name: lint check
+        entry: python manage.py lint
+        language: system
+        files: \.py$
