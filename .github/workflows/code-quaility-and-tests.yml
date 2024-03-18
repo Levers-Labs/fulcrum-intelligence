@@ -33,12 +33,15 @@ jobs:
           pip install poetry
           poetry export -f requirements.txt --output requirements.txt --without-hashes --with dev
           pip install -U -r requirements.txt
+          echo "Installing analysis_manager dependencies"
           cd analysis_manager
           poetry export -f requirements.txt --output requirements.txt --without-hashes
           pip install -U -r requirements.txt
-          cd ../quality_manager
+          echo "Installing query_manager dependencies"
+          cd ../query_manager
           poetry export -f requirements.txt --output requirements.txt --without-hashes
           pip install -U -r requirements.txt
+          echo "Installing core dependencies"
           cd ../core
           poetry export -f requirements.txt --output requirements.txt --without-hashes
           pip install -U -r requirements.txt
