@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 import importlib
-import secrets
 from pathlib import Path
+from typing import Annotated
 
 import httpx
 import typer
@@ -10,23 +10,13 @@ import uvicorn
 from alembic import command
 from alembic.config import Config
 from alembic.util import CommandError
-from typing import Annotated
 
-from app.config import settings
-from app.db.config import MODEL_PATHS
+from analysis_manager.config import settings
+from analysis_manager.db.config import MODEL_PATHS
 
 cli = typer.Typer()
 db_cli = typer.Typer()
 cli.add_typer(db_cli, name="db")
-
-
-@cli.command("format")
-def format_code():
-    """Format code using black and isort."""
-    import subprocess
-
-    subprocess.run(["isort", "."])
-    subprocess.run(["black", "."])
 
 
 @db_cli.command("upgrade")
@@ -38,7 +28,7 @@ def migrate_db(rev: str = "head", config_file: Path = Path("alembic.ini")):
         command.upgrade(config, rev)
     except CommandError as exc:
         typer.secho(f"Error: {exc}", fg=typer.colors.RED, bold=True)
-        raise typer.Exit(code=1)
+        raise typer.Exit(code=1) from exc
 
 
 @db_cli.command("downgrade")
@@ -50,7 +40,7 @@ def downgrade_db(rev: str = "head", config_file: Path = Path("alembic.ini")):
         command.downgrade(config, rev)
     except CommandError as exc:
         typer.secho(f"Error: {exc}", fg=typer.colors.RED, bold=True)
-        raise typer.Exit(code=1)
+        raise typer.Exit(code=1) from exc
 
 
 @db_cli.command("show")
@@ -61,7 +51,7 @@ def show_migration(config_file: Path = Path("alembic.ini"), rev: str = "head") -
         command.show(config, rev)
     except CommandError as exc:
         typer.secho(f"Error: {exc}", fg=typer.colors.RED, bold=True)
-        raise typer.Exit(code=1)
+        raise typer.Exit(code=1) from exc
 
 
 @db_cli.command("merge")
@@ -84,12 +74,12 @@ def merge_migrations(
         )
     except CommandError as exc:
         typer.secho(f"Error: {exc}", fg=typer.colors.RED, bold=True)
-        raise typer.Exit(code=1)
+        raise typer.Exit(code=1) from exc
 
 
 @db_cli.command("revision")
 def create_alembic_revision(
-    message: str = None,
+    message: str | None = None,
     config_file: Path = Path("alembic.ini"),
     autogenerate: bool = True,
     head: str = "head",
@@ -116,7 +106,7 @@ def create_alembic_revision(
         )
     except CommandError as exc:
         typer.secho(f"Error: {exc}", fg=typer.colors.RED, bold=True)
-        raise typer.Exit(code=1)
+        raise typer.Exit(code=1) from exc
 
 
 @cli.command("run-local-server")
@@ -129,7 +119,7 @@ def run_server(
     """Run the API development server(uvicorn)."""
     migrate_db()
     uvicorn.run(
-        "app.main:app",
+        "analysis_manager.main:app",
         host=host,
         port=port,
         log_level=log_level,
@@ -153,7 +143,7 @@ def run_prod_server():
             self.load_config_from_file(config_file)
 
         def load(self):
-            return util.import_app("app.main:app")
+            return util.import_app("analysis_manager.main:app")
 
     migrate_db()
     APPServer().run()
@@ -163,7 +153,7 @@ def run_prod_server():
 def start_app(app_name: str):
     """Create a new fastapi component, similar to django startapp"""
     package_name = app_name.lower().strip().replace(" ", "_").replace("-", "_")
-    app_dir = settings.BASE_DIR / package_name
+    app_dir = settings.PATHS.BASE_DIR / package_name
     files = {
         "__init__.py": "",
         "models/__init__.py": "",
@@ -186,19 +176,13 @@ def shell():
     """Opens an interactive shell with objects auto imported"""
     try:
         from IPython import start_ipython
-    except ImportError:
+    except ImportError as exc:
         typer.secho(
             "Install iPython using `poetry add ipython` to use this feature.",
             fg=typer.colors.RED,
         )
-        raise typer.Exit()
+        raise typer.Exit() from exc
     start_ipython(argv=[])
-
-
-@cli.command("secret-key")
-def secret_key():
-    """Generate a secret key for your application"""
-    typer.secho(f"{secrets.token_urlsafe(64)}", fg=typer.colors.GREEN)
 
 
 @cli.command()

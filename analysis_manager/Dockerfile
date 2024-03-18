@@ -27,4 +27,3 @@ COPY . /code
 EXPOSE 8000
 
 CMD ["python", "manage.py", "run-prod-server"]
-

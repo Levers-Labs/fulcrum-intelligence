@@ -34,4 +34,3 @@ help you manage your project more easily. To get all available commands type thi
 ```shell
 python manage.py --help
 ```
-
