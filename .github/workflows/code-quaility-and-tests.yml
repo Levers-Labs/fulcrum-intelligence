@@ -33,6 +33,18 @@ jobs:
           pip install poetry
           poetry export -f requirements.txt --output requirements.txt --without-hashes --with dev
           pip install -U -r requirements.txt
+#          Install analysis manager deps
+          cd analysis_manager
+          poetry export -f requirements.txt --output requirements.txt --without-hashes
+          pip install -U -r requirements.txt
+#          Install quality manager deps
+          cd ../quality_manager
+          poetry export -f requirements.txt --output requirements.txt --without-hashes
+          pip install -U -r requirements.txt
+#          Install Core deps
+          cd ../core
+          poetry export -f requirements.txt --output requirements.txt --without-hashes
+          pip install -U -r requirements.txt
 
       - name: Check Code Formatting
         run: |
