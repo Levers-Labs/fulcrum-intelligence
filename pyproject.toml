@@ -8,6 +8,8 @@ package-mode = false
 # Define dependencies common to all components
 [tool.poetry.dependencies]
 python = "^3.10"
+typer = "^0.9.0"
+
 
 # Define dependencies specific to the entire project
 [tool.poetry.group.dev.dependencies]
