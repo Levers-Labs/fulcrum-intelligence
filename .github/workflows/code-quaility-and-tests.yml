@@ -1,0 +1,49 @@
+name: Code Quality and Tests
+on:
+  pull_request:
+    branches:
+      - dev
+      - main
+      - release/v*
+      - hotfix/v*
+  push:
+    branches:
+      - dev
+      - main
+      - release/v*
+      - hotfix/v*
+
+jobs:
+  build:
+    name: Code Quality and Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Branch
+        uses: actions/checkout@v3
+
+      - uses: actions/setup-python@v4
+        with:
+          python-version: 3.10
+          cache: 'pip'
+
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install poetry
+          poetry export -f requirements.txt --output requirements.txt --without-hashes
+          pip install -U -r requirements.txt
+
+      - name: Check Code Formatting
+        run: |
+          python manage.py format --check .
+
+      - name: Check Linting Errors
+        run: |
+          export PYTHONPATH=`pwd`
+          python manage.py lint --raise-error .
+
+#      - name: Run Unit Tests
+#        run: |
+#          export PYTHONPATH=`pwd`
+#          pytest --cov=app tests/ --cov-config=.coveragerc --cov-report xml
