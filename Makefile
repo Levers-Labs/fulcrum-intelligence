@@ -1,13 +1,14 @@
 PYTHON_VERSION=3.10
 
-setup :
+setup:
 	( \
 		if [ -z $(PYENV_VERSION) ] ; then brew install pyenv ; else echo "pyenv already installed"; fi ; \
 		echo N | pyenv install $(PYTHON_VERSION) ; \
 		pyenpyv local $(PYTHON_VERSION); \
 		python -m venv env; \
-		source env/bin/activate; \
+		source venv/bin/activate; \
 		pip install --upgrade pip; \
+		pip install poetry; \
 		make install-all-deps; \
 	)
 

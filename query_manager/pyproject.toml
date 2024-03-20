@@ -19,6 +19,7 @@ pydantic-settings = "^2.2.1"
 aiofiles = "^23.2.1"
 types-aiofiles = "^23.2.0.20240311"
 pandas = "^2.2.1"
+typer = "^0.9.0"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
