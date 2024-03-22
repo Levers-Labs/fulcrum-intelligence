@@ -117,7 +117,6 @@ def run_server(
     reload: bool = True,
 ):
     """Run the API development server(uvicorn)."""
-    migrate_db()
     uvicorn.run(
         "analysis_manager.main:app",
         host=host,
