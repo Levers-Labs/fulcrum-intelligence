@@ -4,6 +4,10 @@ from typing import List
 import numpy as np
 import pandas as pd
 
+import warnings
+
+warnings.simplefilter(action="ignore", category=FutureWarning)
+
 
 class AnalysisManager:
     """
@@ -156,7 +160,6 @@ class AnalysisManager:
         response = []
 
         for metric_id1, metric_id2 in combinations(precomputed_metric_values.keys(), 2):
-
             df1 = precomputed_metric_values[metric_id1]
             df2 = precomputed_metric_values[metric_id2]
 
@@ -186,3 +189,324 @@ class AnalysisManager:
             )
 
         return response
+
+    def _apply_process_control_from_index(
+        self,
+        data: pd.DataFrame,
+        half_average_point: int,
+        processing_start_index: int,
+        debug: bool = False,
+    ) -> (pd.DataFrame, int):
+
+        signal_detected_index = -1
+
+        # case when there are not enough points left in the dataframe
+        if processing_start_index + half_average_point + 1 > len(data) - 1:
+            return signal_detected_index, data
+
+        index_of_first_half_average = processing_start_index + half_average_point // 2
+        current_half_average_index = index_of_first_half_average
+        row_count = 0
+        half_average = 0
+        initial_half_average_calculation_frequency = 2
+        latest_two_half_average_indices = []
+
+        for processing_start_index_rolling, row in data[
+            processing_start_index:
+        ].iterrows():
+            half_average += row["METRIC_VALUE"]
+            row_count += 1
+
+            if row_count % half_average_point == 0:
+                latest_two_half_average_indices.append(int(current_half_average_index))
+                data.at[current_half_average_index, "HALF_AVERAGE"] = (
+                    half_average / half_average_point
+                )
+                data.at[current_half_average_index, "CENTRAL_LINE"] = (
+                    half_average / half_average_point
+                )
+                current_half_average_index += half_average_point
+                half_average = 0
+                initial_half_average_calculation_frequency -= 1
+
+            if initial_half_average_calculation_frequency == 0:
+                break
+
+        if debug:
+            print(latest_two_half_average_indices)
+
+        if len(latest_two_half_average_indices) < 2:
+            return signal_detected_index, data
+
+        # setting the INCREMENT_PER_TIME_PERIOD
+        current_increment_per_time_period_index = processing_start_index
+        data.at[
+            current_increment_per_time_period_index, "INCREMENT_PER_TIME_PERIOD"
+        ] = (
+            data.at[latest_two_half_average_indices[1], "HALF_AVERAGE"]
+            - data.at[latest_two_half_average_indices[0], "HALF_AVERAGE"]
+        ) / half_average_point
+
+        # compute entire central line
+
+        # set the values at the indices of half average
+        data.at[latest_two_half_average_indices[0], "CENTRAL_LINE"] = data.at[
+            latest_two_half_average_indices[0], "HALF_AVERAGE"
+        ]
+        data.at[latest_two_half_average_indices[1], "CENTRAL_LINE"] = data.at[
+            latest_two_half_average_indices[1], "HALF_AVERAGE"
+        ]
+
+        # set the first value:
+        data.at[processing_start_index, "CENTRAL_LINE"] = data.at[
+            latest_two_half_average_indices[0], "CENTRAL_LINE"
+        ] - (
+            (half_average_point // 2)
+            * data.at[
+                current_increment_per_time_period_index, "INCREMENT_PER_TIME_PERIOD"
+            ]
+        )
+
+        for processing_start_index_rolling, row in data[
+            processing_start_index:
+        ].iterrows():
+            if processing_start_index_rolling == processing_start_index:
+                continue
+            data.at[processing_start_index_rolling, "CENTRAL_LINE"] = (
+                data.at[
+                    current_increment_per_time_period_index, "INCREMENT_PER_TIME_PERIOD"
+                ]
+                + data.at[int(processing_start_index_rolling) - 1, "CENTRAL_LINE"]
+            )
+
+        # compute the average moving ranges
+        average_moving_range = 0
+        average_moving_range_row_count = 0
+        for processing_start_index_rolling, row in data[
+            processing_start_index:
+        ].iterrows():
+            if processing_start_index_rolling == 0:
+                continue
+            average_moving_range += data.at[
+                processing_start_index_rolling, "MOVING_RANGES"
+            ]
+            average_moving_range_row_count += 1
+
+            if average_moving_range_row_count == (half_average_point + 1):
+                if debug:
+                    print(
+                        "average_moving_range: ",
+                        average_moving_range,
+                        half_average_point + 1,
+                    )
+                average_moving_range = average_moving_range / (half_average_point + 1)
+                break
+
+        data["AVERAGE_MOVING_RANGE"][processing_start_index:] = average_moving_range
+
+        # compute the UCL & LCL
+        data["LCL"][processing_start_index:] = data.apply(
+            lambda row: max(
+                row["CENTRAL_LINE"] - row["AVERAGE_MOVING_RANGE"] * 2.66, 0
+            ),
+            axis=1,
+        )[processing_start_index:]
+        data["UCL"][processing_start_index:] = data.apply(
+            lambda row: row["CENTRAL_LINE"] + row["AVERAGE_MOVING_RANGE"] * 2.66, axis=1
+        )[processing_start_index:]
+
+        # now start scanning for signal
+        consecutive_above_central_line_count = 0
+        consecutive_below_central_line_count = 0
+        values_above_or_below_central_line = []
+        closer_to_ucl_or_lcl_than_central_line_count = []
+        is_signal_detected = False
+
+        for processing_start_index_rolling, row in data[
+            processing_start_index:
+        ].iterrows():
+
+            if (
+                data.at[processing_start_index_rolling, "METRIC_VALUE"]
+                > data.at[processing_start_index_rolling, "UCL"]
+                or data.at[processing_start_index_rolling, "METRIC_VALUE"]
+                < data.at[processing_start_index_rolling, "LCL"]
+            ):
+                # SIGNAL DETECTED
+                signal_detected_index = processing_start_index_rolling
+                data.at[processing_start_index_rolling, "SIGNAL_DETECTED"] = "rule_1"
+                is_signal_detected = True
+                break
+
+            if (
+                data.at[processing_start_index_rolling, "METRIC_VALUE"]
+                > data.at[processing_start_index_rolling, "UCL"]
+            ):
+                consecutive_above_central_line_count += 1
+                consecutive_below_central_line_count = 0
+
+            if (
+                data.at[processing_start_index_rolling, "METRIC_VALUE"]
+                < data.at[processing_start_index_rolling, "LCL"]
+            ):
+                consecutive_below_central_line_count += 1
+                consecutive_above_central_line_count = 0
+
+            if (
+                consecutive_above_central_line_count == 7
+                or consecutive_below_central_line_count == 7
+            ):
+                # SIGNAL DETECTED
+                signal_detected_index = processing_start_index_rolling
+                data.at[processing_start_index_rolling, "SIGNAL_DETECTED"] = "rule_2"
+                is_signal_detected = True
+                break
+
+            if abs(
+                data.at[processing_start_index_rolling, "METRIC_VALUE"]
+                - data.at[processing_start_index_rolling, "UCL"]
+            ) < abs(
+                data.at[processing_start_index_rolling, "METRIC_VALUE"]
+                - data.at[processing_start_index_rolling, "CENTRAL_LINE"]
+            ) or abs(
+                data.at[processing_start_index_rolling, "METRIC_VALUE"]
+                - data.at[processing_start_index_rolling, "LCL"]
+            ) < abs(
+                data.at[processing_start_index_rolling, "METRIC_VALUE"]
+                - data.at[processing_start_index_rolling, "CENTRAL_LINE"]
+            ):
+                closer_to_ucl_or_lcl_than_central_line_count.append("y")
+            else:
+                closer_to_ucl_or_lcl_than_central_line_count.append("n")
+
+            # check the last 4 values in the array closer_to_ucl_or_lcl_than_central_line_count:
+            if len(closer_to_ucl_or_lcl_than_central_line_count) >= 4:
+                if closer_to_ucl_or_lcl_than_central_line_count[-4:].count("y"):
+                    # SIGNAL DETECTED
+                    signal_detected_index = processing_start_index_rolling
+                    data.at[processing_start_index_rolling, "SIGNAL_DETECTED"] = (
+                        "rule_3"
+                    )
+                    is_signal_detected = True
+                    break
+
+            if (
+                data.at[processing_start_index_rolling, "METRIC_VALUE"]
+                > data.at[processing_start_index_rolling, "CENTRAL_LINE"]
+            ):
+                values_above_or_below_central_line.append("a")
+            elif (
+                data.at[processing_start_index_rolling, "METRIC_VALUE"]
+                < data.at[processing_start_index_rolling, "CENTRAL_LINE"]
+            ):
+                values_above_or_below_central_line.append("b")
+
+            # check if 10 out of last 12 values - all are above or below central line
+            if (
+                values_above_or_below_central_line[-12:].count("a") >= 10
+                or values_above_or_below_central_line[-12:].count("b") >= 10
+            ):
+                # SIGNAL DETECTED
+                signal_detected_index = processing_start_index_rolling
+                data.at[processing_start_index_rolling, "SIGNAL_DETECTED"] = "rule_4"
+                is_signal_detected = True
+                break
+
+        if debug:
+            signal_detected_index = 22
+
+        if not is_signal_detected:
+            signal_detected_index = -1
+
+        return signal_detected_index, data
+
+    def process_control(
+        self,
+        data: pd.DataFrame,
+        metric_id: str,
+        start_date: pd.Timestamp,
+        end_date: pd.Timestamp,
+        grain: str,
+        debug: bool = False,
+    ) -> dict:
+        """
+        Implement the process control for the given list of metric values.
+
+        param:
+            metrid_id: given metric_id in string format
+            start_date = pd.to_datetime(start_date, format="%Y-%m-%d")
+            end_date = pd.to_datetime(end_date, format="%Y-%m-%d")
+            grain: Can be "DAY", "WEEK", "MONTH", and "QUARTER".
+
+        NOTES:
+             1. For any grain, there should be a 1:1 mapping between the grain and the metric value.
+             2. Before passing the data to this function, it should be filtered on metric_id, start_date, and end_date.
+             For example - please have a look the file core/data/process_control.csv to check how the data should look like.
+             3. Data should be in the sorted order of GRAIN used.
+
+        response:
+            A dict having:
+                1. Half averages: numpy array
+                2. Central Line: numpy array
+                3. UCL: numpy array
+                4. LCL: numpy array
+                (additional information on the above-mentioned columns mentioned
+                 in the blog - https://www.staceybarr.com/measure-up/interpreting-signals-in-trending-kpis/)
+                5. date: string - value of the 1st row of the column 'GRAIN'
+                6. grain: string - the grain on which we want to apply the process control. Can be DAY, WEEK, MONTH, QUARTER
+                7. start_date: string - the start date from the data has been filtered
+                8. end_date: string - the end date from the data has been filtered
+                9. metric_id: string - the metric_id on which the data has been filtered
+
+        Example usage:
+
+            from core.fulcrum_core import AnalysisManager
+            analysis_manager = AnalysisManager()
+            response = analysis_manager.process_control(data, "","","","MONTH" , debug=False)
+            print("Test file response:\n", response)
+
+        """
+        data.index = data.index.astype(int)
+        data["METRIC_VALUE"] = pd.to_numeric(data["METRIC_VALUE"], errors="coerce")
+        data = data.drop_duplicates(subset=["GRAIN"]).reset_index(
+            drop=True
+        )  # ensuring 1:1 mapping
+
+        data["HALF_AVERAGE"] = np.nan
+        data["INCREMENT_PER_TIME_PERIOD"] = np.nan
+        data["CENTRAL_LINE"] = np.nan
+        half_average_point = 9
+        data["AVERAGE_MOVING_RANGE"] = np.nan
+        data["UCL"] = np.nan
+        data["LCL"] = np.nan
+        data["SIGNAL_DETECTED"] = ""
+
+        # compute the moving ranges
+        data["MOVING_RANGES"] = data["METRIC_VALUE"].diff().abs()
+
+        signal_detected_index = 0
+
+        signal_detected_index, data = self._apply_process_control_from_index(
+            data, half_average_point, signal_detected_index, debug=debug
+        )
+        while signal_detected_index != -1:
+            signal_detected_index, data = self._apply_process_control_from_index(
+                data, half_average_point, signal_detected_index, debug=debug
+            )
+            if debug:
+                print("Signal detected index: ", signal_detected_index)
+                break
+
+        if debug:
+            print(data)
+        return {
+            "metric_id": metric_id,
+            "start_date": start_date,
+            "end_date": end_date,
+            "grain": grain,
+            "date": data.at[0, "GRAIN"],
+            "half_average": data["HALF_AVERAGE"].to_numpy(),
+            "central_line": data["CENTRAL_LINE"].to_numpy(),
+            "ucl": data["UCL"].to_numpy(),
+            "lcl": data["LCL"].to_numpy(),
+        }
