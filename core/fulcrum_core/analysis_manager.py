@@ -1,12 +1,15 @@
+import logging
 from datetime import date
 from itertools import combinations
+from typing import Tuple
 
 import numpy as np
 import pandas as pd
-
 import warnings
 
 warnings.simplefilter(action="ignore", category=FutureWarning)
+logging.basicConfig(level=logging.DEBUG)
+logger = logging.getLogger(__name__)
 
 
 class AnalysisManager:
@@ -32,7 +35,7 @@ class AnalysisManager:
             start_date = "2024-01-01"
             end_date = "2024-04-30"
             metric_id = "5"
-            dimensions = ["Proabability to Close Tier", "Owning Org", "Creating Org"]
+            dimensions = ["Probability to Close Tier", "Owning Org", "Creating Org"]
 
             start_date = pd.to_datetime(start_date, format='%Y-%m-%d')
             end_date = pd.to_datetime(end_date, format='%Y-%m-%d')
@@ -192,7 +195,7 @@ class AnalysisManager:
         half_average_point: int,
         processing_start_index: int,
         debug: bool = False,
-    ) -> (pd.DataFrame, int):
+    ) -> Tuple[int, pd.DataFrame]:
 
         signal_detected_index = -1
 
@@ -207,20 +210,14 @@ class AnalysisManager:
         initial_half_average_calculation_frequency = 2
         latest_two_half_average_indices = []
 
-        for processing_start_index_rolling, row in data[
-            processing_start_index:
-        ].iterrows():
+        for _, row in data[processing_start_index:].iterrows():
             half_average += row["METRIC_VALUE"]
             row_count += 1
 
             if row_count % half_average_point == 0:
                 latest_two_half_average_indices.append(int(current_half_average_index))
-                data.at[current_half_average_index, "HALF_AVERAGE"] = (
-                    half_average / half_average_point
-                )
-                data.at[current_half_average_index, "CENTRAL_LINE"] = (
-                    half_average / half_average_point
-                )
+                data.at[current_half_average_index, "HALF_AVERAGE"] = half_average / half_average_point
+                data.at[current_half_average_index, "CENTRAL_LINE"] = half_average / half_average_point
                 current_half_average_index += half_average_point
                 half_average = 0
                 initial_half_average_calculation_frequency -= 1
@@ -229,16 +226,14 @@ class AnalysisManager:
                 break
 
         if debug:
-            print(latest_two_half_average_indices)
+            logger.debug(latest_two_half_average_indices)
 
         if len(latest_two_half_average_indices) < 2:
             return signal_detected_index, data
 
         # setting the INCREMENT_PER_TIME_PERIOD
         current_increment_per_time_period_index = processing_start_index
-        data.at[
-            current_increment_per_time_period_index, "INCREMENT_PER_TIME_PERIOD"
-        ] = (
+        data.at[current_increment_per_time_period_index, "INCREMENT_PER_TIME_PERIOD"] = (
             data.at[latest_two_half_average_indices[1], "HALF_AVERAGE"]
             - data.at[latest_two_half_average_indices[0], "HALF_AVERAGE"]
         ) / half_average_point
@@ -256,55 +251,40 @@ class AnalysisManager:
         # set the first value:
         data.at[processing_start_index, "CENTRAL_LINE"] = data.at[
             latest_two_half_average_indices[0], "CENTRAL_LINE"
-        ] - (
-            (half_average_point // 2)
-            * data.at[
-                current_increment_per_time_period_index, "INCREMENT_PER_TIME_PERIOD"
-            ]
-        )
+        ] - ((half_average_point // 2) * data.at[current_increment_per_time_period_index, "INCREMENT_PER_TIME_PERIOD"])
 
-        for processing_start_index_rolling, row in data[
-            processing_start_index:
-        ].iterrows():
+        for processing_start_index_rolling, _ in data[processing_start_index:].iterrows():
             if processing_start_index_rolling == processing_start_index:
                 continue
+
             data.at[processing_start_index_rolling, "CENTRAL_LINE"] = (
-                data.at[
-                    current_increment_per_time_period_index, "INCREMENT_PER_TIME_PERIOD"
-                ]
-                + data.at[int(processing_start_index_rolling) - 1, "CENTRAL_LINE"]
+                data.at[current_increment_per_time_period_index, "INCREMENT_PER_TIME_PERIOD"]
+                # ruff-ignore[call-overload]
+                + data.at[processing_start_index_rolling - 1, "CENTRAL_LINE"]  # type: ignore
             )
 
         # compute the average moving ranges
-        average_moving_range = 0
+        average_moving_range: float = 0.0
         average_moving_range_row_count = 0
-        for processing_start_index_rolling, row in data[
-            processing_start_index:
-        ].iterrows():
+        for processing_start_index_rolling, _ in data[processing_start_index:].iterrows():
             if processing_start_index_rolling == 0:
                 continue
-            average_moving_range += data.at[
-                processing_start_index_rolling, "MOVING_RANGES"
-            ]
+            average_moving_range += data.at[processing_start_index_rolling, "MOVING_RANGES"]
             average_moving_range_row_count += 1
 
             if average_moving_range_row_count == (half_average_point + 1):
                 if debug:
-                    print(
-                        "average_moving_range: ",
-                        average_moving_range,
-                        half_average_point + 1,
+                    logger.debug(
+                        "average_moving_range: " + str(average_moving_range) + " " + str(half_average_point + 1),
                     )
-                average_moving_range = average_moving_range / (half_average_point + 1)
+                average_moving_range = float(average_moving_range) / float(half_average_point + 1)
                 break
 
         data["AVERAGE_MOVING_RANGE"][processing_start_index:] = average_moving_range
 
         # compute the UCL & LCL
         data["LCL"][processing_start_index:] = data.apply(
-            lambda row: max(
-                row["CENTRAL_LINE"] - row["AVERAGE_MOVING_RANGE"] * 2.66, 0
-            ),
+            lambda row: max(row["CENTRAL_LINE"] - row["AVERAGE_MOVING_RANGE"] * 2.66, 0),
             axis=1,
         )[processing_start_index:]
         data["UCL"][processing_start_index:] = data.apply(
@@ -318,55 +298,43 @@ class AnalysisManager:
         closer_to_ucl_or_lcl_than_central_line_count = []
         is_signal_detected = False
 
-        for processing_start_index_rolling, row in data[
-            processing_start_index:
-        ].iterrows():
+        for processing_start_index_rolling, _ in data[processing_start_index:].iterrows():
 
             if (
-                data.at[processing_start_index_rolling, "METRIC_VALUE"]
-                > data.at[processing_start_index_rolling, "UCL"]
+                data.at[processing_start_index_rolling, "METRIC_VALUE"] > data.at[processing_start_index_rolling, "UCL"]
                 or data.at[processing_start_index_rolling, "METRIC_VALUE"]
                 < data.at[processing_start_index_rolling, "LCL"]
             ):
                 # SIGNAL DETECTED
-                signal_detected_index = processing_start_index_rolling
+                # ruff-ignore[call-overload]
+                signal_detected_index = int(processing_start_index_rolling)  # type: ignore
                 data.at[processing_start_index_rolling, "SIGNAL_DETECTED"] = "rule_1"
                 is_signal_detected = True
                 break
 
-            if (
-                data.at[processing_start_index_rolling, "METRIC_VALUE"]
-                > data.at[processing_start_index_rolling, "UCL"]
-            ):
+            if data.at[processing_start_index_rolling, "METRIC_VALUE"] > data.at[processing_start_index_rolling, "UCL"]:
                 consecutive_above_central_line_count += 1
                 consecutive_below_central_line_count = 0
 
-            if (
-                data.at[processing_start_index_rolling, "METRIC_VALUE"]
-                < data.at[processing_start_index_rolling, "LCL"]
-            ):
+            if data.at[processing_start_index_rolling, "METRIC_VALUE"] < data.at[processing_start_index_rolling, "LCL"]:
                 consecutive_below_central_line_count += 1
                 consecutive_above_central_line_count = 0
 
-            if (
-                consecutive_above_central_line_count == 7
-                or consecutive_below_central_line_count == 7
-            ):
+            if consecutive_above_central_line_count == 7 or consecutive_below_central_line_count == 7:
                 # SIGNAL DETECTED
-                signal_detected_index = processing_start_index_rolling
+                # ruff-ignore[call-overload]
+                signal_detected_index = int(processing_start_index_rolling)  # type: ignore
                 data.at[processing_start_index_rolling, "SIGNAL_DETECTED"] = "rule_2"
                 is_signal_detected = True
                 break
 
             if abs(
-                data.at[processing_start_index_rolling, "METRIC_VALUE"]
-                - data.at[processing_start_index_rolling, "UCL"]
+                data.at[processing_start_index_rolling, "METRIC_VALUE"] - data.at[processing_start_index_rolling, "UCL"]
             ) < abs(
                 data.at[processing_start_index_rolling, "METRIC_VALUE"]
                 - data.at[processing_start_index_rolling, "CENTRAL_LINE"]
             ) or abs(
-                data.at[processing_start_index_rolling, "METRIC_VALUE"]
-                - data.at[processing_start_index_rolling, "LCL"]
+                data.at[processing_start_index_rolling, "METRIC_VALUE"] - data.at[processing_start_index_rolling, "LCL"]
             ) < abs(
                 data.at[processing_start_index_rolling, "METRIC_VALUE"]
                 - data.at[processing_start_index_rolling, "CENTRAL_LINE"]
@@ -379,10 +347,9 @@ class AnalysisManager:
             if len(closer_to_ucl_or_lcl_than_central_line_count) >= 4:
                 if closer_to_ucl_or_lcl_than_central_line_count[-4:].count("y"):
                     # SIGNAL DETECTED
-                    signal_detected_index = processing_start_index_rolling
-                    data.at[processing_start_index_rolling, "SIGNAL_DETECTED"] = (
-                        "rule_3"
-                    )
+                    # ruff-ignore[call-overload]
+                    signal_detected_index = int(processing_start_index_rolling)  # type: ignore
+                    data.at[processing_start_index_rolling, "SIGNAL_DETECTED"] = "rule_3"
                     is_signal_detected = True
                     break
 
@@ -403,7 +370,8 @@ class AnalysisManager:
                 or values_above_or_below_central_line[-12:].count("b") >= 10
             ):
                 # SIGNAL DETECTED
-                signal_detected_index = processing_start_index_rolling
+                # ruff-ignore[call-overload]
+                signal_detected_index = int(processing_start_index_rolling)  # type: ignore
                 data.at[processing_start_index_rolling, "SIGNAL_DETECTED"] = "rule_4"
                 is_signal_detected = True
                 break
@@ -429,7 +397,7 @@ class AnalysisManager:
         Implement the process control for the given list of metric values.
 
         param:
-            metrid_id: given metric_id in string format
+            metric_id: given metric_id in string format
             start_date = pd.to_datetime(start_date, format="%Y-%m-%d")
             end_date = pd.to_datetime(end_date, format="%Y-%m-%d")
             grain: Can be "DAY", "WEEK", "MONTH", and "QUARTER".
@@ -437,7 +405,7 @@ class AnalysisManager:
         NOTES:
              1. For any grain, there should be a 1:1 mapping between the grain and the metric value.
              2. Before passing the data to this function, it should be filtered on metric_id, start_date, and end_date.
-             For example - please have a look the file core/data/process_control.csv to check how the data should look like.
+             For e.g.: please have a look the file core/data/process_control.csv to check how the data should look like.
              3. Data should be in the sorted order of GRAIN used.
 
         response:
@@ -449,7 +417,8 @@ class AnalysisManager:
                 (additional information on the above-mentioned columns mentioned
                  in the blog - https://www.staceybarr.com/measure-up/interpreting-signals-in-trending-kpis/)
                 5. date: string - value of the 1st row of the column 'GRAIN'
-                6. grain: string - the grain on which we want to apply the process control. Can be DAY, WEEK, MONTH, QUARTER
+                6. grain: string - the grain on which we want to apply the process control. Can be DAY, WEEK, MONTH,
+                    and QUARTER
                 7. start_date: string - the start date from the data has been filtered
                 8. end_date: string - the end date from the data has been filtered
                 9. metric_id: string - the metric_id on which the data has been filtered
@@ -459,14 +428,12 @@ class AnalysisManager:
             from core.fulcrum_core import AnalysisManager
             analysis_manager = AnalysisManager()
             response = analysis_manager.process_control(data, "","","","MONTH" , debug=False)
-            print("Test file response:\n", response)
+            logger.debug("Test file response:\n", response)
 
         """
         data.index = data.index.astype(int)
         data["METRIC_VALUE"] = pd.to_numeric(data["METRIC_VALUE"], errors="coerce")
-        data = data.drop_duplicates(subset=["GRAIN"]).reset_index(
-            drop=True
-        )  # ensuring 1:1 mapping
+        data = data.drop_duplicates(subset=["GRAIN"]).reset_index(drop=True)  # ensuring 1:1 mapping
 
         data["HALF_AVERAGE"] = np.nan
         data["INCREMENT_PER_TIME_PERIOD"] = np.nan
@@ -490,11 +457,11 @@ class AnalysisManager:
                 data, half_average_point, signal_detected_index, debug=debug
             )
             if debug:
-                print("Signal detected index: ", signal_detected_index)
+                logger.debug("Signal detected index: " + str(signal_detected_index))
                 break
 
         if debug:
-            print(data)
+            logger.debug(data)
         return {
             "metric_id": metric_id,
             "start_date": start_date,
