@@ -1,9 +1,8 @@
 from __future__ import annotations
 
 import importlib
-import secrets
 from pathlib import Path
-from typing import List, Optional
+from typing import Annotated
 
 import httpx
 import typer
@@ -11,23 +10,13 @@ import uvicorn
 from alembic import command
 from alembic.config import Config
 from alembic.util import CommandError
-from typing_extensions import Annotated
 
-from app.config import settings
-from app.db.config import MODEL_PATHS
+from analysis_manager.config import settings
+from analysis_manager.db.config import MODEL_PATHS
 
 cli = typer.Typer()
 db_cli = typer.Typer()
 cli.add_typer(db_cli, name="db")
-
-
-@cli.command("format")
-def format_code():
-    """Format code using black and isort."""
-    import subprocess
-
-    subprocess.run(["isort", "."])
-    subprocess.run(["black", "."])
 
 
 @db_cli.command("upgrade")
@@ -39,7 +28,7 @@ def migrate_db(rev: str = "head", config_file: Path = Path("alembic.ini")):
         command.upgrade(config, rev)
     except CommandError as exc:
         typer.secho(f"Error: {exc}", fg=typer.colors.RED, bold=True)
-        raise typer.Exit(code=1)
+        raise typer.Exit(code=1) from exc
 
 
 @db_cli.command("downgrade")
@@ -51,7 +40,7 @@ def downgrade_db(rev: str = "head", config_file: Path = Path("alembic.ini")):
         command.downgrade(config, rev)
     except CommandError as exc:
         typer.secho(f"Error: {exc}", fg=typer.colors.RED, bold=True)
-        raise typer.Exit(code=1)
+        raise typer.Exit(code=1) from exc
 
 
 @db_cli.command("show")
@@ -62,16 +51,16 @@ def show_migration(config_file: Path = Path("alembic.ini"), rev: str = "head") -
         command.show(config, rev)
     except CommandError as exc:
         typer.secho(f"Error: {exc}", fg=typer.colors.RED, bold=True)
-        raise typer.Exit(code=1)
+        raise typer.Exit(code=1) from exc
 
 
 @db_cli.command("merge")
 def merge_migrations(
-    revisions: List[str],
+    revisions: list[str],
     config_file: Path = Path("alembic.ini"),
-    message: Annotated[Optional[str], typer.Argument()] = None,
-    branch_label: Annotated[Optional[List[str]], typer.Argument()] = None,
-    rev_id: Annotated[Optional[str], typer.Argument()] = None,
+    message: Annotated[str | None, typer.Argument()] = None,
+    branch_label: Annotated[list[str] | None, typer.Argument()] = None,
+    rev_id: Annotated[str | None, typer.Argument()] = None,
 ):
     """Merge two revisions, creating a new migration file"""
     config = Config(config_file)
@@ -85,19 +74,19 @@ def merge_migrations(
         )
     except CommandError as exc:
         typer.secho(f"Error: {exc}", fg=typer.colors.RED, bold=True)
-        raise typer.Exit(code=1)
+        raise typer.Exit(code=1) from exc
 
 
 @db_cli.command("revision")
 def create_alembic_revision(
-    message: str = None,
+    message: str | None = None,
     config_file: Path = Path("alembic.ini"),
     autogenerate: bool = True,
     head: str = "head",
     splice: bool = False,
-    version_path: Annotated[Optional[str], typer.Argument()] = None,
-    rev_id: Annotated[Optional[str], typer.Argument()] = None,
-    depends_on: Annotated[Optional[str], typer.Argument()] = None,
+    version_path: Annotated[str | None, typer.Argument()] = None,
+    rev_id: Annotated[str | None, typer.Argument()] = None,
+    depends_on: Annotated[str | None, typer.Argument()] = None,
 ) -> None:
     """Create a new Alembic revision"""
     # Import all the models to be able to autogenerate migrations
@@ -117,7 +106,7 @@ def create_alembic_revision(
         )
     except CommandError as exc:
         typer.secho(f"Error: {exc}", fg=typer.colors.RED, bold=True)
-        raise typer.Exit(code=1)
+        raise typer.Exit(code=1) from exc
 
 
 @cli.command("run-local-server")
@@ -128,9 +117,8 @@ def run_server(
     reload: bool = True,
 ):
     """Run the API development server(uvicorn)."""
-    migrate_db()
     uvicorn.run(
-        "app.main:app",
+        "analysis_manager.main:app",
         host=host,
         port=port,
         log_level=log_level,
@@ -144,9 +132,7 @@ def run_prod_server():
     from gunicorn import util
     from gunicorn.app.base import Application
 
-    config_file = str(
-        settings.PATHS.ROOT_DIR.joinpath("gunicorn.conf.py").resolve(strict=True)
-    )
+    config_file = str(settings.PATHS.ROOT_DIR.joinpath("gunicorn.conf.py").resolve(strict=True))
 
     class APPServer(Application):
         def init(self, parser, opts, args):
@@ -156,7 +142,7 @@ def run_prod_server():
             self.load_config_from_file(config_file)
 
         def load(self):
-            return util.import_app("app.main:app")
+            return util.import_app("analysis_manager.main:app")
 
     migrate_db()
     APPServer().run()
@@ -166,7 +152,7 @@ def run_prod_server():
 def start_app(app_name: str):
     """Create a new fastapi component, similar to django startapp"""
     package_name = app_name.lower().strip().replace(" ", "_").replace("-", "_")
-    app_dir = settings.BASE_DIR / package_name
+    app_dir = settings.PATHS.BASE_DIR / package_name
     files = {
         "__init__.py": "",
         "models/__init__.py": "",
@@ -189,19 +175,13 @@ def shell():
     """Opens an interactive shell with objects auto imported"""
     try:
         from IPython import start_ipython
-    except ImportError:
+    except ImportError as exc:
         typer.secho(
             "Install iPython using `poetry add ipython` to use this feature.",
             fg=typer.colors.RED,
         )
-        raise typer.Exit()
+        raise typer.Exit() from exc
     start_ipython(argv=[])
-
-
-@cli.command("secret-key")
-def secret_key():
-    """Generate a secret key for your application"""
-    typer.secho(f"{secrets.token_urlsafe(64)}", fg=typer.colors.GREEN)
 
 
 @cli.command()
@@ -211,13 +191,9 @@ def info():
         try:
             resp = client.get("/health", follow_redirects=True)
         except httpx.ConnectError:
-            app_health = typer.style(
-                "❌ API is not responding", fg=typer.colors.RED, bold=True
-            )
+            app_health = typer.style("❌ API is not responding", fg=typer.colors.RED, bold=True)
         else:
-            app_health = "\n".join(
-                [f"{key.upper()}={value}" for key, value in resp.json().items()]
-            )
+            app_health = "\n".join([f"{key.upper()}={value}" for key, value in resp.json().items()])
 
     envs = "\n".join([f"{key}={value}" for key, value in settings.dict().items()])
     title = typer.style("===> APP INFO <==============\n", fg=typer.colors.BLUE)

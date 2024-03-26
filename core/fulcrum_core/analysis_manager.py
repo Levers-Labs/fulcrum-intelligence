@@ -1,5 +1,5 @@
+from datetime import date
 from itertools import combinations
-from typing import List
 
 import numpy as np
 import pandas as pd
@@ -14,7 +14,7 @@ class AnalysisManager:
     Core class for implementing all major functions for analysis manager
     """
 
-    def describe(self, data: pd.DataFrame) -> List[dict]:
+    def describe(self, data: pd.DataFrame) -> list[dict]:
         """
         Describe the data
 
@@ -49,22 +49,23 @@ class AnalysisManager:
 
         sample response:
             [{'DIMENSION_NAME': 'Creating Org', 'SLICE': 'NA Sales', 'mean': 4.0, 'std': nan, 'p25': 4.0, 'p50': 4.0,
-             'p75': 4.0, 'p90': 4.0, 'p95': 4.0, 'p99': 4.0, 'min': 4.0, 'max': 4.0, 'variance': nan, 'count': 1.0, 'sum': 4.0, 'unique': 1},
+             'p75': 4.0, 'p90': 4.0, 'p95': 4.0, 'p99': 4.0, 'min': 4.0, 'max': 4.0, 'variance': nan, 'count': 1.0,
+             'sum': 4.0, 'unique': 1},
 
             {'DIMENSION_NAME': 'Creating Org', 'SLICE': 'Other', 'mean': 50.0, 'std': nan, 'p25': 50.0, 'p50': 50.0,
-             'p75': 50.0, 'p90': 50.0, 'p95': 50.0, 'p99': 50.0, 'min': 50.0, 'max': 50.0, 'variance': nan, 'count': 1.0, 'sum': 50.0, 'unique': 1},
+             'p75': 50.0, 'p90': 50.0, 'p95': 50.0, 'p99': 50.0, 'min': 50.0, 'max': 50.0, 'variance': nan,
+             'count': 1.0, 'sum': 50.0, 'unique': 1},
 
             {'DIMENSION_NAME': 'Owning Org', 'SLICE': 'NA CSM', 'mean': 56.0, 'std': nan, 'p25': 56.0, 'p50': 56.0,
-             'p75': 56.0, 'p90': 56.0, 'p95': 56.0, 'p99': 56.0, 'min': 56.0, 'max': 56.0, 'variance': nan, 'count': 1.0, 'sum': 56.0, 'unique': 1}
+             'p75': 56.0, 'p90': 56.0, 'p95': 56.0, 'p99': 56.0, 'min': 56.0, 'max': 56.0, 'variance': nan,
+             'count': 1.0, 'sum': 56.0, 'unique': 1}
             ]
         """
 
         grouped_data = data.groupby(["DIMENSION_NAME", "SLICE"])
-
+        metric_id = data["METRIC_ID"].iloc[0]
         # Calculate additional percentiles and variance for each group
-        grouped_stats = grouped_data["METRIC_VALUE"].describe(
-            percentiles=[0.25, 0.50, 0.75, 0.90, 0.95, 0.99]
-        )
+        grouped_stats = grouped_data["METRIC_VALUE"].describe(percentiles=[0.25, 0.50, 0.75, 0.90, 0.95, 0.99])
         grouped_stats["variance"] = grouped_data["METRIC_VALUE"].var()
         grouped_stats["sum"] = grouped_data["METRIC_VALUE"].sum()
         grouped_stats["unique"] = grouped_data["METRIC_VALUE"].unique()
@@ -76,16 +77,18 @@ class AnalysisManager:
         # Iterate through the grouped DataFrame
         for index, row in grouped_stats.iterrows():
             stats_dict = {
-                "DIMENSION_NAME": index[0],
-                "SLICE": index[1],
+                "metric_id": metric_id,
+                "dimension": index[0],  # type: ignore
+                "slice": index[1],  # type: ignore
                 "mean": row["mean"],
-                "std": row["std"],
-                "p25": row["25%"],
-                "p50": row["50%"],
-                "p75": row["75%"],
-                "p90": row["90%"],
-                "p95": row["95%"],
-                "p99": row["99%"],
+                "median": row["50%"],
+                "standard_deviation": row["std"],
+                "percentile_25": row["25%"],
+                "percentile_50": row["50%"],
+                "percentile_75": row["75%"],
+                "percentile_90": row["90%"],
+                "percentile_95": row["95%"],
+                "percentile_99": row["99%"],
                 "min": row["min"],
                 "max": row["max"],
                 "variance": row["variance"],
@@ -97,19 +100,12 @@ class AnalysisManager:
 
         return result
 
-    def correlate(
-        self,
-        data: pd.DataFrame,
-        metric_ids: List[str],
-        start_date: pd.Timestamp,
-        end_date: pd.Timestamp,
-    ) -> List[dict]:
+    def correlate(self, data: pd.DataFrame, start_date: date, end_date: date) -> list[dict]:
         """
         Compute the correlation between all the nC2 pairs generated from the given list metric_ids.
 
         param:
             data: pd.DataFrame. Already filtered on metric_ids, start_date, and end_date.
-            metric_ids: given list metric_ids.
             start_date: pandas timestamp formatted in YYYY-MM-DD
             end_date: pandas timestamp formatted in YYYY-MM-DD
 
