@@ -1,0 +1,46 @@
+[
+    {
+        "id": "region",
+        "label": "Region",
+        "reference": "region",
+        "definition": "Geographical area or division, especially part of a country or the world having definable characteristics but not always fixed boundaries.",
+        "members": [
+            "Asia",
+            "Europe",
+            "America"
+        ]
+    },
+    {
+        "id": "customer_segment",
+        "label": "Customer Segment",
+        "reference": "customer_segment",
+        "definition": "Group of customers with similar needs, behaviors, or characteristics that a company divides its customers into, for marketing and sales purposes.",
+        "members": [
+            "Enterprise",
+            "SMB",
+            "Startup"
+        ]
+    },
+    {
+        "id": "product",
+        "label": "Product",
+        "reference": "product",
+        "definition": "An item or service offered for sale. Products can be physical objects, services, or digital offerings.",
+        "members": [
+            "Product A",
+            "Product B",
+            "Product C"
+        ]
+    },
+    {
+        "id": "channel",
+        "label": "Channel",
+        "reference": "channel",
+        "definition": "A medium through which a company communicates or distributes its products or services, such as direct, indirect, online, or offline channels.",
+        "members": [
+            "Online",
+            "Retail",
+            "Wholesale"
+        ]
+    }
+]

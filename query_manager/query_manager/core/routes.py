@@ -1,69 +1,54 @@
-import datetime
-import json
 import logging
-from typing import Annotated, Any
 
-import aiofiles
-import pandas as pd
-from fastapi import APIRouter, Body
+from fastapi import APIRouter
 
-from query_manager.core.schemas import DimensionFilter, Metric
+from query_manager.core.dependencies import QueryClientDep
+from query_manager.core.schemas import (
+    Dimension,
+    DimensionDetail,
+    MetricDetail,
+    MetricList,
+)
 
 logger = logging.getLogger(__name__)
-router = APIRouter(prefix="/metrics", tags=["metrics"])
+router = APIRouter(prefix="")
 
 
-@router.post("/values", response_model=list[Metric])
-async def read_metric_values(
-    metric_ids: list[int],
-    start_date: Annotated[datetime.date, Body()],
-    end_date: Annotated[datetime.date, Body()],
-    dimensions: Annotated[
-        list[DimensionFilter] | None,
-        Body(
-            examples=[
-                [
-                    {
-                        "dimension": "Geosegmentation",
-                        "slices": ["Rest of World", "other"],
-                    },
-                    {
-                        "dimension": "Creating Org",
-                        "slices": [],
-                    },
-                ]
-            ]
-        ),
-    ] = None,
-) -> Any:
-    logger.debug("metric_ids: ", metric_ids)
-    logger.debug("start_date: ", start_date)
-    logger.debug("end_date: ", end_date)
-    logger.debug("dimensions: ", dimensions)
+@router.get("/metrics", response_model=list[MetricList], tags=["metrics"])
+async def list_metrics(client: QueryClientDep):
+    """
+    Retrieve a list of metrics.
+    """
+    return await client.list_metrics()
 
-    async with aiofiles.open("query_manager/core/data/metric_values.json") as f:
-        contents = await f.read()
-    metrics = json.loads(contents)
 
-    # prepare df and filter
-    metrics_df = pd.DataFrame(metrics)
+@router.get("/metrics/{metric_id}", response_model=MetricDetail, tags=["metrics"])
+async def get_metric(metric_id: str, client: QueryClientDep):
+    """
+    Retrieve a metric by ID.
+    """
+    return await client.get_metric_details(metric_id)
 
-    metrics_df["date"] = pd.to_datetime(metrics_df["date"]).dt.date
 
-    # filter by metric ids
-    metrics_df = metrics_df[metrics_df["id"].isin(metric_ids)]
-    metrics_df = metrics_df[(metrics_df["date"] >= start_date) & (metrics_df["date"] <= end_date)]
+@router.get("/dimensions", response_model=list[Dimension], tags=["dimensions"])
+async def list_dimensions(client: QueryClientDep):
+    """
+    Retrieve a list of dimensions.
+    """
+    return await client.list_dimensions()
 
-    # filter by dimensions
-    if not dimensions:
-        return metrics_df.to_dict(orient="records")
 
-    result_df = pd.DataFrame()
-    for dimension in dimensions:
-        slices = dimension.slices
-        _df = metrics_df[metrics_df["dimension"] == dimension.dimension]
-        if slices:
-            _df = metrics_df[metrics_df["slice"].isin(slices)]
-        result_df = pd.concat([result_df, _df])
+@router.get("/dimensions/{dimension_id}", response_model=DimensionDetail, tags=["dimensions"])
+async def get_dimension(dimension_id: str, client: QueryClientDep):
+    """
+    Retrieve a dimension by ID.
+    """
+    return await client.get_dimension_details(dimension_id)
 
-    return result_df.to_dict(orient="records")
+
+@router.get("/dimensions/{dimension_id}/members", response_model=list[str], tags=["dimensions"])
+async def get_dimension_members(dimension_id: str, client: QueryClientDep):
+    """
+    Retrieve members of a dimension by ID.
+    """
+    return await client.get_dimension_members(dimension_id)

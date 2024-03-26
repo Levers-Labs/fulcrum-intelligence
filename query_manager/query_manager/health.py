@@ -9,6 +9,7 @@ logger = logging.getLogger(__name__)
 
 class APIHealth(BaseModel):
     graph_api_is_online: bool = True
+    cube_api_is_online: bool = True
 
 
 @router.get(
@@ -26,7 +27,14 @@ async def check_health(response: Response):
         pass
     except Exception as e:
         health.graph_api_is_online = False
-        logger.exception("Connection failed: %s", e)
+        logger.exception("Graph API Connection failed: %s", e)
+
+    try:
+        # todo: check cube api availability
+        pass
+    except Exception as e:
+        health.cube_api_is_online = False
+        logger.exception("Cube API Connection failed: %s", e)
 
     if not all(health.dict().values()):
         response.status_code = status.HTTP_503_SERVICE_UNAVAILABLE
