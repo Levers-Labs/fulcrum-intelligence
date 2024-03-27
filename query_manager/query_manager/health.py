@@ -36,6 +36,6 @@ async def check_health(response: Response):
         health.cube_api_is_online = False
         logger.exception("Cube API Connection failed: %s", e)
 
-    if not all(health.dict().values()):
+    if not all(health.model_dump(mode="json").values()):
         response.status_code = status.HTTP_503_SERVICE_UNAVAILABLE
     return health

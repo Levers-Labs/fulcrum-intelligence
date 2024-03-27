@@ -56,3 +56,14 @@ else
 	@echo "Starting the shell for $(app)..."
 	@cd $(app) && python manage.py shell
 endif
+
+
+test:
+	@echo "Running Tests for $(app)..."
+	@cd $(app) && poetry run pytest --cov-report term-missing
+
+test-all:
+	@echo "Running all tests..."
+	@make test app=core
+	@make test app=query_manager
+	@make test app=analysis_manager
