@@ -59,7 +59,7 @@ jobs:
           export PYTHONPATH=`pwd`
           python manage.py lint --raise-error .
 
-#      - name: Run Unit Tests
-#        run: |
-#          export PYTHONPATH=`pwd`
-#          pytest --cov=app tests/ --cov-config=.coveragerc --cov-report xml
+      - name: Run Unit Tests
+        run: |
+          export PYTHONPATH=`pwd`
+          make test-all
