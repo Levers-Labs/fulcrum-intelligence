@@ -31,3 +31,8 @@ repos:
         entry: python manage.py lint --raise-error
         language: system
         files: \.py$
+      - id: unit-test
+        name: unit test (pytest)
+        entry: make test
+        language: system
+        files: \.py$
