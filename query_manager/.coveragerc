@@ -1,7 +1,8 @@
 [run]
 omit=
     # no need to data files
-    app/data/*
+    */data/*
+    query_manager/utilities/logger.py
 
 [report]
 fail_under = 80

@@ -57,10 +57,10 @@ else
 	@cd $(app) && python manage.py shell
 endif
 
-
+report ?= term-missing
 test:
 	@echo "Running Tests for $(app)..."
-	@cd $(app) && poetry run pytest --cov-report term-missing
+	@cd $(app) && poetry run pytest --cov-report $(report)
 
 test-all:
 	@echo "Running all tests..."
