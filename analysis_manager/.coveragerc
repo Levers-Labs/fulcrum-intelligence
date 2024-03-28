@@ -1,0 +1,22 @@
+[run]
+omit=
+    # no need to data files
+    */data/*
+    analysis_manager/utilities/logger.py
+
+[report]
+fail_under = 80
+# Regexes for lines to exclude from consideration
+exclude_lines =
+    # Don't complain about missing debug-only code:
+    def __repr__
+    def __str__
+    if self\.debug
+
+    # Don't complain if tests don't hit defensive assertion code:
+    raise AssertionError
+    raise NotImplementedError
+
+[html]
+title = Coverage Report
+directory = htmlcov
