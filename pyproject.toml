@@ -55,6 +55,10 @@ exclude = [
     "analysis_manager/gunicorn.conf.py",
     "query_manager/manage.py",
     "analysis_manager/manage.py",
+    # Tests
+    "query_manager/tests/",
+    "analysis_manager/tests/",
+    "core/tests/",
 ]
 
 [tool.ruff]
