@@ -33,6 +33,9 @@ class Settings(BaseSettings):
     SERVER_HOST: str | AnyHttpUrl
     PAGINATION_PER_PAGE: int = 20
 
+    AWS_BUCKET: str = "fulcrum-engine-metrics"
+    AWS_REGION: str = "us-east-1"
+
     BACKEND_CORS_ORIGINS: list[AnyHttpUrl] = []
 
     @field_validator("BACKEND_CORS_ORIGINS", mode="before")

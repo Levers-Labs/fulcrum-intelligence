@@ -25,6 +25,8 @@ def setup_env(session_monkeypatch):
     session_monkeypatch.setenv("ENV", "dev")
     session_monkeypatch.setenv("SECRET_KEY", "secret")
     session_monkeypatch.setenv("BACKEND_CORS_ORIGINS", '["http://localhost"]')
+    session_monkeypatch.setenv("AWS_BUCKET", "bucket")
+    session_monkeypatch.setenv("AWS_REGION", "region")
     yield
 
 
