@@ -6,7 +6,7 @@ from query_manager.config import get_settings
 from query_manager.core.routes import router as core_router
 from query_manager.health import router as health_check_router
 from query_manager.utilities.logger import setup_rich_logger
-from query_manager.utilities.middleware import process_time_log_middleware
+from query_manager.utilities.middleware import process_time_log_middleware, request_id_middleware
 
 
 def get_application() -> FastAPI:
@@ -26,6 +26,9 @@ def get_application() -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
+    # add request id middleware
+    _app.add_middleware(BaseHTTPMiddleware, dispatch=request_id_middleware)
+
     # add process time log middleware
     _app.add_middleware(BaseHTTPMiddleware, dispatch=process_time_log_middleware)
 

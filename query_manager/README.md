@@ -18,6 +18,8 @@ DEBUG=True
 SERVER_HOST=http://localhost:8000
 SECRET_KEY=qwtqwubYA0pN1GMmKsFKHMw_WCbboJvdTAgM9Fq
 BACKEND_CORS_ORIGINS=["http://localhost"]
+AWS_BUCKET=fulcrum-engine-metrics
+AWS_REGION=us-west-2
 ```
 
 ### Run the fastapi app

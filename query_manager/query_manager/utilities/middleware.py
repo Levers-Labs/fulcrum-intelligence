@@ -1,5 +1,6 @@
 import logging
 import time
+import uuid
 from collections.abc import Callable
 from typing import Any, TypeVar
 
@@ -25,5 +26,17 @@ async def process_time_log_middleware(request: Request, call_next: F) -> Respons
         response.status_code,
         process_time,
     )
+
+    return response
+
+
+async def request_id_middleware(request: Request, call_next: F) -> Response:
+    """
+    Add a unique request id to the request headers
+    """
+    request_id = str(uuid.uuid4())
+    request.state.request_id = request_id
+    response: Response = await call_next(request)
+    response.headers["X-Request-ID"] = request_id
 
     return response

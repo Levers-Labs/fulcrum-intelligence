@@ -8,7 +8,10 @@ from query_manager.core.schemas import (
     MetricDetail,
     MetricList,
 )
+from query_manager.services.parquet import ParquetService
 from query_manager.services.query_client import QueryClient
+from query_manager.services.s3 import NoSuchKeyError
+from query_manager.utilities.enums import TargetAim
 
 
 def test_health(client):
@@ -75,3 +78,99 @@ async def test_get_dimension_members(client, mocker, dimension):
     response = client.get(f"/v1/dimensions/{dimension_id}/members")
     assert response.status_code == 200
     assert response.json() == dimension["members"]
+
+
+@pytest.mark.asyncio
+async def test_get_metric_values(client, mocker):
+    # Mock dependencies
+    mock_get_metric_values = AsyncMock(return_value=[{"date": "2022-01-01", "value": 100}])
+    mocker.patch.object(QueryClient, "get_metric_values", mock_get_metric_values)
+
+    response = client.get("/v1/metrics/test_metric/values?start_date=2022-01-01&end_date=2022-01-31")
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "data": [
+            {
+                "date": "2022-01-01",
+                "value": 100,
+                "dimensions": None,
+                "metric_id": None,
+            },
+        ],
+        "url": None,
+    }
+    mock_get_metric_values.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_get_metric_values_parquet(client, mocker):
+    # Mock dependencies
+    mock_get_metric_values = AsyncMock(return_value=[{"date": "2022-01-01", "value": 100}])
+    mocker.patch.object(QueryClient, "get_metric_values", mock_get_metric_values)
+
+    mock_convert_and_upload = AsyncMock(return_value="http://file.parquet")
+    mocker.patch.object(ParquetService, "convert_and_upload", mock_convert_and_upload)
+
+    response = client.get(
+        "/v1/metrics/test_metric/values?start_date=2022-01-01&end_date=2022-01-31&output_format=Parquet"
+    )
+    assert response.status_code == 200
+    assert response.json() == {
+        "data": None,
+        "url": "http://file.parquet",
+    }
+    mock_get_metric_values.assert_awaited_once()
+    mock_convert_and_upload.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_get_metric_values_404(client, mocker):
+    # Mock the QueryClient's get_metric_values method
+    mock_get_metric_values = AsyncMock(side_effect=NoSuchKeyError(key="test_metric"))
+    mocker.patch.object(QueryClient, "get_metric_values", mock_get_metric_values)
+
+    response = client.get("/v1/metrics/test_metric/values?start_date=2022-01-01&end_date=2022-01-31")
+    assert response.status_code == 404
+    assert response.json() == {"detail": "Metric 'test_metric' not found."}
+    mock_get_metric_values.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_get_metric_targets(mocker, client):
+    # Mock dependencies
+    mock_get_metric_targets = AsyncMock(
+        return_value=[
+            {"id": "test_metric", "aim": TargetAim.MAXIMIZE, "target_value": 123, "target_date": "2022-01-01"}
+        ]
+    )
+    mocker.patch.object(QueryClient, "get_metric_targets", mock_get_metric_targets)
+
+    response = client.get("/v1/metrics/test_metric/targets?start_date=2022-01-01&end_date=2022-01-31")
+
+    assert response.status_code == 200
+    assert response.json() == [
+        {
+            "id": "test_metric",
+            "aim": "Maximize",
+            "target_value": 123,
+            "target_date": "2022-01-01",
+            "target_upper_bound": None,
+            "target_lower_bound": None,
+            "yellow_buffer": None,
+            "red_buffer": None,
+        },
+    ]
+    mock_get_metric_targets.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_get_metric_targets_404(client, mocker):
+    # Mock the QueryClient's get_metric_targets method
+    mock_get_metric_targets = AsyncMock(side_effect=NoSuchKeyError(key="test_metric"))
+    mocker.patch.object(QueryClient, "get_metric_targets", mock_get_metric_targets)
+
+    response = client.get("/v1/metrics/test_metric/targets?start_date=2022-01-01&end_date=2022-01-31")
+    assert response.status_code == 404
+    assert response.json() == {"detail": "Metric 'test_metric' not found."}
+    mock_get_metric_targets.assert_awaited_once()
