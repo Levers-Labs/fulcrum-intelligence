@@ -48,4 +48,16 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
 
-settings = Settings()  # type: ignore
+_settings: Settings | None = None
+
+
+def get_settings() -> Settings:
+    """
+    Get the settings an object.
+    A Lazy load of the settings object.
+    :return: Settings
+    """
+    global _settings
+    if _settings is None:
+        _settings = Settings()  # type: ignore
+    return _settings

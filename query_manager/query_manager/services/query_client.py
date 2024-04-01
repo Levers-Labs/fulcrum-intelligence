@@ -3,6 +3,8 @@ from typing import Any
 
 import aiofiles
 
+from query_manager.config import get_settings
+
 
 class QueryClient:
     """
@@ -10,8 +12,13 @@ class QueryClient:
     This will return metadata, values and graph data
     """
 
-    METRICS_FILE_PATH = "query_manager/data/metrics.json"
-    DIMENSIONS_FILE_PATH = "query_manager/data/dimensions.json"
+    METRICS_FILE_PATH = "data/metrics.json"
+    DIMENSIONS_FILE_PATH = "data/dimensions.json"
+
+    def __init__(self):
+        settings = get_settings()
+        self.metric_file_path = str(settings.PATHS.BASE_DIR.joinpath(self.METRICS_FILE_PATH))
+        self.dimension_file_path = str(settings.PATHS.BASE_DIR.joinpath(self.DIMENSIONS_FILE_PATH))
 
     @staticmethod
     async def load_data(file_path: str) -> list[dict[str, Any]]:
@@ -34,7 +41,7 @@ class QueryClient:
         :param per_page: Optional number of items per page for pagination.
         :return: A list of dictionaries representing metrics.
         """
-        metrics_data = await self.load_data(self.METRICS_FILE_PATH)
+        metrics_data = await self.load_data(self.metric_file_path)
         # Implement pagination logic here if necessary
         return metrics_data
 
@@ -45,7 +52,7 @@ class QueryClient:
         :param metric_id: The ID of the metric to fetch details for.
         :return: A dictionary representing the metric details, or None if not found.
         """
-        metrics_data = await self.load_data(self.METRICS_FILE_PATH)
+        metrics_data = await self.load_data(self.metric_file_path)
         return next((metric for metric in metrics_data if metric["id"] == metric_id), None)
 
     async def list_dimensions(self) -> list[dict[str, Any]]:
@@ -54,7 +61,7 @@ class QueryClient:
 
         :return: A list of dictionaries representing dimensions.
         """
-        dimensions_data = await self.load_data(self.DIMENSIONS_FILE_PATH)
+        dimensions_data = await self.load_data(self.dimension_file_path)
         return dimensions_data
 
     async def get_dimension_details(self, dimension_id: str) -> dict[str, Any] | None:
@@ -64,7 +71,7 @@ class QueryClient:
         :param dimension_id: The ID of the dimension to fetch details for.
         :return: A dictionary representing the dimension details, or None if not found.
         """
-        dimensions_data = await self.load_data(self.DIMENSIONS_FILE_PATH)
+        dimensions_data = await self.load_data(self.dimension_file_path)
         return next((dimension for dimension in dimensions_data if dimension["id"] == dimension_id), None)
 
     async def get_dimension_members(self, dimension_id: str) -> list[str]:
