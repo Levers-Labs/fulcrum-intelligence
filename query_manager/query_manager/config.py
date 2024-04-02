@@ -28,6 +28,7 @@ class Settings(BaseSettings):
     DEBUG: bool = False
     SECRET_KEY: str
     ENV: Environment = Environment.dev
+    OPENAPI_PREFIX: str | None = None
     LOGGING_LEVEL: str = "INFO"
 
     SERVER_HOST: str | AnyHttpUrl

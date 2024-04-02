@@ -20,6 +20,7 @@ SECRET_KEY=qwtqwubYA0pN1GMmKsFKHMw_WCbboJvdTAgM9Fq
 BACKEND_CORS_ORIGINS=["http://localhost"]
 AWS_BUCKET=fulcrum-engine-metrics
 AWS_REGION=us-west-2
+OPENAPI_PREFIX=/dev
 ```
 
 ### Run the fastapi app
