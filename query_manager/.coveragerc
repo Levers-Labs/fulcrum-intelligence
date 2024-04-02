@@ -3,6 +3,7 @@ omit=
     # no need to data files
     */data/*
     query_manager/utilities/logger.py
+    query_manager/utilities/docs.py
 
 [report]
 fail_under = 80

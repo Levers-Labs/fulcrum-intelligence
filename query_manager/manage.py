@@ -26,29 +26,6 @@ def run_server(
     )
 
 
-@cli.command("run-prod-server")
-def run_prod_server():
-    """Run the API production server(gunicorn)."""
-    from gunicorn import util
-    from gunicorn.app.base import Application
-
-    settings = get_settings()
-
-    config_file = str(settings.PATHS.ROOT_DIR.joinpath("gunicorn.conf.py").resolve(strict=True))
-
-    class APPServer(Application):
-        def init(self, parser, opts, args):
-            pass
-
-        def load_config(self):
-            self.load_config_from_file(config_file)
-
-        def load(self):
-            return util.import_app("query_manager.main:app")
-
-    APPServer().run()
-
-
 @cli.command("start-app")
 def start_app(app_name: str):
     """Create a new fastapi component, similar to django startapp"""
