@@ -1,29 +1,16 @@
-FROM python:3.10 as requirements-stage
+FROM public.ecr.aws/lambda/python:3.10
 
-WORKDIR /tmp
+# Install poetry
+RUN pip install --no-cache-dir --upgrade pip poetry
 
-RUN pip install poetry
-
-COPY ./pyproject.toml ./poetry.lock* /tmp/
-
+# Install dependencioes
+COPY ./pyproject.toml ./poetry.lock* ${LAMBDA_TASK_ROOT}/
 RUN poetry export -f requirements.txt --output requirements.txt --without-hashes
+RUN pip install --no-cache-dir --upgrade -r ${LAMBDA_TASK_ROOT}/requirements.txt
 
-FROM python:3.10-alpine
+# Copy code
+COPY query_manager/ ${LAMBDA_TASK_ROOT}/query_manager/
+COPY lambda.py ${LAMBDA_TASK_ROOT}/lambda.py
 
-WORKDIR /code
-
-RUN apk update \
-    && apk add --virtual build-deps build-base \
-    && apk add --no-cache libffi-dev \
-    && pip install --upgrade pip \
-    && python --version
-
-COPY --from=requirements-stage /tmp/requirements.txt /code/requirements.txt
-
-RUN pip install --no-cache-dir --upgrade -r /code/requirements.txt
-
-COPY . /code
-
-EXPOSE 8000
-
-CMD ["python", "manage.py", "run-prod-server"]
+# Set the CMD to your handler
+CMD ["lambda.handler"]

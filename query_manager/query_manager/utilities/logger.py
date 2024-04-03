@@ -4,7 +4,7 @@ from functools import lru_cache
 
 from pydantic import BaseModel
 
-from query_manager.config import Environment, settings
+from query_manager.config import Environment, get_settings
 
 DATE_FORMAT = "%Y-%m-%dT%H:%M:%S%z"
 LOGGER_FORMAT = "%(name)s | %(levelname)s | %(asctime)s | %(filename)s | %(funcName)s:%(lineno)d | %(message)s"
@@ -22,6 +22,7 @@ def get_logger_config():
     """Installs RichHandler (Rich library) if not in production
     environment, or use the production log configuration.
     """
+    settings = get_settings()
 
     if not settings.ENV == Environment.prod:
         from rich.logging import RichHandler

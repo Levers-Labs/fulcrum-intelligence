@@ -5,9 +5,10 @@ from typing import Generic, TypeVar
 from pydantic import BaseModel, Field
 from pydantic.generics import GenericModel
 
-from query_manager.config import settings
+from query_manager.config import get_settings
 
 T = TypeVar("T", bound=BaseModel)
+settings = get_settings()
 
 
 class Params(BaseModel):

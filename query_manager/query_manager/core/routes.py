@@ -1,69 +1,114 @@
-import datetime
-import json
 import logging
-from typing import Annotated, Any
+from typing import Annotated
 
-import aiofiles
-import pandas as pd
-from fastapi import APIRouter, Body
+from fastapi import (
+    APIRouter,
+    HTTPException,
+    Query,
+    Request,
+)
 
-from query_manager.core.schemas import DimensionFilter, Metric
+from query_manager.core.dependencies import ParquetServiceDep, QueryClientDep
+from query_manager.core.schemas import (
+    Dimension,
+    DimensionDetail,
+    MetricDetail,
+    MetricList,
+    MetricValueResponse,
+    Target,
+)
+from query_manager.services.s3 import NoSuchKeyError
+from query_manager.utilities.enums import OutputFormat
 
 logger = logging.getLogger(__name__)
-router = APIRouter(prefix="/metrics", tags=["metrics"])
+router = APIRouter(prefix="")
 
 
-@router.post("/values", response_model=list[Metric])
-async def read_metric_values(
-    metric_ids: list[int],
-    start_date: Annotated[datetime.date, Body()],
-    end_date: Annotated[datetime.date, Body()],
+@router.get("/metrics", response_model=list[MetricList], tags=["metrics"])
+async def list_metrics(client: QueryClientDep):
+    """
+    Retrieve a list of metrics.
+    """
+    return await client.list_metrics()
+
+
+@router.get("/metrics/{metric_id}", response_model=MetricDetail, tags=["metrics"])
+async def get_metric(metric_id: str, client: QueryClientDep):
+    """
+    Retrieve a metric by ID.
+    """
+    return await client.get_metric_details(metric_id)
+
+
+@router.get("/dimensions", response_model=list[Dimension], tags=["dimensions"])
+async def list_dimensions(client: QueryClientDep):
+    """
+    Retrieve a list of dimensions.
+    """
+    return await client.list_dimensions()
+
+
+@router.get("/dimensions/{dimension_id}", response_model=DimensionDetail, tags=["dimensions"])
+async def get_dimension(dimension_id: str, client: QueryClientDep):
+    """
+    Retrieve a dimension by ID.
+    """
+    return await client.get_dimension_details(dimension_id)
+
+
+@router.get("/dimensions/{dimension_id}/members", response_model=list[str], tags=["dimensions"])
+async def get_dimension_members(dimension_id: str, client: QueryClientDep):
+    """
+    Retrieve members of a dimension by ID.
+    """
+    return await client.get_dimension_members(dimension_id)
+
+
+# Value APIs
+@router.get("/metrics/{metric_id}/values", response_model=MetricValueResponse, tags=["metrics"])
+async def get_metric_values(
+    request: Request,
+    client: QueryClientDep,
+    parquet_service: ParquetServiceDep,
+    metric_id: str,
+    start_date: str,
+    end_date: str,
     dimensions: Annotated[
-        list[DimensionFilter] | None,
-        Body(
-            examples=[
-                [
-                    {
-                        "dimension": "Geosegmentation",
-                        "slices": ["Rest of World", "other"],
-                    },
-                    {
-                        "dimension": "Creating Org",
-                        "slices": [],
-                    },
-                ]
-            ]
+        list[str] | None,
+        Query(
+            description="Can be either 'all' or a comma-separated list of dimensions.",
         ),
     ] = None,
-) -> Any:
-    logger.debug("metric_ids: ", metric_ids)
-    logger.debug("start_date: ", start_date)
-    logger.debug("end_date: ", end_date)
-    logger.debug("dimensions: ", dimensions)
+    output_format: Annotated[OutputFormat, Query(description="The desired output format.")] = OutputFormat.JSON,
+):
+    """
+    Retrieve values for a metric within a date range.
+    """
+    # Accessing the request_id from the request's state
+    request_id = request.state.request_id
+    try:
+        res = await client.get_metric_values(metric_id, start_date, end_date, dimensions=dimensions)
+    except NoSuchKeyError as e:
+        raise HTTPException(status_code=404, detail=f"Metric '{metric_id}' not found.") from e
 
-    async with aiofiles.open("query_manager/core/data/metric_values.json") as f:
-        contents = await f.read()
-    metrics = json.loads(contents)
+    if output_format == OutputFormat.PARQUET:
+        parquet_url = await parquet_service.convert_and_upload(res, metric_id, request_id)
+        return {"url": parquet_url}
+    return {"data": res}
 
-    # prepare df and filter
-    metrics_df = pd.DataFrame(metrics)
 
-    metrics_df["date"] = pd.to_datetime(metrics_df["date"]).dt.date
-
-    # filter by metric ids
-    metrics_df = metrics_df[metrics_df["id"].isin(metric_ids)]
-    metrics_df = metrics_df[(metrics_df["date"] >= start_date) & (metrics_df["date"] <= end_date)]
-
-    # filter by dimensions
-    if not dimensions:
-        return metrics_df.to_dict(orient="records")
-
-    result_df = pd.DataFrame()
-    for dimension in dimensions:
-        slices = dimension.slices
-        _df = metrics_df[metrics_df["dimension"] == dimension.dimension]
-        if slices:
-            _df = metrics_df[metrics_df["slice"].isin(slices)]
-        result_df = pd.concat([result_df, _df])
-
-    return result_df.to_dict(orient="records")
+@router.get("/metrics/{metric_id}/targets", response_model=list[Target], tags=["metrics"])
+async def get_metric_targets(
+    client: QueryClientDep,
+    metric_id: str,
+    start_date: str | None = None,
+    end_date: str | None = None,
+):
+    """
+    Retrieve targets for a metric within a date range.
+    """
+    try:
+        res = await client.get_metric_targets(metric_id, start_date=start_date, end_date=end_date)
+    except NoSuchKeyError as e:
+        raise HTTPException(status_code=404, detail=f"Metric '{metric_id}' not found.") from e
+    return res

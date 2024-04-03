@@ -22,6 +22,10 @@ mypy = "^1.8.0"
 isort = "^5.13.2"
 honcho = "^1.1.0"
 ruff = "^0.3.2"
+pytest-cov = "^5.0.0"
+pytest-asyncio = "^0.23.6"
+pytest-mock = "^3.14.0"
+pytest-postgresql = "^6.0.0"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
@@ -48,10 +52,13 @@ show_error_codes = true
 show_error_context = true
 ignore_missing_imports = true
 exclude = [
-    "query_manager/gunicorn.conf.py",
     "analysis_manager/gunicorn.conf.py",
     "query_manager/manage.py",
     "analysis_manager/manage.py",
+    # Tests
+    "query_manager/tests/",
+    "analysis_manager/tests/",
+    "core/tests/",
 ]
 
 [tool.ruff]
@@ -71,4 +78,4 @@ select = [
     "T20" # https://docs.astral.sh/ruff/rules/#flake8-print-t20
 ]
 # rules to ignore
-ignore = ["E722", "B024"]
+ignore = ["E722", "B024", "S101"]

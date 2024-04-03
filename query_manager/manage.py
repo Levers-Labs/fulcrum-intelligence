@@ -4,7 +4,7 @@ import httpx
 import typer
 import uvicorn
 
-from query_manager.config import settings
+from query_manager.config import get_settings
 
 cli = typer.Typer()
 
@@ -26,30 +26,10 @@ def run_server(
     )
 
 
-@cli.command("run-prod-server")
-def run_prod_server():
-    """Run the API production server(gunicorn)."""
-    from gunicorn import util
-    from gunicorn.app.base import Application
-
-    config_file = str(settings.PATHS.ROOT_DIR.joinpath("gunicorn.conf.py").resolve(strict=True))
-
-    class APPServer(Application):
-        def init(self, parser, opts, args):
-            pass
-
-        def load_config(self):
-            self.load_config_from_file(config_file)
-
-        def load(self):
-            return util.import_app("query_manager.main:app")
-
-    APPServer().run()
-
-
 @cli.command("start-app")
 def start_app(app_name: str):
     """Create a new fastapi component, similar to django startapp"""
+    settings = get_settings()
     package_name = app_name.lower().strip().replace(" ", "_").replace("-", "_")
     app_dir = settings.PATHS.BASE_DIR / package_name
     files = {
@@ -85,6 +65,8 @@ def shell():
 @cli.command()
 def info():
     """Show project health and settings."""
+    settings = get_settings()
+
     with httpx.Client(base_url=settings.SERVER_HOST) as client:
         try:
             resp = client.get("/health", follow_redirects=True)
