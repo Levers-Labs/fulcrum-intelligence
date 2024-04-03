@@ -10,8 +10,13 @@ setup:
 		pip install --upgrade pip; \
 		pip install poetry; \
 		make install-all-deps; \
+		make setup-pre-commit; \
 	)
 
+
+setup-pre-commit:
+	@echo "Setting up pre-commit hooks..."
+	@poetry run pre-commit install
 
 install-deps:
 ifdef path
