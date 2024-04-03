@@ -1,7 +1,11 @@
 from datetime import date
+from typing import Annotated
+
+from pydantic import Field
 
 from analysis_manager.core.models import UserRead
 from analysis_manager.db.models import CustomBase
+from analysis_manager.utilities.enums import Granularity
 
 
 class UserList(CustomBase):
@@ -43,6 +47,24 @@ class DescribeRequest(CustomBase):
 
 
 class CorrelateRequest(CustomBase):
-    metric_ids: list[str]
+    metric_ids: Annotated[list[str], Field(..., min_length=2)]
     start_date: date
     end_date: date
+
+
+class ProcessControlRequest(CustomBase):
+    metric_id: str
+    start_date: date
+    end_date: date
+
+
+class ProcessControlResponse(CustomBase):
+    metric_id: str
+    start_date: date
+    end_date: date
+    grain: Granularity
+    date: date
+    metric_value: float
+    central_line: float
+    ucl: float
+    lcl: float
