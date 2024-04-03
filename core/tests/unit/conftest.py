@@ -1,5 +1,6 @@
 import pandas as pd
 import pytest
+import json
 
 
 @pytest.fixture
@@ -25,3 +26,16 @@ def correlate_df(metric_values):
     # rename columns
     df = df.rename(columns={"date": "DAY", "value": "METRIC_VALUE", "metric_id": "METRIC_ID"})
     return df
+
+
+@pytest.fixture
+def process_control_df():
+    df = pd.read_csv("tests/data/process_control.csv")
+    return df
+
+
+@pytest.fixture
+def process_control_output():
+    with open("tests/data/process_control_output.txt", "r") as fr:  # noqa: UP015
+        process_control_output = json.loads(fr.read())
+    return process_control_output
