@@ -1,10 +1,9 @@
 import logging
 import warnings
-from typing import Tuple, List
+from typing import List, Tuple
 
 import numpy as np
 import pandas as pd
-
 
 warnings.simplefilter(action="ignore", category=FutureWarning)
 logging.basicConfig(level=logging.DEBUG)
@@ -207,7 +206,7 @@ def apply_process_control_from_index(
     half_average_point: int,
     processing_start_index: int,
     debug: bool = False,
-) -> Tuple[int, pd.DataFrame]:
+) -> tuple[int, pd.DataFrame]:
     signal_detected_index = -1
 
     # case when there are not enough points left in the dataframe
@@ -215,7 +214,7 @@ def apply_process_control_from_index(
         return signal_detected_index, data
 
     index_of_first_half_average = processing_start_index + half_average_point // 2
-    latest_two_half_average_indices: List[float] = []
+    latest_two_half_average_indices: list[float] = []
 
     # compute initial half averages
     data = compute_initial_half_averages(
