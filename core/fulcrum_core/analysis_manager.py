@@ -1,7 +1,7 @@
 import logging
 from datetime import date
 from itertools import combinations
-from typing import Tuple
+from typing import Tuple, List
 
 import numpy as np
 import pandas as pd
@@ -189,27 +189,18 @@ class AnalysisManager:
 
         return response
 
-    def _apply_process_control_from_index(
+    def _compute_initial_half_averages(
         self,
-        data: pd.DataFrame,
-        half_average_point: int,
-        processing_start_index: int,
-        debug: bool = False,
-    ) -> Tuple[int, pd.DataFrame]:
-
-        signal_detected_index = -1
-
-        # case when there are not enough points left in the dataframe
-        if processing_start_index + half_average_point + 1 > len(data) - 1:
-            return signal_detected_index, data
-
-        index_of_first_half_average = processing_start_index + half_average_point // 2
+        data,
+        index_of_first_half_average,
+        processing_start_index,
+        half_average_point,
+        latest_two_half_average_indices,
+    ):
         current_half_average_index = index_of_first_half_average
         row_count = 0
         half_average = 0
         initial_half_average_calculation_frequency = 2
-        latest_two_half_average_indices = []
-
         for _, row in data[processing_start_index:].iterrows():
             half_average += row["METRIC_VALUE"]
             row_count += 1
@@ -224,22 +215,28 @@ class AnalysisManager:
 
             if initial_half_average_calculation_frequency == 0:
                 break
+        return data
 
-        if debug:
-            logger.debug(latest_two_half_average_indices)
+    def _set_increment_per_time_period(
+        self, data, processing_start_index, latest_two_half_average_indices, half_average_point
+    ):
 
-        if len(latest_two_half_average_indices) < 2:
-            return signal_detected_index, data
-
-        # setting the INCREMENT_PER_TIME_PERIOD
         current_increment_per_time_period_index = processing_start_index
         data.at[current_increment_per_time_period_index, "INCREMENT_PER_TIME_PERIOD"] = (
             data.at[latest_two_half_average_indices[1], "HALF_AVERAGE"]
             - data.at[latest_two_half_average_indices[0], "HALF_AVERAGE"]
         ) / half_average_point
 
-        # compute entire central line
+        return data, current_increment_per_time_period_index
 
+    def _compute_central_line(
+        self,
+        data,
+        latest_two_half_average_indices,
+        half_average_point,
+        processing_start_index,
+        current_increment_per_time_period_index,
+    ):
         # set the values at the indices of half average
         data.at[latest_two_half_average_indices[0], "CENTRAL_LINE"] = data.at[
             latest_two_half_average_indices[0], "HALF_AVERAGE"
@@ -262,8 +259,9 @@ class AnalysisManager:
                 # ruff-ignore[call-overload]
                 + data.at[processing_start_index_rolling - 1, "CENTRAL_LINE"]  # type: ignore
             )
+        return data
 
-        # compute the average moving ranges
+    def _compute_average_moving_ranges(self, data, processing_start_index, half_average_point, debug):
         average_moving_range: float = 0.0
         average_moving_range_row_count = 0
         for processing_start_index_rolling, _ in data[processing_start_index:].iterrows():
@@ -282,7 +280,9 @@ class AnalysisManager:
 
         data["AVERAGE_MOVING_RANGE"][processing_start_index:] = average_moving_range
 
-        # compute the UCL & LCL
+        return data
+
+    def _compute_limits(self, data, processing_start_index):
         data["LCL"][processing_start_index:] = data.apply(
             lambda row: max(row["CENTRAL_LINE"] - row["AVERAGE_MOVING_RANGE"] * 2.66, 0),
             axis=1,
@@ -291,12 +291,16 @@ class AnalysisManager:
             lambda row: row["CENTRAL_LINE"] + row["AVERAGE_MOVING_RANGE"] * 2.66, axis=1
         )[processing_start_index:]
 
-        # now start scanning for signal
+        return data
+
+    def _detect_signal(self, data, processing_start_index):
+
         consecutive_above_central_line_count = 0
         consecutive_below_central_line_count = 0
         values_above_or_below_central_line = []
         closer_to_ucl_or_lcl_than_central_line_count = []
         is_signal_detected = False
+        signal_detected_index = -1
 
         for processing_start_index_rolling, _ in data[processing_start_index:].iterrows():
 
@@ -345,7 +349,7 @@ class AnalysisManager:
 
             # check the last 4 values in the array closer_to_ucl_or_lcl_than_central_line_count:
             if len(closer_to_ucl_or_lcl_than_central_line_count) >= 4:
-                if closer_to_ucl_or_lcl_than_central_line_count[-4:].count("y"):
+                if closer_to_ucl_or_lcl_than_central_line_count[-4:].count("y") >= 3:
                     # SIGNAL DETECTED
                     # ruff-ignore[call-overload]
                     signal_detected_index = int(processing_start_index_rolling)  # type: ignore
@@ -375,6 +379,62 @@ class AnalysisManager:
                 data.at[processing_start_index_rolling, "SIGNAL_DETECTED"] = "rule_4"
                 is_signal_detected = True
                 break
+        return data, is_signal_detected, signal_detected_index
+
+    def _apply_process_control_from_index(
+        self,
+        data: pd.DataFrame,
+        half_average_point: int,
+        processing_start_index: int,
+        debug: bool = False,
+    ) -> Tuple[int, pd.DataFrame]:
+
+        signal_detected_index = -1
+
+        # case when there are not enough points left in the dataframe
+        if processing_start_index + half_average_point + 1 > len(data) - 1:
+            return signal_detected_index, data
+
+        index_of_first_half_average = processing_start_index + half_average_point // 2
+        latest_two_half_average_indices: List[float] = []
+
+        # compute initial half averages
+        data = self._compute_initial_half_averages(
+            data,
+            index_of_first_half_average,
+            processing_start_index,
+            half_average_point,
+            latest_two_half_average_indices,
+        )
+
+        if debug:
+            logger.debug(latest_two_half_average_indices)
+
+        if len(latest_two_half_average_indices) < 2:
+            return signal_detected_index, data
+
+        # setting the INCREMENT_PER_TIME_PERIOD
+        data, current_increment_per_time_period_index = self._set_increment_per_time_period(
+            data, processing_start_index, latest_two_half_average_indices, half_average_point
+        )
+
+        # compute entire central line
+        data = self._compute_central_line(
+            data,
+            latest_two_half_average_indices,
+            half_average_point,
+            processing_start_index,
+            current_increment_per_time_period_index,
+        )
+
+        # compute the average moving ranges
+        data = self._compute_average_moving_ranges(data, processing_start_index, half_average_point, debug)
+
+        # compute the UCL & LCL
+        data = self._compute_limits(data, processing_start_index)
+
+        # now start scanning for signal
+        data, is_signal_detected, signal_detected_index = self._detect_signal(data, processing_start_index)
 
         if debug:
             signal_detected_index = 22
@@ -468,8 +528,8 @@ class AnalysisManager:
             "end_date": end_date,
             "grain": grain,
             "date": data.at[0, "GRAIN"],
-            "half_average": data["HALF_AVERAGE"].to_numpy(),
-            "central_line": data["CENTRAL_LINE"].to_numpy(),
-            "ucl": data["UCL"].to_numpy(),
-            "lcl": data["LCL"].to_numpy(),
+            "half_average": data["HALF_AVERAGE"].tolist(),
+            "central_line": data["CENTRAL_LINE"].tolist(),
+            "ucl": data["UCL"].tolist(),
+            "lcl": data["LCL"].tolist(),
         }
