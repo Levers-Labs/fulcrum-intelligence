@@ -2,8 +2,8 @@ from datetime import date
 
 import pandas as pd
 
-from .describe import describe
 from .correlate import correlate
+from .describe import describe
 from .process_control import process_control
 
 

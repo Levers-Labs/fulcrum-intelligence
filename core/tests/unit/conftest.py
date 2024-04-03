@@ -1,6 +1,7 @@
+import json
+
 import pandas as pd
 import pytest
-import json
 
 
 @pytest.fixture
@@ -36,6 +37,6 @@ def process_control_df():
 
 @pytest.fixture
 def process_control_output():
-    with open("tests/data/process_control_output.txt", "r") as fr:  # noqa: UP015
+    with open("tests/data/process_control_output.txt") as fr:  # noqa: UP015
         process_control_output = json.loads(fr.read())
     return process_control_output

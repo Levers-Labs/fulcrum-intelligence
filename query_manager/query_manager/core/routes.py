@@ -3,8 +3,8 @@ from typing import Annotated
 
 from fastapi import (
     APIRouter,
+    Body,
     HTTPException,
-    Query,
     Request,
 )
 
@@ -65,21 +65,19 @@ async def get_dimension_members(dimension_id: str, client: QueryClientDep):
 
 
 # Value APIs
-@router.get("/metrics/{metric_id}/values", response_model=MetricValueResponse, tags=["metrics"])
+@router.post("/metrics/{metric_id}/values", response_model=MetricValueResponse, tags=["metrics"])
 async def get_metric_values(
     request: Request,
     client: QueryClientDep,
     parquet_service: ParquetServiceDep,
     metric_id: str,
-    start_date: str,
-    end_date: str,
+    start_date: Annotated[str, Body(description="The start date of the date range.")],
+    end_date: Annotated[str, Body(description="The end date of the date range.")],
     dimensions: Annotated[
         list[str] | None,
-        Query(
-            description="Can be either 'all' or a comma-separated list of dimensions.",
-        ),
+        Body(description="Can be either 'all' or list of dimension ids."),
     ] = None,
-    output_format: Annotated[OutputFormat, Query(description="The desired output format.")] = OutputFormat.JSON,
+    output_format: Annotated[OutputFormat, Body(description="The desired output format.")] = OutputFormat.JSON,
 ):
     """
     Retrieve values for a metric within a date range.
