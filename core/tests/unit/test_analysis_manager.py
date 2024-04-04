@@ -49,7 +49,6 @@ def test_describe(describe_data, describe_output):
             if isinstance(value, float) and math.isnan(value):
                 result[key] = "nan"
 
-    print(results)
     assert sorted(results, key=lambda x: (x["metric_id"], x["dimension"], x["slice"])) == sorted(
         describe_output, key=lambda x: (x["metric_id"], x["dimension"], x["slice"])
     )

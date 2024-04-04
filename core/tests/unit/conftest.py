@@ -43,9 +43,8 @@ def process_control_output():
 
 @pytest.fixture
 def describe_data():
-    with open("tests/data/describe_data.json", "r") as fr:
+    with open("tests/data/describe_data.json", "r") as fr: # noqa: UP015
         describe_data = json.load(fr)
-        print(type(describe_data))
     return describe_data
 
 

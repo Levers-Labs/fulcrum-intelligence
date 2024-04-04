@@ -123,8 +123,8 @@ def describe(
         metric_id = "ToMRR"
         dimensions = ["region", "stage_name"]
 
-        result = analysis_manager.describe(describe_data, dimensions, metric_id, start_date=start_date, end_date=end_date,
-                                           aggregation_function='sum')
+        result = analysis_manager.describe(describe_data, dimensions, metric_id, start_date=start_date,
+         end_date=end_date,aggregation_function='sum')
 
         print(result)
 
