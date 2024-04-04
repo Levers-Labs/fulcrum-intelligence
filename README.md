@@ -9,6 +9,7 @@
     - [Analysis Manager `.env` File](#analysis-manager-env-file)
     - [Query Manager `.env` File](#query-manager-env-file)
     - [Setting Up the Project](#setting-up-the-project)
+    - [Setting up pre-commit hooks](#setting-up-pre-commit-hooks)
   - [Running the Project](#running-the-project)
     - [Running with Docker Compose](#running-with-docker-compose)
     - [Running with Make Command](#running-with-make-command)
@@ -70,6 +71,14 @@ make setup
 
 This will install pyenv, set up the python environment, and install the project dependencies.
 
+### Setting up pre-commit hooks
+
+This project uses pre-commit hooks to ensure that the code is formatted correctly and that there are no linting errors.
+To set up the pre-commit hooks, run the following command:
+
+```bash
+make setup-pre-commit
+```
 
 ## Running the Project
 

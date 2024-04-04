@@ -83,10 +83,12 @@ async def test_get_dimension_members(client, mocker, dimension):
 @pytest.mark.asyncio
 async def test_get_metric_values(client, mocker):
     # Mock dependencies
-    mock_get_metric_values = AsyncMock(return_value=[{"date": "2022-01-01", "value": 100}])
+    mock_get_metric_values = AsyncMock(return_value=[{"date": "2022-01-01", "value": 100, "metric_id": "CAC"}])
     mocker.patch.object(QueryClient, "get_metric_values", mock_get_metric_values)
 
-    response = client.get("/v1/metrics/test_metric/values?start_date=2022-01-01&end_date=2022-01-31")
+    response = client.post(
+        "/v1/metrics/test_metric/values", json={"start_date": "2022-01-01", "end_date": "2022-01-31"}
+    )
 
     assert response.status_code == 200
     assert response.json() == {
@@ -94,8 +96,7 @@ async def test_get_metric_values(client, mocker):
             {
                 "date": "2022-01-01",
                 "value": 100,
-                "dimensions": None,
-                "metric_id": None,
+                "metric_id": "CAC",
             },
         ],
         "url": None,
@@ -112,8 +113,9 @@ async def test_get_metric_values_parquet(client, mocker):
     mock_convert_and_upload = AsyncMock(return_value="http://file.parquet")
     mocker.patch.object(ParquetService, "convert_and_upload", mock_convert_and_upload)
 
-    response = client.get(
-        "/v1/metrics/test_metric/values?start_date=2022-01-01&end_date=2022-01-31&output_format=Parquet"
+    response = client.post(
+        "/v1/metrics/test_metric/values",
+        json={"start_date": "2022-01-01", "end_date": "2022-01-31", "output_format": "Parquet"},
     )
     assert response.status_code == 200
     assert response.json() == {
@@ -130,7 +132,9 @@ async def test_get_metric_values_404(client, mocker):
     mock_get_metric_values = AsyncMock(side_effect=NoSuchKeyError(key="test_metric"))
     mocker.patch.object(QueryClient, "get_metric_values", mock_get_metric_values)
 
-    response = client.get("/v1/metrics/test_metric/values?start_date=2022-01-01&end_date=2022-01-31")
+    response = client.post(
+        "/v1/metrics/test_metric/values", json={"start_date": "2022-01-01", "end_date": "2022-01-31"}
+    )
     assert response.status_code == 404
     assert response.json() == {"detail": "Metric 'test_metric' not found."}
     mock_get_metric_values.assert_awaited_once()

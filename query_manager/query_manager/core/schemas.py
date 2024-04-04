@@ -1,4 +1,4 @@
-from pydantic import Field
+from pydantic import Extra, Field
 
 from query_manager.utilities.enums import TargetAim
 from query_manager.utilities.schema import BaseModel
@@ -44,20 +44,26 @@ class MetricDetail(MetricBase):
     dimensions: list[Dimension] | None = None
 
 
-class MetricValueDimension(BaseModel):
-    name: str
-    member: str
-
-
-class MetricValue(BaseModel):
+class MetricValue(BaseModel, extra=Extra.allow):
     metric_id: str | None = None
     value: int
     date: str
-    dimensions: list[MetricValueDimension] | None = None
 
 
 class MetricValueResponse(BaseModel):
-    data: list[MetricValue] | None = None
+    data: list[MetricValue] | None = Field(
+        default=None,
+        example=[  # type: ignore
+            {
+                "metric_id": "CAC",
+                "value": 203,
+                "date": "2022-09-01",
+                "customer_segment": "Enterprise",
+                "channel": "Online",
+                "region": "Asia",
+            },
+        ],
+    )
     url: str | None = Field(None, description="URL to the Parquet file")
 
 

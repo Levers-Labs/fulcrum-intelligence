@@ -1,10 +1,8 @@
 import logging
 import warnings
-from typing import Tuple, List
 
 import numpy as np
 import pandas as pd
-
 
 warnings.simplefilter(action="ignore", category=FutureWarning)
 logging.basicConfig(level=logging.DEBUG)
@@ -207,7 +205,7 @@ def apply_process_control_from_index(
     half_average_point: int,
     processing_start_index: int,
     debug: bool = False,
-) -> Tuple[int, pd.DataFrame]:
+) -> tuple[int, pd.DataFrame]:
     signal_detected_index = -1
 
     # case when there are not enough points left in the dataframe
@@ -215,7 +213,7 @@ def apply_process_control_from_index(
         return signal_detected_index, data
 
     index_of_first_half_average = processing_start_index + half_average_point // 2
-    latest_two_half_average_indices: List[float] = []
+    latest_two_half_average_indices: list[float] = []
 
     # compute initial half averages
     data = compute_initial_half_averages(
@@ -271,7 +269,7 @@ def process_control(
     end_date: pd.Timestamp,
     grain: str,
     debug: bool = False,
-) -> dict:
+) -> list[dict]:
     """
     Implement the process control for the given list of metric values.
 
@@ -341,14 +339,7 @@ def process_control(
 
     if debug:
         logger.debug(data)
-    return {
-        "metric_id": metric_id,
-        "start_date": start_date,
-        "end_date": end_date,
-        "grain": grain,
-        "date": data.at[0, "GRAIN"],
-        "half_average": data["HALF_AVERAGE"].tolist(),
-        "central_line": data["CENTRAL_LINE"].tolist(),
-        "ucl": data["UCL"].tolist(),
-        "lcl": data["LCL"].tolist(),
-    }
+    data.fillna("", inplace=True)
+    data["DATE"] = data["GRAIN"]
+    data["GRAIN"] = grain
+    return data.to_dict(orient="records")
