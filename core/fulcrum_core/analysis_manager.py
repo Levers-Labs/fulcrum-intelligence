@@ -28,6 +28,6 @@ class AnalysisManager:
         end_date: pd.Timestamp,
         grain: str,
         debug: bool = False,
-    ) -> dict:
+    ) -> list[dict]:
         result = process_control(data, metric_id, start_date, end_date, grain, debug)
         return result

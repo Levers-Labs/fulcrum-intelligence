@@ -56,6 +56,13 @@ class ProcessControlRequest(CustomBase):
     metric_id: str
     start_date: date
     end_date: date
+    grains: list[Granularity] = [
+        Granularity.DAY,
+        Granularity.WEEK,
+        Granularity.MONTH,
+        Granularity.QUARTER,
+        Granularity.YEAR,
+    ]
 
 
 class ProcessControlResponse(CustomBase):
@@ -64,7 +71,7 @@ class ProcessControlResponse(CustomBase):
     end_date: date
     grain: Granularity
     date: date
-    metric_value: float
-    central_line: float
-    ucl: float
-    lcl: float
+    metric_value: float | None = None
+    central_line: float | None = None
+    ucl: float | None
+    lcl: float | None

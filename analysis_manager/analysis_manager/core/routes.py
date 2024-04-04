@@ -127,7 +127,11 @@ async def process_control(
     query_manager: QueryManagerClientDep,
     request: Annotated[
         ProcessControlRequest,
-        Body(examples=[{"metric_id": "NewMRR", "start_date": "2024-01-01", "end_date": "2024-04-30"}]),
+        Body(
+            examples=[
+                {"metric_id": "NewMRR", "start_date": "2024-01-01", "end_date": "2024-04-30", "grains": ["day", "week"]}
+            ]
+        ),
     ],
 ) -> Any:
     metric_values = await query_manager.get_metric_values(
@@ -141,5 +145,32 @@ async def process_control(
     columns = {"metric_id": "METRIC_ID", "date": "DAY", "value": "METRIC_VALUE"}
     metrics_df.rename(columns=columns, inplace=True)
     metrics_df["METRIC_ID"] = metrics_df["METRIC_ID"].astype(str)
+    results = []
+    for grain in request.grains:
+        metrics_df["GRAIN"] = metrics_df["DAY"].astype(str)
+        metrics_df = metrics_df[["METRIC_VALUE", "GRAIN"]]
+        results.extend(
+            analysis_manager.process_control(
+                data=metrics_df,
+                metric_id=request.metric_id,
+                start_date=pd.Timestamp(request.start_date),
+                end_date=pd.Timestamp(request.end_date),
+                grain=grain.value,
+            )
+        )
+    res_df = pd.DataFrame(results)
+    columns = {
+        "METRIC_ID": "metric_id",
+        "DATE": "date",
+        "METRIC_VALUE": "metric_value",
+        "GRAIN": "grain",
+        "CENTRAL_LINE": "central_line",
+        "UCL": "ucl",
+        "LCL": "lcl",
+    }
+    res_df.rename(columns=columns, inplace=True)
+    res_df["metric_id"] = request.metric_id
+    res_df["start_date"] = request.start_date
+    res_df["end_date"] = request.end_date
 
-    return analysis_manager.process_control(data=metrics_df, start_date=request.start_date, end_date=request.end_date)
+    return res_df.to_dict(orient="records")

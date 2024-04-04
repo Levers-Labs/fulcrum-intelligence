@@ -269,7 +269,7 @@ def process_control(
     end_date: pd.Timestamp,
     grain: str,
     debug: bool = False,
-) -> dict:
+) -> list[dict]:
     """
     Implement the process control for the given list of metric values.
 
@@ -339,14 +339,7 @@ def process_control(
 
     if debug:
         logger.debug(data)
-    return {
-        "metric_id": metric_id,
-        "start_date": start_date,
-        "end_date": end_date,
-        "grain": grain,
-        "date": data.at[0, "GRAIN"],
-        "half_average": data["HALF_AVERAGE"].tolist(),
-        "central_line": data["CENTRAL_LINE"].tolist(),
-        "ucl": data["UCL"].tolist(),
-        "lcl": data["LCL"].tolist(),
-    }
+    data.fillna("", inplace=True)
+    data["DATE"] = data["GRAIN"]
+    data["GRAIN"] = grain
+    return data.to_dict(orient="records")
