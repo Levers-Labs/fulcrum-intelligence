@@ -53,11 +53,11 @@ async def describe_analysis(
                     "dimensions": [
                         {
                             "dimension": "Geosegmentation",
-                            "slices": ["Rest of World", "other"],
+                            "members": ["Rest of World", "other"],
                         },
                         {
                             "dimension": "Creating Org",
-                            "slices": [],
+                            "members": [],
                         },
                     ],
                 }
@@ -68,26 +68,21 @@ async def describe_analysis(
     """
     Describe an analysis.
     """
+    dimensions = [dimension.dimension for dimension in body.dimensions] if body.dimensions else []
     metrics = await query_manager.get_metric_values(
-        metric_ids=[str(body.metric_id)], start_date=body.start_date, end_date=body.end_date
+        metric_ids=[str(body.metric_id)], start_date=body.start_date, end_date=body.end_date, dimensions=dimensions
     )
     if not metrics:
         return []
-    # metrics to dataframe
-    metrics_df = pd.DataFrame(metrics)
-    # column names mapping
-    columns = {
-        "id": "METRIC_ID",
-        "date": "DAY",
-        "value": "METRIC_VALUE",
-        "dimension": "DIMENSION_NAME",
-        "slice": "SLICE",
-    }
-    # rename columns
-    metrics_df.rename(columns=columns, inplace=True)
-    metrics_df["DAY"] = pd.to_datetime(metrics_df["DAY"], format="%Y-%m-%d")
-    metrics_df["METRIC_ID"] = metrics_df["METRIC_ID"].astype(str)
-    return analysis_manager.describe(data=metrics_df)
+
+    return analysis_manager.describe(
+        metric_id=body.metric_id,
+        data=metrics,
+        start_date=pd.Timestamp(body.start_date),
+        end_date=pd.Timestamp(body.end_date),
+        dimensions=dimensions,
+        aggregation_function="sum",
+    )
 
 
 @router.post("/correlate", response_model=list[CorrelateRead])

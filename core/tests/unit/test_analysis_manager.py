@@ -1,7 +1,7 @@
-import math
 from datetime import date
 
 import pandas as pd
+
 from fulcrum_core import AnalysisManager
 
 
@@ -24,11 +24,6 @@ def test_correlate(correlate_df):
 def test_process_control(process_control_df, process_control_output):
     analysis_manager = AnalysisManager()
     response = analysis_manager.process_control(process_control_df, "", "", "", "MONTH", debug=False)
-
-    for index in range(len(response["half_average"])):
-        response["half_average"][index] = (
-            "nan" if math.isnan(response["half_average"][index]) else response["half_average"][index]
-        )
     assert process_control_output == response
 
 
@@ -44,11 +39,6 @@ def test_describe(describe_data, describe_output):
         describe_data, dimensions, metric_id, start_date=start_date, end_date=end_date, aggregation_function="sum"
     )
 
-    for result in results:
-        for key, value in result.items():
-            if isinstance(value, float) and math.isnan(value):
-                result[key] = "nan"
-
-    assert sorted(results, key=lambda x: (x["metric_id"], x["dimension"], x["slice"])) == sorted(
-        describe_output, key=lambda x: (x["metric_id"], x["dimension"], x["slice"])
+    assert sorted(results, key=lambda x: (x["metric_id"], x["dimension"], x["member"])) == sorted(
+        describe_output, key=lambda x: (x["metric_id"], x["dimension"], x["member"])
     )

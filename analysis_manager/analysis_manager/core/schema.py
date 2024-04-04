@@ -15,17 +15,16 @@ class UserList(CustomBase):
 
 class DimensionRequest(CustomBase):
     dimension: str
-    slices: list[str] | None = None
+    members: list[str] | None = None
 
 
 class DescribeResponse(CustomBase):
     metric_id: str | None = None
     dimension: str
-    slice: str | None
+    member: str | None
     mean: float | None = None
     median: float | None = None
     variance: float | None = None
-    standard_deviation: float | None
     percentile_25: float | None
     percentile_50: float | None
     percentile_75: float | None
@@ -40,7 +39,7 @@ class DescribeResponse(CustomBase):
 
 
 class DescribeRequest(CustomBase):
-    metric_id: int
+    metric_id: str
     start_date: date
     end_date: date
     dimensions: list[DimensionRequest] | None = None

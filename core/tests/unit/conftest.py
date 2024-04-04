@@ -1,7 +1,9 @@
 import json
+import pathlib
 
 import pandas as pd
 import pytest
+from config import Paths
 
 
 @pytest.fixture
@@ -31,26 +33,26 @@ def correlate_df(metric_values):
 
 @pytest.fixture
 def process_control_df():
-    df = pd.read_csv("tests/data/process_control.csv")
+    df = pd.read_csv(pathlib.Path.joinpath(Paths.BASE_DIR, "tests/data/process_control.csv"))
     return df
 
 
 @pytest.fixture
 def process_control_output():
-    with open("tests/data/process_control_output.txt") as fr:  # noqa: UP015
+    with open(pathlib.Path.joinpath(Paths.BASE_DIR, "tests/data/process_control_output.json")) as fr:  # noqa: UP015
         process_control_output = json.loads(fr.read())
     return process_control_output
 
 
 @pytest.fixture
 def describe_data():
-    with open("tests/data/describe_data.json", "r") as fr: # noqa: UP015
+    with open(pathlib.Path.joinpath(Paths.BASE_DIR, "tests/data/describe_data.json")) as fr:  # noqa: UP015
         describe_data = json.load(fr)
     return describe_data
 
 
 @pytest.fixture
 def describe_output():
-    with open("tests/data/describe_output.txt", "r") as fr:  # noqa: UP015
+    with open(pathlib.Path.joinpath(Paths.BASE_DIR, "tests/data/describe_output.json")) as fr:  # noqa: UP015
         describe_output = json.loads(fr.read())
     return describe_output

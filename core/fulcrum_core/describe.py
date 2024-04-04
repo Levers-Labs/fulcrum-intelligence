@@ -178,24 +178,28 @@ def describe(
             all_percentiles = filtered_df["value"].quantile([0.25, 0.50, 0.75, 0.90, 0.95, 0.99])
             # print("Percentiles: ", type(all_percentiles))
             result = {
-                "metric_id": metric_id,
-                "dimension": dimension,
-                "slice": dimension_slice,
-                "mean": filtered_df["value"].mean(),
-                "median": all_percentiles.loc[0.50],
-                "percentile_25": all_percentiles.loc[0.25],
-                "percentile_50": all_percentiles.loc[0.50],
-                "percentile_75": all_percentiles.loc[0.75],
-                "percentile_90": all_percentiles.loc[0.90],
-                "percentile_95": all_percentiles.loc[0.95],
-                "percentile_99": all_percentiles.loc[0.99],
-                "min": filtered_df["value"].min(),
-                "max": filtered_df["value"].max(),
-                "variance": filtered_df["value"].var(),
-                "count": filtered_df["value"].count(),
-                "sum": filtered_df["value"].sum(),
-                "unique": len(filtered_df["value"].unique()),
+                "metric_id": str(metric_id),
+                "dimension": str(dimension),
+                "member": str(dimension_slice),
+                "mean": float(filtered_df["value"].mean()),
+                "median": float(all_percentiles.loc[0.50]),
+                "percentile_25": float(all_percentiles.loc[0.25]),
+                "percentile_50": float(all_percentiles.loc[0.50]),
+                "percentile_75": float(all_percentiles.loc[0.75]),
+                "percentile_90": float(all_percentiles.loc[0.90]),
+                "percentile_95": float(all_percentiles.loc[0.95]),
+                "percentile_99": float(all_percentiles.loc[0.99]),
+                "min": float(filtered_df["value"].min()),
+                "max": float(filtered_df["value"].max()),
+                "variance": float(filtered_df["value"].var()),
+                "count": int(filtered_df["value"].count()),
+                "sum": float(filtered_df["value"].sum()),
+                "unique": int(len(filtered_df["value"].unique())),
             }
+            for k, v in result.items():
+                if pd.isna(v):  # type: ignore
+                    result[k] = None
+
             # print(result)
             response.append(result)
     return response

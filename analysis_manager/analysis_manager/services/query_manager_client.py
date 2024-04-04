@@ -13,18 +13,20 @@ class QueryManagerClient(AsyncHttpClient):
         metric_ids: list[str],
         start_date: date,
         end_date: date,
+        dimensions: list[str] | None = None,
     ) -> list[dict[str, Any]]:
         """
         Get metric values.
         metric_ids: list of metric ids
         start_date: start date
         end_date: end date
+        dimensions: list of dimensions
 
         Returns: list of metric values
         [{
             "id": "29",
             "date": "2024-03-15",
-            "dimension": "Geosegmentation",
+            "dimension": ,
             "slice": "Americas",
             "value": 0
         },
@@ -41,6 +43,7 @@ class QueryManagerClient(AsyncHttpClient):
         payload = {
             "start_date": start_date_str,
             "end_date": end_date_str,
+            "dimensions": dimensions if dimensions else [],
         }
         results = []
         for metric_id in metric_ids:
