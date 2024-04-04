@@ -1,6 +1,7 @@
 import math
 from datetime import date
 
+import pandas as pd
 from fulcrum_core import AnalysisManager
 
 
@@ -29,3 +30,26 @@ def test_process_control(process_control_df, process_control_output):
             "nan" if math.isnan(response["half_average"][index]) else response["half_average"][index]
         )
     assert process_control_output == response
+
+
+def test_describe(describe_data, describe_output):
+    analysis_manager = AnalysisManager()
+
+    start_date = pd.to_datetime("2023-01-01")
+    end_date = pd.to_datetime("2025-01-01")
+    metric_id = "ToMRR"
+    dimensions = ["region", "stage_name"]
+
+    results = analysis_manager.describe(
+        describe_data, dimensions, metric_id, start_date=start_date, end_date=end_date, aggregation_function="sum"
+    )
+
+    for result in results:
+        for key, value in result.items():
+            if isinstance(value, float) and math.isnan(value):
+                result[key] = "nan"
+
+    print(results)
+    assert sorted(results, key=lambda x: (x["metric_id"], x["dimension"], x["slice"])) == sorted(
+        describe_output, key=lambda x: (x["metric_id"], x["dimension"], x["slice"])
+    )

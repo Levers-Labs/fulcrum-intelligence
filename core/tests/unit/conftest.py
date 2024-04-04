@@ -39,3 +39,18 @@ def process_control_output():
     with open("tests/data/process_control_output.txt", "r") as fr:  # noqa: UP015
         process_control_output = json.loads(fr.read())
     return process_control_output
+
+
+@pytest.fixture
+def describe_data():
+    with open("tests/data/describe_data.json", "r") as fr:
+        describe_data = json.load(fr)
+        print(type(describe_data))
+    return describe_data
+
+
+@pytest.fixture
+def describe_output():
+    with open("tests/data/describe_output.txt", "r") as fr:  # noqa: UP015
+        describe_output = json.loads(fr.read())
+    return describe_output
