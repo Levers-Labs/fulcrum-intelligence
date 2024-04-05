@@ -16,26 +16,37 @@ class QueryManagerClient(AsyncHttpClient):
         dimensions: list[str] | None = None,
     ) -> list[dict[str, Any]]:
         """
-        Get metric values.
-        metric_ids: list of metric ids
-        start_date: start date
-        end_date: end date
-        dimensions: list of dimensions
+             Get metric values.
+             metric_ids: list of metric ids
+             start_date: start date
+             end_date: end date
+             dimensions: list of dimensions
 
-        Returns: list of metric values
-        [{
-            "id": "29",
-            "date": "2024-03-15",
-            "dimension": ,
-            "slice": "Americas",
-            "value": 0
+             Returns: list of metric values
+             [
+        {
+           "metric_id":"CAC",
+           "value":203,
+           "date":"2022-09-01",
+           "customer_segment":"Enterprise",
+           "channel":"Online",
+           "region":"Asia"
         },
         {
-            "id": "29",
-            "date": "2024-03-15",
-            "dimension": "Geosegmentation",
-            "slice": "Americas",
-            "value": 0
+           "metric_id":"CAC",
+           "value":3139,
+           "date":"2022-09-01",
+           "customer_segment":"Enterprise",
+           "channel":"Retail",
+           "region":"Asia"
+        },
+        {
+           "metric_id":"CAC",
+           "value":83,
+           "date":"2022-09-01",
+           "customer_segment":"Enterprise",
+           "channel":"Retail",
+           "region":"Europe"
         }]
         """
         start_date_str = start_date.strftime(self.DATE_FORMAT)

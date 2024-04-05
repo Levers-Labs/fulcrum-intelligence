@@ -59,3 +59,145 @@ def client(setup_env, test_db, session_monkeypatch):  # noqa
     ):
         client = TestClient(app)
         yield client
+
+
+@pytest.fixture(scope="session")
+def metric_values():
+    return [
+        {
+            "metric_id": "CAC",
+            "value": 2295,
+            "date": "2024-01-24",
+            "customer_segment": "Enterprise",
+            "channel": "Online",
+            "region": "Asia",
+        },
+        {
+            "metric_id": "CAC",
+            "value": 3674,
+            "date": "2024-01-24",
+            "customer_segment": "Enterprise",
+            "channel": "Online",
+            "region": "Europe",
+        },
+        {
+            "metric_id": "CAC",
+            "value": 4084,
+            "date": "2024-01-24",
+            "customer_segment": "Enterprise",
+            "channel": "Online",
+            "region": "America",
+        },
+        {
+            "metric_id": "CAC",
+            "value": 2995,
+            "date": "2024-01-24",
+            "customer_segment": "Enterprise",
+            "channel": "Retail",
+            "region": "Asia",
+        },
+        {
+            "metric_id": "CAC",
+            "value": 4847,
+            "date": "2024-01-24",
+            "customer_segment": "Enterprise",
+            "channel": "Retail",
+            "region": "Europe",
+        },
+        {
+            "metric_id": "CAC",
+            "value": 580,
+            "date": "2024-01-24",
+            "customer_segment": "Enterprise",
+            "channel": "Retail",
+            "region": "America",
+        },
+        {
+            "metric_id": "CAC",
+            "value": 3759,
+            "date": "2024-01-24",
+            "customer_segment": "Enterprise",
+            "channel": "Wholesale",
+            "region": "Asia",
+        },
+        {
+            "metric_id": "CAC",
+            "value": 1719,
+            "date": "2024-01-24",
+            "customer_segment": "Enterprise",
+            "channel": "Wholesale",
+            "region": "Europe",
+        },
+        {
+            "metric_id": "CAC",
+            "value": 792,
+            "date": "2024-01-24",
+            "customer_segment": "Enterprise",
+            "channel": "Wholesale",
+            "region": "America",
+        },
+    ]
+
+
+@pytest.fixture(scope="session")
+def metric_values_correlate():
+    return [
+        {"metric_id": "NewMRR", "value": 50927, "date": "2022-09-01"},
+        {"metric_id": "NewMRR", "value": 40294, "date": "2022-10-01"},
+        {"metric_id": "NewMRR", "value": 67557, "date": "2022-10-31"},
+        {"metric_id": "NewMRR", "value": 74216, "date": "2022-11-30"},
+        {"metric_id": "NewMRR", "value": 58084, "date": "2022-12-30"},
+        {"metric_id": "NewMRR", "value": 39168, "date": "2023-01-29"},
+        {"metric_id": "NewMRR", "value": 20033, "date": "2023-02-28"},
+        {"metric_id": "NewMRR", "value": 61401, "date": "2023-03-30"},
+        {"metric_id": "NewMRR", "value": 86673, "date": "2023-04-29"},
+        {"metric_id": "NewMRR", "value": 26451, "date": "2023-05-29"},
+        {"metric_id": "CAC", "value": 363, "date": "2022-09-01"},
+        {"metric_id": "CAC", "value": 2146, "date": "2022-10-01"},
+        {"metric_id": "CAC", "value": 1540, "date": "2022-10-31"},
+        {"metric_id": "CAC", "value": 3908, "date": "2022-11-30"},
+        {"metric_id": "CAC", "value": 4000, "date": "2022-12-30"},
+        {"metric_id": "CAC", "value": 1169, "date": "2023-01-29"},
+    ]
+
+
+@pytest.fixture(scope="session")
+def metric_values_netmrr():
+    metric_values_net_mrr = [
+        {"metric_id": "NewMRR", "value": 50927, "date": "2022-09-01"},
+        {"metric_id": "NewMRR", "value": 40294, "date": "2022-10-01"},
+        {"metric_id": "NewMRR", "value": 67557, "date": "2022-10-31"},
+        {"metric_id": "NewMRR", "value": 74216, "date": "2022-11-30"},
+        {"metric_id": "NewMRR", "value": 58084, "date": "2022-12-30"},
+        {"metric_id": "NewMRR", "value": 39168, "date": "2023-01-29"},
+        {"metric_id": "NewMRR", "value": 20033, "date": "2023-02-28"},
+        {"metric_id": "NewMRR", "value": 61401, "date": "2023-03-30"},
+        {"metric_id": "NewMRR", "value": 86673, "date": "2023-04-29"},
+        {"metric_id": "NewMRR", "value": 26451, "date": "2023-05-29"},
+        {"metric_id": "NewMRR", "value": 47445, "date": "2023-06-28"},
+        {"metric_id": "NewMRR", "value": 63417, "date": "2023-07-28"},
+        {"metric_id": "NewMRR", "value": 63514, "date": "2023-08-27"},
+        {"metric_id": "NewMRR", "value": 64206, "date": "2023-09-26"},
+        {"metric_id": "NewMRR", "value": 78596, "date": "2023-10-26"},
+        {"metric_id": "NewMRR", "value": 21955, "date": "2023-11-25"},
+        {"metric_id": "NewMRR", "value": 30849, "date": "2023-12-25"},
+        {"metric_id": "NewMRR", "value": 77068, "date": "2024-01-24"},
+        {"metric_id": "NewMRR", "value": 95685, "date": "2024-02-23"},
+        {"metric_id": "NewMRR", "value": 62233, "date": "2024-03-24"},
+        {"metric_id": "NewMRR", "value": 42173, "date": "2024-04-23"},
+        {"metric_id": "NewMRR", "value": 18191, "date": "2024-05-23"},
+        {"metric_id": "NewMRR", "value": 95453, "date": "2024-06-22"},
+        {"metric_id": "NewMRR", "value": 46417, "date": "2024-07-22"},
+        {"metric_id": "NewMRR", "value": 69306, "date": "2024-08-21"},
+        {"metric_id": "NewMRR", "value": 76026, "date": "2024-09-20"},
+        {"metric_id": "NewMRR", "value": 43884, "date": "2024-10-20"},
+        {"metric_id": "NewMRR", "value": 11489, "date": "2024-11-19"},
+        {"metric_id": "NewMRR", "value": 99466, "date": "2024-12-19"},
+        {"metric_id": "NewMRR", "value": 78883, "date": "2025-01-18"},
+        {"metric_id": "NewMRR", "value": 76167, "date": "2025-02-17"},
+        {"metric_id": "NewMRR", "value": 95945, "date": "2025-03-19"},
+        {"metric_id": "NewMRR", "value": 97288, "date": "2025-04-18"},
+        {"metric_id": "NewMRR", "value": 79936, "date": "2025-05-18"},
+        {"metric_id": "NewMRR", "value": 33299, "date": "2025-06-17"},
+    ]
+    return metric_values_net_mrr

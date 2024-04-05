@@ -19,7 +19,7 @@ class APIHealth(BaseModel):
 
 
 @router.get(
-    "/",
+    "/health",
     response_model=APIHealth,
     responses={503: {"description": "Some or all services are unavailable", "model": APIHealth}},
 )

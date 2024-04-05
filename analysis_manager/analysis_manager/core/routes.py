@@ -140,7 +140,7 @@ async def process_control(
     columns = {"metric_id": "METRIC_ID", "date": "DAY", "value": "METRIC_VALUE"}
     metrics_df.rename(columns=columns, inplace=True)
     metrics_df["METRIC_ID"] = metrics_df["METRIC_ID"].astype(str)
-    results = []
+    results: list[dict] = []
     for grain in request.grains:
         metrics_df["GRAIN"] = metrics_df["DAY"].astype(str)
         metrics_df = metrics_df[["METRIC_VALUE", "GRAIN"]]

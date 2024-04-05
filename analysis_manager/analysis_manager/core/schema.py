@@ -66,8 +66,8 @@ class ProcessControlRequest(CustomBase):
 
 class ProcessControlResponse(CustomBase):
     metric_id: str
-    start_date: date
-    end_date: date
+    start_date: date | None = None
+    end_date: date | None = None
     grain: Granularity
     date: date
     metric_value: float | None = None

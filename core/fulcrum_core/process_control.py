@@ -269,7 +269,7 @@ def process_control(
     end_date: pd.Timestamp,
     grain: str,
     debug: bool = False,
-) -> list[dict]:
+) -> list[dict] | dict:
     """
     Implement the process control for the given list of metric values.
 
@@ -286,7 +286,7 @@ def process_control(
          3. Data should be in the sorted order of GRAIN used.
 
     response:
-        A dict having:
+        A list of dict having:
             1. Half averages: numpy array
             2. Central Line: numpy array
             3. UCL: numpy array
@@ -294,7 +294,7 @@ def process_control(
             (additional information on the above-mentioned columns mentioned
              in the blog - https://www.staceybarr.com/measure-up/interpreting-signals-in-trending-kpis/)
             5. date: string - value of the 1st row of the column 'GRAIN'
-            6. grain: string - the grain on which we want to apply the process control. Can be DAY, WEEK, MONTH,
+            6. GRAIN: string - the grain on which we want to apply the process control. Can be DAY, WEEK, MONTH,
                 and QUARTER
             7. start_date: string - the start date from the data has been filtered
             8. end_date: string - the end date from the data has been filtered
@@ -339,7 +339,19 @@ def process_control(
 
     if debug:
         logger.debug(data)
-    data.fillna("", inplace=True)
+        return {
+            "metric_id": metric_id,
+            "start_date": start_date,
+            "end_date": end_date,
+            "grain": grain,
+            "date": data.at[0, "GRAIN"],
+            "half_average": data["HALF_AVERAGE"].tolist(),
+            "central_line": data["CENTRAL_LINE"].tolist(),
+            "ucl": data["UCL"].tolist(),
+            "lcl": data["LCL"].tolist(),
+        }
+
+    data.replace(np.nan, None, inplace=True)
     data["DATE"] = data["GRAIN"]
     data["GRAIN"] = grain
     return data.to_dict(orient="records")
