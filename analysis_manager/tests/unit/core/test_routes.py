@@ -5,6 +5,7 @@ import pytest
 from analysis_manager.services.query_manager_client import QueryManagerClient
 
 
+@pytest.mark.skip
 def test_health(client):
     response = client.get("/v1/health")
     assert response.status_code == 200

@@ -9,7 +9,7 @@ from sqlalchemy import select
 from analysis_manager.config import settings
 from analysis_manager.db.config import AsyncSessionDep
 
-router = APIRouter(prefix="/health")
+router = APIRouter()
 logger = logging.getLogger(__name__)
 
 
