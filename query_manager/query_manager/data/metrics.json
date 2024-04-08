@@ -594,6 +594,56 @@
     ]
   },
   {
+    "id": "MktSpend",
+    "label": "Marketing Spend",
+    "abbreviation": "MktSpend",
+    "definition": "The sum of fully-loaded spend on acquisition marketing in the period, inclusive of both variable marketing campaign costs and fixed costs like pro-rated spend on software and salaries.",
+    "unit_of_measure": "Currency",
+    "unit": "$",
+    "complexity": "Atomic",
+    "components": [],
+    "terms": null,
+    "metric_expression": null,
+    "grain_aggregation": "Sum",
+    "output_of": "MktSpend",
+    "input_to": [
+      "CPL",
+      "CAC",
+      "NewMRRAC",
+      "BksAC",
+      "COR",
+      "SalesMktSpend",
+      "GrowthEffic",
+      "MagicNum"
+    ],
+    "influences": [],
+    "influenced_by": [],
+    "periods": [
+      "Month",
+      "Quarter"
+    ],
+    "aggregations": [
+      "Average",
+      "Max",
+      "Min"
+    ],
+    "owned_by_team": [
+      "Finance"
+    ],
+    "dimensions": [
+      {
+        "id": "channel",
+        "label": "Channel",
+        "reference": "channel"
+      },
+      {
+        "id": "department",
+        "label": "Department",
+        "reference": "department"
+      }
+    ]
+  },
+  {
     "id": "SalesSpend",
     "label": "Sales Spend",
     "abbreviation": "SalesSpend",
@@ -845,7 +895,28 @@
     ],
     "terms": null,
     "complexity": "Composite",
-    "metric_expression": "{SalesMktSpend\u209c} / {NewCust\u209c}",
+    "metric_expression": {
+      "expression_str": "{SalesMktSpend\u209c} / {NewCust\u209c}",
+      "metric_id": "CAC",
+      "type": "metric",
+      "period": 0,
+      "expression": {
+        "type": "expression",
+        "operator": "/",
+        "operands": [
+          {
+            "type": "metric",
+            "metric_id": "SalesMktSpend",
+            "period": 0
+          },
+          {
+            "type": "metric",
+            "metric_id": "NewCust",
+            "period": 0
+          }
+        ]
+      }
+    },
     "output_of": "CAC",
     "input_to": [
       "PaybackPd",
@@ -866,6 +937,143 @@
     ],
     "owned_by_team": [
       "Finance"
+    ],
+    "dimensions": [
+      {
+        "id": "customer_segment",
+        "label": "Customer Segment",
+        "reference": "customer_segment"
+      },
+      {
+        "id": "channel",
+        "label": "Channel",
+        "reference": "channel"
+      },
+      {
+        "id": "region",
+        "label": "Region",
+        "reference": "region"
+      }
+    ]
+  },
+  {
+    "id": "SalesMktSpend",
+    "label": "Sales and Marketing Spend",
+    "abbreviation": "SalesMktSpend",
+    "definition": "The sum of Marketing Spend and Sales Spend in the period.",
+    "unit_of_measure": "Currency",
+    "unit": "$",
+    "complexity": "Composite",
+    "components": [
+      "SalesSpend",
+      "SalesDevSpend",
+      "MktSpend"
+    ],
+    "terms": null,
+    "metric_expression": {
+      "type": "metric",
+      "metric_id": "SalesMktSpend",
+      "period": 0,
+      "expression_str": "{SalesSpend} + {SalesDevSpend} + {MktSpend}",
+      "expression": {
+        "type": "expression",
+        "operator": "+",
+        "operands": [
+          {
+            "type": "metric",
+            "metric_id": "SalesSpend",
+            "period": 0
+          },
+          {
+            "type": "metric",
+            "metric_id": "SalesDevSpend",
+            "period": 0
+          },
+          {
+            "type": "metric",
+            "metric_id": "MktSpend",
+            "period": 0
+          }
+        ]
+      }
+    },
+    "grain_aggregation": "Sum",
+    "output_of": "SalesMktSpend",
+    "input_to": [
+      "CAC",
+      "NewMRRAC",
+      "BksAC",
+      "COR",
+      "GrowthEffic",
+      "MagicNum"
+    ],
+    "influences": [],
+    "influenced_by": [],
+    "periods": [
+      "Month",
+      "Quarter"
+    ],
+    "aggregations": [
+      "Average",
+      "Max",
+      "Min"
+    ],
+    "owned_by_team": [
+      "Finance"
+    ],
+    "dimensions": [
+      {
+        "id": "customer_segment",
+        "label": "Customer Segment",
+        "reference": "customer_segment"
+      },
+      {
+        "id": "channel",
+        "label": "Channel",
+        "reference": "channel"
+      },
+      {
+        "id": "region",
+        "label": "Region",
+        "reference": "region"
+      }
+    ]
+  },
+  {
+    "id": "NewCust",
+    "label": "New Customers",
+    "abbreviation": "NewCust",
+    "definition": "The count of Customers whose first Subscriptions began in the period.",
+    "unit_of_measure": "Quantity",
+    "unit": "n",
+    "complexity": "Atomic",
+    "components": [],
+    "terms": null,
+    "metric_expression": null,
+    "grain_aggregation": "Sum",
+    "output_of": "NewCust",
+    "input_to": [
+      "MRRPerNewCust",
+      "CPW",
+      "CAC"
+    ],
+    "influences": [],
+    "influenced_by": [
+      "Subscriptions",
+      "Customers"
+    ],
+    "periods": [
+      "Week",
+      "Month",
+      "Quarter"
+    ],
+    "aggregations": [
+      "Average",
+      "Max",
+      "Min"
+    ],
+    "owned_by_team": [
+      "Sales"
     ],
     "dimensions": [
       {
