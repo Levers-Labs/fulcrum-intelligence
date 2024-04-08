@@ -142,30 +142,34 @@ async def process_control(
     metrics_df["METRIC_ID"] = metrics_df["METRIC_ID"].astype(str)
     results: list[dict] = []
     for grain in request.grains:
-        metrics_df["GRAIN"] = metrics_df["DAY"].astype(str)
-        metrics_df = metrics_df[["METRIC_VALUE", "GRAIN"]]
-        results.extend(
-            analysis_manager.process_control(
-                data=metrics_df,
-                metric_id=request.metric_id,
-                start_date=pd.Timestamp(request.start_date),
-                end_date=pd.Timestamp(request.end_date),
-                grain=grain.value,
-            )
+        _df = metrics_df.copy()
+        _df["GRAIN"] = metrics_df["DAY"].astype(str)
+        _df = _df[["METRIC_VALUE", "GRAIN"]]
+        grain_results = analysis_manager.process_control(
+            data=_df,
+            metric_id=request.metric_id,
+            start_date=pd.Timestamp(request.start_date),
+            end_date=pd.Timestamp(request.end_date),
+            grain=grain.value,
         )
-    res_df = pd.DataFrame(results)
-    columns = {
-        "METRIC_ID": "metric_id",
-        "DATE": "date",
-        "METRIC_VALUE": "metric_value",
-        "GRAIN": "grain",
-        "CENTRAL_LINE": "central_line",
-        "UCL": "ucl",
-        "LCL": "lcl",
-    }
-    res_df.rename(columns=columns, inplace=True)
-    res_df["metric_id"] = request.metric_id
-    res_df["start_date"] = request.start_date
-    res_df["end_date"] = request.end_date
+        grain_results_list = [
+            {
+                "date": result["DATE"],
+                "metric_value": result["METRIC_VALUE"],
+                "central_line": result["CENTRAL_LINE"],
+                "ucl": result["UCL"],
+                "lcl": result["LCL"],
+            }
+            for result in grain_results
+        ]
+        results.append(
+            {
+                "metric_id": request.metric_id,
+                "grain": grain,
+                "start_date": request.start_date,
+                "end_date": request.end_date,
+                "results": grain_results_list,
+            }
+        )
 
-    return res_df.to_dict(orient="records")
+    return results

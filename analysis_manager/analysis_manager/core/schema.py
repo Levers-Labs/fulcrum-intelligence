@@ -64,13 +64,17 @@ class ProcessControlRequest(CustomBase):
     ]
 
 
+class GrainResult(CustomBase):
+    date: date
+    metric_value: float | None = None
+    central_line: float | None = None
+    ucl: float | None = None
+    lcl: float | None = None
+
+
 class ProcessControlResponse(CustomBase):
     metric_id: str
     start_date: date | None = None
     end_date: date | None = None
     grain: Granularity
-    date: date
-    metric_value: float | None = None
-    central_line: float | None = None
-    ucl: float | None
-    lcl: float | None
+    results: list[GrainResult]
