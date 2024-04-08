@@ -197,10 +197,10 @@ async def component_drift(
             examples=[
                 {
                     "metric_id": "CAC",
-                    "evaluation_start_date": "2024-01-01",
-                    "evaluation_end_date": "2024-04-30",
-                    "comparison_start_date": "2024-01-01",
-                    "comparison_end_date": "2024-04-30",
+                    "evaluation_start_date": "2024-04-01",
+                    "evaluation_end_date": "2024-05-01",
+                    "comparison_start_date": "2024-03-01",
+                    "comparison_end_date": "2024-04-01",
                 }
             ]
         ),
