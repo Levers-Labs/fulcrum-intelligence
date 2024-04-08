@@ -9,7 +9,7 @@ from sqlalchemy import select
 from analysis_manager.config import settings
 from analysis_manager.db.config import AsyncSessionDep
 
-router = APIRouter(prefix="/health")
+router = APIRouter()
 logger = logging.getLogger(__name__)
 
 
@@ -19,7 +19,7 @@ class APIHealth(BaseModel):
 
 
 @router.get(
-    "/",
+    "/health",
     response_model=APIHealth,
     responses={503: {"description": "Some or all services are unavailable", "model": APIHealth}},
 )

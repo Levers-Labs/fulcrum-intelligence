@@ -1,7 +1,11 @@
 from datetime import date
+from typing import Annotated
+
+from pydantic import Field
 
 from analysis_manager.core.models import UserRead
 from analysis_manager.db.models import CustomBase
+from analysis_manager.utilities.enums import Granularity
 
 
 class UserList(CustomBase):
@@ -11,17 +15,16 @@ class UserList(CustomBase):
 
 class DimensionRequest(CustomBase):
     dimension: str
-    slices: list[str] | None = None
+    members: list[str] | None = None
 
 
 class DescribeResponse(CustomBase):
     metric_id: str | None = None
     dimension: str
-    slice: str | None
+    member: str | None
     mean: float | None = None
     median: float | None = None
     variance: float | None = None
-    standard_deviation: float | None
     percentile_25: float | None
     percentile_50: float | None
     percentile_75: float | None
@@ -36,13 +39,42 @@ class DescribeResponse(CustomBase):
 
 
 class DescribeRequest(CustomBase):
-    metric_id: int
+    metric_id: str
     start_date: date
     end_date: date
     dimensions: list[DimensionRequest] | None = None
 
 
 class CorrelateRequest(CustomBase):
-    metric_ids: list[str]
+    metric_ids: Annotated[list[str], Field(..., min_length=2)]
     start_date: date
     end_date: date
+
+
+class ProcessControlRequest(CustomBase):
+    metric_id: str
+    start_date: date
+    end_date: date
+    grains: list[Granularity] = [
+        Granularity.DAY,
+        Granularity.WEEK,
+        Granularity.MONTH,
+        Granularity.QUARTER,
+        Granularity.YEAR,
+    ]
+
+
+class GrainResult(CustomBase):
+    date: date
+    metric_value: float | None = None
+    central_line: float | None = None
+    ucl: float | None = None
+    lcl: float | None = None
+
+
+class ProcessControlResponse(CustomBase):
+    metric_id: str
+    start_date: date | None = None
+    end_date: date | None = None
+    grain: Granularity
+    results: list[GrainResult]

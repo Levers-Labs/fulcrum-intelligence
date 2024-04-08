@@ -1,12 +1,11 @@
 from datetime import date
 from typing import Any
 
-from analysis_manager.core.schema import DimensionRequest
 from analysis_manager.utilities.async_http_client import AsyncHttpClient
 
 
 class QueryManagerClient(AsyncHttpClient):
-    METRICS_VALUES_BASE_URL = "metrics/values"
+    METRICS_VALUES_BASE_URL = "metrics/{metric_id}/values"
     DATE_FORMAT = "%Y-%m-%d"
 
     async def get_metric_values(
@@ -14,31 +13,53 @@ class QueryManagerClient(AsyncHttpClient):
         metric_ids: list[str],
         start_date: date,
         end_date: date,
-        dimensions: list[DimensionRequest] | None = None,
-    ) -> dict[str, Any]:
+        dimensions: list[str] | None = None,
+    ) -> list[dict[str, Any]]:
         """
-        Get metric values.
-        metric_ids: list of metric ids
-        start_date: start date
-        end_date: end date
-        dimensions: list of dimensions
+             Get metric values.
+             metric_ids: list of metric ids
+             start_date: start date
+             end_date: end date
+             dimensions: list of dimensions
 
-        Returns: dict
+             Returns: list of metric values
+             [
         {
-            "id": "29",
-            "date": "2024-03-15",
-            "dimension": "Geosegmentation",
-            "slice": "Americas",
-            "value": 0
-        }
+           "metric_id":"CAC",
+           "value":203,
+           "date":"2022-09-01",
+           "customer_segment":"Enterprise",
+           "channel":"Online",
+           "region":"Asia"
+        },
+        {
+           "metric_id":"CAC",
+           "value":3139,
+           "date":"2022-09-01",
+           "customer_segment":"Enterprise",
+           "channel":"Retail",
+           "region":"Asia"
+        },
+        {
+           "metric_id":"CAC",
+           "value":83,
+           "date":"2022-09-01",
+           "customer_segment":"Enterprise",
+           "channel":"Retail",
+           "region":"Europe"
+        }]
         """
         start_date_str = start_date.strftime(self.DATE_FORMAT)
         end_date_str = end_date.strftime(self.DATE_FORMAT)
-        dimensions_json = [d.model_dump(mode="json") for d in dimensions] if dimensions else None
-        data = {
-            "metric_ids": metric_ids,
+        payload = {
             "start_date": start_date_str,
             "end_date": end_date_str,
-            "dimensions": dimensions_json,
+            "dimensions": dimensions if dimensions else [],
         }
-        return await self.post(endpoint=self.METRICS_VALUES_BASE_URL, data=data)
+        results = []
+        for metric_id in metric_ids:
+            url = self.METRICS_VALUES_BASE_URL.format(metric_id=metric_id)
+            res = await self.post(endpoint=url, data=payload)
+            if res.get("data"):
+                results.extend(res["data"])
+        return results

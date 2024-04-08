@@ -12,8 +12,16 @@ class AnalysisManager:
     Core class for implementing all major functions for analysis manager
     """
 
-    def describe(self, data: pd.DataFrame) -> list[dict]:
-        result = describe(data)
+    def describe(
+        self,
+        data: list[dict],
+        dimensions: list[str],
+        metric_id: str,
+        start_date: pd.Timestamp,
+        end_date: pd.Timestamp,
+        aggregation_function: str,
+    ) -> list[dict]:
+        result = describe(data, dimensions, metric_id, start_date, end_date, aggregation_function)
         return result
 
     def correlate(self, data: pd.DataFrame, start_date: date, end_date: date) -> list[dict]:
@@ -28,6 +36,6 @@ class AnalysisManager:
         end_date: pd.Timestamp,
         grain: str,
         debug: bool = False,
-    ) -> dict:
+    ) -> list[dict] | dict:
         result = process_control(data, metric_id, start_date, end_date, grain, debug)
         return result
