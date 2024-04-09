@@ -40,3 +40,44 @@ def process_control_output():
     with open("tests/data/process_control_output.txt") as fr:  # noqa: UP015
         process_control_output = json.loads(fr.read())
     return process_control_output
+
+
+@pytest.fixture
+def segment_drift_data():
+    with open("tests/data/segment_drift_data.json", "r") as fr:  # noqa: UP015
+        data = json.load(fr)
+
+    base_date_range = {"from": "2025-03-01", "to": "2025-03-30"}
+
+    comparison_date_range = {"from": "2024-03-01", "to": "2024-03-30"}
+
+    date_column = "date"
+    aggregation_option = "sum"
+    metric_value_column = "metric_value"
+    group_by_columns = ["region", "stage_name"]
+    target_metric_direction = "increasing"  # or "decreasing"
+
+    segment_drift_data = {
+        "data": data,
+        "baseDateRange": base_date_range,
+        "comparisonDateRange": comparison_date_range,
+        "dateColumn": date_column,
+        "dateColumnType": "DATE",
+        "metricColumn": {
+            "aggregationOption": aggregation_option,
+            "singularMetric": {"columnName": metric_value_column},
+        },
+        "groupByColumns": group_by_columns,
+        "expectedValue": 0,
+        "filters": [],
+        "maxNumDimensions": 3,
+        "target_metric_direction": target_metric_direction,
+    }
+    return segment_drift_data
+
+
+@pytest.fixture
+def segment_drift_output():
+    with open("tests/data/segment_drift_output.json") as fr:  # noqa: UP015
+        segment_drift_output = json.loads(fr.read())
+    return segment_drift_output

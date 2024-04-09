@@ -29,3 +29,11 @@ def test_process_control(process_control_df, process_control_output):
             "nan" if math.isnan(response["half_average"][index]) else response["half_average"][index]
         )
     assert process_control_output == response
+
+
+def test_segment_drift(segment_drift_data, segment_drift_output):
+    analysis_manager = AnalysisManager()
+    response = analysis_manager.segment_drift(
+        segment_drift_data
+    )
+    assert response == segment_drift_output

@@ -1,0 +1,3 @@
+[submodule "dsensei"]
+	path = dsensei
+	url = https://github.com/dsensei/dsensei

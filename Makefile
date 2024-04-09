@@ -69,6 +69,6 @@ test:
 
 test-all:
 	@echo "Running all tests..."
-	@make test app=core
+	@PYTHONPATH=$(CURDIR) make test app=core
 	@make test app=query_manager
 	@make test app=analysis_manager
