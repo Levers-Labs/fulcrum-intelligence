@@ -51,8 +51,18 @@ path ?= .
 format:
 	@python manage.py format $(path)
 
+format-all:
+	@make format path=core
+	@make format path=query_manager
+	@make format path=analysis_manager
+
 lint:
 	@python manage.py lint $(path)
+
+lint-all:
+	@make lint path=core
+	@make lint path=query_manager
+	@make lint path=analysis_manager
 
 start-shell:
 ifndef app
