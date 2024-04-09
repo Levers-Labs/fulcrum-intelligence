@@ -30,7 +30,6 @@ def test_process_control(process_control_df, process_control_output):
 def test_segment_drift(segment_drift_data, segment_drift_output):
     analysis_manager = AnalysisManager()
     response = analysis_manager.segment_drift(segment_drift_data)
-    print(response)
     assert sorted(response.values()) == sorted(segment_drift_output.values())
 
 
