@@ -43,23 +43,17 @@ class AnalysisManager:
         result = process_control(data, metric_id, start_date, end_date, grain, debug)
         return result
 
-    def segment_drift(
-        self,
-        data: dict
-
-    ) -> list[dict]:
+    def segment_drift(self, data: dict, debug: bool = False) -> list[dict]:
         """
-            Before calling the segment_drift(), convert the df to CSV file and save it. This conversion is necessary
-            as the dsensei author has written custom logic to parse data from CSV.
+        Before calling the segment_drift(), convert the df to CSV file and save it. This conversion is necessary
+        as the dsensei author has written custom logic to parse data from CSV.
         """
         file_path = os.path.join("/mnt", f"{uuid.uuid4()}.csv")
         try:
             df = pd.json_normalize(data["data"])
             df.to_csv(file_path)
             data["data_file_path"] = file_path
-            result = segment_drift(
-                data
-            )
+            result = segment_drift(data, debug=debug)
         except Exception as err:
             raise Exception("Possibility of incorrect or incomplete data") from err
         finally:

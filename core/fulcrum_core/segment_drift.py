@@ -10,6 +10,7 @@ from dsensei.backend.app.insight.services.utils import load_df_from_csv
 
 def segment_drift(
     data: dict,
+    debug: bool = False
 ):
     timestamp_format = "%Y-%m-%dT%H:%M:%S.%fZ"
 
@@ -95,4 +96,8 @@ def segment_drift(
         elif relative_change == 0.0:
             dimension_slice_info[segment]["pressure"] = "UNCHANGED"
 
-    return result
+    if debug:
+        return result
+
+    return dimension_slice_info
+

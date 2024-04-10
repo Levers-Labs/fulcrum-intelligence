@@ -85,6 +85,7 @@ def segment_drift_output():
     return segment_drift_output
 
 
+@pytest.fixture
 def describe_data():
     with open(pathlib.Path.joinpath(Paths.BASE_DIR, "tests/data/describe_data.json")) as fr:  # noqa: UP015
         describe_data = json.load(fr)
