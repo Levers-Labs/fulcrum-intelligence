@@ -52,6 +52,39 @@ def describe_data():
 
 
 @pytest.fixture
+def metric_expression():
+    return {
+        "type": "expression",
+        "operator": "/",
+        "operands": [
+            {
+                "type": "expression",
+                "operator": "+",
+                "operands": [
+                    {"type": "metric", "metric_id": "SalesDevSpend"},
+                    {"type": "metric", "metric_id": "SalesSpend"},
+                ],
+            },
+            {
+                "type": "expression",
+                "operator": "+",
+                "operands": [
+                    {"type": "metric", "metric_id": "NewCust"},
+                    {"type": "metric", "metric_id": "OldCust"},
+                ],
+            },
+        ],
+    }
+
+
+@pytest.fixture
+def component_drift_response():
+    with open(pathlib.Path.joinpath(Paths.BASE_DIR, "tests/data/component_drift_response.json")) as fr:
+        output = json.loads(fr.read())
+    return output
+
+
+@pytest.fixture
 def describe_output():
     with open(pathlib.Path.joinpath(Paths.BASE_DIR, "tests/data/describe_output.json")) as fr:  # noqa: UP015
         describe_output = json.loads(fr.read())

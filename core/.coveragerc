@@ -4,8 +4,7 @@ omit=
     */data/*
 
 [report]
-# todo: change to 80
-fail_under = 70
+fail_under = 90
 # Regexes for lines to exclude from consideration
 exclude_lines =
     # Don't complain about missing debug-only code:
