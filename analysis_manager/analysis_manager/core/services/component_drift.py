@@ -17,8 +17,7 @@ class ComponentDriftService:
         evaluation_end_date: date,
         comparison_start_date: date,
         comparison_end_date: date,
-        parent_component: dict | None = None,
-        root_component: dict | None = None,
+        parent_drift: dict | None = None,
     ) -> dict:
         """
         Calculate component drift for a given metric.
@@ -29,8 +28,7 @@ class ComponentDriftService:
             evaluation_end_date: evaluation end date
             comparison_start_date: comparison start date
             comparison_end_date: comparison end date
-            parent_component: parent component
-            root_component: root component
+            parent_drift: parent component drift
 
         Returns:
             Component object containing the drift analysis results.
@@ -45,12 +43,11 @@ class ComponentDriftService:
             comparison_end_date,
         )
         # calculate drift
-        component = self.analysis_manager.calculate_drift(
+        component = self.analysis_manager.calculate_component_drift(
             output_metric_id,
             values,
-            metric_expression=metric["metric_expression"],
-            parent_component=parent_component,
-            root_component=root_component,
+            metric_expression=metric["metric_expression"]["expression"],
+            parent_drift=parent_drift,
         )
 
         # Setup recursive drift calculation for child components
@@ -77,8 +74,7 @@ class ComponentDriftService:
                 evaluation_end_date,
                 comparison_start_date,
                 comparison_end_date,
-                parent_component=component,
-                root_component=root_component or component,
+                parent_drift=input_component["drift"],
             )
             # update the child component with the drift results
             input_component.update(components=input_metric_drift.get("components"))
