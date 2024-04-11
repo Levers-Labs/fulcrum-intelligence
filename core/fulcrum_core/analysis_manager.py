@@ -51,7 +51,6 @@ class AnalysisManager:
         values: list[dict[str, Any]],
         metric_expression: dict[str, Any],
         parent_drift: dict[str, Any] | None = None,
-        root_drift: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """
         Calculate the drift for the given expression.
@@ -149,7 +148,15 @@ class AnalysisManager:
         """
         evaluator = ComponentDriftEvaluator(values)
         expression = evaluator.resolve_expression_values(metric_expression)
-        result = evaluator.calculate_drift(expression)
+        # Get the relative impact and marginal contribution of the root node
+        relative_impact_root = 1
+        marginal_contribution_root = 1
+        if parent_drift:
+            relative_impact_root = parent_drift["relative_impact_root"]
+            marginal_contribution_root = parent_drift["marginal_contribution_root"]
+        result = evaluator.calculate_drift(
+            expression, relative_impact_root=relative_impact_root, marginal_contribution_root=marginal_contribution_root
+        )
         # Return the drift information as expected by the API
         response = {
             "metric_id": metric_id,
@@ -182,39 +189,3 @@ class AnalysisManager:
             response,
         )
         return response
-
-
-if __name__ == "__main__":
-    # Example usage
-    metric_values = [
-        {"metric_id": "CAC", "evaluation_value": 700, "comparison_value": 300},
-        {"metric_id": "SalesDevSpend", "evaluation_value": 5000.0, "comparison_value": 4500},
-        {"metric_id": "SalesSpend", "evaluation_value": 2000.0, "comparison_value": 1500},
-        {"metric_id": "NewCust", "evaluation_value": 25, "comparison_value": 12},
-        {"metric_id": "OldCust", "evaluation_value": 5, "comparison_value": 2},
-    ]
-
-    expression_ex = {
-        "type": "expression",
-        "operator": "/",
-        "operands": [
-            {
-                "type": "expression",
-                "operator": "+",
-                "operands": [
-                    {"type": "metric", "metric_id": "SalesDevSpend"},
-                    {"type": "metric", "metric_id": "SalesSpend"},
-                ],
-            },
-            {
-                "type": "expression",
-                "operator": "-",
-                "operands": [
-                    {"type": "metric", "metric_id": "NewCust"},
-                    {"type": "metric", "metric_id": "OldCust"},
-                ],
-            },
-        ],
-    }
-    manager = AnalysisManager()
-    res = manager.calculate_component_drift("CAC", metric_values, expression_ex)

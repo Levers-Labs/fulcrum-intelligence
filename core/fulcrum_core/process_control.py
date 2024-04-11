@@ -80,7 +80,7 @@ def compute_central_line(
 
 
 def compute_average_moving_ranges(data, processing_start_index, half_average_point, debug):
-    average_moving_range: float = 0.0
+    average_moving_range = 0.0
     average_moving_range_row_count = 0
     for processing_start_index_rolling, _ in data[processing_start_index:].iterrows():
         if processing_start_index_rolling == 0:

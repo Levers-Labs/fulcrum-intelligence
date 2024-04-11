@@ -138,6 +138,8 @@ class ComponentDriftEvaluator:
         node: dict[str, Any],
         parent_node: dict[str, Any] | None = None,
         operator: str = "+",
+        relative_impact_root: float = 1,
+        marginal_contribution_root: float = 1,
         invert_values: bool = False,
     ):
         """
@@ -152,16 +154,16 @@ class ComponentDriftEvaluator:
 
         if parent_node:
             parent_delta = self.calculate_delta(
-                parent_node["evaluation_value"],
-                parent_node["comparison_value"],
-                calculation_type,
-                invert_values=invert_values,
+                parent_node["evaluation_value"], parent_node["comparison_value"], calculation_type
             )
             # calculate relative impact and marginal contribution w.r.t parent node
             relative_impact = self.calculate_relative_impact(delta, parent_delta)
             marginal_contribution = self.calculate_marginal_contribution(
                 relative_impact, parent_node["drift"]["percentage_drift"]
             )
+            # root level relative impact and marginal contribution
+            relative_impact_root = relative_impact * relative_impact_root
+            marginal_contribution_root = marginal_contribution * marginal_contribution_root
             # Update the cumulative impacts w.r.t top level node/metric
             relative_impact *= parent_node["drift"]["relative_impact"]
             marginal_contribution *= parent_node["drift"]["marginal_contribution"]
@@ -169,12 +171,16 @@ class ComponentDriftEvaluator:
             # impact w.r.t itself
             relative_impact = 1
             marginal_contribution = 1
+            relative_impact_root = relative_impact_root
+            marginal_contribution_root = marginal_contribution_root
 
         return {
             "absolute_drift": delta,
             "percentage_drift": percent_change,
             "relative_impact": relative_impact,
             "marginal_contribution": marginal_contribution,
+            "relative_impact_root": relative_impact_root,
+            "marginal_contribution_root": marginal_contribution_root,
         }
 
     def calculate_drift(
@@ -182,6 +188,8 @@ class ComponentDriftEvaluator:
         expression: dict[str, Any],
         parent_node: dict[str, Any] | None = None,
         operator: str = "+",
+        relative_impact_root: float = 1,
+        marginal_contribution_root: float = 1,
         invert_values: bool = False,
     ) -> dict[str, Any]:
         """
@@ -206,13 +214,27 @@ class ComponentDriftEvaluator:
         Here the drift values, i.e., relative_impact & marginal_contribution are always w.r.t Parent metric.
         In this case against CAC
         """
-        drift = self.calculate_drift_for_node(expression, parent_node, operator, invert_values=invert_values)
+        drift = self.calculate_drift_for_node(
+            expression,
+            parent_node,
+            operator,
+            relative_impact_root=relative_impact_root,
+            marginal_contribution_root=marginal_contribution_root,
+            invert_values=invert_values,
+        )
         expression["drift"] = drift
 
         if "operands" in expression:
             for i, operand in enumerate(expression["operands"]):
                 # Determine if values should be inverted based on operator and position
                 should_invert_values = expression["operator"] == "/" and i > 0
-                self.calculate_drift(operand, expression, expression["operator"], invert_values=should_invert_values)
+                self.calculate_drift(
+                    operand,
+                    expression,
+                    expression["operator"],
+                    relative_impact_root=drift["relative_impact_root"],
+                    marginal_contribution_root=drift["marginal_contribution_root"],
+                    invert_values=should_invert_values,
+                )
 
         return expression
