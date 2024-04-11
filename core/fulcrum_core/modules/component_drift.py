@@ -48,7 +48,9 @@ class ComponentDriftEvaluator:
         """
         if operator in MULTIPLICATIVE_OPERATORS:
             return CalculationType.MULTIPLICATIVE
-        return CalculationType.ADDITIVE
+        elif operator in ADDITIVE_OPERATORS:
+            return CalculationType.ADDITIVE
+        raise ValueError(f"Invalid operator: {operator}")
 
     @staticmethod
     def calculate_relative_impact(delta: float, parent_delta: float) -> float:
