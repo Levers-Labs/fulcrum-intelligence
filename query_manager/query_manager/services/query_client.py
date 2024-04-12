@@ -159,14 +159,15 @@ class QueryClient:
 
         # load in df
         df = pd.DataFrame(metric_values)
-        # convert date strings to date
-        df["date"] = pd.to_datetime(df["date"]).dt.date
+        if not df.empty:
+            # convert date strings to date
+            df["date"] = pd.to_datetime(df["date"]).dt.date
 
-        # filter by date range
-        if start_date:
-            df = df[df["date"] >= start_date]
-        if end_date:
-            df = df[df["date"] < end_date]
+            # filter by date range
+            if start_date:
+                df = df[df["date"] >= start_date]
+            if end_date:
+                df = df[df["date"] < end_date]
 
         results = cast(list[dict[str, Any]], df.to_dict(orient="records"))
         return results
