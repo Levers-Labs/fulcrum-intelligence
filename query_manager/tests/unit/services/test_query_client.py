@@ -1,3 +1,4 @@
+from datetime import date
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -113,10 +114,10 @@ async def test_get_metric_values_without_dimensions(mocker, query_client):
     mock_query_s3_json = AsyncMock(return_value=[{"date": "2022-01-01", "value": 200}])
     mocker.patch.object(query_client.s3_client, "query_s3_json", mock_query_s3_json)
 
-    result = await query_client.get_metric_values("metric_id", "2022-01-01", "2022-01-31", None)
+    result = await query_client.get_metric_values("metric_id", date(2022, 1, 1), date(2022, 1, 31), None)
 
     assert len(result) == 1
-    assert result[0] == {"date": "2022-01-01", "value": 200}
+    assert result[0] == {"date": date(2022, 1, 1), "value": 200}
     mock_query_s3_json.assert_awaited_with("mock_data/metric/metric_id/values.json", "SELECT * FROM s3object")
 
 
@@ -129,10 +130,12 @@ async def test_get_metric_values_with_dimensions(mocker, query_client):
     )
     mocker.patch.object(query_client.s3_client, "query_s3_json", mock_query_s3_json)
 
-    result = await query_client.get_metric_values("metric_id", "2022-01-01", "2022-01-31", ["dimension1", "dimension2"])
+    result = await query_client.get_metric_values(
+        "metric_id", date(2022, 1, 1), date(2022, 1, 31), ["dimension1", "dimension2"]
+    )
 
     assert len(result) == 1
-    assert result[0] == {"date": "2022-01-01", "value": 100, "dimensions": {"name": "X", "member": "Y"}}
+    assert result[0] == {"date": date(2022, 1, 1), "value": 100, "dimensions": {"name": "X", "member": "Y"}}
     mock_query_s3_json.assert_awaited_with(
         "mock_data/metric/metric_id/values_with_dimensions.json", "SELECT * FROM s3object"
     )
