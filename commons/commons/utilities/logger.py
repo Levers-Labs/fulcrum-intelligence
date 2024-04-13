@@ -16,12 +16,12 @@ class LoggerConfig(BaseModel):
 
 
 @lru_cache
-def get_logger_config(settings):
+def get_logger_config(env: str = "dev", logging_level: str | int = logging.INFO):
     """Installs RichHandler (Rich library) if not in production
     environment, or use the production log configuration.
     """
 
-    if not settings.ENV == "prod":
+    if not env == "prod":
         from rich.logging import RichHandler
 
         return LoggerConfig(
@@ -30,7 +30,7 @@ def get_logger_config(settings):
             ],
             format=LOGGER_FORMAT,
             date_format=DATE_FORMAT,
-            level=settings.LOGGING_LEVEL,
+            level=logging_level,
         )
 
     handler_format = logging.Formatter(LOGGER_FORMAT, datefmt=DATE_FORMAT)
@@ -39,12 +39,7 @@ def get_logger_config(settings):
     stdout_handler = logging.StreamHandler(sys.stdout)
     stdout_handler.setFormatter(handler_format)
 
-    return LoggerConfig(
-        handlers=[stdout_handler],
-        format=LOGGER_FORMAT,
-        date_format=DATE_FORMAT,
-        level=settings.LOGGING_LEVEL,
-    )
+    return LoggerConfig(handlers=[stdout_handler], format=LOGGER_FORMAT, date_format=DATE_FORMAT, level=logging_level)
 
 
 def setup_rich_logger(settings):
@@ -60,7 +55,7 @@ def setup_rich_logger(settings):
         logging.getLogger(name).handlers = []
         logging.getLogger(name).propagate = True
 
-    logger_config = get_logger_config(settings)  # get Rich logging config
+    logger_config = get_logger_config(env=settings.ENV, logging_level=settings.LOGGING_LEVEL)  # get Rich logging config
 
     logging.basicConfig(
         level=logger_config.level,
