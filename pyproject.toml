@@ -53,13 +53,18 @@ show_error_codes = true
 show_error_context = true
 ignore_missing_imports = true
 exclude = [
-    "analysis_manager/gunicorn.conf.py",
     "query_manager/manage.py",
     "analysis_manager/manage.py",
+    "story_manager/manage.py",
+    # lambda
+    "query_manager/lambda.py",
+    "story_manager/lambda.py",
     # Tests
     "query_manager/tests/",
     "analysis_manager/tests/",
+    "story_manager/tests/",
     "core/tests/",
+    "commons/tests/",
 ]
 
 [tool.ruff]
