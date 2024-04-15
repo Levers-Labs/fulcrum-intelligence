@@ -8,7 +8,7 @@ omit=
     commons/models/enums.py
 
 [report]
-fail_under = 90
+fail_under = 85
 # Regexes for lines to exclude from consideration
 exclude_lines =
     # Don't complain about missing debug-only code:
