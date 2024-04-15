@@ -54,7 +54,7 @@ jobs:
       - name: Install Storage Manager Dependencies
         run: |
           echo "Installing storage_manager dependencies"
-          poetry export -f requirements.txt --output requirements.txt --without-hashes -C storage_manager
+          poetry export -f requirements.txt --output requirements.txt --without-hashes -C story_manager
           pip install -U -r requirements.txt
 
       - name: Install Core Dependencies
