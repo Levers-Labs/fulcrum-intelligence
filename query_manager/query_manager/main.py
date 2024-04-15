@@ -4,6 +4,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 
 from query_manager.config import get_settings
 from query_manager.core.routes import router as core_router
+from query_manager.exceptions import add_exception_handlers
 from query_manager.health import router as health_check_router
 from query_manager.utilities.docs import router as docs_router
 from query_manager.utilities.logger import setup_rich_logger
@@ -40,6 +41,9 @@ def get_application() -> FastAPI:
 
     # setup logging
     setup_rich_logger()
+
+    # add exception handlers
+    add_exception_handlers(_app)
 
     return _app
 

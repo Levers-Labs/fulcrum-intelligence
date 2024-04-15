@@ -4,21 +4,21 @@ from typing import Annotated
 from pydantic import Field
 
 from analysis_manager.core.models import UserRead
-from analysis_manager.db.models import CustomBase
+from analysis_manager.db.models import BaseModel
 from analysis_manager.utilities.enums import Granularity
 
 
-class UserList(CustomBase):
+class UserList(BaseModel):
     count: int
     results: list[UserRead]
 
 
-class DimensionRequest(CustomBase):
+class DimensionRequest(BaseModel):
     dimension: str
     members: list[str] | None = None
 
 
-class DescribeResponse(CustomBase):
+class DescribeResponse(BaseModel):
     metric_id: str | None = None
     dimension: str
     member: str | None
@@ -38,20 +38,20 @@ class DescribeResponse(CustomBase):
     unique: int | None = None
 
 
-class DescribeRequest(CustomBase):
+class DescribeRequest(BaseModel):
     metric_id: str
     start_date: date
     end_date: date
     dimensions: list[DimensionRequest] | None = None
 
 
-class CorrelateRequest(CustomBase):
+class CorrelateRequest(BaseModel):
     metric_ids: Annotated[list[str], Field(..., min_length=2)]
     start_date: date
     end_date: date
 
 
-class ProcessControlRequest(CustomBase):
+class ProcessControlRequest(BaseModel):
     metric_id: str
     start_date: date
     end_date: date
@@ -64,7 +64,7 @@ class ProcessControlRequest(CustomBase):
     ]
 
 
-class GrainResult(CustomBase):
+class GrainResult(BaseModel):
     date: date
     metric_value: float | None = None
     central_line: float | None = None
@@ -72,7 +72,7 @@ class GrainResult(CustomBase):
     lcl: float | None = None
 
 
-class ProcessControlResponse(CustomBase):
+class ProcessControlResponse(BaseModel):
     metric_id: str
     start_date: date | None = None
     end_date: date | None = None

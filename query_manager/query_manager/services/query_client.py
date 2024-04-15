@@ -1,9 +1,12 @@
 import json
-from typing import Any
+from datetime import date
+from typing import Any, cast
 
 import aiofiles
+import pandas as pd
 
 from query_manager.config import get_settings
+from query_manager.exceptions import MetricNotFoundError, MetricValueNotFoundError
 from query_manager.services.s3 import S3Client
 from query_manager.utilities.enums import Granularity
 
@@ -36,16 +39,22 @@ class QueryClient:
             contents = await f.read()
         return json.loads(contents)
 
-    async def list_metrics(self, page: int | None = None, per_page: int | None = None) -> list[dict[str, Any]]:
+    async def list_metrics(
+        self, page: int | None = None, per_page: int | None = None, metric_ids: list[str] | None = None
+    ) -> list[dict[str, Any]]:
         """
         Fetches a list of all metrics, optionally in a paginated manner.
 
         :param page: Optional page number for pagination.
         :param per_page: Optional number of items per page for pagination.
+        :param metric_ids: Optional list of metric IDs to filter the results by.
         :return: A list of dictionaries representing metrics.
         """
         metrics_data = await self.load_data(self.metric_file_path)
-        # Implement pagination logic here if necessary
+        # Implement pagination logic here if necessary,
+        # Implement filtering logic here
+        if metric_ids:
+            metrics_data = [metric for metric in metrics_data if metric["id"] in metric_ids]
         return metrics_data
 
     async def get_metric_details(self, metric_id: str) -> dict[str, Any] | None:
@@ -56,7 +65,10 @@ class QueryClient:
         :return: A dictionary representing the metric details, or None if not found.
         """
         metrics_data = await self.load_data(self.metric_file_path)
-        return next((metric for metric in metrics_data if metric["id"] == metric_id), None)
+        res = next((metric for metric in metrics_data if metric["id"] == metric_id), None)
+        if res:
+            return res
+        raise MetricNotFoundError(metric_id)
 
     async def list_dimensions(self) -> list[dict[str, Any]]:
         """
@@ -88,11 +100,36 @@ class QueryClient:
         return dimension_detail.get("members", []) if dimension_detail else []
 
     # Value apis
+    async def get_metric_value(
+        self, metric_id: str, start_date: date | None = None, end_date: date | None = None
+    ) -> dict[str, Any]:
+        """
+        Fetches the value of a metric for a given date range.
+
+        :param metric_id: The ID of the metric to fetch the value for.
+        :param start_date: The start date of the period to fetch the value for.
+        :param end_date: The end date of the period to fetch the value for.
+        :return: A dictionary representing the metric value.
+
+        Example:
+        {
+            "metric_id": "CAC",
+            "value": 0
+        }
+        """
+        # todo: Actual implementation with semantic api
+        values = await self.get_metric_values(metric_id, start_date, end_date)
+        if values:
+            # aggregate the values using a sum
+            value = sum([value["value"] for value in values])
+            return {"metric_id": metric_id, "value": value}
+        raise MetricValueNotFoundError(metric_id)
+
     async def get_metric_values(
         self,
         metric_id: str,
-        start_date: str,
-        end_date: str,
+        start_date: date | None = None,
+        end_date: date | None = None,
         dimensions: list[str] | None = None,
         grain: Granularity = Granularity.DAY,
     ) -> list[dict[str, Any]]:
@@ -120,7 +157,20 @@ class QueryClient:
         # Use the S3Client to query the data asynchronously
         metric_values = await self.s3_client.query_s3_json(key, sql_expression)
 
-        return metric_values
+        # load in df
+        df = pd.DataFrame(metric_values)
+        if not df.empty:
+            # convert date strings to date
+            df["date"] = pd.to_datetime(df["date"]).dt.date
+
+            # filter by date range
+            if start_date:
+                df = df[df["date"] >= start_date]
+            if end_date:
+                df = df[df["date"] < end_date]
+
+        results = cast(list[dict[str, Any]], df.to_dict(orient="records"))
+        return results
 
     async def get_metric_targets(
         self, metric_id: str, start_date: str | None = None, end_date: str | None = None

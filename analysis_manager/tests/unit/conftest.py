@@ -201,3 +201,101 @@ def metric_values_netmrr():
         {"metric_id": "NewMRR", "value": 33299, "date": "2025-06-17"},
     ]
     return metric_values_net_mrr
+
+
+@pytest.fixture(scope="session")
+def metric_cac():
+    return {
+        "id": "CAC",
+        "label": "Metric 1",
+        "abbreviation": "M1",
+        "definition": "Definition 1",
+        "unit_of_measure": "Units",
+        "unit": "U",
+        "complexity": "Simple",
+        "metric_expression": {
+            "expression_str": "{SalesMktSpend\u209c} / ({NewCust\u209c} - {OldCust\u209c})",
+            "metric_id": "CAC",
+            "type": "metric",
+            "period": 0,
+            "expression": {
+                "type": "expression",
+                "operator": "+",
+                "operands": [
+                    {"type": "metric", "metric_id": "SalesMktSpend", "period": 0},
+                    {
+                        "type": "expression",
+                        "operator": "-",
+                        "operands": [
+                            {"type": "metric", "metric_id": "NewCust", "period": 0},
+                            {"type": "metric", "metric_id": "OldCust", "period": 0},
+                        ],
+                    },
+                ],
+            },
+        },
+        "grain_aggregation": "aggregation",
+        "components": ["component1", "component2"],
+        "terms": ["term1", "term2"],
+        "output_of": "output",
+        "input_to": ["input1", "input2"],
+        "influences": ["influence1", "influence2"],
+        "influenced_by": ["influenced1", "influenced2"],
+        "periods": ["period1", "period2"],
+        "aggregations": ["aggregation1", "aggregation2"],
+        "owned_by_team": ["team1", "team2"],
+    }
+
+
+@pytest.fixture(scope="session")
+def metric_sms():
+    return {
+        "id": "SalesMktSpend",
+        "label": "Sales and Marketing Spend",
+        "abbreviation": "M1",
+        "definition": "Definition 1",
+        "unit_of_measure": "Units",
+        "unit": "U",
+        "complexity": "Simple",
+        "metric_expression": {
+            "expression_str": "{SalesSpend} + {MktSpend}",
+            "metric_id": "CAC",
+            "type": "metric",
+            "period": 0,
+            "expression": {
+                "type": "expression",
+                "operator": "+",
+                "operands": [
+                    {"type": "metric", "metric_id": "SalesSpend", "period": 0},
+                    {"type": "metric", "metric_id": "MktSpend", "period": 0},
+                ],
+            },
+        },
+        "grain_aggregation": "aggregation",
+        "components": ["component1", "component2"],
+        "terms": ["term1", "term2"],
+        "output_of": "output",
+        "input_to": ["input1", "input2"],
+        "influences": ["influence1", "influence2"],
+        "influenced_by": ["influenced1", "influenced2"],
+        "periods": ["period1", "period2"],
+        "aggregations": ["aggregation1", "aggregation2"],
+        "owned_by_team": ["team1", "team2"],
+    }
+
+
+@pytest.fixture(scope="session")
+def metric_list(metric_cac, metric_sms):
+    metric_ss = metric_sms.copy()
+    metric_ss["id"] = "SalesSpend"
+    metric_ss["metric_expression"] = None
+    metric_ms = metric_sms.copy()
+    metric_ms["id"] = "MktSpend"
+    metric_ms["metric_expression"] = None
+
+    metric_new_cust = metric_sms.copy()
+    metric_new_cust["id"] = "NewCust"
+
+    metric_old_cust = metric_new_cust.copy()
+    metric_old_cust["id"] = "OldCust"
+    return [metric_cac, metric_sms, metric_ss, metric_ms, metric_new_cust, metric_old_cust]

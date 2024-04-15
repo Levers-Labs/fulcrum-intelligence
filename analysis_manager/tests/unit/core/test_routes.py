@@ -1,3 +1,4 @@
+import random
 from unittest.mock import AsyncMock
 
 import pytest
@@ -388,3 +389,33 @@ async def test_process_control_route(client, mocker, metric_values_netmrr):
     ]
     diff = DeepDiff(expected_response, response.json(), ignore_order=True)
     assert diff == {}
+
+
+@pytest.mark.asyncio
+async def test_component_drift_route(client, mocker, metric_cac, metric_list):
+
+    mock_get_metric_details = AsyncMock(return_value=metric_cac)
+    mock_get_metrics_details = AsyncMock(return_value=metric_list)
+    mocker.patch.object(QueryManagerClient, "get_metric_details", mock_get_metric_details)
+    mocker.patch.object(
+        QueryManagerClient, "get_metric_value", side_effect=lambda *args: random.randint(100, 200)  # noqa
+    )
+    mocker.patch.object(QueryManagerClient, "get_metrics_details", mock_get_metrics_details)
+    response = client.post(
+        "/v1/analyze/drift/component",
+        json={
+            "metric_id": "CAC",
+            "evaluation_start_date": "2024-04-01",
+            "evaluation_end_date": "2024-05-01",
+            "comparison_start_date": "2024-03-01",
+            "comparison_end_date": "2024-04-01",
+        },
+    )
+
+    # assert
+    assert response.status_code == 200
+    assert response.json()["drift"] is not None
+    assert len(response.json()["components"]) == 3
+    assert response.json()["components"][0]["metric_id"] == "SalesMktSpend"
+    assert response.json()["components"][0]["drift"] is not None
+    assert len(response.json()["components"][0]["components"]) == 2

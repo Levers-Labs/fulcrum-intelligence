@@ -1,7 +1,7 @@
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel as _BaseModel, ConfigDict
 from sqlalchemy import text
 from sqlmodel import Field, SQLModel
 
@@ -16,7 +16,7 @@ def convert_datetime_to_utc(dt: datetime) -> str:
     return dt.strftime("%Y-%m-%dT%H:%M:%S%z")
 
 
-class CustomBase(BaseModel):
+class BaseModel(_BaseModel):
     """
     Custom base class for pydantic models
     """

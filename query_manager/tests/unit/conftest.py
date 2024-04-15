@@ -49,7 +49,20 @@ def metric():
         "unit_of_measure": "Units",
         "unit": "U",
         "complexity": "Simple",
-        "metric_expression": "expression",
+        "metric_expression": {
+            "expression_str": "{SalesMktSpend\u209c} / {NewCust\u209c}",
+            "metric_id": "CAC",
+            "type": "metric",
+            "period": 0,
+            "expression": {
+                "type": "expression",
+                "operator": "/",
+                "operands": [
+                    {"type": "metric", "metric_id": "SalesMktSpend", "period": 0},
+                    {"type": "metric", "metric_id": "NewCust", "period": 0},
+                ],
+            },
+        },
         "grain_aggregation": "aggregation",
         "components": ["component1", "component2"],
         "terms": ["term1", "term2"],

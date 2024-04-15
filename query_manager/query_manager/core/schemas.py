@@ -1,3 +1,8 @@
+from __future__ import annotations
+
+from datetime import date
+from typing import Literal
+
 from pydantic import Extra, Field
 
 from query_manager.utilities.enums import TargetAim
@@ -25,12 +30,30 @@ class MetricBase(BaseModel):
     complexity: str
     components: list[str] | None = None
     terms: list[str] | None = None
-    metric_expression: str | None = None
+    metric_expression: MetricExpression | None = None
     grain_aggregation: str | None = None
 
 
 class MetricList(MetricBase):
     pass
+
+
+class MetricListResponse(BaseModel):
+    results: list[MetricList]
+
+
+class MetricExpression(BaseModel):
+    type: Literal["metric"] = "metric"
+    metric_id: str
+    period: int = Field(0, description="Period for the metric, 0 denotes the current period")
+    expression_str: str = Field(None, description="Expression string for the metric")
+    expression: Expression | None = Field(None, description="Expression for the metric")
+
+
+class Expression(BaseModel):
+    type: Literal["expression"] = "expression"
+    operator: str
+    operands: list[MetricExpression | Expression]
 
 
 class MetricDetail(MetricBase):
@@ -44,14 +67,19 @@ class MetricDetail(MetricBase):
     dimensions: list[Dimension] | None = None
 
 
-class MetricValue(BaseModel, extra=Extra.allow):
+class MetricValue(BaseModel):
+    metric_id: str
+    value: int | float
+
+
+class MetricTimeSeriesValue(BaseModel, extra=Extra.allow):
     metric_id: str | None = None
     value: int
-    date: str
+    date: date
 
 
-class MetricValueResponse(BaseModel):
-    data: list[MetricValue] | None = Field(
+class MetricValuesResponse(BaseModel):
+    data: list[MetricTimeSeriesValue] | None = Field(
         default=None,
         example=[  # type: ignore
             {
