@@ -40,7 +40,7 @@ combine_as_imports = true
 use_parentheses = true
 force_grid_wrap = 4
 include_trailing_comma = true
-known_first_party = "app,fulcrum_core,analysis_manager,query_manager"
+known_first_party = "app,commons,fulcrum_core,analysis_manager,query_manager,story_manager"
 
 [tool.black]
 line-length = 120
@@ -53,13 +53,18 @@ show_error_codes = true
 show_error_context = true
 ignore_missing_imports = true
 exclude = [
-    "analysis_manager/gunicorn.conf.py",
     "query_manager/manage.py",
     "analysis_manager/manage.py",
+    "story_manager/manage.py",
+    # lambda
+    "query_manager/lambda.py",
+    "story_manager/lambda.py",
     # Tests
     "query_manager/tests/",
     "analysis_manager/tests/",
+    "story_manager/tests/",
     "core/tests/",
+    "commons/tests/",
 ]
 
 [tool.ruff]

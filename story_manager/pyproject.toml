@@ -1,0 +1,29 @@
+[tool.poetry]
+name = "story-manager"
+version = "0.1.0"
+description = "Story Manager for fulcrum intelligence"
+authors = ["leverslabs"]
+license = "Proprietary"
+
+[tool.poetry.dependencies]
+python = "^3.10"
+fastapi = "^0.110.1"
+uvicorn = "^0.27.1"
+hupper = "^1.12.1"
+rich = "^13.7.1"
+watchgod = "^0.8.2"
+pydantic-settings = "^2.2.1"
+pandas = "^2.2.1"
+typer = "^0.9.0"
+mangum = "^0.17.0"
+commons = { path = "../commons", extras = ["db"] }
+
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+
+[tool.pytest.ini_options]
+addopts = "--cov=story_manager"
+filterwarnings = "ignore::DeprecationWarning"

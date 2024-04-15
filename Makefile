@@ -34,8 +34,10 @@ install-all-deps:
 	@echo "Installing all dependencies..."
 	@make install-deps
 	@make install-deps path=core
+	@make install-deps path=commons
 	@make install-deps path=query_manager
 	@make install-deps path=analysis_manager
+	@make install-deps path=story_manager
 
 port ?= 8000
 run:
@@ -46,23 +48,28 @@ run-all:
 	@echo "Running all applications..."
 	@make run app=query_manager port=8001 &
 	@make run app=analysis_manager port=8000 &
+	@make run app=story_manager port=8002
 
 path ?= .
 format:
 	@python manage.py format $(path)
 
 format-all:
+	@make format path=commons
 	@make format path=core
 	@make format path=query_manager
 	@make format path=analysis_manager
+	@make format path=story_manager
 
 lint:
 	@python manage.py lint $(path)
 
 lint-all:
+	@make lint path=commons
 	@make lint path=core
 	@make lint path=query_manager
 	@make lint path=analysis_manager
+	@make lint path=story_manager
 
 start-shell:
 ifndef app
@@ -79,6 +86,8 @@ test:
 
 test-all:
 	@echo "Running all tests..."
+	@make test app=commons
 	@make test app=core
 	@make test app=query_manager
 	@make test app=analysis_manager
+	@make test app=story_manager
