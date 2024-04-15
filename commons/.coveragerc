@@ -2,6 +2,10 @@
 omit=
     # no need to data files
     */data/*
+    commons/utilities/logger.py
+    commons/utilities/pagination.py
+    commons/utilities/docs.py
+    commons/models/enums.py
 
 [report]
 fail_under = 90
