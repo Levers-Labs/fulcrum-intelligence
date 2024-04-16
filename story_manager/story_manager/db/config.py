@@ -15,13 +15,15 @@ MODEL_PATHS = ["story_manager.core.models"]
 # sync session
 def get_session() -> Generator[Session, None, None]:
     settings = get_settings()
-    return _get_session(settings.DATABASE_URL, settings.SQLALCHEMY_ENGINE_OPTIONS)
+    with _get_session(settings.DATABASE_URL, settings.SQLALCHEMY_ENGINE_OPTIONS) as session:  # type: ignore
+        yield session
 
 
 # async session
 async def get_async_session() -> AsyncGenerator[AsyncSession, None]:
     settings = get_settings()
-    return _get_async_session(settings.DATABASE_URL, settings.SQLALCHEMY_ENGINE_OPTIONS)
+    async for session in _get_async_session(settings.DATABASE_URL, settings.SQLALCHEMY_ENGINE_OPTIONS):  # type: ignore
+        yield session
 
 
 # Session Dependency

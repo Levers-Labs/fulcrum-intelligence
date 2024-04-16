@@ -10,6 +10,7 @@ from sqlalchemy import func, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from commons.db.models import BaseSQLModel
+from commons.utilities.pagination import PaginationParams
 
 ModelType = TypeVar("ModelType", bound=BaseSQLModel)
 CreateSchemaType = TypeVar("CreateSchemaType", bound=BaseModel)
@@ -45,10 +46,18 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
 
         return instance
 
-    async def list(self, *, offset: int = 0, limit: int = 100) -> list[ModelType]:
-        results = await self.session.execute(select(self.model).offset(offset).limit(limit))
+    async def list_results(self, *, params: PaginationParams) -> list[ModelType]:
+        results = await self.session.execute(select(self.model).offset(params.offset).limit(params.limit))
         records: list[ModelType] = cast(list[ModelType], results.scalars().all())
         return records
+
+    async def list_with_count(self, *, params: PaginationParams) -> tuple[list[ModelType], int]:
+        """
+        Return a tuple of the list of records and the total count of records
+        """
+        records = await self.list_results(params=params)
+        total_count = await self.total_count()
+        return records, total_count
 
     async def create(self, *, obj_in: CreateSchemaType) -> ModelType:
         values = obj_in.dict()

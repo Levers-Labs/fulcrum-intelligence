@@ -6,6 +6,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from commons.db.crud import CRUDBase, NotFoundError
 from commons.db.models import BaseDBModel
+from commons.utilities.pagination import PaginationParams
 
 
 # Assume we have some hypothetical models and schemas
@@ -79,7 +80,7 @@ async def test_list(crud_base, async_session):
     async_session.execute.return_value = execute_result
 
     # Act
-    results = await crud_base.list()
+    results = await crud_base.list_results(params=PaginationParams(offset=0, limit=10))
 
     # Assert
     assert results == model_instances

@@ -65,6 +65,9 @@ exclude = [
     "story_manager/tests/",
     "core/tests/",
     "commons/tests/",
+    # Migrations
+    "analysis_manager/migrations/",
+    "story_manager/migrations/",
 ]
 
 [tool.ruff]
