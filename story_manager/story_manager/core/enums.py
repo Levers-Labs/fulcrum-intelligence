@@ -6,14 +6,14 @@ class StoryGenre(StrEnum):
     Defines the genre of the story
     """
 
-    GROWTH = "Growth"
-    TRENDS = "Trends"
-    SWINGS = "Swings"
-    PERFORMANCE = "Performance"
-    MIX_SHIFT = "MixShift"
-    SEGMENT_IMPORTANCE = "SegmentImportance"
-    INFLUENCE = "Influence"
-    ROOT_CAUSE = "RootCause"
+    GROWTH = "GROWTH"
+    TRENDS = "TRENDS"
+    SWINGS = "SWINGS"
+    PERFORMANCE = "PERFORMANCE"
+    MIX_SHIFT = "MIX_SHIFT"
+    SEGMENT_IMPORTANCE = "SEGMENT_IMPORTANCE"
+    INFLUENCE = "INFLUENCE"
+    ROOT_CAUSE = "ROOT_CAUSE"
 
 
 class StoryType(StrEnum):
@@ -22,41 +22,41 @@ class StoryType(StrEnum):
     """
 
     # growth stories
-    SLOWING_GROWTH = "SlowingGrowth"
-    ACCELERATING_GROWTH = "AcceleratingGrowth"
+    SLOWING_GROWTH = "SLOWING_GROWTH"
+    ACCELERATING_GROWTH = "ACCELERATING_GROWTH"
     # trend stories
-    NEW_UPWARD_TREND = "NewUpwardTrend"
-    NEW_DOWNWARD_TREND = "NewDownwardTrend"
-    STICKY_DOWNWARD_TREND = "StickyDownwardTrend"
-    NEW_NORMAL = "NewNormal"
+    NEW_UPWARD_TREND = "NEW_UPWARD_TREND"
+    NEW_DOWNWARD_TREND = "NEW_DOWNWARD_TREND"
+    STICKY_DOWNWARD_TREND = "STICKY_DOWNWARD_TREND"
+    NEW_NORMAL = "NEW_NORMAL"
     # swing stories
-    RECORD_HIGH = "RecordHigh"
-    RECORD_LOW = "RecordLow"
-    METRIC_SPIKE = "MetricSpike"
-    METRIC_DROP = "MetricDrop"
-    SEGMENT_SPIKE = "SegmentSpike"
-    SEGMENT_DROP = "SegmentDrop"
+    RECORD_HIGH = "RECORD_HIGH"
+    RECORD_LOW = "RECORD_LOW"
+    METRIC_SPIKE = "METRIC_SPIKE"
+    METRIC_DROP = "METRIC_DROP"
+    SEGMENT_SPIKE = "SEGMENT_SPIKE"
+    SEGMENT_DROP = "SEGMENT_DROP"
     # performance stories
-    LIKELY_RED = "LikelyRed"
-    LIKELY_YELLOW = "LikelyYellow"
-    LIKELY_GREEN = "LikelyGreen"
-    REQUIRED_PERFORMANCE = "RequiredPerformance"
+    LIKELY_RED = "LIKELY_RED"
+    LIKELY_YELLOW = "LIKELY_YELLOW"
+    LIKELY_GREEN = "LIKELY_GREEN"
+    REQUIRED_PERFORMANCE = "REQUIRED_PERFORMANCE"
     # mix shift stories
-    GROWING_SEGMENT = "GrowingSegment"
-    SHRINKING_SEGMENT = "ShrinkingSegment"
+    GROWING_SEGMENT = "GROWING_SEGMENT"
+    SHRINKING_SEGMENT = "SHRINKING_SEGMENT"
     # segment importance stories
-    IMPROVING_SEGMENT = "ImprovingSegment"
-    WORSENING_SEGMENT = "WorseningSegment"
-    TOP3_SEGMENT = "Top3Segment"
-    BOTTOM3_SEGMENT = "Bottom3Segment"
+    IMPROVING_SEGMENT = "IMPROVING_SEGMENT"
+    WORSENING_SEGMENT = "WORSENING_SEGMENT"
+    TOP3_SEGMENT = "TOP3_SEGMENT"
+    BOTTOM3_SEGMENT = "BOTTOM3_SEGMENT"
     # influence stories
-    STRONGER_INFLUENCE = "StrongerInfluence"
-    WEAKER_INFLUENCE = "WeakerInfluence"
+    STRONGER_INFLUENCE = "STRONGER_INFLUENCE"
+    WEAKER_INFLUENCE = "WEAKER_INFLUENCE"
     # root cause stories
-    SEASONAL_DRIFT = "SeasonalDrift"
-    SEGMENT_DRIFT = "SegmentDrift"
-    INFLUENCE_DRIFT = "InfluenceDrift"
-    COMPONENT_DRIFT = "ComponentDrift"
+    SEASONAL_DRIFT = "SEASONAL_DRIFT"
+    SEGMENT_DRIFT = "SEGMENT_DRIFT"
+    INFLUENCE_DRIFT = "INFLUENCE_DRIFT"
+    COMPONENT_DRIFT = "COMPONENT_DRIFT"
 
 
 GENRE_TO_STORY_TYPE_MAPPING: dict[str, list[str]] = {
