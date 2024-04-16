@@ -1,8 +1,8 @@
 """initial
 
-Revision ID: 0aac88ced591
+Revision ID: 4f657f569842
 Revises:
-Create Date: 2024-04-16 13:33:54.626339
+Create Date: 2024-04-16 19:24:15.103991
 
 """
 
@@ -14,7 +14,7 @@ from alembic import op
 from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
-revision: str = "0aac88ced591"
+revision: str = "4f657f569842"
 down_revision: str | None = None
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
@@ -40,8 +40,9 @@ def upgrade() -> None:
                 "ROOT_CAUSE",
                 name="storygenre",
                 schema="story_store",
+                inherit_schema=True,
             ),
-            nullable=False,
+            nullable=True,
         ),
         sa.Column(
             "story_type",
@@ -76,8 +77,9 @@ def upgrade() -> None:
                 "COMPONENT_DRIFT",
                 name="storytype",
                 schema="story_store",
+                inherit_schema=True,
             ),
-            nullable=False,
+            nullable=True,
         ),
         sa.Column("metric_id", sqlmodel.sql.sqltypes.AutoString(), nullable=False),
         sa.Column("description", sa.Text(), nullable=False),

@@ -1,7 +1,7 @@
 from typing import Any
 
 from pydantic import model_validator
-from sqlalchemy import Text
+from sqlalchemy import Column, Enum, Text
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlmodel import Field
 
@@ -9,17 +9,17 @@ from commons.db.models import BaseTimeStampedModel
 from story_manager.core.enums import GENRE_TO_STORY_TYPE_MAPPING, StoryGenre, StoryType
 
 
-class StorySchemaMixin:
+class StorySchemaBaseModel(BaseTimeStampedModel):
     __table_args__ = {"schema": "story_store"}
 
 
-class Story(StorySchemaMixin, BaseTimeStampedModel, table=True):
+class Story(StorySchemaBaseModel, table=True):  # type: ignore
     """
     Story model
     """
 
-    genre: StoryGenre = Field(max_length=64, index=True)
-    story_type: StoryType = Field(max_length=64, index=True)
+    genre: StoryGenre = Field(sa_column=Column(Enum(StoryGenre, name="storygenre", inherit_schema=True), index=True))
+    story_type: StoryType = Field(sa_column=Column(Enum(StoryType, name="storytype", inherit_schema=True), index=True))
     metric_id: str = Field(max_length=255, index=True)
     description: str = Field(sa_type=Text)
     template: str = Field(sa_type=Text)

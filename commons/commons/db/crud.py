@@ -9,10 +9,12 @@ from pydantic import BaseModel
 from sqlalchemy import func, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from commons.db.filters import BaseFilter
 from commons.db.models import BaseSQLModel
 from commons.utilities.pagination import PaginationParams
 
 ModelType = TypeVar("ModelType", bound=BaseSQLModel)
+FilterType = TypeVar("FilterType", bound=BaseFilter)
 CreateSchemaType = TypeVar("CreateSchemaType", bound=BaseModel)
 UpdateSchemaType = TypeVar("UpdateSchemaType", bound=BaseModel)
 
@@ -23,7 +25,9 @@ class NotFoundError(Exception):
         super().__init__(f"Object with id {id} not found")
 
 
-class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
+class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType, FilterType]):
+    filter_class: type[FilterType] | None = None
+
     def __init__(self, model: type[ModelType], session: AsyncSession):
         """
         CRUD object with default methods to Create, Read, Update, Delete.
@@ -51,13 +55,27 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
         records: list[ModelType] = cast(list[ModelType], results.scalars().all())
         return records
 
-    async def list_with_count(self, *, params: PaginationParams) -> tuple[list[ModelType], int]:
+    async def paginate(self, params: PaginationParams, filter_params: dict[str, Any]) -> tuple[list[ModelType], int]:
         """
-        Return a tuple of the list of records and the total count of records
+        Retrieve a paginated list of results.
+        Apply filters if provided using the filter class.
+        Returns a tuple of the results and the total count.
         """
-        records = await self.list_results(params=params)
-        total_count = await self.total_count()
-        return records, total_count
+        # base query
+        query = select(self.model)
+        # apply filters if filter class is provided
+        if self.filter_class is not None:
+            query = self.filter_class.apply_filters(query, filter_params)
+
+        # get total count
+        count_query = select(func.count()).select_from(query.subquery())
+        count = await self.session.scalar(count_query)
+
+        # get paginated results
+        results_query = query.offset(params.offset).limit(params.limit)
+        results = await self.session.scalars(results_query)
+        records: list[ModelType] = cast(list[ModelType], results)
+        return records, count or 0
 
     async def create(self, *, obj_in: CreateSchemaType) -> ModelType:
         values = obj_in.dict()
