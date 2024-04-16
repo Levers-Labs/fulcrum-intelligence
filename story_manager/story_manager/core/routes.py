@@ -34,7 +34,6 @@ def get_story_genres() -> Any:
     return genres
 
 
-# todo: add metric id filter, created_at range , genre, story type filters
 @router.get("/", response_model=Page[Story])
 async def get_stories(
     story_crud: CRUDStoryDep,
