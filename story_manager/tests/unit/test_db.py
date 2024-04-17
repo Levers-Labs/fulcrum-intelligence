@@ -2,7 +2,7 @@ import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import Session
 
-from story_manager.db.config import get_async_session, get_session
+from story_manager.db.config import get_session
 
 
 @pytest.fixture
@@ -17,12 +17,7 @@ def mock_async_session(mocker):
 
 def test_get_session(mock_sync_session):
     # Execute get_session to verify it correctly handles the mock
-    session = get_session()
+    session_generator = get_session()
+    session = next(session_generator)
+
     assert isinstance(session, Session)
-
-
-@pytest.mark.asyncio
-async def test_get_async_session(mock_async_session):
-    # Execute get_async_session to verify it correctly handles the mock
-    async_session = await get_async_session()
-    assert isinstance(async_session, AsyncSession)
