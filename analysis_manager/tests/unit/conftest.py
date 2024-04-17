@@ -1,14 +1,11 @@
-import importlib
 import logging
 
 import pytest
 from _pytest.monkeypatch import MonkeyPatch
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine, text
-from sqlmodel import Session, SQLModel
+from sqlalchemy import create_engine
+from sqlmodel import Session
 from testing.postgresql import Postgresql
-
-from analysis_manager.db.config import MODEL_PATHS
 
 logger = logging.getLogger(__name__)
 
@@ -17,24 +14,6 @@ logger = logging.getLogger(__name__)
 def postgres():
     with Postgresql() as postgres:
         yield postgres
-
-
-@pytest.fixture(scope="session", autouse=True)
-def setup_db(postgres):
-    db_sync_uri = postgres.url()
-    # Ensure tables are created
-    engine = create_engine(db_sync_uri)
-    # create schema
-    logger.info("Creating db schema and tables")
-    with engine.connect() as conn:
-        conn.execute(text("CREATE SCHEMA IF NOT EXISTS analysis_store"))
-        conn.commit()
-    # create all models
-    for model_path in MODEL_PATHS:
-        importlib.import_module(model_path)
-    SQLModel.metadata.create_all(engine)
-    engine.dispose()
-    yield db_sync_uri
 
 
 @pytest.fixture(scope="session")
