@@ -1,4 +1,4 @@
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import ANY, AsyncMock, MagicMock
 
 import pytest
 from pydantic import BaseModel
@@ -85,6 +85,42 @@ async def test_list(crud_base, async_session):
     # Assert
     assert results == model_instances
     async_session.execute.assert_awaited()
+
+
+@pytest.mark.asyncio
+async def test_paginate(crud_base, async_session):
+    # Set up the expected model instances to return
+    model_instances = [ExampleModel(id=1, name="Item One"), ExampleModel(id=2, name="Item Two")]
+
+    # Set up the expected count
+    expected_count = len(model_instances)
+
+    # Set up mock results for scalars() and scalar()
+    async_session.scalars.return_value = model_instances
+    async_session.scalar.return_value = expected_count
+
+    # Set up the pagination and filter parameters
+    pagination_params = PaginationParams(offset=0, limit=10)
+    filter_params = {"name": "Item"}
+
+    # Act
+    results, count = await crud_base.paginate(params=pagination_params, filter_params=filter_params)
+
+    # Assert
+    assert count == expected_count
+    assert results == model_instances
+
+    # Assert that the filter class's apply_filters method was called with the correct arguments
+    if crud_base.filter_class is not None:
+        crud_base.filter_class.apply_filters.assert_called_once_with(ANY, filter_params)
+
+    # Assert that the session's scalar and scalars methods were called with the correct queries
+    async_session.scalar.assert_awaited_once()
+    async_session.scalars.assert_awaited_once()
+
+    # Assert that the offset and limit were applied to the results query
+    results_query = async_session.scalars.call_args[0][0]
+    assert str(results_query).endswith("LIMIT :param_1 OFFSET :param_2")
 
 
 @pytest.mark.asyncio
