@@ -22,3 +22,9 @@ async def test_get_story_genres(client):
             assert "type" in story_type
             assert "label" in story_type
             assert "description" in story_type
+
+
+@pytest.mark.asyncio
+async def test_get_stories(setup_env, client):
+    response = client.get("/v1/stories/")
+    assert response.status_code == 200
