@@ -189,3 +189,61 @@ class AnalysisManager:
             response,
         )
         return response
+
+    def simple_forecast(self, data: pd.DataFrame, start_date: date, end_date: date) -> list[dict]:
+        return [
+            {"date": "2024-03-01", "metric_id": "NewMRR", "value": 500},
+            {"date": "2024-04-01", "metric_id": "NewMRR", "value": 500},
+        ]
+
+    def hierarchical_forecast(self, data: pd.DataFrame, start_date: date, end_date: date) -> list[dict]:
+        return [
+            {"date": "2024-03-01", "metric_id": "NewMRR", "value": 500},
+            {"date": "2024-04-01", "metric_id": "NewMRR", "value": 500},
+        ]
+
+    def linear_model(self, data: pd.DataFrame, start_date: date) -> dict:
+        return {
+            "linear_equation": {
+                "metric_id": "TargetMetric",
+                "intercept": 1.23,
+                "coefficients": [
+                    {"metric_id": "Metric1", "coefficient": 0.45},
+                    {"metric_id": "Metric2", "coefficient": -0.67},
+                    {"metric_id": "Metric3", "coefficient": 2.3},
+                ],
+            },
+            "time_series_data": [
+                {"date": "YYYY-MM-DD", "metric_id": "NewMRR", "actual_value": 100, "predicted_value": 120},
+            ],
+            "equation_string": "TargetMetric = 1.23 + (0.45 * Metric1) - (0.67 * Metric2) + (2.3 * Metric3)",
+        }
+
+    def detect_anomalies(self, data: pd.DataFrame, start_date: date, end_date: date) -> dict:
+        return {
+            "metric_id": "string",
+            "start_date": "YYYY-MM-DD",
+            "end_date": "YYYY-MM-DD",
+            "granularity": "day | month",
+            "anomalies": [
+                {
+                    "anomaly_id": "string",
+                    "start_time": "YYYY-MM-DD HH:MM:SS",
+                    "end_time": "YYYY-MM-DD HH:MM:SS",
+                    "severity": "low | medium | high",
+                    "score": "float",
+                    "details": {"expected_value": "float", "actual_value": "float", "deviation": "float"},
+                    "context": {
+                        "before": [{"timestamp": "YYYY-MM-DD HH:MM:SS", "value": "float"}, ...],
+                        "after": [{"timestamp": "YYYY-MM-DD HH:MM:SS", "value": "float"}, ...],
+                    },
+                },
+                ...,
+            ],
+            "summary": {
+                "total_anomalies": "int",
+                "high_severity_count": "int",
+                "medium_severity_count": "int",
+                "low_severity_count": "int",
+            },
+        }

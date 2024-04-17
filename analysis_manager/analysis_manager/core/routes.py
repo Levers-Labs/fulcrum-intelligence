@@ -21,6 +21,9 @@ from analysis_manager.core.schema import (
     CorrelateRequest,
     DescribeRequest,
     DescribeResponse,
+    ForecastRequest,
+    ForecastResponse,
+    LinearModelRequest,
     ProcessControlRequest,
     ProcessControlResponse,
     UserList,
@@ -218,3 +221,121 @@ async def component_drift(
         comparison_start_date=drift_req.comparison_start_date,
         comparison_end_date=drift_req.comparison_end_date,
     )
+
+
+@router.post("/forecast/simple", response_model=list[ForecastResponse])
+async def forecast_simple(
+    analysis_manager: AnalysisManagerDep,
+    query_manager: QueryManagerClientDep,
+    request: Annotated[
+        ForecastRequest,
+        Body(examples=[{"metric_id": "NewMRR", "start_date": "2024-01-01", "end_date": "2024-04-30", "grain": "day"}]),
+    ],
+) -> Any:
+    """
+    Analyze correlations between metrics.
+    """
+    # get metric values for the given metric_ids and date range
+    metric_values = await query_manager.get_metric_values(
+        metric_ids=[request.metric_id],
+        start_date=request.start_date,
+        end_date=request.end_date,
+    )
+    if not metric_values:
+        return []
+    metrics_df = pd.DataFrame(metric_values, columns=["metric_id", "date", "value"])
+    columns = {"metric_id": "METRIC_ID", "date": "DAY", "value": "METRIC_VALUE"}
+    metrics_df.rename(columns=columns, inplace=True)
+    metrics_df["METRIC_ID"] = metrics_df["METRIC_ID"].astype(str)
+
+    # return the correlation coefficient for each pair of metrics
+    return analysis_manager.simple_forecast(data=metrics_df, start_date=request.start_date, end_date=request.end_date)
+
+
+@router.post("/forecast/hierarchical", response_model=list[ForecastResponse])
+async def forecast_hierarchical(
+    analysis_manager: AnalysisManagerDep,
+    query_manager: QueryManagerClientDep,
+    request: Annotated[
+        ForecastRequest,
+        Body(examples=[{"metric_id": "NewMRR", "start_date": "2024-01-01", "end_date": "2024-04-30", "grain": "day"}]),
+    ],
+) -> Any:
+    """
+    Analyze correlations between metrics.
+    """
+    # get metric values for the given metric_ids and date range
+    metric_values = await query_manager.get_metric_values(
+        metric_ids=[request.metric_id],
+        start_date=request.start_date,
+        end_date=request.end_date,
+    )
+    if not metric_values:
+        return []
+    metrics_df = pd.DataFrame(metric_values, columns=["metric_id", "date", "value"])
+    columns = {"metric_id": "METRIC_ID", "date": "DAY", "value": "METRIC_VALUE"}
+    metrics_df.rename(columns=columns, inplace=True)
+    metrics_df["METRIC_ID"] = metrics_df["METRIC_ID"].astype(str)
+
+    # return the correlation coefficient for each pair of metrics
+    return analysis_manager.hierarchical_forecast(
+        data=metrics_df, start_date=request.start_date, end_date=request.end_date
+    )
+
+
+@router.post("/model/linear", response_model=list[dict])
+async def linear_model(
+    analysis_manager: AnalysisManagerDep,
+    query_manager: QueryManagerClientDep,
+    request: Annotated[
+        LinearModelRequest,
+        Body(examples=[{"metric_id": "NewMRR", "start_date": "2024-01-01", "end_date": "2024-04-30"}]),
+    ],
+) -> Any:
+    """
+    Analyze correlations between metrics.
+    """
+    # get metric values for the given metric_ids and date range
+    metric_values = await query_manager.get_metric_values(
+        metric_ids=[request.metric_id],
+        start_date=request.start_date,
+        end_date=request.end_date,
+    )
+    if not metric_values:
+        return []
+    metrics_df = pd.DataFrame(metric_values, columns=["metric_id", "date", "value"])
+    columns = {"metric_id": "METRIC_ID", "date": "DAY", "value": "METRIC_VALUE"}
+    metrics_df.rename(columns=columns, inplace=True)
+    metrics_df["METRIC_ID"] = metrics_df["METRIC_ID"].astype(str)
+
+    # return the correlation coefficient for each pair of metrics
+    return analysis_manager.linear_model(data=metrics_df, start_date=request.start_date, end_date=request.end_date)
+
+
+@router.post("/detect")
+async def detect_anomalies(
+    analysis_manager: AnalysisManagerDep,
+    query_manager: QueryManagerClientDep,
+    request: Annotated[
+        LinearModelRequest,
+        Body(examples=[{"metric_id": "NewMRR", "start_date": "2024-01-01", "end_date": "2024-04-30"}]),
+    ],
+) -> Any:
+    """
+    Analyze correlations between metrics.
+    """
+    # get metric values for the given metric_ids and date range
+    metric_values = await query_manager.get_metric_values(
+        metric_ids=[request.metric_id],
+        start_date=request.start_date,
+        end_date=request.end_date,
+    )
+    if not metric_values:
+        return []
+    metrics_df = pd.DataFrame(metric_values, columns=["metric_id", "date", "value"])
+    columns = {"metric_id": "METRIC_ID", "date": "DAY", "value": "METRIC_VALUE"}
+    metrics_df.rename(columns=columns, inplace=True)
+    metrics_df["METRIC_ID"] = metrics_df["METRIC_ID"].astype(str)
+
+    # return the correlation coefficient for each pair of metrics
+    return analysis_manager.detect_anomalies(data=metrics_df, start_date=request.start_date, end_date=request.end_date)

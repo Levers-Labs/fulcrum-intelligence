@@ -78,3 +78,22 @@ class ProcessControlResponse(BaseModel):
     end_date: date | None = None
     grain: Granularity
     results: list[GrainResult]
+
+
+class ForecastRequest(BaseModel):
+    metric_id: str
+    start_date: date
+    end_date: date
+    grain: Granularity
+
+
+class ForecastResponse(BaseModel):
+    metric_id: str
+    date: date
+    value: float
+
+
+class LinearModelRequest(BaseModel):
+    metric_id: str
+    start_date: date
+    end_date: date
