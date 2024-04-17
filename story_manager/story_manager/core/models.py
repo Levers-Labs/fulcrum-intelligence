@@ -34,7 +34,7 @@ class Story(StorySchemaBaseModel, table=True):  # type: ignore
         Check if the story type is valid for the genre
         """
         genre = data.get("genre")
-        story_type = data.get("type")
+        story_type = data.get("story_type")
 
         genre_story_types = GENRE_TO_STORY_TYPE_MAPPING.get(genre)
 

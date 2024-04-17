@@ -5,7 +5,7 @@ import pytest
 from _pytest.monkeypatch import MonkeyPatch
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine, text
-from sqlmodel import SQLModel
+from sqlmodel import Session, SQLModel
 from testing.postgresql import Postgresql
 
 from story_manager.db.config import MODEL_PATHS
@@ -71,3 +71,18 @@ def client(setup_env):
 
     with TestClient(app) as client:
         yield client
+
+
+@pytest.fixture(scope="function")
+def db_session(postgres):
+    # Create an asynchronous engine
+    engine = create_engine(postgres.url(), echo=True)
+
+    # Create a new session
+    with Session(engine) as session:
+        # Start a transaction
+        with session.begin():
+            yield session  # Provide the session to the test
+
+    # Close the engine
+    engine.dispose()
