@@ -19,7 +19,6 @@ def get_application() -> FastAPI:
         description="Query Manager for Fulcrum Intelligence",
         debug=settings.DEBUG,
         root_path=settings.OPENAPI_PREFIX,  # type: ignore
-        root_path_in_servers=False,
         docs_url=None,
         redoc_url=None,
     )
