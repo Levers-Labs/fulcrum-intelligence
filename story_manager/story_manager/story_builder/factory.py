@@ -59,7 +59,4 @@ class StoryFactory(Generic[T]):
         :return: An instance of the story builder
         """
         story_builder_class = cls.get_story_builder(genre)
-        if story_builder_class:
-            return story_builder_class(*args, **kwargs)
-        else:
-            raise ValueError(f"No story builder found for genre {genre}")
+        return story_builder_class(*args, **kwargs)
