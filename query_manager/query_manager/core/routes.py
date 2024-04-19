@@ -10,6 +10,7 @@ from fastapi import (
 )
 
 from query_manager.core.dependencies import ParquetServiceDep, QueryClientDep
+from query_manager.core.enums import OutputFormat
 from query_manager.core.schemas import (
     Dimension,
     DimensionDetail,
@@ -21,7 +22,6 @@ from query_manager.core.schemas import (
 )
 from query_manager.exceptions import MetricNotFoundError
 from query_manager.services.s3 import NoSuchKeyError
-from query_manager.utilities.enums import OutputFormat
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="")
