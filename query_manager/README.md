@@ -6,7 +6,7 @@ Query Manager for fulcrum intelligence
 
 - `Python 3.10+`
 - `Poetry 1.2+`
-- `Postgresql 10+`
+- `Postgresql 15+`
 
 ## Development
 

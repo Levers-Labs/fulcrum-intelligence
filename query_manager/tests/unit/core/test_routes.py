@@ -2,6 +2,7 @@ from unittest.mock import AsyncMock
 
 import pytest
 
+from query_manager.core.enums import TargetAim
 from query_manager.core.schemas import (
     Dimension,
     DimensionDetail,
@@ -11,7 +12,6 @@ from query_manager.core.schemas import (
 from query_manager.services.parquet import ParquetService
 from query_manager.services.query_client import QueryClient
 from query_manager.services.s3 import NoSuchKeyError
-from query_manager.utilities.enums import TargetAim
 
 
 def test_health(client):
@@ -115,7 +115,7 @@ async def test_get_metric_values_parquet(client, mocker):
 
     response = client.post(
         "/v1/metrics/test_metric/values",
-        json={"start_date": "2022-01-01", "end_date": "2022-01-31", "output_format": "Parquet"},
+        json={"start_date": "2022-01-01", "end_date": "2022-01-31", "output_format": "PARQUET"},
     )
     assert response.status_code == 200
     assert response.json() == {

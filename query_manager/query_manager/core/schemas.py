@@ -5,8 +5,8 @@ from typing import Literal
 
 from pydantic import Extra, Field
 
-from query_manager.utilities.enums import TargetAim
-from query_manager.utilities.schema import BaseModel
+from commons.models import BaseModel
+from query_manager.core.enums import TargetAim
 
 
 class Dimension(BaseModel):
@@ -72,7 +72,7 @@ class MetricValue(BaseModel):
     value: int | float
 
 
-class MetricTimeSeriesValue(BaseModel, extra=Extra.allow):
+class MetricTimeSeriesValue(BaseModel, extra=Extra.allow):  # type: ignore
     metric_id: str | None = None
     value: int
     date: date

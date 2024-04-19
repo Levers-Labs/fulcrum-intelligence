@@ -5,10 +5,10 @@ from typing import Any, cast
 import aiofiles
 import pandas as pd
 
+from commons.models.enums import Granularity
 from query_manager.config import get_settings
 from query_manager.exceptions import MetricNotFoundError, MetricValueNotFoundError
 from query_manager.services.s3 import S3Client
-from query_manager.utilities.enums import Granularity
 
 
 class QueryClient:
