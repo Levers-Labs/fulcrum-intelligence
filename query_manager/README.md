@@ -22,6 +22,11 @@ AWS_BUCKET=fulcrum-engine-metrics
 AWS_REGION=us-west-2
 OPENAPI_PREFIX=/dev
 ```
+### Initialize db
+
+```shell
+python manage.py db upgrade
+```
 
 ### Run the fastapi app
 

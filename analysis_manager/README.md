@@ -23,6 +23,12 @@ REDIS_URL=redis://localhost
 QUERY_MANAGER_SERVER_HOST=http://localhost:8001
 ```
 
+### Initialize db
+
+```shell
+python manage.py db upgrade
+```
+
 ### Run the fastapi app
 
 ```shell
