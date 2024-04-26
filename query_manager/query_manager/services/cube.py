@@ -10,7 +10,7 @@ from commons.clients.auth import JWTAuth, JWTSecretKeyAuth
 from commons.clients.base import AsyncHttpClient, HttpClientError
 from commons.models.enums import Granularity
 from query_manager.core.schemas import MetricDetail
-from query_manager.exceptions import MalformedMetricMetadataError
+from query_manager.exceptions import MalformedMetricMetadataError, MetricValueNotFoundError
 
 logger = logging.getLogger(__name__)
 
@@ -77,7 +77,7 @@ class CubeClient(AsyncHttpClient):
         else:
             raise ValueError(f"Unsupported authentication type: {self.auth_type}")
 
-    async def load_query_data(self, query: dict[str, Any], retries: int = 0) -> dict[str, Any]:
+    async def load_query_data(self, query: dict[str, Any], retries: int = 0) -> list[dict[str, Any]]:
         """
         Loads the data for a given query from the Cube API.
         If the response contains the error "Continue wait", retries the request with exponential backoff.
@@ -102,7 +102,9 @@ class CubeClient(AsyncHttpClient):
         return response["data"]
 
     @staticmethod
-    def convert_cube_response_to_metric_values(response: dict, metric: MetricDetail) -> list[dict[str, Any]]:
+    def convert_cube_response_to_metric_values(
+        response: list[dict], metric: MetricDetail, grain: Granularity | None = None
+    ) -> list[dict[str, Any]]:
         """
         Converts the response from the Cube API to a list of dictionaries representing the metric values.
         e.g. from
@@ -146,23 +148,30 @@ class CubeClient(AsyncHttpClient):
         }
         :param metric:
         :param response: The response from the Cube API.
+        :param grain: The granularity of the metric values.
         :return: A list of dictionaries representing the metric values.
         """
+        if not response:
+            return []
         semantic_meta = metric.metadata.semantic_meta
         time_dimension = semantic_meta.time_dimension
-        time_dimension_member = f"{time_dimension.cube}.{time_dimension.member}"
+        time_dimension_member = (
+            f"{time_dimension.cube}.{time_dimension.member}.{grain}"
+            if grain
+            else f"{time_dimension.cube}.{time_dimension.member}"
+        )
         is_time_series = bool(time_dimension_member in response[0])
         metric_key = f"{semantic_meta.cube}.{semantic_meta.member}"
-        dimension_keys = (
-            [
-                f"{dimension.metadata.semantic_meta.cube}.{dimension.metadata.semantic_meta.member}"
+        dimension_key_map = (
+            {
+                f"{dimension.metadata.semantic_meta.cube}.{dimension.metadata.semantic_meta.member}": dimension.id
                 for dimension in metric.dimensions
-            ]
+            }
             if metric.dimensions
-            else []
+            else dict()
         )
         # filter out dimension keys from response
-        dimension_keys_present = [key for key in dimension_keys if key in response[0]]
+        dimension_keys_present = [key for key in dimension_key_map if key in response[0]]
         metric_values = []
         for data in response:
             value_node = {"metric_id": metric.id, "value": data[metric_key]}
@@ -171,7 +180,7 @@ class CubeClient(AsyncHttpClient):
                 value_node["date"] = data[time_dimension_member].split("T")[0]
             # add dimension values to the node
             for key in dimension_keys_present:
-                value_node[key] = data[key]
+                value_node[dimension_key_map[key]] = data[key]
             metric_values.append(value_node)
 
         logger.debug("Converted metric values: %s for metric_id: %s", metric_values, metric.id)
@@ -273,6 +282,7 @@ class CubeClient(AsyncHttpClient):
         :return: A list of dictionaries representing the metric values.
         :raises MalformedMetricMetadataError: If the metric metadata is malformed
                                             or if the Cube API request fails.
+        :raises MetricValueNotFoundError: If no values are found for the metric.
         """
         query = self.generate_query_for_metric(metric, grain, start_date, end_date, dimensions)
         try:
@@ -280,5 +290,8 @@ class CubeClient(AsyncHttpClient):
         except HttpClientError as exc:
             logger.error("Cube API request failed with error: %s", exc)
             raise MalformedMetricMetadataError(metric.id) from exc
-        metric_values = self.convert_cube_response_to_metric_values(response, metric)
+        metric_values = self.convert_cube_response_to_metric_values(response, metric, grain=grain)
+        if not metric_values:
+            logger.warning("No values found for metric_id: %s", metric.id)
+            raise MetricValueNotFoundError(metric.id)
         return metric_values
