@@ -1,18 +1,46 @@
 from __future__ import annotations
 
-from datetime import date
+import datetime
 from typing import Literal
 
 from pydantic import Extra, Field
 
 from commons.models import BaseModel
-from query_manager.core.enums import TargetAim
+from query_manager.core.enums import SemanticMemberType, TargetAim
+
+
+class SemanticMetaTimeDimension(BaseModel):
+    cube: str
+    member: str
+
+
+class SemanticMetaBase(BaseModel):
+    cube: str
+    member: str
+
+
+class SemanticMetaDimension(SemanticMetaBase):
+    member_type: Literal[SemanticMemberType.DIMENSION] = SemanticMemberType.DIMENSION
+
+
+class SemanticMetaMetric(SemanticMetaBase):
+    member_type: Literal[SemanticMemberType.MEASURE] = SemanticMemberType.MEASURE
+    time_dimension: SemanticMetaTimeDimension
+
+
+class MetricMetadata(BaseModel):
+    semantic_meta: SemanticMetaMetric
+
+
+class DimensionMetadata(BaseModel):
+    semantic_meta: SemanticMetaDimension
 
 
 class Dimension(BaseModel):
     id: str
     label: str
     reference: str
+    metadata: DimensionMetadata
 
 
 class DimensionDetail(Dimension):
@@ -32,6 +60,7 @@ class MetricBase(BaseModel):
     terms: list[str] | None = None
     metric_expression: MetricExpression | None = None
     grain_aggregation: str | None = None
+    metadata: MetricMetadata
 
 
 class MetricList(MetricBase):
@@ -57,7 +86,7 @@ class Expression(BaseModel):
 
 
 class MetricDetail(MetricBase):
-    output_of: str | None = None
+    output_of: list[str] | None = None
     input_to: list[str] | None = None
     influences: list[str] | None = None
     influenced_by: list[str] | None = None
@@ -66,20 +95,20 @@ class MetricDetail(MetricBase):
     owned_by_team: list[str] | None = None
     dimensions: list[Dimension] | None = None
 
+    def get_dimension(self, dimension_id: str) -> Dimension | None:
+        if self.dimensions is None:
+            return None
+        return next((dimension for dimension in self.dimensions if dimension.id == dimension_id), None)
 
-class MetricValue(BaseModel):
-    metric_id: str
-    value: int | float
 
-
-class MetricTimeSeriesValue(BaseModel, extra=Extra.allow):  # type: ignore
+class MetricValue(BaseModel, extra=Extra.allow):  # type: ignore
     metric_id: str | None = None
-    value: int
-    date: date
+    value: int | float
+    date: datetime.date | None = None
 
 
 class MetricValuesResponse(BaseModel):
-    data: list[MetricTimeSeriesValue] | None = Field(
+    data: list[MetricValue] | None = Field(
         default=None,
         example=[  # type: ignore
             {

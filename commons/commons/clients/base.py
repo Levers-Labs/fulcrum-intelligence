@@ -12,6 +12,8 @@ from httpx import (
 )
 from pydantic import AnyHttpUrl
 
+from commons.utilities.json_utils import serialize_json
+
 
 class HttpClientError(Exception):
     def __init__(
@@ -66,6 +68,8 @@ class AsyncHttpClient:
             response = await _make_request('GET', '/users', params={'page': 1})
             print(response.json())
         """
+        # set 1 min timeout if not provided
+        kwargs.setdefault("timeout", 60)
         async with AsyncClient(auth=self.auth) as client:
             url = self._get_url(self.base_url, endpoint)
             try:
@@ -102,7 +106,7 @@ class AsyncHttpClient:
             except InvalidURL as e:
                 raise HttpClientError(f"Invalid URL: {e}", url=url) from e
             except TimeoutException as e:
-                raise HttpClientError(f"Request timed out: {e}", url=url) from e
+                raise HttpClientError("Request timed out", url=url) from e
 
     async def get(self, endpoint: str, params: dict[str, Any] | None = None) -> dict[str, Any]:
         """
@@ -118,5 +122,6 @@ class AsyncHttpClient:
         endpoint: absolute or relative url
         data: request body
         """
-        response = await self._make_request("POST", endpoint, json=data)
+        # Use custom JSON encoder to handle datetime objects
+        response = await self._make_request("POST", endpoint, json=serialize_json(data))
         return response.json()

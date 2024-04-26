@@ -1,14 +1,14 @@
 import json
 from datetime import date
-from typing import Any, cast
+from typing import Any
 
 import aiofiles
-import pandas as pd
 
 from commons.models.enums import Granularity
 from query_manager.config import get_settings
-from query_manager.exceptions import MetricNotFoundError, MetricValueNotFoundError
-from query_manager.services.s3 import S3Client
+from query_manager.core.schemas import MetricDetail
+from query_manager.exceptions import MetricNotFoundError
+from query_manager.services.cube import CubeClient
 
 
 class QueryClient:
@@ -20,9 +20,9 @@ class QueryClient:
     METRICS_FILE_PATH = "data/metrics.json"
     DIMENSIONS_FILE_PATH = "data/dimensions.json"
 
-    def __init__(self, s3_client: S3Client):
+    def __init__(self, cube_client: CubeClient):
         settings = get_settings()
-        self.s3_client = s3_client
+        self.cube_client = cube_client
         self.metric_file_path = str(settings.PATHS.BASE_DIR.joinpath(self.METRICS_FILE_PATH))
         self.dimension_file_path = str(settings.PATHS.BASE_DIR.joinpath(self.DIMENSIONS_FILE_PATH))
 
@@ -100,77 +100,39 @@ class QueryClient:
         return dimension_detail.get("members", []) if dimension_detail else []
 
     # Value apis
-    async def get_metric_value(
-        self, metric_id: str, start_date: date | None = None, end_date: date | None = None
-    ) -> dict[str, Any]:
-        """
-        Fetches the value of a metric for a given date range.
-
-        :param metric_id: The ID of the metric to fetch the value for.
-        :param start_date: The start date of the period to fetch the value for.
-        :param end_date: The end date of the period to fetch the value for.
-        :return: A dictionary representing the metric value.
-
-        Example:
-        {
-            "metric_id": "CAC",
-            "value": 0
-        }
-        """
-        # todo: Actual implementation with semantic api
-        values = await self.get_metric_values(metric_id, start_date, end_date)
-        if values:
-            # aggregate the values using a sum
-            value = sum([value["value"] for value in values])
-            return {"metric_id": metric_id, "value": value}
-        raise MetricValueNotFoundError(metric_id)
-
     async def get_metric_values(
         self,
         metric_id: str,
         start_date: date | None = None,
         end_date: date | None = None,
         dimensions: list[str] | None = None,
-        grain: Granularity = Granularity.DAY,
+        grain: Granularity | None = None,
     ) -> list[dict[str, Any]]:
         """
-        Fetches time series metric values for a given metric ID within a specified time range and optional dimensions.
-
+        Fetches metric values for a given metric ID within a specified time range and optional dimensions.
+        Will return time series data if grain is specified.
+        The start_date is inclusive and the end_date is exclusive.
+        The start_date and end_date will be used to filter the data.
+        If grain is not provided, the data will be aggregated.
+        If dimensions are not provided, a single metric value will be returned.
         :param metric_id: The ID of the metric to fetch values for.
+        :param grain: The granularity of the time series data, represented as a Grain enum.
         :param start_date: The start date of the period to fetch values for (inclusive).
         :param end_date: The end date of the period to fetch values for (exclusive).
         :param dimensions: Optional, either 'all' or list of dimension names to include in the results.
-        :param grain: The granularity of the time series data, represented as a Grain enum.
-        :return: A list of dictionaries representing the time series metric values.
+        :return: A list of dictionaries representing the metric values.
         """
-        # todo: Actual implementation with cube api
-        # todo: Implement logic to filter data based on date range, dimensions, and grain
-        # Construct the S3 key based on whether dimensions are specified
-        if dimensions:
-            key = f"mock_data/metric/{metric_id}/values_with_dimensions.json"
-        else:
-            key = f"mock_data/metric/{metric_id}/values.json"
+        metric_dict = await self.get_metric_details(metric_id)
+        metric = MetricDetail.parse_obj(metric_dict)
+        if not metric:
+            raise MetricNotFoundError(metric_id)
 
-        # Construct the SQL expression to filter data by date range
-        sql_expression = "SELECT * FROM s3object"
-
-        # Use the S3Client to query the data asynchronously
-        metric_values = await self.s3_client.query_s3_json(key, sql_expression)
-
-        # load in df
-        df = pd.DataFrame(metric_values)
-        if not df.empty:
-            # convert date strings to date
-            df["date"] = pd.to_datetime(df["date"]).dt.date
-
-            # filter by date range
-            if start_date:
-                df = df[df["date"] >= start_date]
-            if end_date:
-                df = df[df["date"] < end_date]
-
-        results = cast(list[dict[str, Any]], df.to_dict(orient="records"))
-        return results
+        # filter out valid dimensions
+        valid_dimensions = []
+        if dimensions and metric.dimensions:
+            valid_dimensions = [dimension.id for dimension in metric.dimensions if dimension.id in dimensions]
+        res = await self.cube_client.load_metric_values_from_cube(metric, grain, start_date, end_date, valid_dimensions)
+        return res
 
     async def get_metric_targets(
         self, metric_id: str, start_date: str | None = None, end_date: str | None = None
@@ -184,12 +146,5 @@ class QueryClient:
         :return: A list of dictionaries representing the target values.
         """
         # todo: Actual implementation with cube api
-        key = f"mock_data/metric/{metric_id}/target.json"
 
-        # Construct the SQL expression
-        sql_expression = "SELECT * FROM s3object"
-
-        # Use the S3Client to query the data synchronously
-        metric_targets = await self.s3_client.query_s3_json(key, sql_expression)
-
-        return metric_targets
+        return []

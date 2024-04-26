@@ -10,3 +10,8 @@ class TargetAim(str, Enum):
     MAXIMIZE = "Maximize"
     MINIMIZE = "Minimize"
     BALANCE = "Balance"
+
+
+class SemanticMemberType(str, Enum):
+    MEASURE = "measure"
+    DIMENSION = "dimension"

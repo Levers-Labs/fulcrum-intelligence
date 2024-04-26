@@ -34,6 +34,8 @@ class Settings(BaseSettings):
     SERVER_HOST: str | AnyHttpUrl
     PAGINATION_PER_PAGE: int = 20
 
+    CUBE_API_URL: str | AnyHttpUrl
+
     AWS_BUCKET: str = "fulcrum-engine-metrics"
     AWS_REGION: str = "us-east-1"
 

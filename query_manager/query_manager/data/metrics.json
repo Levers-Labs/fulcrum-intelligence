@@ -1,1096 +1,397 @@
 [
   {
-    "id": "NewMRR",
-    "label": "New MRR",
-    "abbreviation": "NewMRR",
-    "definition": "The sum of MRR booked from New Customers in the period.",
-    "unit_of_measure": "Currency",
-    "unit": "$",
-    "components": null,
-    "terms": [
-      "MRR",
-      "New Customers"
-    ],
-    "complexity": "Atomic",
-    "metric_expression": null,
-    "output_of": null,
-    "input_to": [
-      "NetMRR",
-      "MRRPerNewCust",
-      "NewCustShareMRR",
-      "RevQuickRatio",
-      "NewMRRAC",
-      "NewMRRPerAE",
-      "MagicNum"
-    ],
-    "influences": [],
-    "influenced_by": [],
-    "periods": [
-      "Month"
-    ],
-    "grain_aggregation": "Sum",
-    "aggregations": [
-      "Average",
-      "Max",
-      "Min"
-    ],
-    "owned_by_team": [
-      "Sales",
-      "Marketing"
-    ],
-    "dimensions": [
-      {
-        "id": "customer_segment",
-        "label": "Customer Segment",
-        "reference": "customer_segment"
-      },
-      {
-        "id": "channel",
-        "label": "Channel",
-        "reference": "channel"
-      },
-      {
-        "id": "department",
-        "label": "Department",
-        "reference": "department"
-      }
-    ]
-  },
-  {
-    "id": "TotMRR",
-    "label": "Total MRR",
-    "abbreviation": "TotMRR",
-    "definition": "The sum of MRR as of the beginning of the period.",
-    "unit_of_measure": "Currency",
-    "unit": "$",
-    "components": [
-      "TotMRR",
-      "NetMRR"
-    ],
-    "terms": [
-      "MRR"
-    ],
-    "complexity": "Composite",
-    "metric_expression": "{TotMRR\u209c\u208b\u2081}+{NetMRR\u209c}",
-    "output_of": "TotMRR",
-    "input_to": [
-      "ARPA",
-      "NewCustShareMRR",
-      "RetainMRR",
-      "GrossMargin",
-      "LTV",
-      "BksToRevRate",
-      "MRRGrowthRate",
-      "DollarNetExpandRate",
-      "GrossRevChurnRate",
-      "NetRevChurnRate"
-    ],
-    "influences": [],
-    "influenced_by": [],
-    "periods": [
-      "Month"
-    ],
-    "grain_aggregation": "Sum",
-    "aggregations": [
-      "Sum"
-    ],
-    "owned_by_team": [
-      "Finance"
-    ],
-    "dimensions": [
-      {
-        "id": "channel",
-        "label": "Channel",
-        "reference": "channel"
-      },
-      {
-        "id": "department",
-        "label": "Department",
-        "reference": "department"
-      }
-    ]
-  },
-  {
-    "id": "NetMRR",
-    "label": "Net MRR",
-    "abbreviation": "NetMRR",
-    "definition": "The delta in Total MRR between the prior period and the current one.",
-    "unit_of_measure": "Currency",
-    "unit": "$",
-    "components": [
-      "NewMRR",
-      "ExpMRR",
-      "CtrctnMRR",
-      "ChurnMRR"
-    ],
-    "terms": null,
-    "complexity": "Composite",
-    "metric_expression": "{NewMRR\u209c} + {ExpMRR\u209c} - {CtrctnMRR\u209c} - {ChurnMRR\u209c}",
-    "output_of": "NetMRR",
-    "input_to": [
-      "TotMRR",
-      "NetMRRPerCust"
-    ],
-    "influences": [],
-    "influenced_by": [],
-    "periods": [
-      "Month"
-    ],
-    "grain_aggregation": "Sum",
-    "aggregations": [
-      "Average",
-      "Max",
-      "Min"
-    ],
-    "owned_by_team": [
-      "Finance"
-    ],
-    "dimensions": [
-      {
-        "id": "channel",
-        "label": "Channel",
-        "reference": "channel"
-      },
-      {
-        "id": "department",
-        "label": "Department",
-        "reference": "department"
-      }
-    ]
-  },
-  {
-    "id": "ARPA",
-    "label": "Average Revenue Per Account",
-    "abbreviation": "ARPA",
-    "definition": "The ratio of Total MRR against Total Customers.",
-    "unit_of_measure": "Currency",
-    "unit": "$",
-    "components": [
-      "TotMRR",
-      "TotCust"
-    ],
-    "terms": null,
-    "complexity": "Composite",
-    "metric_expression": "{TotMRR\u209c} / {TotCust\u209c}",
-    "output_of": "ARPA",
-    "input_to": [],
-    "influences": [],
-    "influenced_by": [],
-    "periods": [
-      "Month"
-    ],
-    "grain_aggregation": "Average",
-    "aggregations": [
-      "Average",
-      "Max",
-      "Min"
-    ],
-    "owned_by_team": [
-      "Finance"
-    ],
-    "dimensions": [
-      {
-        "id": "customer_segment",
-        "label": "Customer Segment",
-        "reference": "customer_segment"
-      },
-      {
-        "id": "channel",
-        "label": "Channel",
-        "reference": "channel"
-      },
-      {
-        "id": "department",
-        "label": "Department",
-        "reference": "department"
-      }
-    ]
-  },
-  {
-    "id": "NetMRRPerCust",
-    "label": "Net MRR per Customer",
-    "abbreviation": "NetMRRPerCust",
-    "definition": "The ratio of Net MRR against Total Customers.",
-    "unit_of_measure": "Currency",
-    "unit": "$",
-    "components": [
-      "NetMRR",
-      "TotCust"
-    ],
-    "terms": null,
-    "complexity": "Composite",
-    "metric_expression": "{NetMRR\u209c} / {TotCust\u209c}",
-    "output_of": "NetMRRPerCust",
-    "input_to": [],
-    "influences": [],
-    "influenced_by": [],
-    "periods": [
-      "Month"
-    ],
-    "grain_aggregation": "Sum",
-    "aggregations": [
-      "Average",
-      "Max",
-      "Min"
-    ],
-    "owned_by_team": [
-      "Finance"
-    ],
-    "dimensions": [
-      {
-        "id": "customer_segment",
-        "label": "Customer Segment",
-        "reference": "customer_segment"
-      },
-      {
-        "id": "channel",
-        "label": "Channel",
-        "reference": "channel"
-      },
-      {
-        "id": "department",
-        "label": "Department",
-        "reference": "department"
-      }
-    ]
-  },
-  {
-    "id": "MRRPerNewCust",
-    "label": "MRR Per New Customer",
-    "abbreviation": "MRRPerNewCust",
-    "definition": "The ratio of New Recurring Revenue against New Customers.",
-    "unit_of_measure": "Currency",
-    "unit": "$",
-    "components": [
-      "NewMRR",
-      "NewCust"
-    ],
-    "terms": null,
-    "complexity": "Composite",
-    "metric_expression": "{NewMRR\u209c} / {NewCust\u209c}",
-    "output_of": "MRRPerNewCust",
-    "input_to": [],
-    "influences": [],
-    "influenced_by": [],
-    "periods": [
-      "Month",
-      "Quarter"
-    ],
-    "grain_aggregation": "Sum",
-    "aggregations": [
-      "Average",
-      "Max",
-      "Min"
-    ],
-    "owned_by_team": [
-      "Finance"
-    ],
-    "dimensions": [
-      {
-        "id": "customer_segment",
-        "label": "Customer Segment",
-        "reference": "customer_segment"
-      },
-      {
-        "id": "channel",
-        "label": "Channel",
-        "reference": "channel"
-      },
-      {
-        "id": "department",
-        "label": "Department",
-        "reference": "department"
-      }
-    ]
-  },
-  {
-    "id": "NewCustShareMRR",
-    "label": "New Customer Share of MRR",
-    "abbreviation": "NewCustShareMRR",
-    "definition": "The ratio of New MRR against Total MRR.",
-    "unit_of_measure": "Currency",
-    "unit": "$",
-    "components": [
-      "NewMRR",
-      "TotMRR"
-    ],
-    "terms": null,
-    "complexity": "Composite",
-    "metric_expression": "{NewMRR\u209c} / {TotMRR\u209c}",
-    "output_of": "NewCustShareMRR",
-    "input_to": [],
-    "influences": [],
-    "influenced_by": [],
-    "periods": [
-      "Month"
-    ],
-    "grain_aggregation": "Sum",
-    "aggregations": [
-      "Average",
-      "Max",
-      "Min"
-    ],
-    "owned_by_team": [
-      "Sales"
-    ],
-    "dimensions": [
-      {
-        "id": "customer_segment",
-        "label": "Customer Segment",
-        "reference": "customer_segment"
-      },
-      {
-        "id": "channel",
-        "label": "Channel",
-        "reference": "channel"
-      },
-      {
-        "id": "department",
-        "label": "Department",
-        "reference": "department"
-      }
-    ]
-  },
-  {
-    "id": "RetainMRR",
-    "label": "Retained MRR",
-    "abbreviation": "RetainMRR",
-    "definition": "The sum of MRR carried over by Customers from the prior period to the current period.",
-    "unit_of_measure": "Currency",
-    "unit": "$",
-    "components": [
-      "TotMRR",
-      "CtrctnMRR",
-      "ChurnMRR"
-    ],
-    "terms": [
-      "MRR",
-      "Customers"
-    ],
-    "complexity": "Composite",
-    "metric_expression": "{TotMRR\u209c\u208b\u2081} - {CtrctnMRR\u209c} - {ChurnMRR\u209c}",
-    "output_of": "RetainMRR",
-    "input_to": [],
-    "influences": [],
-    "influenced_by": [],
-    "periods": [
-      "Month"
-    ],
-    "grain_aggregation": "Sum",
-    "aggregations": [
-      "Average",
-      "Max",
-      "Min"
-    ],
-    "owned_by_team": [
-      "Customer Success"
-    ],
-    "dimensions": [
-      {
-        "id": "customer_segment",
-        "label": "Customer Segment",
-        "reference": "customer_segment"
-      },
-      {
-        "id": "channel",
-        "label": "Channel",
-        "reference": "channel"
-      },
-      {
-        "id": "department",
-        "label": "Department",
-        "reference": "department"
-      }
-    ]
-  },
-  {
-    "id": "GrossRevChurn",
-    "label": "Gross Revenue Churn",
-    "abbreviation": "GrossRevChurn",
-    "definition": "The amount of Total MRR that has been lost to Churned MRR and Contraction MRR in the period.",
-    "unit_of_measure": "Currency",
-    "unit": "$",
-    "components": [
-      "CtrctnMRR",
-      "ChurnMRR"
-    ],
-    "terms": null,
-    "complexity": "Composite",
-    "metric_expression": "{CtrctnMRR\u209c} + {ChurnMRR\u209c}",
-    "output_of": "GrossRevChurn",
-    "input_to": [
-      "GrossRevChurnRate",
-      "GrossDollRetn",
-      "GrossRevChurnPerCust"
-    ],
-    "influences": [],
-    "influenced_by": [],
-    "periods": [
-      "Month",
-      "Quarter"
-    ],
-    "grain_aggregation": "Sum",
-    "aggregations": [
-      "Average",
-      "Max",
-      "Min"
-    ],
-    "owned_by_team": [
-      "Customer Success"
-    ],
-    "dimensions": [
-      {
-        "id": "channel",
-        "label": "Channel",
-        "reference": "channel"
-      },
-      {
-        "id": "department",
-        "label": "Department",
-        "reference": "department"
-      }
-    ]
-  },
-  {
-    "id": "NetRevChurn",
-    "label": "Net Revenue Churn",
-    "abbreviation": "NetRevChurn",
-    "definition": "The amount of Total MRR that has been lost to Churned MRR and Contraction MRR, net of the revenue gained through Expansion MRR in the period.",
-    "unit_of_measure": "Currency",
-    "unit": "$",
-    "components": [
-      "ChurnMRR",
-      "CtrctnMRR",
-      "ExpMRR"
-    ],
-    "terms": null,
-    "complexity": "Composite",
-    "metric_expression": "{ChurnMRR\u209c} + {CtrctnMRR\u209c} - {ExpMRR\u209c}",
-    "output_of": "NetRevChurn",
-    "input_to": [
-      "NetRevChurnRate",
-      "NetDollRetn",
-      "NetRevChurnPerCust"
-    ],
-    "influences": [],
-    "influenced_by": [],
-    "periods": [
-      "Month",
-      "Quarter"
-    ],
-    "grain_aggregation": "Sum",
-    "aggregations": [
-      "Average",
-      "Max",
-      "Min"
-    ],
-    "owned_by_team": [
-      "Customer Success"
-    ],
-    "dimensions": [
-      {
-        "id": "channel",
-        "label": "Channel",
-        "reference": "channel"
-      },
-      {
-        "id": "department",
-        "label": "Department",
-        "reference": "department"
-      }
-    ]
-  },
-  {
-    "id": "RevQuickRatio",
-    "label": "Revenue Quick Ratio",
-    "abbreviation": "RevQuickRatio",
-    "definition": "The ratio of recurring revenue inflows (New MRR and Expansion MRR) against recurring revenue outflows (Churn MRR and Contraction MRR).",
-    "unit_of_measure": "Derived",
-    "unit": "r",
-    "components": [
-      "NewMRR",
-      "ExpMRR",
-      "ChurnMRR",
-      "CtrctnMRR"
-    ],
-    "terms": null,
-    "complexity": "Composite",
-    "metric_expression": "({NewMRR\u209c} + {ExpMRR\u209c}) / ({ChurnMRR\u209c} + {CtrctnMRR\u209c})",
-    "output_of": "RevQuickRatio",
-    "input_to": [],
-    "influences": [],
-    "influenced_by": [],
-    "periods": [
-      "Month"
-    ],
-    "grain_aggregation": "Sum",
-    "aggregations": [
-      "Average",
-      "Max",
-      "Min"
-    ],
-    "owned_by_team": [
-      "Finance"
-    ],
-    "dimensions": [
-      {
-        "id": "channel",
-        "label": "Channel",
-        "reference": "channel"
-      },
-      {
-        "id": "department",
-        "label": "Department",
-        "reference": "department"
-      }
-    ]
-  },
-  {
-    "id": "CPL",
-    "label": "Cost Per Lead",
-    "abbreviation": "CPL",
-    "definition": "The ratio of Marketing Spend against Marketing-Generated Prospects.",
-    "unit_of_measure": "Currency",
-    "unit": "$",
-    "components": [
-      "MktSpend",
-      "MktGenProsp"
-    ],
-    "terms": [
-      "Marketing-Generated"
-    ],
-    "complexity": "Composite",
-    "metric_expression": "{MktSpend\u209c} / {MktGenProsp\u209c}",
-    "output_of": "CPL",
-    "input_to": [
-      "TrendCAC"
-    ],
-    "influences": [],
-    "influenced_by": [],
-    "periods": [
-      "Month",
-      "Quarter"
-    ],
-    "grain_aggregation": "Sum",
-    "aggregations": [
-      "Average",
-      "Max",
-      "Min"
-    ],
-    "owned_by_team": [
-      "Marketing"
-    ],
-    "dimensions": [
-      {
-        "id": "channel",
-        "label": "Channel",
-        "reference": "channel"
-      },
-      {
-        "id": "department",
-        "label": "Department",
-        "reference": "department"
-      }
-    ]
-  },
-  {
-    "id": "MktSpend",
-    "label": "Marketing Spend",
-    "abbreviation": "MktSpend",
-    "definition": "The sum of fully-loaded spend on acquisition marketing in the period, inclusive of both variable marketing campaign costs and fixed costs like pro-rated spend on software and salaries.",
-    "unit_of_measure": "Currency",
-    "unit": "$",
-    "complexity": "Atomic",
-    "components": [],
-    "terms": null,
-    "metric_expression": null,
-    "grain_aggregation": "Sum",
-    "output_of": "MktSpend",
-    "input_to": [
-      "CPL",
-      "CAC",
-      "NewMRRAC",
-      "BksAC",
-      "COR",
-      "SalesMktSpend",
-      "GrowthEffic",
-      "MagicNum"
-    ],
-    "influences": [],
-    "influenced_by": [],
-    "periods": [
-      "Month",
-      "Quarter"
-    ],
-    "aggregations": [
-      "Average",
-      "Max",
-      "Min"
-    ],
-    "owned_by_team": [
-      "Finance"
-    ],
-    "dimensions": [
-      {
-        "id": "channel",
-        "label": "Channel",
-        "reference": "channel"
-      },
-      {
-        "id": "department",
-        "label": "Department",
-        "reference": "department"
-      }
-    ]
-  },
-  {
-    "id": "SalesSpend",
-    "label": "Sales Spend",
-    "abbreviation": "SalesSpend",
-    "definition": "The sum of fully-loaded spend on sales activities on closing Sales Opportunities in the period. Sales Spend is inclusive of both variable commission costs and fixed costs (software and salaries).",
-    "unit_of_measure": "Currency",
-    "unit": "$",
-    "components": null,
-    "terms": [
-      "Opportunities"
-    ],
-    "complexity": "Atomic",
-    "metric_expression": null,
-    "output_of": null,
-    "input_to": [
-      "CPW",
-      "SalesMktSpend"
-    ],
-    "influences": [],
-    "influenced_by": [],
-    "periods": [
-      "Month",
-      "Quarter"
-    ],
-    "grain_aggregation": "Sum",
-    "aggregations": [
-      "Average",
-      "Max",
-      "Min"
-    ],
-    "owned_by_team": [
-      "Sales"
-    ],
-    "dimensions": [
-      {
-        "id": "channel",
-        "label": "Channel",
-        "reference": "channel"
-      },
-      {
-        "id": "department",
-        "label": "Department",
-        "reference": "department"
-      }
-    ]
-  },
-  {
-    "id": "SalesDevSpend",
-    "label": "Sales Dev Spend",
-    "abbreviation": "SalesDevSpend",
-    "definition": "The sum of fully-loaded spend on sales activities on converting Prospects into Sales Qualified Leads in the period. Sales Development Spend is inclusive of both variable commission costs and fixed costs (software and salaries), and includes spend on all \"reps\" that work on this conversion (e.g. SDRs, MDRs, BDRs, or even AEs).",
-    "unit_of_measure": "Currency",
-    "unit": "$",
-    "components": null,
-    "terms": [
-      "Sales Qualified Leads"
-    ],
-    "complexity": "Atomic",
-    "metric_expression": null,
-    "output_of": null,
-    "input_to": [
-      "CPO",
-      "SalesMktSpend"
-    ],
-    "influences": [],
-    "influenced_by": [],
-    "periods": [
-      "Month",
-      "Quarter"
-    ],
-    "grain_aggregation": "Sum",
-    "aggregations": [
-      "Average",
-      "Max",
-      "Min"
-    ],
-    "owned_by_team": [
-      "Sales Development"
-    ],
-    "dimensions": [
-      {
-        "id": "channel",
-        "label": "Channel",
-        "reference": "channel"
-      },
-      {
-        "id": "department",
-        "label": "Department",
-        "reference": "department"
-      }
-    ]
-  },
-  {
-    "id": "CPO",
-    "label": "Cost Per Opportunity",
-    "abbreviation": "CPO",
-    "definition": "The ratio of Sales Development Spend against Opened New Business Opportunities.",
-    "unit_of_measure": "Currency",
-    "unit": "$",
-    "components": [
-      "SalesDevSpend",
-      "OpenNewBizOpps"
-    ],
-    "terms": null,
-    "complexity": "Composite",
-    "metric_expression": "{SalesDevSpend\u209c} / {OpenNewBizOpps\u209c}",
-    "output_of": "CPO",
-    "input_to": [
-      "TrendCAC"
-    ],
-    "influences": [],
-    "influenced_by": [],
-    "periods": [
-      "Month",
-      "Quarter"
-    ],
-    "grain_aggregation": "Sum",
-    "aggregations": [
-      "Average",
-      "Max",
-      "Min"
-    ],
-    "owned_by_team": [
-      "Sales Development"
-    ],
-    "dimensions": [
-      {
-        "id": "channel",
-        "label": "Channel",
-        "reference": "channel"
-      },
-      {
-        "id": "department",
-        "label": "Department",
-        "reference": "department"
-      }
-    ]
-  },
-  {
-    "id": "CPW",
-    "label": "Cost Per Win",
-    "abbreviation": "CPW",
-    "definition": "The ratio of Sales Spend against New Customers.",
-    "unit_of_measure": "Currency",
-    "unit": "$",
-    "components": [
-      "SalesSpend",
-      "NewCust"
-    ],
-    "terms": null,
-    "complexity": "Composite",
-    "metric_expression": "{SalesSpend\u209c} / {NewCust\u209c}",
-    "output_of": "CPW",
-    "input_to": [],
-    "influences": [],
-    "influenced_by": [],
-    "periods": [
-      "Month",
-      "Quarter"
-    ],
-    "grain_aggregation": "Sum",
-    "aggregations": [
-      "Average",
-      "Max",
-      "Min"
-    ],
-    "owned_by_team": [
-      "Sales"
-    ],
-    "dimensions": [
-      {
-        "id": "customer_segment",
-        "label": "Customer Segment",
-        "reference": "customer_segment"
-      },
-      {
-        "id": "channel",
-        "label": "Channel",
-        "reference": "channel"
-      },
-      {
-        "id": "department",
-        "label": "Department",
-        "reference": "department"
-      }
-    ]
-  },
-  {
-    "id": "TrendCAC",
-    "label": "Trending CAC",
-    "abbreviation": "TrendCAC",
-    "definition": "The expected cost to acquire a customer assuming that current trends in Cost Per Lead, Cost Per Opportunity, and Cost Per Win persist.",
-    "unit_of_measure": "Currency",
-    "unit": "$",
-    "components": [
-      "CPL",
-      "SALRt",
-      "CPO",
-      "SQLRt",
-      "CostPerWin"
-    ],
-    "terms": null,
-    "complexity": "Composite",
-    "metric_expression": "({CPL\u209c} * 1/{SALRt\u209c}) + ({CPO\u209c} * 1/{SQLRt\u209c}) + {CostPerWin\u209c}",
-    "output_of": "TrendCAC",
-    "input_to": [],
-    "influences": [],
-    "influenced_by": [],
-    "periods": [
-      "Month",
-      "Quarter"
-    ],
-    "grain_aggregation": "Sum",
-    "aggregations": [
-      "Average",
-      "Max",
-      "Min"
-    ],
-    "owned_by_team": [
-      "Finance"
-    ],
-    "dimensions": [
-      {
-        "id": "customer_segment",
-        "label": "Customer Segment",
-        "reference": "customer_segment"
-      },
-      {
-        "id": "channel",
-        "label": "Channel",
-        "reference": "channel"
-      },
-      {
-        "id": "department",
-        "label": "Department",
-        "reference": "department"
-      }
-    ]
-  },
-  {
-    "id": "CAC",
-    "label": "CAC",
-    "abbreviation": "CAC",
-    "definition": "The ratio of Sales and Marketing Spend against New Customers.",
-    "unit_of_measure": "Currency",
-    "unit": "$",
-    "components": [
-      "SalesMktSpend",
-      "NewCust"
-    ],
-    "terms": null,
-    "complexity": "Composite",
-    "metric_expression": {
-      "expression_str": "{SalesMktSpend\u209c} / {NewCust\u209c}",
-      "metric_id": "CAC",
-      "type": "metric",
-      "period": 0,
-      "expression": {
-        "type": "expression",
-        "operator": "/",
-        "operands": [
-          {
-            "type": "metric",
-            "metric_id": "SalesMktSpend",
-            "period": 0
-          },
-          {
-            "type": "metric",
-            "metric_id": "NewCust",
-            "period": 0
-          }
-        ]
-      }
-    },
-    "output_of": "CAC",
-    "input_to": [
-      "PaybackPd",
-      "LTV:CAC",
-      "NewACVToCAC"
-    ],
-    "influences": [],
-    "influenced_by": [],
-    "periods": [
-      "Month",
-      "Quarter"
-    ],
-    "grain_aggregation": "Sum",
-    "aggregations": [
-      "Average",
-      "Max",
-      "Min"
-    ],
-    "owned_by_team": [
-      "Finance"
-    ],
-    "dimensions": [
-      {
-        "id": "customer_segment",
-        "label": "Customer Segment",
-        "reference": "customer_segment"
-      },
-      {
-        "id": "channel",
-        "label": "Channel",
-        "reference": "channel"
-      },
-      {
-        "id": "region",
-        "label": "Region",
-        "reference": "region"
-      }
-    ]
-  },
-  {
-    "id": "SalesMktSpend",
-    "label": "Sales and Marketing Spend",
-    "abbreviation": "SalesMktSpend",
-    "definition": "The sum of Marketing Spend and Sales Spend in the period.",
-    "unit_of_measure": "Currency",
-    "unit": "$",
-    "complexity": "Composite",
-    "components": [
-      "SalesSpend",
-      "SalesDevSpend",
-      "MktSpend"
-    ],
-    "terms": null,
-    "metric_expression": {
-      "type": "metric",
-      "metric_id": "SalesMktSpend",
-      "period": 0,
-      "expression_str": "{SalesSpend} + {SalesDevSpend} + {MktSpend}",
-      "expression": {
-        "type": "expression",
-        "operator": "+",
-        "operands": [
-          {
-            "type": "metric",
-            "metric_id": "SalesSpend",
-            "period": 0
-          },
-          {
-            "type": "metric",
-            "metric_id": "SalesDevSpend",
-            "period": 0
-          },
-          {
-            "type": "metric",
-            "metric_id": "MktSpend",
-            "period": 0
-          }
-        ]
-      }
-    },
-    "grain_aggregation": "Sum",
-    "output_of": "SalesMktSpend",
-    "input_to": [
-      "CAC",
-      "NewMRRAC",
-      "BksAC",
-      "COR",
-      "GrowthEffic",
-      "MagicNum"
-    ],
-    "influences": [],
-    "influenced_by": [],
-    "periods": [
-      "Month",
-      "Quarter"
-    ],
-    "aggregations": [
-      "Average",
-      "Max",
-      "Min"
-    ],
-    "owned_by_team": [
-      "Finance"
-    ],
-    "dimensions": [
-      {
-        "id": "customer_segment",
-        "label": "Customer Segment",
-        "reference": "customer_segment"
-      },
-      {
-        "id": "channel",
-        "label": "Channel",
-        "reference": "channel"
-      },
-      {
-        "id": "region",
-        "label": "Region",
-        "reference": "region"
-      }
-    ]
-  },
-  {
-    "id": "NewCust",
-    "label": "New Customers",
-    "abbreviation": "NewCust",
-    "definition": "The count of Customers whose first Subscriptions began in the period.",
+    "id": "NewBizDeals",
+    "label": "New Business Deals",
+    "abbreviation": "NewBizDeals",
+    "definition": "The count of New Business Opportunities that were generated in the period related to closing deals.",
     "unit_of_measure": "Quantity",
     "unit": "n",
-    "complexity": "Atomic",
     "components": [],
-    "terms": null,
-    "metric_expression": null,
-    "grain_aggregation": "Sum",
-    "output_of": "NewCust",
-    "input_to": [
-      "MRRPerNewCust",
-      "CPW",
-      "CAC"
+    "terms": [
+      "New Business Opportunities"
     ],
+    "complexity": "Complex",
+    "metric_expression": {
+      "metric_id": "NewBizDeals",
+      "type": "metric",
+      "expression_str": "{AcceptOpps} * {SQOToWinRate}",
+      "expression": {
+        "type": "expression",
+        "operator": "*",
+        "operands": [
+          {
+            "type": "metric",
+            "metric_id": "AcceptOpps",
+            "period": 0
+          },
+          {
+            "type": "metric",
+            "metric_id": "SQOToWinRate",
+            "period": 0
+          }
+        ]
+      }
+    },
+    "output_of": [],
+    "input_to": [],
     "influences": [],
     "influenced_by": [
-      "Subscriptions",
-      "Customers"
     ],
     "periods": [
       "Week",
       "Month",
       "Quarter"
     ],
+    "grain_aggregation": "Week",
     "aggregations": [
-      "Average",
-      "Max",
-      "Min"
+      "Sum"
     ],
     "owned_by_team": [
       "Sales"
     ],
-    "dimensions": [
-      {
-        "id": "customer_segment",
-        "label": "Customer Segment",
-        "reference": "customer_segment"
-      },
-      {
-        "id": "channel",
-        "label": "Channel",
-        "reference": "channel"
-      },
-      {
-        "id": "region",
-        "label": "Region",
-        "reference": "region"
+    "dimensions": [],
+    "metadata": {
+      "semantic_meta": {
+        "cube": "dim_opportunity",
+        "member": "new_biz_deals",
+        "member_type": "measure",
+        "time_dimension": {
+          "cube": "dim_opportunity",
+          "member": "close_date"
+        }
       }
-    ]
+    }
+  },
+  {
+    "id": "OpenNewBizOpps",
+    "label": "Opened New Business Opportunities",
+    "abbreviation": "OpenNewBizOpps",
+    "definition": "The count of Opportunities opened in the period related to the renewal of expiring contracts.",
+    "unit_of_measure": "Quantity",
+    "unit": "n",
+    "components": [],
+    "terms": null,
+    "complexity": "Atomic",
+    "metric_expression": null,
+    "output_of": [],
+    "input_to": [],
+    "influences": [],
+    "influenced_by": [],
+    "periods": [
+      "Week",
+      "Month",
+      "Quarter"
+    ],
+    "owned_by_team": [
+      "Customer Success"
+    ],
+    "dimensions": [],
+    "metadata": {
+      "semantic_meta": {
+        "cube": "dim_opportunity",
+        "member": "opened_new_biz_opps",
+        "member_type": "measure",
+        "time_dimension": {
+          "cube": "dim_opportunity",
+          "member": "created_at"
+        }
+      }
+    }
+  },
+  {
+    "id": "SalesQualRate",
+    "label": "Sales Qualification Rate",
+    "abbreviation": "SalesQualRate",
+    "definition": "The percent of Sales Accepted Leads generated in the period that subsequently converted into New Opportunities.",
+    "unit_of_measure": "Percent",
+    "unit": "%",
+    "terms": [
+      "Sales Accepted Leads",
+      "New Business Opportunities"
+    ],
+    "components": [],
+    "complexity": "Atomic",
+    "metric_expression": null,
+    "output_of": [],
+    "input_to": [],
+    "influences": [],
+    "influenced_by": [],
+    "periods": [
+      "Week",
+      "Month",
+      "Quarter"
+    ],
+    "owned_by_team": [
+      "Sales Development"
+    ],
+    "dimensions": [],
+    "metadata": {
+      "semantic_meta": {
+        "cube": "dim_contact_lifecycle_stages",
+        "member": "sales_qual_rate",
+        "member_type": "measure",
+        "time_dimension": {
+          "cube": "dim_contact_lifecycle_stages",
+          "member": "last_sal_on"
+        }
+      }
+    }
+  },
+  {
+    "id": "SQLs",
+    "label": "Sales Qualified Leads",
+    "abbreviation": "SQLs",
+    "definition": "The count of leads qualified by sales during the given period.",
+    "unit_of_measure": "Quantity",
+    "unit": "n",
+    "components": [],
+    "terms": [],
+    "complexity": "Complex",
+    "metric_expression": {
+      "expression_str": "{NewSalesAcceptLeadsₜ} * {SalesQualRateₜ}",
+      "metric_id": "SQLs",
+      "type": "metric",
+      "period": 0,
+      "expression": {
+        "type": "expression",
+        "operator": "*",
+        "operands": [
+          {
+            "type": "metric",
+            "metric_id": "NewSalesAcceptLeads",
+            "period": 0
+          },
+          {
+            "type": "metric",
+            "metric_id": "SalesQualRate",
+            "period": 0
+          }
+        ]
+      }
+    },
+    "output_of": [],
+    "input_to": [],
+    "influences": [],
+    "influenced_by": [],
+    "periods": [
+      "Month",
+      "Quarter"
+    ],
+    "owned_by_team": [
+      "Sales"
+    ],
+    "dimensions": [],
+    "metadata": {
+      "semantic_meta": {
+        "cube": "dim_contact_lifecycle_stages",
+        "member": "sales_qual_leads",
+        "member_type": "measure",
+        "time_dimension": {
+          "cube": "dim_contact_lifecycle_stages",
+          "member": "sql_on"
+        }
+      }
+    }
+  },
+  {
+    "id": "NewSalesAcceptLeads",
+    "label": "New Sales Accepted Leads",
+    "abbreviation": "NewSalesAcceptLeads",
+    "definition": "The count of Suspects that have been accepted in the period by SDRs or AEs as worthy of being engaged.",
+    "unit_of_measure": "Quantity",
+    "unit": "n",
+    "components": [],
+    "terms": [],
+    "complexity": "Atomic",
+    "metric_expression": null,
+    "output_of": [],
+    "input_to": [],
+    "influences": [],
+    "influenced_by": [],
+    "periods": [
+      "Week",
+      "Month",
+      "Quarter"
+    ],
+    "owned_by_team": [
+      "Sales Development"
+    ],
+    "dimensions": [],
+    "metadata": {
+      "semantic_meta": {
+        "cube": "dim_contact_lifecycle_stages",
+        "member": "new_sales_accept_leads",
+        "member_type": "measure",
+        "time_dimension": {
+          "cube": "dim_contact_lifecycle_stages",
+          "member": "last_sal_on"
+        }
+      }
+    }
+  },
+  {
+    "id": "AcceptOpps",
+    "label": "Accepted Opportunities",
+    "abbreviation": "AcceptOpps",
+    "definition": "The count of New Business Opportunities opened in the period that were subsequently accepted by AEs as worthy of being engaged.",
+    "unit_of_measure": "Quantity",
+    "unit": "n",
+    "components": [],
+    "terms": [],
+    "complexity": "Complex",
+    "metric_expression": {
+      "expression_str": "{OpenNewBizOppsₜ} * {SQORateₜ}",
+      "metric_id": "AcceptOpps",
+      "type": "metric",
+      "period": 0,
+      "expression": {
+        "type": "expression",
+        "operator": "*",
+        "operands": [
+          {
+            "type": "metric",
+            "metric_id": "OpenNewBizOpps",
+            "period": 0
+          },
+          {
+            "type": "metric",
+            "metric_id": "SQORate",
+            "period": 0
+          }
+        ]
+      }
+    },
+    "output_of": [],
+    "input_to": [],
+    "influences": [],
+    "influenced_by": [],
+    "periods": [
+      "Week",
+      "Month",
+      "Quarter"
+    ],
+    "owned_by_team": [
+      "Sales"
+    ],
+    "dimensions": [],
+    "metadata": {
+      "semantic_meta": {
+        "cube": "dim_opportunity",
+        "member": "sqo",
+        "member_type": "measure",
+        "time_dimension": {
+          "cube": "dim_opportunity",
+          "member": "sqo_date"
+        }
+      }
+    }
+  },
+  {
+    "id": "NewProsps",
+    "label": "New Prospects",
+    "abbreviation": "NewProsps",
+    "definition": "The count of Prospects (freq. 'Marketing Qualified Leads') generated in the period.",
+    "unit_of_measure": "Quantity",
+    "unit": "n",
+    "components": [],
+    "terms": null,
+    "complexity": "Atomic",
+    "metric_expression": null,
+    "output_of": [],
+    "input_to": [],
+    "influences": [],
+    "influenced_by": [],
+    "periods": [
+      "Week",
+      "Month",
+      "Quarter"
+    ],
+    "owned_by_team": [
+      "Sales Development"
+    ],
+    "dimensions": [],
+    "metadata": {
+      "semantic_meta": {
+        "cube": "dim_contact_lifecycle_stages",
+        "member": "mkt_qual_leads",
+        "member_type": "measure",
+        "time_dimension": {
+          "cube": "dim_contact_lifecycle_stages",
+          "member": "last_mql_on"
+        }
+      }
+    }
+  },
+  {
+    "id": "SQORate",
+    "label": "SQO Rate",
+    "abbreviation": "SQORate",
+    "definition": "The percent of opened new business opportunities that were sales qualified during that period.",
+    "unit_of_measure": "Percent",
+    "unit": "%",
+    "components": [],
+    "terms": [],
+    "complexity": "Atomic",
+    "metric_expression": null,
+    "output_of": [],
+    "input_to": [],
+    "influences": [],
+    "influenced_by": [],
+    "periods": [
+      "Week",
+      "Month",
+      "Quarter"
+    ],
+    "owned_by_team": [
+      "Sales"
+    ],
+    "dimensions": [],
+    "metadata": {
+      "semantic_meta": {
+        "cube": "dim_opportunity",
+        "member": "sqo_rate",
+        "member_type": "measure",
+        "time_dimension": {
+          "cube": "dim_opportunity",
+          "member": "created_at"
+        }
+      }
+    }
+  },
+  {
+    "id": "SQOToWinRate",
+    "label": "SQO to Win Rate",
+    "abbreviation": "SQOToWinRate",
+    "definition": "The percent of Sales Qualified Opportunities that are subsequently won during that period.",
+    "unit_of_measure": "Percent",
+    "unit": "%",
+    "components": [],
+    "terms": [],
+    "complexity": "Atomic",
+    "metric_expression": null,
+    "output_of": [],
+    "input_to": [],
+    "influences": [],
+    "influenced_by": [],
+    "periods": [
+      "Week",
+      "Month",
+      "Quarter"
+    ],
+    "owned_by_team": [
+      "Sales"
+    ],
+    "dimensions": [],
+    "metadata": {
+      "semantic_meta": {
+        "cube": "dim_opportunity",
+        "member": "sqo_to_win_rate",
+        "member_type": "measure",
+        "time_dimension": {
+          "cube": "dim_opportunity",
+          "member": "sqo_date"
+        }
+      }
+    }
   }
 ]
