@@ -37,7 +37,7 @@ async def test_make_request_success(async_http_client):
     ) as request_mock:
         response = await async_http_client._make_request("GET", endpoint)
         assert response == response_mock
-        request_mock.assert_awaited_once_with("GET", "https://example.com/api/users")
+        request_mock.assert_awaited_once_with("GET", "https://example.com/api/users", timeout=60)
 
 
 @pytest.mark.asyncio
@@ -128,7 +128,7 @@ async def test_make_request_timeout(async_http_client):
     ):
         with pytest.raises(HttpClientError) as exc_info:
             await async_http_client._make_request("GET", endpoint)
-        assert str(exc_info.value) == "Request timed out: Request timed out"
+        assert str(exc_info.value) == "Request timed out"
         assert exc_info.value.url == "https://example.com/api/users"
 
 
