@@ -23,6 +23,12 @@ ANALYSIS_MANAGER_SERVER_HOST=http://localhost:8000
 QUERY_MANAGER_SERVER_HOST=http://localhost:8001
 ```
 
+### Initialize db
+
+```shell
+python manage.py db upgrade
+```
+
 ### Run the fastapi app
 
 ```shell

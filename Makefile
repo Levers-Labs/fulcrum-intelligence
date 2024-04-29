@@ -4,7 +4,7 @@ setup:
 	( \
 		if [ -z $(PYENV_VERSION) ] ; then brew install pyenv ; else echo "pyenv already installed"; fi ; \
 		echo N | pyenv install $(PYTHON_VERSION) ; \
-		pyenpyv local $(PYTHON_VERSION); \
+		pyenv local $(PYTHON_VERSION); \
 		python -m venv env; \
 		source venv/bin/activate; \
 		pip install --upgrade pip; \
@@ -24,7 +24,7 @@ ifdef path
 	@poetry export -f requirements.txt --output requirements.txt --without-hashes -C $(path)
 else
 	@echo "Installing dependencies @ root"
-	@poetry export -f requirements.txt --output requirements.txt --without-hashes
+	@poetry export -f requirements.txt --output requirements.txt --without-hashes --with dev
 endif
 	@pip install -U -r requirements.txt
 	@echo "Removing requirements.txt file..."
