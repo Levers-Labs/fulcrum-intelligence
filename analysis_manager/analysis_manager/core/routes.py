@@ -233,7 +233,7 @@ async def forecast_simple(
     ],
 ) -> Any:
     """
-    Analyze correlations between metrics.
+    Simple Forecast a metric.
     """
     # get metric values for the given metric_ids and date range
     metric_values = await query_manager.get_metric_values(
@@ -262,7 +262,7 @@ async def forecast_hierarchical(
     ],
 ) -> Any:
     """
-    Analyze correlations between metrics.
+    Hierarchical Forecast a metric.
     """
     # get metric values for the given metric_ids and date range
     metric_values = await query_manager.get_metric_values(
@@ -293,7 +293,7 @@ async def linear_model(
     ],
 ) -> Any:
     """
-    Analyze correlations between metrics.
+    Linear Model a metric.
     """
     # get metric values for the given metric_ids and date range
     metric_values = await query_manager.get_metric_values(
@@ -339,3 +339,33 @@ async def detect_anomalies(
 
     # return the correlation coefficient for each pair of metrics
     return analysis_manager.detect_anomalies(data=metrics_df, start_date=request.start_date, end_date=request.end_date)
+
+
+@router.post("/analysis/influence_attribution")
+async def influence_attribution(
+    analysis_manager: AnalysisManagerDep,
+    query_manager: QueryManagerClientDep,
+    request: Annotated[
+        ForecastRequest,
+        Body(examples=[{"metric_id": "NewMRR", "start_date": "2024-01-01", "end_date": "2024-04-30"}]),
+    ],
+) -> Any:
+    """
+    Analyze correlations between metrics.
+    """
+    # get metric values for the given metric_ids and date range
+    metric_values = await query_manager.get_metric_values(
+        metric_ids=[request.metric_id],
+        start_date=request.start_date,
+        end_date=request.end_date,
+    )
+    if not metric_values:
+        return []
+    metrics_df = pd.DataFrame(metric_values, columns=["metric_id", "date", "value"])
+    columns = {"metric_id": "METRIC_ID", "date": "DAY", "value": "METRIC_VALUE"}
+    metrics_df.rename(columns=columns, inplace=True)
+    metrics_df["METRIC_ID"] = metrics_df["METRIC_ID"].astype(str)
+
+    return analysis_manager.influence_attribution(
+        data=metrics_df, start_date=request.start_date, end_date=request.end_date
+    )

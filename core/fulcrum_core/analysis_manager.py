@@ -202,7 +202,7 @@ class AnalysisManager:
             {"date": "2024-04-01", "metric_id": "NewMRR", "value": 500},
         ]
 
-    def linear_model(self, data: pd.DataFrame, start_date: date) -> dict:
+    def linear_model(self, data: pd.DataFrame, start_date: date, end_date: date) -> dict:
         return {
             "linear_equation": {
                 "metric_id": "TargetMetric",
@@ -234,11 +234,10 @@ class AnalysisManager:
                     "score": "float",
                     "details": {"expected_value": "float", "actual_value": "float", "deviation": "float"},
                     "context": {
-                        "before": [{"timestamp": "YYYY-MM-DD HH:MM:SS", "value": "float"}, ...],
-                        "after": [{"timestamp": "YYYY-MM-DD HH:MM:SS", "value": "float"}, ...],
+                        "before": [{"timestamp": "YYYY-MM-DD HH:MM:SS", "value": "float"}],
+                        "after": [{"timestamp": "YYYY-MM-DD HH:MM:SS", "value": "float"}],
                     },
                 },
-                ...,
             ],
             "summary": {
                 "total_anomalies": "int",
@@ -246,4 +245,31 @@ class AnalysisManager:
                 "medium_severity_count": "int",
                 "low_severity_count": "int",
             },
+        }
+
+    def influence_attribution(self, data: pd.DataFrame, start_date: date, end_date: date) -> dict:
+        return {
+            "metric_id": "OutputMetric",
+            "start_date": "YYYY-MM-DD",
+            "end_date": "YYYY-MM-DD",
+            "input_metrics": ["InputMetric1", "InputMetric2"],
+            "total_drift_impact": "float",
+            "total_relative_impact": "float",
+            "influence_attribution": [
+                {
+                    "metric_id": "InputMetric1",
+                    "drift_impact": {
+                        "value_change": "float",
+                        "impact_on_output": "float",
+                        "percentage_contribution": "float",
+                        "marginal_contribution": "float",
+                    },
+                    "relative_impact": {
+                        "change_in_correlation": "float",
+                        "impact_on_output": "float",
+                        "percentage_contribution": "float",
+                        "marginal_contribution": "float",
+                    },
+                }
+            ],
         }
