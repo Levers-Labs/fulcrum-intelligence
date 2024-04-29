@@ -141,31 +141,6 @@ async def test_get_metric_values_404(client, mocker):
 
 
 @pytest.mark.asyncio
-async def test_get_metric_value(mocker, client):
-    # Mock dependencies
-    mock_get_metric_value = AsyncMock(return_value={"metric_id": "CAC", "value": 100})
-    mocker.patch.object(QueryClient, "get_metric_value", mock_get_metric_value)
-
-    response = client.get("/v1/metrics/CAC/value?start_date=2022-01-01&end_date=2022-01-31")
-
-    assert response.status_code == 200
-    assert response.json() == {"metric_id": "CAC", "value": 100}
-    mock_get_metric_value.assert_awaited_once()
-
-
-@pytest.mark.asyncio
-async def test_get_metric_value_404(client, mocker):
-    # Mock the QueryClient's get_metric_value method
-    mock_get_metric_value = AsyncMock(side_effect=NoSuchKeyError(key="test_metric"))
-    mocker.patch.object(QueryClient, "get_metric_value", mock_get_metric_value)
-
-    response = client.get("/v1/metrics/test_metric/value?start_date=2022-01-01&end_date=2022-01-31")
-    assert response.status_code == 404
-    assert response.json()["error"] == "metric_not_found"
-    mock_get_metric_value.assert_awaited_once()
-
-
-@pytest.mark.asyncio
 async def test_get_metric_targets(mocker, client):
     # Mock dependencies
     mock_get_metric_targets = AsyncMock(

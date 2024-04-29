@@ -12,6 +12,7 @@ class ErrorCode(str, Enum):
 
     METRIC_VALUE_NOT_FOUND = "metric_value_not_found"
     METRIC_NOT_FOUND = "metric_not_found"
+    METRIC_METADATA_ERROR = "metric_metadata_error"
 
 
 class QueryManagerError(HTTPException):
@@ -25,6 +26,13 @@ class MetricValueNotFoundError(QueryManagerError):
         self.metric_id = metric_id
         detail = f"Value for metric '{metric_id}' not found."
         super().__init__(status_code=HTTP_404_NOT_FOUND, detail=detail, code=ErrorCode.METRIC_VALUE_NOT_FOUND)
+
+
+class MalformedMetricMetadataError(QueryManagerError):
+    def __init__(self, metric_id: str):
+        self.metric_id = metric_id
+        detail = f"Malformed metadata for metric '{metric_id}', could not fetch metric values."
+        super().__init__(status_code=HTTP_404_NOT_FOUND, detail=detail, code=ErrorCode.METRIC_METADATA_ERROR)
 
 
 class MetricNotFoundError(QueryManagerError):

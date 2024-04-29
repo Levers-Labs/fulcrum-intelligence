@@ -27,6 +27,7 @@ def setup_env(session_monkeypatch):
     session_monkeypatch.setenv("BACKEND_CORS_ORIGINS", '["http://localhost"]')
     session_monkeypatch.setenv("AWS_BUCKET", "bucket")
     session_monkeypatch.setenv("AWS_REGION", "region")
+    session_monkeypatch.setenv("CUBE_API_URL", "http://localhost:4000")
     yield
 
 
@@ -40,7 +41,21 @@ def client(setup_env):
 
 
 @pytest.fixture(scope="session")
-def metric():
+def dimension():
+    return {
+        "id": "dimension1",
+        "label": "Dimension 1",
+        "reference": "Reference 1",
+        "definition": "Definition 1",
+        "members": ["member1", "member2"],
+        "metadata": {
+            "semantic_meta": {"cube": "cube1", "member": "member1", "member_type": "dimension"},
+        },
+    }
+
+
+@pytest.fixture(scope="session")
+def metric(dimension):
     return {
         "id": "metric1",
         "label": "Metric 1",
@@ -66,22 +81,23 @@ def metric():
         "grain_aggregation": "aggregation",
         "components": ["component1", "component2"],
         "terms": ["term1", "term2"],
-        "output_of": "output",
+        "output_of": ["output"],
         "input_to": ["input1", "input2"],
         "influences": ["influence1", "influence2"],
         "influenced_by": ["influenced1", "influenced2"],
         "periods": ["period1", "period2"],
         "aggregations": ["aggregation1", "aggregation2"],
         "owned_by_team": ["team1", "team2"],
-    }
-
-
-@pytest.fixture(scope="session")
-def dimension():
-    return {
-        "id": "dimension1",
-        "label": "Dimension 1",
-        "reference": "Reference 1",
-        "definition": "Definition 1",
-        "members": ["member1", "member2"],
+        "dimensions": [dimension],
+        "metadata": {
+            "semantic_meta": {
+                "cube": "cube1",
+                "member": "member1",
+                "member_type": "measure",
+                "time_dimension": {
+                    "cube": "cube1",
+                    "member": "created_at",
+                },
+            },
+        },
     }

@@ -9,6 +9,7 @@ from fastapi import (
     Request,
 )
 
+from commons.models.enums import Granularity
 from query_manager.core.dependencies import ParquetServiceDep, QueryClientDep
 from query_manager.core.enums import OutputFormat
 from query_manager.core.schemas import (
@@ -16,7 +17,6 @@ from query_manager.core.schemas import (
     DimensionDetail,
     MetricDetail,
     MetricListResponse,
-    MetricValue,
     MetricValuesResponse,
     Target,
 )
@@ -71,23 +71,6 @@ async def get_dimension_members(dimension_id: str, client: QueryClientDep):
 
 
 # Value APIs
-@router.get("/metrics/{metric_id}/value", response_model=MetricValue, tags=["metrics"])
-async def get_metric_value(
-    client: QueryClientDep,
-    metric_id: str,
-    start_date: date | None = None,
-    end_date: date | None = None,
-):
-    """
-    Retrieve the aggregated value of a metric within a date range.
-    """
-    try:
-        res = await client.get_metric_value(metric_id, start_date, end_date)
-    except NoSuchKeyError as e:
-        raise MetricNotFoundError(metric_id) from e
-    return res
-
-
 @router.post("/metrics/{metric_id}/values", response_model=MetricValuesResponse, tags=["metrics"])
 async def get_metric_values(
     request: Request,
@@ -96,6 +79,7 @@ async def get_metric_values(
     metric_id: str,
     start_date: Annotated[date, Body(description="The start date of the date range.")],
     end_date: Annotated[date, Body(description="The end date of the date range.")],
+    grain: Annotated[Granularity | None, Body(description="The granularity of the data.")] = None,
     dimensions: Annotated[
         list[str] | None,
         Body(description="Can be either 'all' or list of dimension ids."),
@@ -108,7 +92,7 @@ async def get_metric_values(
     # Accessing the request_id from the request's state
     request_id = request.state.request_id
     try:
-        res = await client.get_metric_values(metric_id, start_date, end_date, dimensions=dimensions)
+        res = await client.get_metric_values(metric_id, start_date, end_date, grain=grain, dimensions=dimensions)
     except NoSuchKeyError as e:
         raise MetricNotFoundError(metric_id) from e
 
