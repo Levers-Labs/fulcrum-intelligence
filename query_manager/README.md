@@ -22,12 +22,8 @@ AWS_BUCKET=fulcrum-engine-metrics
 AWS_REGION=us-west-2
 OPENAPI_PREFIX=/dev
 CUBE_API_URL=http://localhost:4000/cubejs-api/v1
-
-### Initialize db
-
-```shell
-python manage.py db upgrade
 ```
+
 ### Initialize db
 
 ```shell

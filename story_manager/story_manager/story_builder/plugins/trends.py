@@ -41,14 +41,13 @@ class AnalysisService:
 
 query_srv = QueryService()
 analysis_srv = AnalysisService()
-db_session = get_session()
 
 
 class TrendsStoryBuilder(StoryBuilderBase):
-    genre: StoryGenre = StoryGenre.TRENDS  # type: ignore
+    genre = StoryGenre.TRENDS  # type: ignore
     supported_grains = [Granularity.DAY, Granularity.WEEK]
 
-    def __init__(self, query_service, analysis_service, db_session):
+    def __init__(self, query_service, analysis_service, db_session=get_session()):
         super().__init__(query_service, analysis_service, db_session)
         self.persisted_stories = None
 
@@ -143,12 +142,12 @@ class TrendsStoryBuilder(StoryBuilderBase):
             # Wheeler rules to identify discontinuity
             if (
                 i >= 7
-                and all(process_control_df.iloc[i - 6 : i + 1]["has_discontinuity"])
+                and all(process_control_df.iloc[i - 6: i + 1]["has_discontinuity"])
                 or i >= 12
-                and sum(process_control_df.iloc[i - 11 : i + 1]["has_discontinuity"]) >= 10
+                and sum(process_control_df.iloc[i - 11: i + 1]["has_discontinuity"]) >= 10
                 or i >= 4
                 and sum(
-                    process_control_df.iloc[i - 3 : i + 1]["has_discontinuity"]
+                    process_control_df.iloc[i - 3: i + 1]["has_discontinuity"]
                     < abs(process_control_df.iloc[i]["central_line"] - process_control_df.iloc[i]["metric_value"])
                 )
                 >= 3
@@ -176,7 +175,7 @@ class TrendsStoryBuilder(StoryBuilderBase):
             last_data_point = process_control_df.iloc[-1]
             story_metadata = {
                 "metric_id": metric_id,
-                "genre": StoryGenre.TRENDS,
+                "genre": self.genre,
                 "type": trend_type,
                 "grain": grain,
                 "text": f"Trend story for metric {metric_id} and grain {grain}",
