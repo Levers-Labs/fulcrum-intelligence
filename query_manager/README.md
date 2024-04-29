@@ -28,6 +28,11 @@ CUBE_API_URL=http://localhost:4000/cubejs-api/v1
 ```shell
 python manage.py db upgrade
 ```
+### Initialize db
+
+```shell
+python manage.py db upgrade
+```
 
 ### Run the fastapi app
 
