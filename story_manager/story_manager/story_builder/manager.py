@@ -1,5 +1,9 @@
 import logging
 
+from sqlmodel.ext.asyncio.session import AsyncSession
+
+from commons.clients.analysis_manager import AnalysisManagerClient
+from commons.clients.query_manager import QueryManagerClient
 from story_manager.core.enums import StoryGenre
 from story_manager.story_builder import StoryFactory
 
@@ -11,7 +15,9 @@ class StoryManager:
     Class for managing and running story generation builders
     """
 
-    def __init__(self, query_service, analysis_service, db_session):
+    def __init__(
+        self, query_service: QueryManagerClient, analysis_service: AnalysisManagerClient, db_session: AsyncSession
+    ):
         """
         Initialize the StoryManager instance
 
@@ -23,11 +29,11 @@ class StoryManager:
         self.analysis_service = analysis_service
         self.db_session = db_session
 
-    def run_all_builders(self) -> None:
+    async def run_all_builders(self) -> None:
         """
         Run all story generation builders
         """
-        metrics = self.query_service.list_metrics()
+        metrics = await self.query_service.list_metrics()
         logger.info(f"Retrieved {len(metrics)} metrics from the query service")
 
         for genre in StoryGenre.__members__.values():
@@ -35,9 +41,9 @@ class StoryManager:
             story_builder = StoryFactory.create_story_builder(
                 genre, self.query_service, self.analysis_service, self.db_session
             )
-            self._run_builder_for_metrics(story_builder, metrics)
+            await self._run_builder_for_metrics(story_builder, metrics)
 
-    def _run_builder_for_metrics(self, story_builder, metrics: list[dict]) -> None:
+    async def _run_builder_for_metrics(self, story_builder, metrics: list[dict]) -> None:
         """
         Run the story builder for the given list of metrics
 
@@ -51,7 +57,7 @@ class StoryManager:
             for grain in story_builder.supported_grains:
                 logger.info(f"Generating stories for grain: {grain}")
                 try:
-                    story_builder.run(metric["id"], grain)
+                    await story_builder.run(metric["id"], grain)
                 except Exception as e:
                     logger.exception(f"Error generating stories for metric {metric_id} with grain {grain}: {str(e)}")
                     continue

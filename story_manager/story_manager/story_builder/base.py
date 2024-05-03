@@ -4,7 +4,10 @@ from datetime import date
 
 import pandas as pd
 from jinja2 import Template
+from sqlmodel.ext.asyncio.session import AsyncSession
 
+from commons.clients.analysis_manager import AnalysisManagerClient
+from commons.clients.query_manager import QueryManagerClient
 from commons.models.enums import Granularity
 from story_manager.core.enums import STORY_TYPES_META, StoryGenre, StoryType
 
@@ -19,7 +22,9 @@ class StoryBuilderBase(ABC):
     genre: StoryGenre
     supported_grains: list[Granularity] = []
 
-    def __init__(self, query_service, analysis_service, db_session):
+    def __init__(
+        self, query_service: QueryManagerClient, analysis_service: AnalysisManagerClient, db_session: AsyncSession
+    ):
         """
         Initialize the StoryBuilderBase instance
         :param query_service: QueryService instance for retrieving data
@@ -30,7 +35,7 @@ class StoryBuilderBase(ABC):
         self.analysis_service = analysis_service
         self.db_session = db_session
 
-    def _get_time_series_data(
+    async def _get_time_series_data(
         self, metric_id: str, grain: Granularity, start_date: date, end_date: date
     ) -> pd.DataFrame:
         """
@@ -45,7 +50,9 @@ class StoryBuilderBase(ABC):
         logger.debug(
             f"Retrieving time series data for metric '{metric_id}' with grain '{grain}' from {start_date} to {end_date}"
         )
-        metric_values = self.query_service.get_metric_values(metric_id, grain, start_date, end_date)
+        metric_values = await self.query_service.get_metric_time_series(
+            metric_id, start_date=start_date, end_date=end_date, grain=grain
+        )
         time_series_df = pd.DataFrame(metric_values, columns=["date", "value"])
         time_series_df["date"] = pd.to_datetime(time_series_df["date"])
         time_series_df.set_index("date", inplace=True)
@@ -65,7 +72,7 @@ class StoryBuilderBase(ABC):
         return template.render(**context)
 
     @abstractmethod
-    def generate_stories(self, metric_id: str, grain: Granularity) -> list[dict]:
+    async def generate_stories(self, metric_id: str, grain: Granularity) -> list[dict]:
         """
         Generate stories for the given metric and grain
         :param metric_id: The metric ID for which stories are generated
@@ -74,7 +81,7 @@ class StoryBuilderBase(ABC):
         """
         pass
 
-    def run(self, metric_id: str, grain: Granularity) -> None:
+    async def run(self, metric_id: str, grain: Granularity) -> None:
         """
         Run the story generation process for the given metric and grain
 
@@ -86,11 +93,11 @@ class StoryBuilderBase(ABC):
             raise ValueError(f"Unsupported grain '{grain}' for story genre '{self.genre}'")
 
         logger.info(f"Generating stories for metric '{metric_id}' with grain '{grain}'")
-        stories = self.generate_stories(metric_id, grain)
+        stories = await self.generate_stories(metric_id, grain)
         logger.info(f"Generated {len(stories)} stories for metric '{metric_id}' with grain '{grain}'")
-        self.persist_stories(stories)
+        await self.persist_stories(stories)
 
-    def persist_stories(self, stories: list[dict]) -> None:
+    async def persist_stories(self, stories: list[dict]) -> None:
         """
         Persist the generated stories in the database
 
@@ -100,5 +107,5 @@ class StoryBuilderBase(ABC):
         # persist the stories in the database
         logger.info(f"Persisting {len(stories)} stories in the database")
         self.db_session.add_all(stories)
-        self.db_session.commit()
+        await self.db_session.commit()
         logger.info("Stories persisted successfully")
