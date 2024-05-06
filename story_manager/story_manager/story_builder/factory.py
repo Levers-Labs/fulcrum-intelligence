@@ -4,8 +4,8 @@ import os
 import pkgutil
 from typing import Generic, TypeVar
 
-from story_manager.core.enums import StoryGenre
-from story_manager.story_builder import StoryBuilderBase
+from story_manager.story_manager.story_builder import StoryBuilderBase
+from story_manager.story_manager.story_builder.core.enums import StoryGenre
 
 T = TypeVar("T", bound=StoryBuilderBase)
 

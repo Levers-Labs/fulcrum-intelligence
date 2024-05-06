@@ -6,7 +6,7 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlmodel import Field
 
 from commons.db.models import BaseTimeStampedModel
-from story_manager.core.enums import GENRE_TO_STORY_TYPE_MAPPING, StoryGenre, StoryType
+from story_manager.story_manager.story_builder.core.enums import GENRE_TO_STORY_TYPE_MAPPING, StoryGenre, StoryType
 
 
 class StorySchemaBaseModel(BaseTimeStampedModel):

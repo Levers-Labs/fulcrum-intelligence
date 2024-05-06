@@ -1,6 +1,11 @@
+import json
+import pathlib
 from unittest.mock import MagicMock
 
+import pandas as pd
 import pytest
+
+from story_manager.story_manager.config import Paths
 
 
 @pytest.fixture
@@ -27,3 +32,25 @@ def mock_analysis_service():
 @pytest.fixture
 def mock_db_session():
     return MagicMock()
+
+
+@pytest.fixture
+def mock_process_control_output(trend_type):
+    trend_files = {
+        "normal": "process_control_normal_trend.json",
+        "upward": "process_control_upward_trend.json",
+        "downward": "process_control_downward_trend.json",
+        "sticky": "process_control_sticky_trend.json",
+    }
+
+    file_path = trend_files.get(trend_type)
+    if file_path is None:
+        raise ValueError(f"Invalid trend_type: {trend_type}")
+
+    with open(pathlib.Path.joinpath(Paths.BASE_DIR, f"data/{file_path}")) as fr:
+        process_control_output = json.loads(fr.read())
+    df = pd.DataFrame(process_control_output)
+    df["slope"] = 0.0
+    df["has_discontinuity"] = False
+    df["growth_rate"] = 0.0
+    return df

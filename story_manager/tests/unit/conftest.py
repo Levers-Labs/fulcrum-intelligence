@@ -8,9 +8,13 @@ from sqlalchemy import create_engine, text
 from sqlmodel import Session, SQLModel
 from testing.postgresql import Postgresql
 
-from story_manager.db.config import MODEL_PATHS
+# from story_manager.story_manager.db.config import MODEL_PATHS
+
+# from story_manager.story_manager.db.config import MODEL_PATHS
 
 logger = logging.getLogger(__name__)
+
+MODEL_PATHS = ["story_manager.tests.unit.core.test_models"]
 
 
 @pytest.fixture(scope="session")

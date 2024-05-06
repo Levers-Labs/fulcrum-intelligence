@@ -6,7 +6,7 @@ from sqlmodel import Session
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from commons.db.session import get_async_session as _get_async_session, get_session as _get_session
-from story_manager.config import get_settings
+from story_manager.story_manager.config import get_settings
 
 # Used to load models for alembic migrations
 MODEL_PATHS = ["story_manager.core.models"]

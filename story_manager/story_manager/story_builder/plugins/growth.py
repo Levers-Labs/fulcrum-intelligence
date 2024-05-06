@@ -1,8 +1,8 @@
 import logging
 
 from commons.models.enums import Granularity
-from story_manager.core.enums import StoryGenre
-from story_manager.story_builder import StoryBuilderBase
+from story_manager.story_manager.story_builder import StoryBuilderBase
+from story_manager.story_manager.story_builder.core.enums import StoryGenre
 
 logger = logging.getLogger(__name__)
 

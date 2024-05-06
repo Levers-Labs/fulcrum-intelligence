@@ -3,8 +3,8 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from commons.models.enums import Granularity
-from story_manager.core.enums import StoryGenre
 from story_manager.story_builder import StoryBuilderBase, StoryManager
+from story_manager.story_manager.story_builder.core.enums import StoryGenre
 
 
 @pytest.fixture

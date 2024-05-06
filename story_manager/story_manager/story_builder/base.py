@@ -6,7 +6,7 @@ import pandas as pd
 from jinja2 import Template
 
 from commons.models.enums import Granularity
-from story_manager.core.enums import STORY_TYPES_META, StoryGenre, StoryType
+from story_manager.story_manager.story_builder.core.enums import STORY_TYPES_META, StoryGenre, StoryType
 
 logger = logging.getLogger(__name__)
 

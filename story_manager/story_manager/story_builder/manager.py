@@ -1,7 +1,7 @@
 import logging
 
-from story_manager.core.enums import StoryGenre
-from story_manager.story_builder import StoryFactory
+from story_manager.story_manager.story_builder import StoryFactory
+from story_manager.story_manager.story_builder.core.enums import StoryGenre
 
 logger = logging.getLogger(__name__)
 

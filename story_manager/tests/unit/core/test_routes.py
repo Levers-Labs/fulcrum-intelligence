@@ -1,8 +1,8 @@
 import pytest
 from starlette import status
 
-from story_manager.core.enums import GENRE_TO_STORY_TYPE_MAPPING, StoryGenre, StoryType
-from story_manager.core.models import Story
+from story_manager.story_manager.story_builder.core.enums import GENRE_TO_STORY_TYPE_MAPPING, StoryGenre, StoryType
+from story_manager.story_manager.story_builder.core.models import Story
 
 
 @pytest.mark.asyncio
