@@ -174,4 +174,4 @@ class GrowthStoryBuilder(StoryBuilderBase):
         grain_delta = pd.DateOffset(**self.grain_meta[grain]["delta"])
         start_date -= grain_delta
 
-        return start_date
+        return start_date.date() if isinstance(start_date, pd.Timestamp) else start_date

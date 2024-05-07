@@ -165,6 +165,6 @@ class StoryBuilderBase(ABC):
         """
         series_df["growth_rate"] = series_df["value"].pct_change() * 100
         # only drop the first row only if it has NaN value
-        if remove_first_nan_row and pd.isna(series_df.iloc[0]["growth_rate"]):
+        if remove_first_nan_row and not series_df.empty and pd.isna(series_df.iloc[0]["growth_rate"]):
             series_df = series_df.iloc[1:]
         return series_df
