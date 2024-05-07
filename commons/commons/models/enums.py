@@ -13,3 +13,11 @@ class Granularity(StrEnum):
     MONTH = "month"
     QUARTER = "quarter"
     YEAR = "year"
+
+
+class GranularityOrder(Enum):
+    DAY = 1
+    WEEK = 2
+    MONTH = 3
+    QUARTER = 4
+    YEAR = 5
