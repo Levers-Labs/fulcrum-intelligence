@@ -1,32 +1,38 @@
 [
     {
         "date": "2024-03-11",
-        "metric_id": "test_metric",
-        "metric_value": 100,
+        "metric_id": "CAC",
+        "metric_value": 50,
         "central_line": 80
     },
     {
         "date": "2024-03-12",
-        "metric_id": "test_metric",
-        "metric_value": 150,
+        "metric_id": "CAC",
+        "metric_value": 75,
         "central_line": 80
     },
     {
         "date": "2024-03-13",
-        "metric_id": "test_metric",
-        "metric_value": 200,
+        "metric_id": "CAC",
+        "metric_value": 100,
         "central_line": 80
     },
     {
         "date": "2024-03-14",
-        "metric_id": "test_metric",
-        "metric_value": 250,
+        "metric_id": "CAC",
+        "metric_value": 100,
         "central_line": 80
     },
     {
         "date": "2024-03-15",
-        "metric_id": "test_metric",
-        "metric_value": 300,
+        "metric_id": "CAC",
+        "metric_value": 100,
+        "central_line": 80
+    },
+    {
+        "date": "2024-03-16",
+        "metric_id": "CAC",
+        "metric_value": 100,
         "central_line": 80
     }
 ]

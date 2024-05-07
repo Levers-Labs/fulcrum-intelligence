@@ -1,7 +1,7 @@
 [
     {
         "date": "2024-02-05",
-        "metric_id": "test_metric",
+        "metric_id": "CAC",
         "metric_value": 3332,
         "central_line": 3529.4814814814818,
         "ucl": 4914.543481481482,
@@ -10,7 +10,7 @@
     },
     {
         "date": "2024-02-22",
-        "metric_id": "test_metric",
+        "metric_id": "CAC",
         "metric_value": 3576,
         "central_line": 3614.5555555555557,
         "ucl": 4999.617555555556,
@@ -19,7 +19,7 @@
     },
     {
         "date": "2024-04-14",
-        "metric_id": "test_metric",
+        "metric_id": "CAC",
         "metric_value": 3646,
         "central_line": 3699.6296296296296,
         "ucl": 5084.6916296296295,
@@ -28,7 +28,7 @@
     },
     {
         "date": "2024-02-09",
-        "metric_id": "test_metric",
+        "metric_id": "CAC",
         "metric_value": 4026,
         "central_line": 3784.7037037037035,
         "ucl": 5169.765703703703,
@@ -37,7 +37,7 @@
     },
     {
         "date": "2024-02-18",
-        "metric_id": "test_metric",
+        "metric_id": "CAC",
         "metric_value": 3841,
         "central_line": 3869.7777777777774,
         "ucl": 5254.839777777777,
@@ -46,7 +46,7 @@
     },
     {
         "date": "2024-03-18",
-        "metric_id": "test_metric",
+        "metric_id": "CAC",
         "metric_value": 3315,
         "central_line": 3954.8518518518513,
         "ucl": 5339.913851851851,
@@ -56,7 +56,7 @@
     },
     {
         "date": "2024-04-11",
-        "metric_id": "test_metric",
+        "metric_id": "CAC",
         "metric_value": 3843,
         "central_line": 4039.925925925925,
         "ucl": 5424.987925925925,
