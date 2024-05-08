@@ -1,6 +1,7 @@
 import logging
 from abc import ABC, abstractmethod
-from datetime import date
+from datetime import date, timedelta
+from typing import Any
 
 import pandas as pd
 from jinja2 import Template
@@ -18,6 +19,13 @@ class StoryBuilderBase(ABC):
 
     genre: StoryGenre
     supported_grains: list[Granularity] = []
+    grain_meta: dict[str, Any] = {
+        Granularity.DAY: {"comp_label": "d/d", "delta": {"days": 1}},
+        Granularity.WEEK: {"comp_label": "w/w", "delta": {"weeks": 1}},
+        Granularity.MONTH: {"comp_label": "m/m", "delta": {"months": 1}},
+        Granularity.QUARTER: {"comp_label": "q/q", "delta": {"months": 3}},
+        Granularity.YEAR: {"comp_label": "y/y", "delta": {"years": 1}},
+    }
 
     def __init__(self, query_service, analysis_service, db_session):
         """
@@ -65,7 +73,7 @@ class StoryBuilderBase(ABC):
         return template.render(**context)
 
     @abstractmethod
-    def generate_stories(self, metric_id: str, grain: Granularity) -> list[dict]:
+    async def generate_stories(self, metric_id: str, grain: Granularity) -> list[dict]:
         """
         Generate stories for the given metric and grain
         :param metric_id: The metric ID for which stories are generated
@@ -87,8 +95,7 @@ class StoryBuilderBase(ABC):
 
         logger.info(f"Generating stories for metric '{metric_id}' with grain '{grain}'")
         stories = self.generate_stories(metric_id, grain)
-        logger.info(f"Generated {len(stories)} stories for metric '{metric_id}' with grain '{grain}'")
-        self.persist_stories(stories)
+        self.persist_stories(stories)  # type: ignore
 
     def persist_stories(self, stories: list[dict]) -> None:
         """
@@ -102,3 +109,40 @@ class StoryBuilderBase(ABC):
         self.db_session.add_all(stories)
         self.db_session.commit()
         logger.info("Stories persisted successfully")
+
+    @classmethod
+    def _get_current_period_range(cls, grain: str, curr_date: date | None = None) -> tuple[date, date]:
+        """
+        Get the end date of the last period based on the grain.
+        Based on the current date, the end date is calculated as follows:
+        - For day grain: yesterday
+        - For week grain: the last Sunday
+        - For month grain: the last day of the previous month
+        - For quarter grain: the last day of the previous quarter
+        - For year grain: December 31 of the previous year
+        For each grain, the start date of the period is calculated based on the end date.
+
+        :param curr_date: The current date for which the period range is calculated.
+        :param grain: The grain for which the end date is retrieved.
+        :return: The start and end date of the period.
+        """
+        today = curr_date or date.today()
+        if grain == Granularity.DAY:
+            end_date = today - timedelta(days=1)
+            start_date = end_date
+        elif grain == Granularity.WEEK:
+            end_date = today - timedelta(days=today.weekday() + 1)
+            start_date = end_date - timedelta(days=6)
+        elif grain == Granularity.MONTH:
+            end_date = date(today.year, today.month, 1) - timedelta(days=1)
+            start_date = date(end_date.year, end_date.month, 1)
+        elif grain == Granularity.QUARTER:
+            quarter_end_month = (today.month - 1) // 3 * 3
+            end_date = date(today.year, quarter_end_month + 1, 1) - timedelta(days=1)
+            start_date = date(end_date.year, end_date.month - 2, 1)
+        elif grain == Granularity.YEAR:
+            end_date = date(today.year - 1, 12, 31)
+            start_date = date(end_date.year, 1, 1)
+        else:
+            raise ValueError(f"Unsupported grain: {grain}")
+        return start_date, end_date

@@ -1,4 +1,5 @@
 import logging
+from datetime import date
 
 import pandas as pd
 from scipy.stats import linregress
@@ -15,11 +16,7 @@ class TrendsStoryBuilder(StoryBuilderBase):
     supported_grains = [Granularity.DAY, Granularity.WEEK]
     min_metric_count = 5
 
-    def __init__(self, query_service, analysis_service, db_session):
-        super().__init__(query_service, analysis_service, db_session)
-        self.persisted_stories = None
-
-    def generate_stories(self, metric_id: str, grain: str) -> list[dict]:
+    async def generate_stories(self, metric_id: str, grain: str) -> list[dict]:
         """
         Generate trends stories for the given metric and grain.
 
@@ -28,16 +25,54 @@ class TrendsStoryBuilder(StoryBuilderBase):
         :return: A list of generated trend stories.
         """
 
-        # TODO: After process control api integration use start_date and end_date
-
         logging.info("Generating trends stories...")
 
-        process_control_response = self.analysis_service.perform_process_control()
+        curr_start_date, curr_end_date = self._get_current_period_range(grain)
+        start_date = self._get_sliding_start_date(curr_end_date, grain)
 
-        trends_stories = self._analyze_trends(process_control_response, metric_id, grain)
+        process_control_response = await self.analysis_service.perform_process_control(
+            metric_id=metric_id, start_date=start_date, end_date=curr_end_date, grain=grain
+        )
+
+        process_control_df = pd.DataFrame(process_control_response)
+        process_control_df["slope"] = 0.0
+        process_control_df["has_discontinuity"] = False
+        process_control_df["growth_rate"] = 0.0
+        process_control_df["trend_type"] = ""
+
+        trends_stories = self._analyze_trends(process_control_df, metric_id, grain, start_date, curr_end_date)
         logging.info(f"Generated trends stories for metric '{metric_id}'")
 
         return trends_stories
+
+    @staticmethod
+    def _get_sliding_start_date(curr_start_date: date, grain: str) -> date:
+        """
+        Get the start date of the period based on the end date and grain.
+
+        :param curr_start_date: The end date of the last period.
+        :param grain: The grain for which the start date is aligned.
+        :return: The start date of the period.
+        """
+        start_date = curr_start_date
+
+        # Determine the grain delta based on grain
+        if grain in ["day", "days"]:
+            grain_delta = 30
+        elif grain in ["week", "weeks"]:
+            grain_delta = 8
+        elif grain in ["month", "months"]:
+            grain_delta = 3  # Assuming 3 months
+        elif grain in ["year", "years"]:
+            grain_delta = 1  # Assuming 1 year
+        else:
+            raise ValueError(f"Unsupported grain: {grain}")
+
+        # Go back by the determined grain delta
+        delta = pd.DateOffset(days=grain_delta) if grain in ["day", "days"] else pd.DateOffset(weeks=grain_delta)
+        start_date -= delta
+
+        return start_date.date() if isinstance(start_date, pd.Timestamp) else start_date
 
     @staticmethod
     def _calculate_growth_rates(time_series_df: pd.DataFrame) -> pd.DataFrame:
@@ -123,24 +158,9 @@ class TrendsStoryBuilder(StoryBuilderBase):
 
         return trend_type
 
-    @staticmethod
-    def _get_story_text(trend_type: str, trend_data: dict) -> str:
-        """
-        Get the template text for the specified trend type, filled with the provided trend data.
-
-        :param trend_type: The type of trend for which to retrieve the template text.
-        :param trend_data: The data to fill in the template tags.
-        :return: The filled template text.
-        """
-
-        template_text = STORY_TYPES_META.get(trend_type)
-        if not template_text:
-            raise ValueError(f"No template found for trend type: {trend_type}")
-
-        filled_template = template_text.get("template", "").format(**trend_data)
-        return filled_template
-
-    def _analyze_trends(self, pc_resp_df: pd.DataFrame, metric_id: str, grain: str) -> list[dict]:
+    def _analyze_trends(
+        self, pc_resp_df: pd.DataFrame, metric_id: str, grain: str, start_date: date, end_date: date
+    ) -> list[dict]:
         """
         Analyze the process control response DataFrame to identify trends.
 
@@ -200,7 +220,6 @@ class TrendsStoryBuilder(StoryBuilderBase):
 
         downward_trend_periods = 0  # Counter to track consecutive downward trend periods
         normal_days_count = 0  # Counter to track consecutive days within normal range
-        threshold = 0.25
 
         # Iterate over the DataFrame to analyze trends
         for i in range(1, len(pc_resp_df)):
@@ -218,50 +237,59 @@ class TrendsStoryBuilder(StoryBuilderBase):
                 pc_resp_df.at[i, "has_discontinuity"] = True
 
                 trend_type = self._identify_trend_type(prev_data, slope, slope_change)
+                pc_resp_df.at[i, "trend_type"] = trend_type
 
-                # Check for sticky downward trend
-                if trend_type == StoryType.NEW_DOWNWARD_TREND:
-                    downward_trend_periods += 1
-                else:
-                    downward_trend_periods = 0
+                # Check if the previous trend type was a sticky downward trend
+                # and the current trend type is a new downward trend
+                if (
+                    prev_data["trend_type"] == StoryType.STICKY_DOWNWARD_TREND
+                    and trend_type == StoryType.NEW_DOWNWARD_TREND
+                ):
+                    # If the previous trend was sticky downward and the current trend is also downward,
+                    # consider it as part of the sticky downward trend
+                    pc_resp_df.at[i, "trend_type"] = StoryType.STICKY_DOWNWARD_TREND
 
-                if downward_trend_periods >= 7:
-                    trend_type = StoryType.STICKY_DOWNWARD_TREND
+                elif trend_type == StoryType.NEW_DOWNWARD_TREND:
+                    downward_trend_periods = (
+                        pc_resp_df["trend_type"].iloc[max(0, i - 6) : i + 1] == StoryType.NEW_DOWNWARD_TREND
+                    ).sum()
+                    if downward_trend_periods >= 7:
+                        pc_resp_df.at[i, "trend_type"] = StoryType.STICKY_DOWNWARD_TREND
 
-            # Check if growth rate is within threshold for normal
-            if abs(current_data["growth_rate"]) <= threshold:
+            # Check if growth rate is within threshold of 0.25 for normal
+            if abs(current_data["growth_rate"]) <= 0.25:
                 normal_days_count += 1
             else:
                 # If the streak breaks, update prior_normal_days and reset the streak count
                 normal_days_count = 0
 
-        # Extract start and end dates
-        start_date = pc_resp_df.iloc[0]["date"]
-        end_date = pc_resp_df.iloc[-1]["date"]
-
-        # Get template text for the trend type
-        trend_data = {
-            "metric": metric_id,
-            "start_date": start_date,
-            "end_date": end_date,
-            "current_growth": current_data["growth_rate"],
-            "prior_growth": prev_data["growth_rate"],
-            "previous_normal": prev_data["growth_rate"],
-            "prior_normal_days": normal_days_count,
-            "downward_day_count": downward_trend_periods,
-            "grain_comp": grain,
-        }
-        if trend_type:
-            story_text = self._get_story_text(trend_type, trend_data)
-
         # Generate a single trend story for the last data point if a trend is identified
         last_data_point = pc_resp_df.iloc[-1]
+        trend_type = last_data_point["trend_type"]
+        if trend_type:
+            story_meta = STORY_TYPES_META[trend_type]  # type: ignore
+            story_text = self._render_story_text(
+                trend_type,  # type: ignore
+                metric=metric_id,
+                start_date=start_date,
+                end_date=end_date,
+                current_growth=current_data["growth_rate"],
+                prior_growth=prev_data["growth_rate"],
+                previous_normal=prev_data["growth_rate"],
+                prior_normal_days=normal_days_count,
+                downward_day_count=downward_trend_periods,
+                grain_comp=grain,
+                pop=self.grain_meta[grain]["comp_label"],
+                direction="up" if trend_type == StoryType.NEW_UPWARD_TREND else "down",
+            )
+
         story_metadata = {
             "metric_id": metric_id,
             "genre": self.genre,  # type: ignore
             "type": trend_type,
             "grain": grain,
             "story_text": story_text,
+            "template": story_meta["template"],
             "variables": {
                 "grain": grain,
                 "current_trend_start_date": last_data_point["date"],
@@ -269,7 +297,7 @@ class TrendsStoryBuilder(StoryBuilderBase):
                 "current_growth": f"{current_data['growth_rate']:.2f}",
                 "prior_growth": f"{prev_data['growth_rate']:.2f}",
             },
-            # "series": pc_resp_df,
+            "series": pc_resp_df.reset_index().astype({"date": str}).to_dict(orient="records"),
         }
         trends_stories = [story_metadata]
         logging.info(f"Generated trends stories for metric '{metric_id}'")
