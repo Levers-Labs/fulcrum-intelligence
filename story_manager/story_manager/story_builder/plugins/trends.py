@@ -35,6 +35,9 @@ class TrendsStoryBuilder(StoryBuilderBase):
         )
 
         process_control_df = pd.DataFrame(process_control_response)
+
+        process_control_df.rename(columns={"value": "value"}, inplace=True)
+
         process_control_df["slope"] = 0.0
         process_control_df["has_discontinuity"] = False
         process_control_df["growth_rate"] = 0.0
@@ -73,17 +76,6 @@ class TrendsStoryBuilder(StoryBuilderBase):
         start_date -= delta
 
         return start_date.date() if isinstance(start_date, pd.Timestamp) else start_date
-
-    @staticmethod
-    def _calculate_growth_rates(time_series_df: pd.DataFrame) -> pd.DataFrame:
-        """
-        Calculate the growth rates for each data point in the time series.
-
-        :param time_series_df: The DataFrame containing the time series data.
-        :return: The DataFrame with the calculated growth rates calculated.
-        """
-        time_series_df["growth_rate"] = time_series_df["metric_value"].pct_change() * 100
-        return time_series_df
 
     @staticmethod
     def _calculate_slope_and_slope_change(current_data: float, i: int, series_df: pd.DataFrame, prev_data: float):
@@ -132,7 +124,7 @@ class TrendsStoryBuilder(StoryBuilderBase):
 
         eight_points_rule = (i >= 12) and (series_df.iloc[i - 11 : i + 1]["has_discontinuity"].sum() >= 10)
 
-        abs_diff = abs(series_df.iloc[i]["central_line"] - series_df.iloc[i]["metric_value"])
+        abs_diff = abs(series_df.iloc[i]["central_line"] - series_df.iloc[i]["value"])
         trending_rule = (i >= 4) and ((series_df.iloc[i - 3 : i + 1]["has_discontinuity"] < abs_diff).sum() >= 3)
 
         return any([seven_consecutive_points, eight_points_rule, trending_rule])
@@ -167,7 +159,7 @@ class TrendsStoryBuilder(StoryBuilderBase):
         The input DataFrame should contain the following columns:
         - "date": The date of the metric data point.
         - "metric_id": The ID of the metric.
-        - "metric_value": The value of the metric.
+        - "value": The value of the metric.
         - "central_line": The central line of the control chart.
         - "ucl": The upper control limit.
         - "lcl": The lower control limit.
@@ -225,12 +217,12 @@ class TrendsStoryBuilder(StoryBuilderBase):
             prev_data = series_df.iloc[i - 1]
 
             # Calculate slope and slope change
-            curr_metric_val = float(current_data["metric_value"])
-            prev_metric_val = float(prev_data["metric_value"])
+            curr_metric_val = float(current_data["value"])
+            prev_metric_val = float(prev_data["value"])
             slope, slope_change = self._calculate_slope_and_slope_change(curr_metric_val, i, series_df, prev_metric_val)
 
             # Calculate growth rates
-            self._calculate_growth_rates(series_df)
+            self._calculate_growth_rates_of_series(series_df)
 
             # Wheeler rules to identify discontinuity
             if self._has_discontinuity_condition(series_df, i):
