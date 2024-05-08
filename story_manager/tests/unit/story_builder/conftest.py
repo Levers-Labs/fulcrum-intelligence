@@ -1,12 +1,17 @@
-from unittest.mock import MagicMock
+from unittest.mock import AsyncMock
 
 import pytest
 
 
 @pytest.fixture
 def mock_query_service():
-    query_service = MagicMock()
+    query_service = AsyncMock()
     query_service.get_metric_values.return_value = [
+        {"date": "2023-01-01", "value": 100},
+        {"date": "2023-01-02", "value": 200},
+        {"date": "2023-01-03", "value": 300},
+    ]
+    query_service.get_metric_time_series.return_value = [
         {"date": "2023-01-01", "value": 100},
         {"date": "2023-01-02", "value": 200},
         {"date": "2023-01-03", "value": 300},
@@ -21,9 +26,9 @@ def mock_query_service():
 
 @pytest.fixture
 def mock_analysis_service():
-    return MagicMock()
+    return AsyncMock()
 
 
 @pytest.fixture
 def mock_db_session():
-    return MagicMock()
+    return AsyncMock()
