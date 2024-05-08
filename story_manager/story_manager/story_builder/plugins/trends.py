@@ -27,14 +27,14 @@ class TrendsStoryBuilder(StoryBuilderBase):
 
         logging.info("Generating trends stories...")
 
-        curr_start_date, curr_end_date = self._get_current_period_range(grain)
+        curr_start_date, curr_end_date = self._get_current_period_range(grain)  # type: ignore
         start_date = self._get_sliding_start_date(curr_end_date, grain)
 
-        process_control_response = await self.analysis_service.perform_process_control(
-            metric_id=metric_id, start_date=start_date, end_date=curr_end_date, grain=grain
+        response = await self.analysis_service.perform_process_control(
+            metric_id=metric_id, start_date=start_date, end_date=curr_end_date, grain=grain  # type: ignore
         )
 
-        process_control_df = pd.DataFrame(process_control_response)
+        process_control_df = pd.DataFrame(response)
 
         process_control_df.rename(columns={"value": "value"}, inplace=True)
 
