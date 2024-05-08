@@ -113,15 +113,15 @@ STORY_TYPES_META: dict[str, dict[str, str]] = {
         "description": "Indicates a decrease in the rate of growth for this metric, indicating a deceleration in "
         "progress or expansion.",
         # e.g., The d/d growth rate of revenue is slowing and has dropped from 10% last month to 5% now.
-        "template": "The {{grain_comp}} growth rate of {{metric.label}} is slowing and has dropped from {{x}}% last "
-        "{{reference_period}} to {{y}}% now.",
+        "template": "The {{pop}} growth rate of {{metric.label}} is slowing and has dropped from {{reference_growth}}% "
+        "last {{reference_period}} to {{current_growth}}% now.",
     },
     StoryType.ACCELERATING_GROWTH: {
         "label": "Accelerating Growth",
         "description": "Indicates an increase in the rate of growth for this metric, indicating a quickening pace of "
         "improvement or success.",
-        "template": "The {{grain_comp}} growth rate of {{metric.label}} is speeding up and has increased "
-        "from {{x}}% last {{reference_period}} to {{y}}% now.",
+        "template": "The {{pop}} growth rate of {{metric.label}} is speeding up and has increased "
+        "from {{current_growth}}% last {{reference_period}} to {{reference_growth}}% now.",
     },
     StoryType.NEW_UPWARD_TREND: {
         "label": "New Upward Trend",
