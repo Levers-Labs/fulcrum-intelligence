@@ -62,7 +62,7 @@ class TrendsStoryBuilder(StoryBuilderBase):
         elif grain in ["week", "weeks"]:
             grain_delta = 8
         elif grain in ["month", "months"]:
-            grain_delta = 3  # Assuming 3 months
+            grain_delta = 4  # Assuming 4 months
         elif grain in ["year", "years"]:
             grain_delta = 1  # Assuming 1 year
         else:
@@ -90,10 +90,10 @@ class TrendsStoryBuilder(StoryBuilderBase):
         """
         Calculate slope and slope change between two data points.
 
-        :param current_data: The data for the current point.
+        :param current_data: The metric value data for the current point.
         :param i: The index of the current point in the DataFrame.
         :param series_df: The DataFrame containing process control data.
-        :param prev_data: The data for the previous point.
+        :param prev_data: The metric value data for the previous point.
         :return: The calculated slope and slope change.
         """
 
