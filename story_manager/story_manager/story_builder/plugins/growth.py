@@ -11,7 +11,7 @@ class GrowthStoryBuilder(StoryBuilderBase):
     genre = StoryGenre.GROWTH  # type: ignore
     supported_grains = [Granularity.DAY, Granularity.WEEK, Granularity.MONTH, Granularity.QUARTER]
 
-    def generate_stories(self, metric_id: str, grain: Granularity) -> list[dict]:
+    async def generate_stories(self, metric_id: str, grain: Granularity) -> list[dict]:
         """
         Generate growth stories for the given metric and grain
 

@@ -86,64 +86,63 @@ class TrendsStoryBuilder(StoryBuilderBase):
         return time_series_df
 
     @staticmethod
-    def _calculate_slope_and_slope_change(
-        current_data: pd.Series, i: int, pc_resp_df: pd.DataFrame, prev_data: pd.Series
-    ):
+    def _calculate_slope_and_slope_change(current_data: float, i: int, series_df: pd.DataFrame, prev_data: float):
         """
         Calculate slope and slope change between two data points.
 
         :param current_data: The data for the current point.
         :param i: The index of the current point in the DataFrame.
-        :param pc_resp_df: The DataFrame containing process control data.
+        :param series_df: The DataFrame containing process control data.
         :param prev_data: The data for the previous point.
         :return: The calculated slope and slope change.
         """
 
         # Calculate slope and slope change
-        slope, _, _, _, _ = linregress([i - 1, i], [prev_data["metric_value"], current_data["metric_value"]])
+        slope, _, _, _, _ = linregress([i - 1, i], [prev_data, current_data])
 
         # Calculate slope change between consecutive data points
         if i > 0:
-            prev_slope = pc_resp_df.at[i - 1, "slope"]
+            prev_slope = series_df.at[i - 1, "slope"]
             slope_change = ((slope - prev_slope) / prev_slope) * 100 if prev_slope != 0 else 0
         else:
             slope_change = 0  # For the first data point, slope change is 0
 
         # Update DataFrame with slope
-        pc_resp_df.at[i, "slope"] = slope
+        series_df.at[i, "slope"] = slope
 
         return slope, slope_change
 
     @staticmethod
-    def has_discontinuity_condition(pc_resp_df: pd.DataFrame, i: int) -> bool:
+    def _has_discontinuity_condition(series_df: pd.DataFrame, i: int) -> bool:
         """
         Check for discontinuity based on Wheeler rules.
 
-        :param pc_resp_df: The DataFrame containing process control data.
-        :param i: The index of the current point in the DataFrame.
+        :param series_df: The Process Control Response DataFrame containing process control data.
+        :param i: The index of the current point in the DataFrame. This parameter indicates the position
+              of the current data point within the DataFrame.
         :return: True if any of the Wheeler rules for discontinuity are met, False otherwise.
 
         Wheeler Rules:
-            - Condition 1: 7 Individual Values in a row are above or below the Center Line
-            - Condition 2: 10 out of 12 Individual Values are above or below the Center Line
-            - Condition 3: 3 out of 4 Individual Values are closer to the UCL or LCL than the Center Line
+        - Condition 1: Seven Consecutive Points Rule: 7 Individual Values in a row are above or below the Center Line
+        - Condition 2: Eight Points Rule: 10 out of 12 Individual Values are above or below the Center Line
+        - Condition 3: Trending Rule: 3 out of 4 Individual Values are closer to the UCL or LCL than the Center Line
         """
 
-        condition1 = (i >= 7) and all(pc_resp_df.iloc[i - 6 : i + 1]["has_discontinuity"])
+        seven_consecutive_points = (i >= 7) and all(series_df.iloc[i - 6 : i + 1]["has_discontinuity"])
 
-        condition2 = (i >= 12) and (pc_resp_df.iloc[i - 11 : i + 1]["has_discontinuity"].sum() >= 10)
+        eight_points_rule = (i >= 12) and (series_df.iloc[i - 11 : i + 1]["has_discontinuity"].sum() >= 10)
 
-        abs_diff = abs(pc_resp_df.iloc[i]["central_line"] - pc_resp_df.iloc[i]["metric_value"])
-        condition3 = (i >= 4) and ((pc_resp_df.iloc[i - 3 : i + 1]["has_discontinuity"] < abs_diff).sum() >= 3)
+        abs_diff = abs(series_df.iloc[i]["central_line"] - series_df.iloc[i]["metric_value"])
+        trending_rule = (i >= 4) and ((series_df.iloc[i - 3 : i + 1]["has_discontinuity"] < abs_diff).sum() >= 3)
 
-        return any([condition1, condition2, condition3])
+        return any([seven_consecutive_points, eight_points_rule, trending_rule])
 
     @staticmethod
-    def _identify_trend_type(prev_data: pd.Series, slope: float, slope_change: float) -> str:
+    def _identify_trend_type(prev_slope: float, slope: float, slope_change: float) -> str:
         """
         Identify the trend type based on the given parameters.
 
-        :param prev_data: The data for the previous point.
+        :param prev_slope: The slope for the previous data point.
         :param slope: The slope calculated for the current data point.
         :param slope_change: The slope change calculated for the current data point.
         :return: The type of trend identified.
@@ -151,7 +150,7 @@ class TrendsStoryBuilder(StoryBuilderBase):
         # Determine trend type
         if abs(slope_change) < 0.25:
             trend_type = StoryType.NEW_NORMAL
-        elif slope > prev_data["slope"]:
+        elif slope > prev_slope:
             trend_type = StoryType.NEW_UPWARD_TREND
         else:
             trend_type = StoryType.NEW_DOWNWARD_TREND
@@ -159,7 +158,7 @@ class TrendsStoryBuilder(StoryBuilderBase):
         return trend_type
 
     def _analyze_trends(
-        self, pc_resp_df: pd.DataFrame, metric_id: str, grain: str, start_date: date, end_date: date
+        self, series_df: pd.DataFrame, metric_id: str, grain: str, start_date: date, end_date: date
     ) -> list[dict]:
         """
         Analyze the process control response DataFrame to identify trends.
@@ -193,27 +192,26 @@ class TrendsStoryBuilder(StoryBuilderBase):
         Output:
         A list of trend stories containing metadata for each identified trend.
 
-        :param pc_resp_df: The response DataFrame from the Process Control API.
+        :param series_df: The response DataFrame from the Process Control API.
         :param metric_id: The metric ID.
         :param grain: The grain of the time series data.
         :return: A list containing a single trend story.
         """
         logging.info("Analyzing trends stories...")
 
-        if pc_resp_df.empty:
+        if series_df.empty:
             logger.warning(f"No data available for metric '{metric_id}' with grain '{grain}'")
             return []
 
-        if len(pc_resp_df) <= self.min_metric_count:
+        if len(series_df) <= self.min_metric_count:
             logger.warning(f"Sufficient data not available for metric '{metric_id}' with grain '{grain}'")
             return []
 
         # Check for missing values and handle them
-        if pc_resp_df.isnull().values.any():
-            pc_resp_df.dropna(inplace=True)
+        if series_df.isnull().values.any():
+            series_df.dropna(inplace=True)
 
         # Aggregate trend information
-        trend_type = None
         current_data = pd.Series()
         prev_data = pd.Series()
         story_text = None
@@ -222,22 +220,24 @@ class TrendsStoryBuilder(StoryBuilderBase):
         normal_days_count = 0  # Counter to track consecutive days within normal range
 
         # Iterate over the DataFrame to analyze trends
-        for i in range(1, len(pc_resp_df)):
-            current_data = pc_resp_df.iloc[i]
-            prev_data = pc_resp_df.iloc[i - 1]
+        for i in range(1, len(series_df)):
+            current_data = series_df.iloc[i]
+            prev_data = series_df.iloc[i - 1]
 
             # Calculate slope and slope change
-            slope, slope_change = self._calculate_slope_and_slope_change(current_data, i, pc_resp_df, prev_data)
+            curr_metric_val = float(current_data["metric_value"])
+            prev_metric_val = float(prev_data["metric_value"])
+            slope, slope_change = self._calculate_slope_and_slope_change(curr_metric_val, i, series_df, prev_metric_val)
 
             # Calculate growth rates
-            self._calculate_growth_rates(pc_resp_df)
+            self._calculate_growth_rates(series_df)
 
             # Wheeler rules to identify discontinuity
-            if self.has_discontinuity_condition(pc_resp_df, i):
-                pc_resp_df.at[i, "has_discontinuity"] = True
-
-                trend_type = self._identify_trend_type(prev_data, slope, slope_change)
-                pc_resp_df.at[i, "trend_type"] = trend_type
+            if self._has_discontinuity_condition(series_df, i):
+                series_df.at[i, "has_discontinuity"] = True
+                prev_slope = float(prev_data["slope"])
+                trend_type = self._identify_trend_type(prev_slope, slope, slope_change)
+                series_df.at[i, "trend_type"] = trend_type
 
                 # Check if the previous trend type was a sticky downward trend
                 # and the current trend type is a new downward trend
@@ -247,14 +247,14 @@ class TrendsStoryBuilder(StoryBuilderBase):
                 ):
                     # If the previous trend was sticky downward and the current trend is also downward,
                     # consider it as part of the sticky downward trend
-                    pc_resp_df.at[i, "trend_type"] = StoryType.STICKY_DOWNWARD_TREND
+                    series_df.at[i, "trend_type"] = StoryType.STICKY_DOWNWARD_TREND
 
                 elif trend_type == StoryType.NEW_DOWNWARD_TREND:
                     downward_trend_periods = (
-                        pc_resp_df["trend_type"].iloc[max(0, i - 6) : i + 1] == StoryType.NEW_DOWNWARD_TREND
+                        series_df["trend_type"].iloc[max(0, i - 6) : i + 1] == StoryType.NEW_DOWNWARD_TREND
                     ).sum()
                     if downward_trend_periods >= 7:
-                        pc_resp_df.at[i, "trend_type"] = StoryType.STICKY_DOWNWARD_TREND
+                        series_df.at[i, "trend_type"] = StoryType.STICKY_DOWNWARD_TREND
 
             # Check if growth rate is within threshold of 0.25 for normal
             if abs(current_data["growth_rate"]) <= 0.25:
@@ -264,7 +264,7 @@ class TrendsStoryBuilder(StoryBuilderBase):
                 normal_days_count = 0
 
         # Generate a single trend story for the last data point if a trend is identified
-        last_data_point = pc_resp_df.iloc[-1]
+        last_data_point = series_df.iloc[-1]
         trend_type = last_data_point["trend_type"]
         if trend_type:
             story_meta = STORY_TYPES_META[trend_type]  # type: ignore
@@ -297,7 +297,7 @@ class TrendsStoryBuilder(StoryBuilderBase):
                 "current_growth": f"{current_data['growth_rate']:.2f}",
                 "prior_growth": f"{prev_data['growth_rate']:.2f}",
             },
-            "series": pc_resp_df.reset_index().astype({"date": str}).to_dict(orient="records"),
+            "series": series_df.reset_index().astype({"date": str}).to_dict(orient="records"),
         }
         trends_stories = [story_metadata]
         logging.info(f"Generated trends stories for metric '{metric_id}'")
