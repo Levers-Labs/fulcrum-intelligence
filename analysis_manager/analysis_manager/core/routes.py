@@ -37,7 +37,7 @@ async def list_users(users: UsersCRUDDep, offset: int = 0, limit: int = 100) -> 
     Retrieve users.
     """
     count = await users.total_count()
-    results: list[UserRead] = [UserRead.from_orm(user) for user in await users.list(offset=offset, limit=limit)]
+    results: list[UserRead] = [UserRead.from_orm(user) for user in await users.list_results(offset=offset, limit=limit)]
     return UserList(results=results, count=count)
 
 
