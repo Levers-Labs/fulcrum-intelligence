@@ -2,7 +2,7 @@ import logging
 from typing import Annotated, Any
 
 import pandas as pd
-from fastapi import APIRouter, Body
+from fastapi import APIRouter, Body, Depends
 
 from analysis_manager.core.dependencies import (
     AnalysisManagerDep,
@@ -25,6 +25,7 @@ from analysis_manager.core.schema import (
     ProcessControlResponse,
     UserList,
 )
+from commons.utilities.pagination import PaginationParams
 
 router = APIRouter(prefix="/analyze", tags=["analyze"])
 user_router = APIRouter(prefix="/users", tags=["users"])
@@ -32,12 +33,15 @@ logger = logging.getLogger(__name__)
 
 
 @user_router.get("", response_model=UserList)
-async def list_users(users: UsersCRUDDep, offset: int = 0, limit: int = 100) -> Any:
+async def list_users(
+    users: UsersCRUDDep,
+    params: Annotated[PaginationParams, Depends(PaginationParams)],
+) -> Any:
     """
     Retrieve users.
     """
     count = await users.total_count()
-    results: list[UserRead] = [UserRead.from_orm(user) for user in await users.list_results(offset=offset, limit=limit)]
+    results: list[UserRead] = [UserRead.from_orm(user) for user in await users.list_results(params=params)]
     return UserList(results=results, count=count)
 
 
