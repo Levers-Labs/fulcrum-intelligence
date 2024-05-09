@@ -4,8 +4,8 @@ from typing import Annotated
 from pydantic import Field
 
 from analysis_manager.core.models import UserRead
-from analysis_manager.db.models import BaseModel
-from analysis_manager.utilities.enums import Granularity
+from commons.models import BaseModel
+from commons.models.enums import Granularity
 
 
 class UserList(BaseModel):
