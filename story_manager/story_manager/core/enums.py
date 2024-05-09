@@ -127,20 +127,31 @@ STORY_TYPES_META: dict[str, dict[str, str]] = {
         "label": "New Upward Trend",
         "description": "Indicates a recent, significant, and sustained upward shift in this metric, indicating a "
         "pattern expected to continue into the future.",
+        "template": "Since {{start_date}}, {{metric}} has been averaging {{current_growth}}% {{pop}} "
+        "growth -- an increase over its average of {{prior_growth}}% {{pop}} growth from "
+        "{{start_date}} to {{end_date}}.",
     },
     StoryType.NEW_DOWNWARD_TREND: {
         "label": "New Downward Trend",
         "description": "Indicates a recent, significant, and sustained downward shift in this metric, indicating a "
         "pattern expected to continue into the future.",
+        "template": "Since {{start_date}}, {{metric}} has been averaging {{current_growth}}% {{pop}} "
+        "growth -- a decrease over its average of {{prior_growth}}% {{pop}} growth from {{"
+        "start_date}} to {{end_date}}.",
     },
     StoryType.STICKY_DOWNWARD_TREND: {
         "label": "Sticky Downward Trend",
         "description": "Indicates that a negative trend is a persistent trend.",
+        "template": "{{metric}} continues to worsen for the {{downward_day_count}}th straight {{grain_comp}}, "
+        "averaging {{current_growth}}% {{pop}} decrease.",
     },
     StoryType.NEW_NORMAL: {
         "label": "New Normal",
         "description": "Identifies a shift in the baseline or average performance of this metric, suggesting a change "
         "in standard operations or expectations.",
+        "template": "Since {{start_date}}, {{metric}} growth has steadied into a new normal around an average of "
+        "{{current_growth}}% {{direction}} {{prior_growth}}% from the previous normal of "
+        "{{previous_normal}}. The prior 'normal' lasted {{prior_normal_days}} days.",
     },
     StoryType.RECORD_HIGH: {
         "label": "Record High",
