@@ -4,7 +4,7 @@ from datetime import date
 
 from pydantic import Field
 
-from analysis_manager.db.models import BaseModel
+from commons.models import BaseModel
 
 
 class ComponentDriftRequest(BaseModel):

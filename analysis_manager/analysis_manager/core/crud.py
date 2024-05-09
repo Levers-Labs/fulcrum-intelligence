@@ -1,8 +1,8 @@
 from analysis_manager.core.models import User
-from analysis_manager.utilities.crud import CRUDBase
+from commons.db.crud import CRUDBase
 
 
-class CRUDUser(CRUDBase[User, User, User]):
+class CRUDUser(CRUDBase[User, User, User, None]):
     """
     CRUD for User Model.
     """
