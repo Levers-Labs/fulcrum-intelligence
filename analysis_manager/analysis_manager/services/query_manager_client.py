@@ -1,7 +1,7 @@
 from datetime import date
 from typing import Any
 
-from analysis_manager.utilities.async_http_client import AsyncHttpClient
+from commons.utilities.async_http_client import AsyncHttpClient
 
 
 class QueryManagerClient(AsyncHttpClient):

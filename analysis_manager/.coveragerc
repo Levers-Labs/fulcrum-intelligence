@@ -2,7 +2,6 @@
 omit=
     # no need to data files
     */data/*
-    analysis_manager/utilities/logger.py
 
 [report]
 # todo: change to 80

@@ -1,17 +1,17 @@
 from pydantic import EmailStr
 from sqlmodel import AutoString, Field
 
-from analysis_manager.db.models import TimeStampedBase
+from commons.db.models import BaseTimeStampedModel
 
 
-class UserBase(TimeStampedBase):
+class UserBase(BaseTimeStampedModel):
     first_name: str = Field(max_length=255)
     last_name: str = Field(max_length=255)
     email: EmailStr = Field(max_length=255, unique=True, sa_type=AutoString, index=True)
     is_active: bool = Field(default=True)
 
 
-class User(UserBase, table=True):
+class User(UserBase, table=True):  # type: ignore
     password: str = Field(max_length=255)
 
 
