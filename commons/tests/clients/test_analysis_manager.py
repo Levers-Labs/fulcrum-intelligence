@@ -16,8 +16,7 @@ async def test_perform_process_control(mocker):
     grain = Granularity.DAY
     expected_results = [{"date": "2023-01-01", "value": 100}, {"date": "2023-01-02", "value": 200}]
 
-    mock_response = [{"grain": grain, "results": expected_results}]
-    mock_post = AsyncMock(return_value=mock_response)
+    mock_post = AsyncMock(return_value=expected_results)
     client = AnalysisManagerClient(base_url="https://example.com")
     mocker.patch.object(client, "post", mock_post)
 
@@ -32,7 +31,7 @@ async def test_perform_process_control(mocker):
             "metric_id": metric_id,
             "start_date": start_date,
             "end_date": end_date,
-            "grains": [grain],
+            "grain": grain.value,
         },
     )
 
@@ -51,16 +50,16 @@ async def test_perform_process_control_empty_response(mocker):
     mocker.patch.object(client, "post", mock_post)
 
     # Act
-    results = await client.perform_process_control(metric_id, start_date, end_date, grain)
+    result = await client.perform_process_control(metric_id, start_date, end_date, grain)
 
     # Assert
-    assert results == []
+    assert result is None
     mock_post.assert_called_once_with(
         endpoint="analyze/process-control",
         data={
             "metric_id": metric_id,
             "start_date": start_date,
             "end_date": end_date,
-            "grains": [grain],
+            "grain": grain.value,
         },
     )

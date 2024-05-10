@@ -120,6 +120,36 @@ async def test_get_metric_time_series(mocker):
 
 
 @pytest.mark.asyncio
+async def test_get_metrics_time_series(mocker):
+    # Arrange
+    client = QueryManagerClient(base_url="https://example.com")
+    get_metric_time_series_mock = AsyncMock(
+        side_effect=[
+            [{"date": "2023-01-01", "value": 100}, {"date": "2023-01-02", "value": 200}],
+            [{"date": "2023-01-01", "value": 300}, {"date": "2023-01-02", "value": 400}],
+        ]
+    )
+    mocker.patch.object(client, "get_metric_time_series", get_metric_time_series_mock)
+    metric_ids = ["metric1", "metric2"]
+    start_date = date(2023, 1, 1)
+    end_date = date(2023, 1, 31)
+    grain = Granularity.DAY
+    dimensions = ["dimension1", "dimension2"]
+
+    # Act
+    results = await client.get_metrics_time_series(metric_ids, start_date, end_date, grain, dimensions)
+
+    # Assert
+    assert results == [
+        {"date": "2023-01-01", "value": 100},
+        {"date": "2023-01-02", "value": 200},
+        {"date": "2023-01-01", "value": 300},
+        {"date": "2023-01-02", "value": 400},
+    ]
+    assert get_metric_time_series_mock.call_count == 2
+
+
+@pytest.mark.asyncio
 async def test_get_metric_time_series_df(mocker):
     # Arrange
     client = QueryManagerClient(base_url="https://example.com")
