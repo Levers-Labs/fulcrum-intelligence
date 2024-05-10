@@ -6,7 +6,13 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlmodel import Field
 
 from commons.db.models import BaseTimeStampedModel
-from story_manager.core.enums import GENRE_TO_STORY_TYPE_MAPPING, StoryGenre, StoryType
+from commons.models.enums import Granularity
+from story_manager.core.enums import (
+    GROUP_TO_STORY_TYPE_MAPPING,
+    StoryGenre,
+    StoryGroup,
+    StoryType,
+)
 
 
 class StorySchemaBaseModel(BaseTimeStampedModel):
@@ -19,7 +25,12 @@ class Story(StorySchemaBaseModel, table=True):  # type: ignore
     """
 
     genre: StoryGenre = Field(sa_column=Column(Enum(StoryGenre, name="storygenre", inherit_schema=True), index=True))
+    story_group: StoryGroup = Field(
+        sa_column=Column(Enum(StoryGroup, name="storygroup", inherit_schema=True), index=True)
+    )
     story_type: StoryType = Field(sa_column=Column(Enum(StoryType, name="storytype", inherit_schema=True), index=True))
+    grain: Granularity = Field(sa_column=Column(Enum(Granularity, name="grain", inherit_schema=True), index=True))
+
     metric_id: str = Field(max_length=255, index=True)
     description: str = Field(sa_type=Text)
     template: str = Field(sa_type=Text)
@@ -29,19 +40,19 @@ class Story(StorySchemaBaseModel, table=True):  # type: ignore
 
     @model_validator(mode="before")
     @classmethod
-    def check_valid_type_genre_combination(cls, data: Any) -> Any:
+    def check_valid_type_group_combination(cls, data: Any) -> Any:
         """
-        Check if the story type is valid for the genre
+        Check if the story type is valid for the group
         """
-        genre = data.get("genre")
+        group = data.get("story_group")
         story_type = data.get("story_type")
 
-        genre_story_types = GENRE_TO_STORY_TYPE_MAPPING.get(genre)
+        group_story_types = GROUP_TO_STORY_TYPE_MAPPING.get(group)
 
-        if genre_story_types is None:
-            raise ValueError(f"Invalid genre '{genre}'")
+        if group_story_types is None:
+            raise ValueError(f"Invalid group '{group}'")
 
-        if story_type not in genre_story_types:
-            raise ValueError(f"Invalid type '{story_type}' for genre '{genre}'")
+        if story_type not in group_story_types:
+            raise ValueError(f"Invalid type '{story_type}' for group '{group}'")
 
         return data

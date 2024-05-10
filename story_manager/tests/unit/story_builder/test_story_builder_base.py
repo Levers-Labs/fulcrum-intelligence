@@ -5,7 +5,7 @@ import pandas as pd
 import pytest
 
 from commons.models.enums import Granularity
-from story_manager.core.enums import StoryGenre
+from story_manager.core.enums import StoryGenre, StoryGroup
 from story_manager.story_builder import StoryBuilderBase
 
 
@@ -13,6 +13,7 @@ from story_manager.story_builder import StoryBuilderBase
 def story_builder(mock_query_service, mock_analysis_service, mock_db_session):
     class ConcreteStoryBuilder(StoryBuilderBase):
         genre = StoryGenre.GROWTH
+        group = StoryGroup.GROWTH_RATES
         supported_grains = [Granularity.DAY]
 
         async def generate_stories(self, metric_id: str, grain: Granularity) -> list:
@@ -25,7 +26,7 @@ def story_builder(mock_query_service, mock_analysis_service, mock_db_session):
 async def test_story_builder_run_unsupported_grain(story_builder):
     with pytest.raises(ValueError) as excinfo:
         await story_builder.run("metric1", Granularity.WEEK)
-    assert str(excinfo.value) == "Unsupported grain 'week' for story genre 'GROWTH'"
+    assert str(excinfo.value) == "Unsupported grain 'week' for story genre 'GROWTH' of story group 'GROWTH_RATES'"
 
 
 @pytest.mark.asyncio

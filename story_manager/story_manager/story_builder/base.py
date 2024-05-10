@@ -10,7 +10,12 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from commons.clients.analysis_manager import AnalysisManagerClient
 from commons.clients.query_manager import QueryManagerClient
 from commons.models.enums import Granularity
-from story_manager.core.enums import STORY_TYPES_META, StoryGenre, StoryType
+from story_manager.core.enums import (
+    STORY_TYPES_META,
+    StoryGenre,
+    StoryGroup,
+    StoryType,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -21,6 +26,7 @@ class StoryBuilderBase(ABC):
     """
 
     genre: StoryGenre
+    group: StoryGroup
     supported_grains: list[Granularity] = []
     grain_meta: dict[str, Any] = {
         Granularity.DAY: {"comp_label": "d/d", "delta": {"days": 1}},
@@ -97,8 +103,13 @@ class StoryBuilderBase(ABC):
         :param grain: The grain for which stories are generated
         """
         if grain not in self.supported_grains:
-            logger.warning(f"Unsupported grain '{grain}' for story genre '{self.genre}'")
-            raise ValueError(f"Unsupported grain '{grain}' for story genre '{self.genre}'")
+            logger.warning(
+                f"Unsupported grain '{grain}' for story genre '{self.genre.value}' of story group '{self.group.value}'"
+            )
+            raise ValueError(
+                f"Unsupported grain '{grain.value}' for story genre '{self.genre.value}' of "
+                f"story group '{self.group.value}'"
+            )
 
         logger.info(f"Generating stories for metric '{metric_id}' with grain '{grain}'")
         stories = await self.generate_stories(metric_id, grain)
