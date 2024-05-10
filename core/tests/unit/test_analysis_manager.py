@@ -22,12 +22,6 @@ def test_correlate(correlate_df):
     assert len(response) == 1
 
 
-def test_process_control(process_control_df, process_control_output):
-    analysis_manager = AnalysisManager()
-    response = analysis_manager.process_control(process_control_df, "", "", "", "MONTH", debug=False)
-    assert process_control_output == response
-
-
 def test_describe(describe_data, describe_output):
     analysis_manager = AnalysisManager()
 

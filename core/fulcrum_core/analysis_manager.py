@@ -7,7 +7,7 @@ import pandas as pd
 from fulcrum_core.correlate import correlate
 from fulcrum_core.describe import describe
 from fulcrum_core.modules import ComponentDriftEvaluator
-from fulcrum_core.process_control import process_control
+from fulcrum_core.modules.process_control import ProcessControlAnalyzer
 
 logger = logging.getLogger(__name__)
 
@@ -33,17 +33,34 @@ class AnalysisManager:
         result = correlate(data, start_date, end_date)
         return result
 
-    def process_control(
-        self,
-        data: pd.DataFrame,
-        metric_id: str,
-        start_date: pd.Timestamp,
-        end_date: pd.Timestamp,
-        grain: str,
-        debug: bool = False,
-    ) -> list[dict] | dict:
-        result = process_control(data, metric_id, start_date, end_date, grain, debug)
-        return result
+    def process_control(self, df: pd.DataFrame) -> pd.DataFrame:
+        """
+        Perform time series analysis using process control techniques.
+        For a given metric time series, Process Control generates:
+            Half-averages based on the first 10-18 Individual Values.
+            Central Line values for each time period, using those half-averages
+            Upper and Lower Control Limits for each time period based on the Central Line.
+            Slope of the Central Line.
+            Signal detection based on the Central Line and Control Limits.
+
+        Args:
+            df (pd.DataFrame): The input time series data with 'date' and 'value' columns.
+
+        Returns:
+            pd.DataFrame: The analyzed time series data with additional calculated columns.
+            The result DataFrame will have the following columns:
+                - 'date': The date of the time period.
+                - 'value': The value of the metric for the time period.
+                - 'central_line': The central line value for the time period.
+                - 'ucl': The upper control limit value for the time period.
+                - 'lcl': The lower control limit value for the time period.
+                - 'slope': The slope of the central line for the time period.
+                - 'slope_change': The change in slope from the previous time period.
+                - 'trend_signal_detected': The signal detection result for the time period.
+        """
+        analyzer = ProcessControlAnalyzer()
+        res_df = analyzer.analyze(df)
+        return res_df
 
     @staticmethod
     def calculate_component_drift(
