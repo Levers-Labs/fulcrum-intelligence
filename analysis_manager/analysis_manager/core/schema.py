@@ -49,32 +49,22 @@ class CorrelateRequest(BaseModel):
     metric_ids: Annotated[list[str], Field(..., min_length=2)]
     start_date: date
     end_date: date
+    grain: Granularity
 
 
 class ProcessControlRequest(BaseModel):
     metric_id: str
     start_date: date
     end_date: date
-    grains: list[Granularity] = [
-        Granularity.DAY,
-        Granularity.WEEK,
-        Granularity.MONTH,
-        Granularity.QUARTER,
-        Granularity.YEAR,
-    ]
-
-
-class GrainResult(BaseModel):
-    date: date
-    metric_value: float | None = None
-    central_line: float | None = None
-    ucl: float | None = None
-    lcl: float | None = None
+    grain: Granularity
 
 
 class ProcessControlResponse(BaseModel):
-    metric_id: str
-    start_date: date | None = None
-    end_date: date | None = None
-    grain: Granularity
-    results: list[GrainResult]
+    date: date
+    value: float | None = None
+    central_line: float | None = None
+    ucl: float | None = None
+    lcl: float | None = None
+    slope: float | None = None
+    slope_change: float | None = None
+    trend_signal_detected: bool | None = None

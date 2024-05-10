@@ -1,7 +1,7 @@
 from datetime import date
 from typing import Any
 
-from analysis_manager.services.query_manager_client import QueryManagerClient
+from commons.clients.query_manager import QueryManagerClient
 from fulcrum_core import AnalysisManager
 
 
@@ -55,7 +55,7 @@ class ComponentDriftService:
             return component
         # get all child component metric_ids
         input_metric_ids = [child_component["metric_id"] for child_component in component["components"]]
-        input_metrics = await self.query_manager.get_metrics_details(input_metric_ids)
+        input_metrics = await self.query_manager.list_metrics(metric_ids=input_metric_ids)
         input_metrics_map = {input_metric["id"]: input_metric for input_metric in input_metrics}
 
         for input_component in component["components"]:
@@ -143,12 +143,16 @@ class ComponentDriftService:
             values.append(
                 {
                     "metric_id": input_metric["metric_id"],
-                    "evaluation_value": await self.query_manager.get_metric_value(
-                        input_metric["metric_id"], metric_evaluation_start_date, metric_evaluation_end_date
-                    ),
-                    "comparison_value": await self.query_manager.get_metric_value(
-                        input_metric["metric_id"], metric_comparison_start_date, metric_comparison_end_date
-                    ),
+                    "evaluation_value": (
+                        await self.query_manager.get_metric_value(
+                            input_metric["metric_id"], metric_evaluation_start_date, metric_evaluation_end_date
+                        )
+                    )["value"],
+                    "comparison_value": (
+                        await self.query_manager.get_metric_value(
+                            input_metric["metric_id"], metric_comparison_start_date, metric_comparison_end_date
+                        )
+                    )["value"],
                 }
             )
         return values

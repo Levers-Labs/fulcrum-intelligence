@@ -108,6 +108,29 @@ class QueryManagerClient(AsyncHttpClient):
         response = await self.post(endpoint=f"metrics/{metric_id}/values", data=payload)
         return response["data"]
 
+    async def get_metrics_time_series(
+        self,
+        metric_ids: list[str],
+        start_date: date,
+        end_date: date,
+        grain: Granularity = Granularity.DAY,
+        dimensions: list[str] | None = None,
+    ) -> list[dict[str, Any]]:
+        """
+        Get metric time series for a list of metric ids.
+        metric_ids: list of metric ids
+        start_date: start date
+        end_date: end date
+        grain: granularity of the data (default: day)
+        dimensions: list of dimensions (optional)
+
+        Returns: list of metric time series
+        """
+        results = []
+        for metric_id in metric_ids:
+            results.extend(await self.get_metric_time_series(metric_id, start_date, end_date, grain, dimensions))
+        return results
+
     async def get_metric_time_series_df(
         self,
         metric_id: str,
