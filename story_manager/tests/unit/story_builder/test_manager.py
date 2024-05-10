@@ -3,7 +3,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from commons.models.enums import Granularity
-from story_manager.core.enums import StoryGenre
+from story_manager.core.enums import StoryGroup
 from story_manager.story_builder import StoryBuilderBase, StoryManager
 
 
@@ -22,7 +22,7 @@ async def test_story_manager_run_all_builders(story_manager, mock_query_service)
         await story_manager.run_all_builders()
 
         mock_query_service.list_metrics.assert_called_once()
-        assert mock_create_story_builder.call_count == len(StoryGenre.__members__)
+        assert mock_create_story_builder.call_count == len(StoryGroup.__members__)
 
 
 @pytest.mark.asyncio

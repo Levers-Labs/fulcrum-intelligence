@@ -4,7 +4,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from commons.clients.analysis_manager import AnalysisManagerClient
 from commons.clients.query_manager import QueryManagerClient
-from story_manager.core.enums import StoryGenre
+from story_manager.core.enums import StoryGroup
 from story_manager.story_builder import StoryFactory
 
 logger = logging.getLogger(__name__)
@@ -36,10 +36,10 @@ class StoryManager:
         metrics = await self.query_service.list_metrics()
         logger.info(f"Retrieved {len(metrics)} metrics from the query service")
 
-        for genre in StoryGenre.__members__.values():
-            logger.info(f"Running story builders for genre: {genre}")
+        for group in StoryGroup.__members__.values():
+            logger.info(f"Running story builders for story group: {group}")
             story_builder = StoryFactory.create_story_builder(
-                genre, self.query_service, self.analysis_service, self.db_session
+                group, self.query_service, self.analysis_service, self.db_session
             )
             await self._run_builder_for_metrics(story_builder, metrics)
 
