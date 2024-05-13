@@ -11,7 +11,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from analysis_manager.config import settings
 
 # Used to load models for alembic migrations
-MODEL_PATHS = ["analysis_manager.db.models", "analysis_manager.core.models"]
+MODEL_PATHS = ["analysis_manager.core.models"]
 
 engine = create_engine(str(settings.DATABASE_URL), **settings.SQLALCHEMY_ENGINE_OPTIONS)
 async_engine = create_async_engine(str(settings.DATABASE_URL), **settings.SQLALCHEMY_ENGINE_OPTIONS)

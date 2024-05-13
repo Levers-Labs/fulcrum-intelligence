@@ -24,12 +24,7 @@ class AnalysisManagerClient(AsyncHttpClient):
             "metric_id": metric_id,
             "start_date": start_date,
             "end_date": end_date,
-            "grains": [grain],
+            "grain": grain.value,
         }
         response = await self.post(endpoint="analyze/process-control", data=params)
-        if not response:
-            return []
-        # get the response matching the grain
-        grain_response = next((res for res in response if res["grain"] == grain), None)  # type: ignore
-
-        return grain_response["results"]  # type: ignore
+        return response  # type: ignore

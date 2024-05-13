@@ -9,7 +9,7 @@ from analysis_manager.core.crud import CRUDUser
 from analysis_manager.core.models import User
 from analysis_manager.core.services.component_drift import ComponentDriftService
 from analysis_manager.db.config import AsyncSessionDep
-from analysis_manager.services.query_manager_client import QueryManagerClient
+from commons.clients.query_manager import QueryManagerClient
 from fulcrum_core.analysis_manager import AnalysisManager
 
 

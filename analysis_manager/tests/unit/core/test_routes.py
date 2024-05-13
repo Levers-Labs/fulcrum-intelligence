@@ -1,10 +1,11 @@
 import random
 from unittest.mock import AsyncMock
 
+import pandas as pd
 import pytest
 from deepdiff import DeepDiff
 
-from analysis_manager.services.query_manager_client import QueryManagerClient
+from commons.clients.query_manager import QueryManagerClient
 
 
 @pytest.mark.skip
@@ -116,10 +117,10 @@ async def test_correlate(client, mocker, metric_values_correlate):
     # Mock the QueryClient's list_metrics method
 
     mock_list_metrics = AsyncMock(return_value=metric_values_correlate)
-    mocker.patch.object(QueryManagerClient, "get_metric_values", mock_list_metrics)
+    mocker.patch.object(QueryManagerClient, "get_metrics_time_series", mock_list_metrics)
     response = client.post(
         "/v1/analyze/correlate",
-        json={"metric_ids": ["NewMRR", "CAC"], "start_date": "2024-01-01", "end_date": "2024-04-30"},
+        json={"metric_ids": ["NewMRR", "CAC"], "start_date": "2024-01-01", "end_date": "2024-04-30", "grain": "day"},
     )
     expected_response_dict = [
         {"correlation_coefficient": 0.5155347459793249, "metric_id_1": "CAC", "metric_id_2": "NewMRR"}
@@ -131,276 +132,228 @@ async def test_correlate(client, mocker, metric_values_correlate):
 
 @pytest.mark.asyncio
 async def test_process_control_route(client, mocker, metric_values_netmrr):
-
-    mock_list_metrics = AsyncMock(return_value=metric_values_netmrr)
-    mocker.patch.object(QueryManagerClient, "get_metric_values", mock_list_metrics)
+    values_df = pd.DataFrame(metric_values_netmrr[:18])
+    mock_list_metrics = AsyncMock(return_value=values_df)
+    mocker.patch.object(QueryManagerClient, "get_metric_time_series_df", mock_list_metrics)
     response = client.post(
         "/v1/analyze/process-control",
-        json={"metric_id": "NewMRR", "start_date": "2022-09-01", "end_date": "2022-12-30", "grains": ["quarter"]},
+        json={"metric_id": "NewMRR", "start_date": "2022-09-01", "end_date": "2022-12-30", "grain": "quarter"},
     )
     expected_response = [
         {
-            "metric_id": "NewMRR",
-            "start_date": "2022-09-01",
-            "end_date": "2022-12-30",
-            "grain": "quarter",
-            "results": [
-                {
-                    "date": "2022-09-01",
-                    "metric_value": 50927,
-                    "central_line": 56599.81481481482,
-                    "ucl": 122193.81881481482,
-                    "lcl": 0,
-                },
-                {"date": "2022-10-01", "metric_value": 40294, "central_line": 56293, "ucl": 121887.004, "lcl": 0},
-                {
-                    "date": "2022-10-31",
-                    "metric_value": 67557,
-                    "central_line": 55986.18518518518,
-                    "ucl": 121580.18918518518,
-                    "lcl": 0,
-                },
-                {
-                    "date": "2022-11-30",
-                    "metric_value": 74216,
-                    "central_line": 55679.370370370365,
-                    "ucl": 121273.37437037037,
-                    "lcl": 0,
-                },
-                {
-                    "date": "2022-12-30",
-                    "metric_value": 58084,
-                    "central_line": 55372.55555555555,
-                    "ucl": 120966.55955555555,
-                    "lcl": 0,
-                },
-                {
-                    "date": "2023-01-29",
-                    "metric_value": 39168,
-                    "central_line": 55065.74074074073,
-                    "ucl": 120659.74474074073,
-                    "lcl": 0,
-                },
-                {
-                    "date": "2023-02-28",
-                    "metric_value": 20033,
-                    "central_line": 54758.92592592591,
-                    "ucl": 120352.92992592591,
-                    "lcl": 0,
-                },
-                {
-                    "date": "2023-03-30",
-                    "metric_value": 61401,
-                    "central_line": 54452.111111111095,
-                    "ucl": 120046.1151111111,
-                    "lcl": 0,
-                },
-                {
-                    "date": "2023-04-29",
-                    "metric_value": 86673,
-                    "central_line": 54145.29629629628,
-                    "ucl": 119739.30029629628,
-                    "lcl": 0,
-                },
-                {
-                    "date": "2023-05-29",
-                    "metric_value": 26451,
-                    "central_line": 53838.48148148146,
-                    "ucl": 119432.48548148146,
-                    "lcl": 0,
-                },
-                {
-                    "date": "2023-06-28",
-                    "metric_value": 47445,
-                    "central_line": 53531.66666666664,
-                    "ucl": 119125.67066666664,
-                    "lcl": 0,
-                },
-                {
-                    "date": "2023-07-28",
-                    "metric_value": 63417,
-                    "central_line": 53224.851851851825,
-                    "ucl": 118818.85585185183,
-                    "lcl": 0,
-                },
-                {
-                    "date": "2023-08-27",
-                    "metric_value": 63514,
-                    "central_line": 52918.03703703701,
-                    "ucl": 118512.04103703701,
-                    "lcl": 0,
-                },
-                {
-                    "date": "2023-09-26",
-                    "metric_value": 64206,
-                    "central_line": 52611.22222222219,
-                    "ucl": 118205.22622222219,
-                    "lcl": 0,
-                },
-                {
-                    "date": "2023-10-26",
-                    "metric_value": 78596,
-                    "central_line": 52304.40740740737,
-                    "ucl": 117898.41140740737,
-                    "lcl": 0,
-                },
-                {
-                    "date": "2023-11-25",
-                    "metric_value": 21955,
-                    "central_line": 51997.592592592555,
-                    "ucl": 117591.59659259256,
-                    "lcl": 0,
-                },
-                {
-                    "date": "2023-12-25",
-                    "metric_value": 30849,
-                    "central_line": 51690.77777777774,
-                    "ucl": 117284.78177777774,
-                    "lcl": 0,
-                },
-                {
-                    "date": "2024-01-24",
-                    "metric_value": 77068,
-                    "central_line": 51383.96296296292,
-                    "ucl": 116977.96696296292,
-                    "lcl": 0,
-                },
-                {
-                    "date": "2024-02-23",
-                    "metric_value": 95685,
-                    "central_line": 51077.1481481481,
-                    "ucl": 116671.1521481481,
-                    "lcl": 0,
-                },
-                {
-                    "date": "2024-03-24",
-                    "metric_value": 62233,
-                    "central_line": 50770.333333333285,
-                    "ucl": 116364.33733333329,
-                    "lcl": 0,
-                },
-                {
-                    "date": "2024-04-23",
-                    "metric_value": 42173,
-                    "central_line": 50463.51851851847,
-                    "ucl": 116057.52251851847,
-                    "lcl": 0,
-                },
-                {
-                    "date": "2024-05-23",
-                    "metric_value": 18191,
-                    "central_line": 50156.70370370365,
-                    "ucl": 115750.70770370365,
-                    "lcl": 0,
-                },
-                {
-                    "date": "2024-06-22",
-                    "metric_value": 95453,
-                    "central_line": 49849.88888888883,
-                    "ucl": 115443.89288888883,
-                    "lcl": 0,
-                },
-                {
-                    "date": "2024-07-22",
-                    "metric_value": 46417,
-                    "central_line": 49543.074074074015,
-                    "ucl": 115137.07807407402,
-                    "lcl": 0,
-                },
-                {
-                    "date": "2024-08-21",
-                    "metric_value": 69306,
-                    "central_line": 49236.2592592592,
-                    "ucl": 114830.2632592592,
-                    "lcl": 0,
-                },
-                {
-                    "date": "2024-09-20",
-                    "metric_value": 76026,
-                    "central_line": 48929.44444444438,
-                    "ucl": 114523.44844444438,
-                    "lcl": 0,
-                },
-                {
-                    "date": "2024-10-20",
-                    "metric_value": 43884,
-                    "central_line": 48622.62962962956,
-                    "ucl": 114216.63362962956,
-                    "lcl": 0,
-                },
-                {
-                    "date": "2024-11-19",
-                    "metric_value": 11489,
-                    "central_line": 48315.814814814745,
-                    "ucl": 113909.81881481475,
-                    "lcl": 0,
-                },
-                {
-                    "date": "2024-12-19",
-                    "metric_value": 99466,
-                    "central_line": 48008.99999999993,
-                    "ucl": 113603.00399999993,
-                    "lcl": 0,
-                },
-                {
-                    "date": "2025-01-18",
-                    "metric_value": 78883,
-                    "central_line": 47702.18518518511,
-                    "ucl": 113296.18918518511,
-                    "lcl": 0,
-                },
-                {
-                    "date": "2025-02-17",
-                    "metric_value": 76167,
-                    "central_line": 47395.37037037029,
-                    "ucl": 112989.3743703703,
-                    "lcl": 0,
-                },
-                {
-                    "date": "2025-03-19",
-                    "metric_value": 95945,
-                    "central_line": 47088.555555555475,
-                    "ucl": 112682.55955555548,
-                    "lcl": 0,
-                },
-                {
-                    "date": "2025-04-18",
-                    "metric_value": 97288,
-                    "central_line": 46781.74074074066,
-                    "ucl": 112375.74474074066,
-                    "lcl": 0,
-                },
-                {
-                    "date": "2025-05-18",
-                    "metric_value": 79936,
-                    "central_line": 46474.92592592584,
-                    "ucl": 112068.92992592584,
-                    "lcl": 0,
-                },
-                {
-                    "date": "2025-06-17",
-                    "metric_value": 33299,
-                    "central_line": 46168.11111111102,
-                    "ucl": 111762.11511111102,
-                    "lcl": 0,
-                },
-            ],
-        }
+            "central_line": 56599.815,
+            "date": "2022-09-01",
+            "lcl": 0.0,
+            "slope": -306.815,
+            "slope_change": None,
+            "trend_signal_detected": False,
+            "ucl": 122193.819,
+            "value": 50927.0,
+        },
+        {
+            "central_line": 56293.0,
+            "date": "2022-10-01",
+            "lcl": 0.0,
+            "slope": -306.815,
+            "slope_change": 0.0,
+            "trend_signal_detected": False,
+            "ucl": 121887.004,
+            "value": 40294.0,
+        },
+        {
+            "central_line": 55986.185,
+            "date": "2022-10-31",
+            "lcl": 0.0,
+            "slope": -306.815,
+            "slope_change": 0.0,
+            "trend_signal_detected": False,
+            "ucl": 121580.189,
+            "value": 67557.0,
+        },
+        {
+            "central_line": 55679.37,
+            "date": "2022-11-30",
+            "lcl": 0.0,
+            "slope": -306.815,
+            "slope_change": 0.0,
+            "trend_signal_detected": False,
+            "ucl": 121273.374,
+            "value": 74216.0,
+        },
+        {
+            "central_line": 55372.556,
+            "date": "2022-12-30",
+            "lcl": 0.0,
+            "slope": -306.815,
+            "slope_change": 0.0,
+            "trend_signal_detected": False,
+            "ucl": 120966.56,
+            "value": 58084.0,
+        },
+        {
+            "central_line": 55065.741,
+            "date": "2023-01-29",
+            "lcl": 0.0,
+            "slope": -306.815,
+            "slope_change": 0.0,
+            "trend_signal_detected": False,
+            "ucl": 120659.745,
+            "value": 39168.0,
+        },
+        {
+            "central_line": 54758.926,
+            "date": "2023-02-28",
+            "lcl": 0.0,
+            "slope": -306.815,
+            "slope_change": 0.0,
+            "trend_signal_detected": False,
+            "ucl": 120352.93,
+            "value": 20033.0,
+        },
+        {
+            "central_line": 54452.111,
+            "date": "2023-03-30",
+            "lcl": 0.0,
+            "slope": -306.815,
+            "slope_change": 0.0,
+            "trend_signal_detected": False,
+            "ucl": 120046.115,
+            "value": 61401.0,
+        },
+        {
+            "central_line": 54145.296,
+            "date": "2023-04-29",
+            "lcl": 0.0,
+            "slope": -306.815,
+            "slope_change": 0.0,
+            "trend_signal_detected": False,
+            "ucl": 119739.3,
+            "value": 86673.0,
+        },
+        {
+            "central_line": 53838.481,
+            "date": "2023-05-29",
+            "lcl": 0.0,
+            "slope": -306.815,
+            "slope_change": 0.0,
+            "trend_signal_detected": False,
+            "ucl": 119432.485,
+            "value": 26451.0,
+        },
+        {
+            "central_line": 53531.667,
+            "date": "2023-06-28",
+            "lcl": 0.0,
+            "slope": -306.815,
+            "slope_change": 0.0,
+            "trend_signal_detected": False,
+            "ucl": 119125.671,
+            "value": 47445.0,
+        },
+        {
+            "central_line": 53224.852,
+            "date": "2023-07-28",
+            "lcl": 0.0,
+            "slope": -306.815,
+            "slope_change": 0.0,
+            "trend_signal_detected": False,
+            "ucl": 118818.856,
+            "value": 63417.0,
+        },
+        {
+            "central_line": 52918.037,
+            "date": "2023-08-27",
+            "lcl": 0.0,
+            "slope": -306.815,
+            "slope_change": 0.0,
+            "trend_signal_detected": False,
+            "ucl": 118512.041,
+            "value": 63514.0,
+        },
+        {
+            "central_line": 52611.222,
+            "date": "2023-09-26",
+            "lcl": 0.0,
+            "slope": -306.815,
+            "slope_change": 0.0,
+            "trend_signal_detected": False,
+            "ucl": 118205.226,
+            "value": 64206.0,
+        },
+        {
+            "central_line": 52304.407,
+            "date": "2023-10-26",
+            "lcl": 0.0,
+            "slope": -306.815,
+            "slope_change": 0.0,
+            "trend_signal_detected": False,
+            "ucl": 117898.411,
+            "value": 78596.0,
+        },
+        {
+            "central_line": 51997.593,
+            "date": "2023-11-25",
+            "lcl": 0.0,
+            "slope": -306.815,
+            "slope_change": 0.0,
+            "trend_signal_detected": False,
+            "ucl": 117591.597,
+            "value": 21955.0,
+        },
+        {
+            "central_line": 51690.778,
+            "date": "2023-12-25",
+            "lcl": 0.0,
+            "slope": -306.815,
+            "slope_change": 0.0,
+            "trend_signal_detected": False,
+            "ucl": 117284.782,
+            "value": 30849.0,
+        },
+        {
+            "central_line": 51383.963,
+            "date": "2024-01-24",
+            "lcl": 0.0,
+            "slope": -306.815,
+            "slope_change": 0.0,
+            "trend_signal_detected": False,
+            "ucl": 116977.967,
+            "value": 77068.0,
+        },
     ]
     diff = DeepDiff(expected_response, response.json(), ignore_order=True)
     assert diff == {}
 
 
 @pytest.mark.asyncio
+async def test_process_control_route_insufficient_data(client, mocker, metric_values_netmrr):
+    values_df = pd.DataFrame(metric_values_netmrr[:5])
+    mock_list_metrics = AsyncMock(return_value=values_df)
+    mocker.patch.object(QueryManagerClient, "get_metric_time_series_df", mock_list_metrics)
+    response = client.post(
+        "/v1/analyze/process-control",
+        json={"metric_id": "NewMRR", "start_date": "2022-09-01", "end_date": "2022-12-30", "grain": "quarter"},
+    )
+    assert response.status_code == 400
+    # case 2
+    mocker.patch.object(QueryManagerClient, "get_metric_time_series_df", AsyncMock(return_value=pd.DataFrame()))
+    response = client.post(
+        "/v1/analyze/process-control",
+        json={"metric_id": "NewMRR", "start_date": "2022-09-01", "end_date": "2022-12-30", "grain": "quarter"},
+    )
+    assert response.status_code == 400
+
+
+@pytest.mark.asyncio
 async def test_component_drift_route(client, mocker, metric_cac, metric_list):
 
-    mock_get_metric_details = AsyncMock(return_value=metric_cac)
-    mock_get_metrics_details = AsyncMock(return_value=metric_list)
-    mocker.patch.object(QueryManagerClient, "get_metric_details", mock_get_metric_details)
+    mock_get_metric = AsyncMock(return_value=metric_cac)
+    mock_list_metrics = AsyncMock(return_value=metric_list)
+    mocker.patch.object(QueryManagerClient, "get_metric", mock_get_metric)
     mocker.patch.object(
-        QueryManagerClient, "get_metric_value", side_effect=lambda *args: random.randint(100, 200)  # noqa
+        QueryManagerClient, "get_metric_value", side_effect=lambda *args: {"value": random.randint(100, 200)}  # noqa
     )
-    mocker.patch.object(QueryManagerClient, "get_metrics_details", mock_get_metrics_details)
+    mocker.patch.object(QueryManagerClient, "list_metrics", mock_list_metrics)
     response = client.post(
         "/v1/analyze/drift/component",
         json={
