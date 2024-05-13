@@ -5,7 +5,7 @@ import pytest
 
 from commons.models.enums import Granularity
 from story_manager.core.enums import StoryGenre, StoryType
-from story_manager.story_builder.plugins import TrendsStoryBuilder
+from story_manager.story_builder.plugins import TrendChangesStoryBuilder
 
 start_date = date(2024, 4, 7)
 end_date = date(2024, 5, 7)
@@ -13,56 +13,12 @@ end_date = date(2024, 5, 7)
 
 @pytest.fixture
 def trends_story_builder(mock_query_service, mock_analysis_service, mock_db_session):
-    return TrendsStoryBuilder(mock_query_service, mock_analysis_service, mock_db_session)
+    return TrendChangesStoryBuilder(mock_query_service, mock_analysis_service, mock_db_session)
 
 
 @pytest.fixture
 def mock_process_control_output(trend_type):
     trend_data = {
-        "normal": [
-            {
-                "date": "2024-03-11",
-                "metric_id": "test_metric",
-                "value": 50,
-                "central_line": 80,
-                "trend_type": "",
-            },
-            {
-                "date": "2024-03-12",
-                "metric_id": "test_metric",
-                "value": 75,
-                "central_line": 80,
-                "trend_type": "",
-            },
-            {
-                "date": "2024-03-13",
-                "metric_id": "test_metric",
-                "value": 100,
-                "central_line": 80,
-                "trend_type": "",
-            },
-            {
-                "date": "2024-03-14",
-                "metric_id": "test_metric",
-                "value": 100,
-                "central_line": 80,
-                "trend_type": "",
-            },
-            {
-                "date": "2024-03-15",
-                "metric_id": "test_metric",
-                "value": 100,
-                "central_line": 80,
-                "trend_type": "",
-            },
-            {
-                "date": "2024-03-16",
-                "metric_id": "test_metric",
-                "value": 100,
-                "central_line": 80,
-                "trend_type": "",
-            },
-        ],
         "upward": [
             {
                 "date": "2024-02-05",
@@ -172,85 +128,6 @@ def mock_process_control_output(trend_type):
                 "trend_type": "",
             },
         ],
-        "sticky": [
-            {
-                "date": "2024-04-16",
-                "metric_id": "test_metric",
-                "value": 3700,
-                "central_line": 4039.93,
-                "trend_type": "",
-            },
-            {
-                "date": "2024-04-17",
-                "metric_id": "test_metric",
-                "value": 3675,
-                "central_line": 4039.93,
-                "trend_type": "",
-            },
-            {
-                "date": "2024-04-18",
-                "metric_id": "test_metric",
-                "value": 3650,
-                "central_line": 4039.93,
-                "trend_type": "",
-            },
-            {
-                "date": "2024-04-19",
-                "metric_id": "test_metric",
-                "value": 3550,
-                "central_line": 4039.93,
-                "trend_type": "",
-            },
-            {
-                "date": "2024-04-19",
-                "metric_id": "test_metric",
-                "value": 3400,
-                "central_line": 4039.93,
-                "trend_type": "",
-            },
-            {
-                "date": "2024-04-19",
-                "metric_id": "test_metric",
-                "value": 3200,
-                "central_line": 4039.93,
-                "trend_type": "",
-            },
-            {
-                "date": "2024-04-19",
-                "metric_id": "test_metric",
-                "value": 2950,
-                "central_line": 4039.93,
-                "trend_type": "",
-            },
-            {
-                "date": "2024-04-19",
-                "metric_id": "test_metric",
-                "value": 2650,
-                "central_line": 4039.93,
-                "trend_type": "",
-            },
-            {
-                "date": "2024-04-19",
-                "metric_id": "test_metric",
-                "value": 2300,
-                "central_line": 4039.93,
-                "trend_type": "",
-            },
-            {
-                "date": "2024-04-19",
-                "metric_id": "test_metric",
-                "value": 1900,
-                "central_line": 4039.93,
-                "trend_type": "",
-            },
-            {
-                "date": "2024-04-19",
-                "metric_id": "test_metric",
-                "value": 1450,
-                "central_line": 4039.93,
-                "trend_type": "",
-            },
-        ],
     }
 
     if trend_type not in trend_data:
@@ -261,17 +138,6 @@ def mock_process_control_output(trend_type):
     df["has_discontinuity"] = False
     df["growth_rate"] = 0.0
     return df
-
-
-@pytest.mark.parametrize("trend_type", ["normal"])
-def test_trends_story_builder_analyze_new_normal_trend(trends_story_builder, mock_process_control_output, trend_type):
-    trends_df = trends_story_builder._analyze_trends(
-        mock_process_control_output, "test_metric", Granularity.DAY, start_date, end_date
-    )
-
-    assert trends_df[0]["metric_id"] == "test_metric"
-    assert trends_df[0]["type"] == StoryType.NEW_NORMAL
-    assert trends_df[0]["genre"] == StoryGenre.TRENDS
 
 
 @pytest.mark.parametrize("trend_type", ["upward"])
@@ -296,19 +162,6 @@ def test_trends_story_builder_analyze_downward_trend(trends_story_builder, mock_
     assert trends_df[0]["genre"] == StoryGenre.TRENDS
 
 
-@pytest.mark.parametrize("trend_type", ["sticky"])
-def test_trends_story_builder_analyze_sticky_downward_trend(
-    trends_story_builder, mock_process_control_output, trend_type
-):
-    trends_df = trends_story_builder._analyze_trends(
-        mock_process_control_output, "test_metric", Granularity.DAY, start_date, end_date
-    )
-
-    assert trends_df[0]["metric_id"] == "test_metric"
-    assert trends_df[0]["type"] == StoryType.STICKY_DOWNWARD_TREND
-    assert trends_df[0]["genre"] == StoryGenre.TRENDS
-
-
 def test_trends_story_builder_analyze_for_empty_data(trends_story_builder):
     mock_df_data = []
 
@@ -328,7 +181,7 @@ def test_trends_story_builder_analyze_for_empty_data(trends_story_builder):
 )
 def test_get_sliding_start_date(grain, expected_start_date):
     curr_start_date = end_date
-    actual_start_date = TrendsStoryBuilder._get_sliding_start_date(curr_start_date, grain)
+    actual_start_date = TrendChangesStoryBuilder._get_sliding_start_date(curr_start_date, grain)
 
     assert actual_start_date == expected_start_date
 
@@ -349,7 +202,6 @@ def test_has_discontinuity_condition(trends_story_builder):
     [
         (0.0, 100.0, 100.0, StoryType.NEW_UPWARD_TREND),
         (10.0, 0.0, -100.0, StoryType.NEW_DOWNWARD_TREND),
-        (5.0, 5.20, 0.20, StoryType.NEW_NORMAL),
     ],
 )
 def test_identify_trend_type(trends_story_builder, prev_slope, slope, slope_change, expected_trend_type):

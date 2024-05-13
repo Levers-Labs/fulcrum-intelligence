@@ -5,7 +5,12 @@ from typing import Any
 import pandas as pd
 
 from commons.models.enums import Granularity, GranularityOrder
-from story_manager.core.enums import STORY_TYPES_META, StoryGenre, StoryType
+from story_manager.core.enums import (
+    STORY_TYPES_META,
+    StoryGenre,
+    StoryGroup,
+    StoryType,
+)
 from story_manager.story_builder import StoryBuilderBase
 
 logger = logging.getLogger(__name__)
@@ -13,6 +18,7 @@ logger = logging.getLogger(__name__)
 
 class GrowthStoryBuilder(StoryBuilderBase):
     genre = StoryGenre.GROWTH  # type: ignore
+    group = StoryGroup.GROWTH_RATES  # type: ignore
     supported_grains = [Granularity.DAY, Granularity.WEEK, Granularity.MONTH, Granularity.QUARTER]
 
     async def generate_stories(self, metric_id: str, grain: Granularity) -> list[dict[str, Any]]:
@@ -36,6 +42,7 @@ class GrowthStoryBuilder(StoryBuilderBase):
             {
                 "metric_id": "cac",
                 "genre": "GROWTH",
+                "group": "GROWTH_RATES",
                 "type": "ACCELERATING_GROWTH",
                 "grain": "day",
                 "text": "The d/d growth rate for CAC has accelerated over the past prior week,
@@ -125,21 +132,29 @@ class GrowthStoryBuilder(StoryBuilderBase):
                 StoryType.ACCELERATING_GROWTH if current_growth > reference_growth else StoryType.SLOWING_GROWTH
             )
             story_meta = STORY_TYPES_META[story_type]
-            story_text = self._render_story_text(
+            story_title = self._render_story_title(
                 story_type,  # type: ignore
                 pop=self.grain_meta[grain]["comp_label"],
-                reference_period=reference_period.value,
+            )
+            story_detail = self._render_story_detail(
+                story_type,  # type: ignore
+                pop=self.grain_meta[grain]["comp_label"],
+                grain=grain.value,
                 current_growth=f"{current_growth:.0f}",
                 reference_growth=f"{reference_growth:.0f}",
                 metric=metric,
+                reference_period_days=0,
             )
             story = {
                 "metric_id": metric_id,
                 "genre": self.genre,  # type: ignore
+                "group": self.group,
                 "type": story_type,
                 "grain": grain.value,
-                "text": story_text,
-                "template": story_meta["template"],
+                "title": story_title,
+                "title_template": story_meta["title"],
+                "detail": story_detail,
+                "detail_template": story_meta["detail"],
                 "variables": {
                     "pop": self.grain_meta[grain]["comp_label"],
                     "grain": grain.value,

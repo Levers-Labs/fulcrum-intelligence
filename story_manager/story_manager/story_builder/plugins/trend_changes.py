@@ -5,14 +5,20 @@ import pandas as pd
 from scipy.stats import linregress
 
 from commons.models.enums import Granularity
-from story_manager.core.enums import STORY_TYPES_META, StoryGenre, StoryType
+from story_manager.core.enums import (
+    STORY_TYPES_META,
+    StoryGenre,
+    StoryGroup,
+    StoryType,
+)
 from story_manager.story_builder import StoryBuilderBase
 
 logger = logging.getLogger(__name__)
 
 
-class TrendsStoryBuilder(StoryBuilderBase):
+class TrendChangesStoryBuilder(StoryBuilderBase):
     genre = StoryGenre.TRENDS  # type: ignore
+    group = StoryGroup.TREND_CHANGES  # type: ignore
     supported_grains = [Granularity.DAY, Granularity.WEEK]
     min_metric_count = 5
 
@@ -140,9 +146,7 @@ class TrendsStoryBuilder(StoryBuilderBase):
         :return: The type of trend identified.
         """
         # Determine trend type
-        if abs(slope_change) < 0.25:
-            trend_type = StoryType.NEW_NORMAL
-        elif slope > prev_slope:
+        if slope > prev_slope:
             trend_type = StoryType.NEW_UPWARD_TREND
         else:
             trend_type = StoryType.NEW_DOWNWARD_TREND
@@ -168,13 +172,16 @@ class TrendsStoryBuilder(StoryBuilderBase):
         Logic:
         - Run Wheeler rules to identify discontinuity
         and mark each data point with "has_discontinuity" as True or False.
-        - If discontinuity exists:
-            - Calculate slope for each data point using stats.linregress from scipy.
-            - Determine trend type based on slope changes:
-                - "NEW_NORMAL" if all slope changes are less than 0.25%.
-                - "NEW_UPWARD_TREND" if the average slope is higher than the previous trend.
-                - "NEW_DOWNWARD_TREND" if the average slope is lower than the previous trend.
-                - "STICKY_DOWNWARD_TREND" if a downward trend persists for more than 7 periods.
+        If a Wheeler rule has not been triggered, a Stable Trend story is created.
+        If a Wheeler rule has been triggered:
+        - A New Upward Trend story is created if the slope of the current Center Line is greater than
+            the slope of the immediately prior Center Line.
+        - A New Downward Trend story is created if the slope of the current Center Line is less than
+            the slope of the immediately prior Center Line.
+        - A Performance Plateau story is created if the slope of the current Center Line is <1%.
+            Note, this logic may result in a Performance Plateau story being created in addition to one
+            of the other stories.
+
 
         Steps:
         1. Iterate over the DataFrame to calculate slope and slope changes.
@@ -206,10 +213,6 @@ class TrendsStoryBuilder(StoryBuilderBase):
         # Aggregate trend information
         current_data = pd.Series()
         prev_data = pd.Series()
-        story_text = None
-
-        downward_trend_periods = 0  # Counter to track consecutive downward trend periods
-        normal_days_count = 0  # Counter to track consecutive days within normal range
 
         # Iterate over the DataFrame to analyze trends
         for i in range(1, len(series_df)):
@@ -231,57 +234,39 @@ class TrendsStoryBuilder(StoryBuilderBase):
                 trend_type = self._identify_trend_type(prev_slope, slope, slope_change)
                 series_df.at[i, "trend_type"] = trend_type
 
-                # Check if the previous trend type was a sticky downward trend
-                # and the current trend type is a new downward trend
-                if (
-                    prev_data["trend_type"] == StoryType.STICKY_DOWNWARD_TREND
-                    and trend_type == StoryType.NEW_DOWNWARD_TREND
-                ):
-                    # If the previous trend was sticky downward and the current trend is also downward,
-                    # consider it as part of the sticky downward trend
-                    series_df.at[i, "trend_type"] = StoryType.STICKY_DOWNWARD_TREND
-
-                elif trend_type == StoryType.NEW_DOWNWARD_TREND:
-                    downward_trend_periods = (
-                        series_df["trend_type"].iloc[max(0, i - 6) : i + 1] == StoryType.NEW_DOWNWARD_TREND
-                    ).sum()
-                    if downward_trend_periods >= 7:
-                        series_df.at[i, "trend_type"] = StoryType.STICKY_DOWNWARD_TREND
-
-            # Check if growth rate is within threshold of 0.25 for normal
-            if abs(current_data["growth_rate"]) <= 0.25:
-                normal_days_count += 1
-            else:
-                # If the streak breaks, update prior_normal_days and reset the streak count
-                normal_days_count = 0
-
         # Generate a single trend story for the last data point if a trend is identified
         last_data_point = series_df.iloc[-1]
         trend_type = last_data_point["trend_type"]
         if trend_type:
             story_meta = STORY_TYPES_META[trend_type]  # type: ignore
-            story_text = self._render_story_text(
+            story_title = self._render_story_title(
+                trend_type,  # type: ignore
+                pop=self.grain_meta[grain]["comp_label"],
+            )
+            story_detail = self._render_story_detail(
                 trend_type,  # type: ignore
                 metric=metric_id,
                 start_date=start_date,
-                end_date=end_date,
                 current_growth=current_data["growth_rate"],
-                prior_growth=prev_data["growth_rate"],
-                previous_normal=prev_data["growth_rate"],
-                prior_normal_days=normal_days_count,
-                downward_day_count=downward_trend_periods,
-                grain_comp=grain,
+                prior_trend_growth=prev_data["growth_rate"],
+                prior_trend_days=0,
+                grain=grain,
                 pop=self.grain_meta[grain]["comp_label"],
                 direction="up" if trend_type == StoryType.NEW_UPWARD_TREND else "down",
+                trend_start_date="",
+                position="",
             )
 
         story_metadata = {
             "metric_id": metric_id,
             "genre": self.genre,  # type: ignore
+            "group": self.group,  # type: ignore
             "type": trend_type,
             "grain": grain,
-            "story_text": story_text,
-            "template": story_meta["template"],
+            "title": story_title,
+            "title_template": story_meta["title"],
+            "detail": story_detail,
+            "detail_template": story_meta["detail"],
             "variables": {
                 "grain": grain,
                 "current_trend_start_date": last_data_point["date"],

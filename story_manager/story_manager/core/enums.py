@@ -8,12 +8,6 @@ class StoryGenre(StrEnum):
 
     GROWTH = "GROWTH"
     TRENDS = "TRENDS"
-    SWINGS = "SWINGS"
-    PERFORMANCE = "PERFORMANCE"
-    MIX_SHIFT = "MIX_SHIFT"
-    SEGMENT_IMPORTANCE = "SEGMENT_IMPORTANCE"
-    INFLUENCE = "INFLUENCE"
-    ROOT_CAUSE = "ROOT_CAUSE"
 
 
 class StoryType(StrEnum):
@@ -25,229 +19,81 @@ class StoryType(StrEnum):
     SLOWING_GROWTH = "SLOWING_GROWTH"
     ACCELERATING_GROWTH = "ACCELERATING_GROWTH"
     # trend stories
+    STABLE_TREND = "STABLE_TREND"
     NEW_UPWARD_TREND = "NEW_UPWARD_TREND"
     NEW_DOWNWARD_TREND = "NEW_DOWNWARD_TREND"
-    STICKY_DOWNWARD_TREND = "STICKY_DOWNWARD_TREND"
-    NEW_NORMAL = "NEW_NORMAL"
-    # swing stories
-    RECORD_HIGH = "RECORD_HIGH"
-    RECORD_LOW = "RECORD_LOW"
-    METRIC_SPIKE = "METRIC_SPIKE"
-    METRIC_DROP = "METRIC_DROP"
-    SEGMENT_SPIKE = "SEGMENT_SPIKE"
-    SEGMENT_DROP = "SEGMENT_DROP"
-    # performance stories
-    LIKELY_RED = "LIKELY_RED"
-    LIKELY_YELLOW = "LIKELY_YELLOW"
-    LIKELY_GREEN = "LIKELY_GREEN"
-    REQUIRED_PERFORMANCE = "REQUIRED_PERFORMANCE"
-    # mix shift stories
-    GROWING_SEGMENT = "GROWING_SEGMENT"
-    SHRINKING_SEGMENT = "SHRINKING_SEGMENT"
-    # segment importance stories
-    IMPROVING_SEGMENT = "IMPROVING_SEGMENT"
-    WORSENING_SEGMENT = "WORSENING_SEGMENT"
-    TOP3_SEGMENT = "TOP3_SEGMENT"
-    BOTTOM3_SEGMENT = "BOTTOM3_SEGMENT"
-    # influence stories
-    STRONGER_INFLUENCE = "STRONGER_INFLUENCE"
-    WEAKER_INFLUENCE = "WEAKER_INFLUENCE"
-    # root cause stories
-    SEASONAL_DRIFT = "SEASONAL_DRIFT"
-    SEGMENT_DRIFT = "SEGMENT_DRIFT"
-    INFLUENCE_DRIFT = "INFLUENCE_DRIFT"
-    COMPONENT_DRIFT = "COMPONENT_DRIFT"
+    PERFORMANCE_PLATEAU = "PERFORMANCE_PLATEAU"
 
 
-GENRE_TO_STORY_TYPE_MAPPING: dict[str, list[str]] = {
-    StoryGenre.GROWTH: [
+class StoryGroup(StrEnum):
+    """
+    Defines the group of the story
+    """
+
+    GROWTH_RATES = "GROWTH_RATES"
+    TREND_CHANGES = "TREND_CHANGES"
+
+
+GROUP_TO_STORY_TYPE_MAPPING = {
+    StoryGroup.GROWTH_RATES: [
         StoryType.SLOWING_GROWTH,
         StoryType.ACCELERATING_GROWTH,
     ],
-    StoryGenre.TRENDS: [
+    StoryGroup.TREND_CHANGES: [
+        StoryType.STABLE_TREND,
         StoryType.NEW_UPWARD_TREND,
         StoryType.NEW_DOWNWARD_TREND,
-        StoryType.STICKY_DOWNWARD_TREND,
-        StoryType.NEW_NORMAL,
-    ],
-    StoryGenre.SWINGS: [
-        StoryType.RECORD_HIGH,
-        StoryType.RECORD_LOW,
-        StoryType.METRIC_SPIKE,
-        StoryType.METRIC_DROP,
-        StoryType.SEGMENT_SPIKE,
-        StoryType.SEGMENT_DROP,
-    ],
-    StoryGenre.PERFORMANCE: [
-        StoryType.LIKELY_RED,
-        StoryType.LIKELY_YELLOW,
-        StoryType.LIKELY_GREEN,
-        StoryType.REQUIRED_PERFORMANCE,
-    ],
-    StoryGenre.MIX_SHIFT: [
-        StoryType.GROWING_SEGMENT,
-        StoryType.SHRINKING_SEGMENT,
-    ],
-    StoryGenre.SEGMENT_IMPORTANCE: [
-        StoryType.IMPROVING_SEGMENT,
-        StoryType.WORSENING_SEGMENT,
-        StoryType.TOP3_SEGMENT,
-        StoryType.BOTTOM3_SEGMENT,
-    ],
-    StoryGenre.INFLUENCE: [
-        StoryType.STRONGER_INFLUENCE,
-        StoryType.WEAKER_INFLUENCE,
-    ],
-    StoryGenre.ROOT_CAUSE: [
-        StoryType.SEASONAL_DRIFT,
-        StoryType.SEGMENT_DRIFT,
-        StoryType.INFLUENCE_DRIFT,
-        StoryType.COMPONENT_DRIFT,
+        StoryType.PERFORMANCE_PLATEAU,
     ],
 }
 
 # Story type meta-information
 STORY_TYPES_META: dict[str, dict[str, str]] = {
     StoryType.SLOWING_GROWTH: {
-        "label": "Slowing Growth",
-        "description": "Indicates a decrease in the rate of growth for this metric, indicating a deceleration in "
-        "progress or expansion.",
-        # e.g., The d/d growth rate of revenue is slowing and has dropped from 10% last month to 5% now.
-        "template": "The {{pop}} growth rate of {{metric.label}} is slowing and has dropped from {{reference_growth}}% "
-        "last {{reference_period}} to {{current_growth}}% now.",
+        "title": "{{pop}} growth is slowing down",
+        # e.g., The d/d growth rate for NewBizDeals is slowing down. It is currently 10% and down from the 15% average
+        # over the past 5 days.
+        "detail": "The {{pop}} growth rate for {{metric.label}} is slowing down. It is currently {{"
+        "current_growth}}% and down from the {{reference_growth}}% average over the past {{"
+        "reference_period_days}} {{grain}}s.",
     },
     StoryType.ACCELERATING_GROWTH: {
-        "label": "Accelerating Growth",
-        "description": "Indicates an increase in the rate of growth for this metric, indicating a quickening pace of "
-        "improvement or success.",
-        "template": "The {{pop}} growth rate of {{metric.label}} is speeding up and has increased "
-        "from {{current_growth}}% last {{reference_period}} to {{reference_growth}}% now.",
+        "title": "{{pop}} growth is speeding up",
+        # e.g., The d/d growth rate for NewBizDeals is speeding up. It is currently 15% and up from the 10% average
+        # over the past 11 days.
+        "detail": "The {{pop}} growth rate for {{metric.label}} is speeding up. It is currently {{current_growth}}% "
+        "and up from the {{reference_growth}}% average over the past {{reference_period_days}} {{"
+        "days}}s.",
+    },
+    StoryType.STABLE_TREND: {
+        "title": "Following a stable trend",
+        # e.g., NewBizDeals continues to follow the trend line it has followed for the past 30 days, averaging a 10%
+        # d/d increase.
+        "detail": "{{metric.label}} continues to follow the trend line it has followed for the past {{"
+        "trend_duration_days}} {{grain}}s, averaging a {{current_growth}}% {{pop}} {{"
+        "movement}}.",
     },
     StoryType.NEW_UPWARD_TREND: {
-        "label": "New Upward Trend",
-        "description": "Indicates a recent, significant, and sustained upward shift in this metric, indicating a "
-        "pattern expected to continue into the future.",
-        "template": "Since {{start_date}}, {{metric}} has been averaging {{current_growth}}% {{pop}} "
-        "growth -- an increase over its average of {{prior_growth}}% {{pop}} growth from "
-        "{{start_date}} to {{end_date}}.",
+        "title": "New upward trend",
+        # e.g., Since 07-04-2024, NewBizDeals has been following a new, upward trend line that averages 15% d/d
+        # growth. The prior trend for this metric lasted 30 days and averaged 10% d/d growth.
+        "detail": "Since {{trend_start_date}}, {{metric.label}} has been following a new, upward trend line that "
+        "averages {{current_growth}}% {{pop}} growth. The prior trend for this metric lasted {{"
+        "prior_trend_days}} days and averaged {{prior_trend_growth}}% {{pop}} growth.",
     },
     StoryType.NEW_DOWNWARD_TREND: {
-        "label": "New Downward Trend",
-        "description": "Indicates a recent, significant, and sustained downward shift in this metric, indicating a "
-        "pattern expected to continue into the future.",
-        "template": "Since {{start_date}}, {{metric}} has been averaging {{current_growth}}% {{pop}} "
-        "growth -- a decrease over its average of {{prior_growth}}% {{pop}} growth from {{"
-        "start_date}} to {{end_date}}.",
+        "title": "New downward trend",
+        # e.g.,  Since 07-04-2024, NewBizDeals has been following a new, downward trend line that averages 5% d/d
+        # growth. The prior trend for this metric lasted 30 days and averaged 10% d/d growth.
+        "detail": "Since {{trend_start_date}}, {{metric.label}} has been following a new, downward trend line that "
+        "averages {{current_growth}}% {{pop}} growth. The prior trend for this metric lasted {{"
+        "prior_trend_days}} days and averaged {{prior_trend_growth}}% {{pop}} growth.",
     },
-    StoryType.STICKY_DOWNWARD_TREND: {
-        "label": "Sticky Downward Trend",
-        "description": "Indicates that a negative trend is a persistent trend.",
-        "template": "{{metric}} continues to worsen for the {{downward_day_count}}th straight {{grain_comp}}, "
-        "averaging {{current_growth}}% {{pop}} decrease.",
-    },
-    StoryType.NEW_NORMAL: {
-        "label": "New Normal",
-        "description": "Identifies a shift in the baseline or average performance of this metric, suggesting a change "
-        "in standard operations or expectations.",
-        "template": "Since {{start_date}}, {{metric}} growth has steadied into a new normal around an average of "
-        "{{current_growth}}% {{direction}} {{prior_growth}}% from the previous normal of "
-        "{{previous_normal}}. The prior 'normal' lasted {{prior_normal_days}} days.",
-    },
-    StoryType.RECORD_HIGH: {
-        "label": "Record High",
-        "description": "Indicates the highest value ever reached by this specific metric in its recorded history.",
-    },
-    StoryType.RECORD_LOW: {
-        "label": "Record Low",
-        "description": "Indicates the lowest value ever reached by this specific metric in its recorded history.",
-    },
-    StoryType.METRIC_SPIKE: {
-        "label": "Metric Spike",
-        "description": "Indicates a sudden and sharp increase in this metric over a short period, suggesting an "
-        "anomaly or unexpected event.",
-    },
-    StoryType.METRIC_DROP: {
-        "label": "Metric Drop",
-        "description": "Indicates a sudden and sharp decrease in this metric over a short period, suggesting an "
-        "anomaly or unexpected event.",
-    },
-    StoryType.SEGMENT_SPIKE: {
-        "label": "Segment Spike",
-        "description": "Indicates a sudden, sharp increase in a single segment of a specific dimension "
-        "for this metric.",
-    },
-    StoryType.SEGMENT_DROP: {
-        "label": "Segment Drop",
-        "description": "Indicates a sudden, sharp decrease in a single segment of a specific dimension "
-        "for this metric.",
-    },
-    StoryType.LIKELY_RED: {
-        "label": "Likely Red",
-        "description": "Indicates a high probability of this metric becoming 'Red' against target.",
-    },
-    StoryType.LIKELY_YELLOW: {
-        "label": "Likely Yellow",
-        "description": "Indicates a high probability of this metric becoming 'Yellow'' against target.",
-    },
-    StoryType.LIKELY_GREEN: {
-        "label": "Likely Green",
-        "description": "Indicates a high probability of this metric getting to 'Green' against target.",
-    },
-    StoryType.REQUIRED_PERFORMANCE: {
-        "label": "Required Performance",
-        "description": "Indicates the required metric performance needed to return to target.",
-    },
-    StoryType.GROWING_SEGMENT: {
-        "label": "Growing Segment",
-        "description": "Indicates that a given dimensional slice is more represented than it has been in the past.",
-    },
-    StoryType.SHRINKING_SEGMENT: {
-        "label": "Shrinking Segment",
-        "description": "TIndicates that a given dimensional slice is less represented than it has been in the past.",
-    },
-    StoryType.IMPROVING_SEGMENT: {
-        "label": "Improving Segment",
-        "description": "Indicates that the average metric value for a given segment is improving.",
-    },
-    StoryType.WORSENING_SEGMENT: {
-        "label": "Worsening Segment",
-        "description": "Indicates that the average metric value for a given segment is worsening.",
-    },
-    StoryType.TOP3_SEGMENT: {
-        "label": "Top 3 Segment",
-        "description": "Indicates that this segment is associated with one of the three highest average metric values "
-        "across all segments.",
-    },
-    StoryType.BOTTOM3_SEGMENT: {
-        "label": "Bottom 3 Segment",
-        "description": "Indicates that this segment is associated with one of the three lowest average metric values "
-        "across all segments.",
-    },
-    StoryType.STRONGER_INFLUENCE: {
-        "label": "Stronger Influence",
-        "description": "Indicates that the relationship between an influence and its output metric has grown stronger.",
-    },
-    StoryType.WEAKER_INFLUENCE: {
-        "label": "Weaker Influence",
-        "description": "Indicates that the relationship between an influence and its output metric has become weaker.",
-    },
-    StoryType.SEASONAL_DRIFT: {
-        "label": "Seasonal Drift",
-        "description": "Highlights movements in this metric attributable to seasonality.",
-    },
-    StoryType.SEGMENT_DRIFT: {
-        "label": "Segment Drift",
-        "description": "Highlights movements in this metric attributable to changes in a single segment of a specific "
-        "dimension.",
-    },
-    StoryType.INFLUENCE_DRIFT: {
-        "label": "Influence Drift",
-        "description": "Highlights movements in this metric attributable to changes in other metrics correlated with "
-        "this one.",
-    },
-    StoryType.COMPONENT_DRIFT: {
-        "label": "Component Drift",
-        "description": "Highlights movements in this metric attributable to changes in specific components or "
-        "elements of this metric.",
+    StoryType.PERFORMANCE_PLATEAU: {
+        "title": "Performance has leveled off",
+        # e.g.,  Since 07-04-2024, NewBizDeals growth has steadied into a new normal, hovering around a 30day
+        # average of 8%.
+        "detail": "Since {{trend_start_date}}, {{metric.label}} growth has steadied into a new normal, hovering "
+        "around a {{grain}} average of {{current_growth}}%.",
     },
 }
