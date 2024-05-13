@@ -194,14 +194,3 @@ def test_apply_filters(user_query):
         ':id_1 AND lower("user".name) LIKE lower(:name_1) AND "user".age > :age_1 AND "user".age < :age_2'
     )
     assert str(filtered_query).replace("\n", "") == expected_query
-
-
-def test_apply_filters_with_multiple_filters(user_query):
-    filters = UserFilter(id=1, name="%john%", age_gt=18, age_lt=30)
-    filtered_query = UserFilter.apply_filters(user_query, filters.dict(exclude_unset=True))
-    expected_query = (
-        'SELECT "user".id, "user".name, "user".age FROM "user" '
-        'WHERE "user".id = :id_1 AND lower("user".name) LIKE lower(:name_1) '
-        'AND "user".age > :age_1 AND "user".age < :age_2'
-    )
-    assert str(filtered_query).replace("\n", "") == expected_query

@@ -5,7 +5,7 @@ import pytest
 
 from commons.models.enums import Granularity
 from story_manager.core.enums import StoryGenre, StoryType
-from story_manager.story_builder.plugins import TrendsStoryBuilder
+from story_manager.story_builder.plugins import TrendChangesStoryBuilder
 
 start_date = date(2024, 4, 7)
 end_date = date(2024, 5, 7)
@@ -13,7 +13,7 @@ end_date = date(2024, 5, 7)
 
 @pytest.fixture
 def trends_story_builder(mock_query_service, mock_analysis_service, mock_db_session):
-    return TrendsStoryBuilder(mock_query_service, mock_analysis_service, mock_db_session)
+    return TrendChangesStoryBuilder(mock_query_service, mock_analysis_service, mock_db_session)
 
 
 @pytest.fixture
@@ -181,7 +181,7 @@ def test_trends_story_builder_analyze_for_empty_data(trends_story_builder):
 )
 def test_get_sliding_start_date(grain, expected_start_date):
     curr_start_date = end_date
-    actual_start_date = TrendsStoryBuilder._get_sliding_start_date(curr_start_date, grain)
+    actual_start_date = TrendChangesStoryBuilder._get_sliding_start_date(curr_start_date, grain)
 
     assert actual_start_date == expected_start_date
 

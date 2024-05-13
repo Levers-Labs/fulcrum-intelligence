@@ -16,9 +16,13 @@ async def test_get_stories(db_session, client):
             grain=Granularity.DAY,
             story_type=StoryType.SLOWING_GROWTH,
             metric_id="CAC",
-            description="Test Story 1",
-            template="Test Story 1",
-            text="This is the content of Test Story 1.",
+            title="d/d growth is slowing down",
+            title_template="{{pop}} growth is slowing down",
+            detail="The d/d growth rate for NewBizDeals is slowing down. It is currently 10% and down from the 15% "
+            "average over the past 5 days.",
+            detail_template="The {{pop}} growth rate for {{metric.label}} is slowing down. It is currently {{"
+            "current_growth}}% and down from the {{reference_growth}}% average over the past {{"
+            "reference_period_days}} {{grain}}s.",
         ),
         Story(
             genre=StoryGenre.GROWTH,
@@ -26,9 +30,13 @@ async def test_get_stories(db_session, client):
             grain=Granularity.DAY,
             story_type=StoryType.ACCELERATING_GROWTH,
             metric_id="NewMRR",
-            description="Test Story 2",
-            template="Test Story 2",
-            text="This is the content of Test Story 2.",
+            title="d/d growth is speeding up",
+            title_template="{{pop}} growth is speeding up",
+            detail="The d/d growth rate for NewBizDeals is speeding up. It is currently 15% and up from the 10% "
+            "average over the past 11 days.",
+            detail_template="The {{pop}} growth rate for {{metric.label}} is speeding up. It is currently {{"
+            "current_growth}}% and up from the {{reference_growth}}% average over the past {{"
+            "reference_period_days}} {{days}}s.",
             is_published=True,
         ),
     ]

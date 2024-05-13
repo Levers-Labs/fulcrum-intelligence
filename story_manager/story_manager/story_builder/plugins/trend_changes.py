@@ -16,7 +16,7 @@ from story_manager.story_builder import StoryBuilderBase
 logger = logging.getLogger(__name__)
 
 
-class TrendsStoryBuilder(StoryBuilderBase):
+class TrendChangesStoryBuilder(StoryBuilderBase):
     genre = StoryGenre.TRENDS  # type: ignore
     group = StoryGroup.TREND_CHANGES  # type: ignore
     supported_grains = [Granularity.DAY, Granularity.WEEK]
@@ -172,13 +172,16 @@ class TrendsStoryBuilder(StoryBuilderBase):
         Logic:
         - Run Wheeler rules to identify discontinuity
         and mark each data point with "has_discontinuity" as True or False.
-        - If discontinuity exists:
-            - Calculate slope for each data point using stats.linregress from scipy.
-            - Determine trend type based on slope changes:
-                - "NEW_NORMAL" if all slope changes are less than 0.25%.
-                - "NEW_UPWARD_TREND" if the average slope is higher than the previous trend.
-                - "NEW_DOWNWARD_TREND" if the average slope is lower than the previous trend.
-                - "STICKY_DOWNWARD_TREND" if a downward trend persists for more than 7 periods.
+        If a Wheeler rule has not been triggered, a Stable Trend story is created.
+        If a Wheeler rule has been triggered:
+        - A New Upward Trend story is created if the slope of the current Center Line is greater than
+            the slope of the immediately prior Center Line.
+        - A New Downward Trend story is created if the slope of the current Center Line is less than
+            the slope of the immediately prior Center Line.
+        - A Performance Plateau story is created if the slope of the current Center Line is <1%.
+            Note, this logic may result in a Performance Plateau story being created in addition to one
+            of the other stories.
+
 
         Steps:
         1. Iterate over the DataFrame to calculate slope and slope changes.
@@ -210,7 +213,6 @@ class TrendsStoryBuilder(StoryBuilderBase):
         # Aggregate trend information
         current_data = pd.Series()
         prev_data = pd.Series()
-        story_text = None
 
         # Iterate over the DataFrame to analyze trends
         for i in range(1, len(series_df)):
@@ -237,7 +239,11 @@ class TrendsStoryBuilder(StoryBuilderBase):
         trend_type = last_data_point["trend_type"]
         if trend_type:
             story_meta = STORY_TYPES_META[trend_type]  # type: ignore
-            story_text = self._render_story_text(
+            story_title = self._render_story_title(
+                trend_type,  # type: ignore
+                pop=self.grain_meta[grain]["comp_label"],
+            )
+            story_detail = self._render_story_detail(
                 trend_type,  # type: ignore
                 metric=metric_id,
                 start_date=start_date,
@@ -257,8 +263,10 @@ class TrendsStoryBuilder(StoryBuilderBase):
             "group": self.group,  # type: ignore
             "type": trend_type,
             "grain": grain,
-            "story_text": story_text,
-            "template": story_meta["template"],
+            "title": story_title,
+            "title_template": story_meta["title"],
+            "detail": story_detail,
+            "detail_template": story_meta["detail"],
             "variables": {
                 "grain": grain,
                 "current_trend_start_date": last_data_point["date"],

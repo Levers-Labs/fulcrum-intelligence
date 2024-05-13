@@ -72,18 +72,31 @@ class StoryBuilderBase(ABC):
         time_series_df.set_index("date", inplace=True)
         return time_series_df
 
-    def _render_story_text(self, story_type: StoryType, **context) -> str:
+    def _render_story_detail(self, story_type: StoryType, **context) -> str:
         """
-        Render the story text using the story type and context variables
+        Render the story detail using the story type and context variables
 
         :param story_type: The type of the story
-        :param context: Additional context variables required for rendering the story text
-        :return: The rendered story text
+        :param context: Additional context variables required for rendering the story detail
+        :return: The rendered story detail
         """
         logger.debug(f"Rendering story text for story type '{story_type}'")
         story_meta = STORY_TYPES_META[story_type]
-        template = Template(story_meta["template"])
-        return template.render(**context)
+        detail = Template(story_meta["detail"])
+        return detail.render(**context)
+
+    def _render_story_title(self, story_type: StoryType, **context) -> str:
+        """
+        Render the story title using the story type and context variables
+
+        :param story_type: The type of the story
+        :param context: Additional context variables required for rendering the story title
+        :return: The rendered story title
+        """
+        logger.debug(f"Rendering story title for story type '{story_type}'")
+        story_meta = STORY_TYPES_META[story_type]
+        title = Template(story_meta["title"])
+        return title.render(**context)
 
     @abstractmethod
     async def generate_stories(self, metric_id: str, grain: Granularity) -> list[dict]:

@@ -132,7 +132,11 @@ class GrowthStoryBuilder(StoryBuilderBase):
                 StoryType.ACCELERATING_GROWTH if current_growth > reference_growth else StoryType.SLOWING_GROWTH
             )
             story_meta = STORY_TYPES_META[story_type]
-            story_text = self._render_story_text(
+            story_title = self._render_story_title(
+                story_type,  # type: ignore
+                pop=self.grain_meta[grain]["comp_label"],
+            )
+            story_detail = self._render_story_detail(
                 story_type,  # type: ignore
                 pop=self.grain_meta[grain]["comp_label"],
                 grain=grain.value,
@@ -147,8 +151,10 @@ class GrowthStoryBuilder(StoryBuilderBase):
                 "group": self.group,
                 "type": story_type,
                 "grain": grain.value,
-                "text": story_text,
-                "template": story_meta["template"],
+                "title": story_title,
+                "title_template": story_meta["title"],
+                "detail": story_detail,
+                "detail_template": story_meta["detail"],
                 "variables": {
                     "pop": self.grain_meta[grain]["comp_label"],
                     "grain": grain.value,

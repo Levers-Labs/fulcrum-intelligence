@@ -32,9 +32,10 @@ class Story(StorySchemaBaseModel, table=True):  # type: ignore
     grain: Granularity = Field(sa_column=Column(Enum(Granularity, name="grain", inherit_schema=True), index=True))
 
     metric_id: str = Field(max_length=255, index=True)
-    description: str = Field(sa_type=Text)
-    template: str = Field(sa_type=Text)
-    text: str = Field(sa_type=Text)
+    title: str = Field(sa_type=Text)
+    title_template: str = Field(sa_type=Text)
+    detail: str = Field(sa_type=Text)
+    detail_template: str = Field(sa_type=Text)
     variables: dict = Field(default_factory=dict, sa_type=JSONB)
     series: dict = Field(default_factory=dict, sa_type=JSONB)
 
