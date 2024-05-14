@@ -4,7 +4,7 @@ import pytest
 
 from fulcrum_core import AnalysisManager
 from fulcrum_core.execptions import InsufficientDataError
-from fulcrum_core.modules.process_control import ProcessControlAnalyzer
+from fulcrum_core.modules import ProcessControlAnalyzer
 
 
 @pytest.fixture(name="input_df")

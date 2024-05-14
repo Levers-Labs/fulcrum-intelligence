@@ -26,6 +26,8 @@ from analysis_manager.core.schema import (
     CorrelateRequest,
     DescribeRequest,
     DescribeResponse,
+    ForecastRequest,
+    ForecastResponse,
     ProcessControlRequest,
     ProcessControlResponse,
     UserList,
@@ -209,3 +211,54 @@ async def component_drift(
         comparison_start_date=drift_req.comparison_start_date,
         comparison_end_date=drift_req.comparison_end_date,
     )
+
+
+@router.post("/forecast/simple", response_model=list[ForecastResponse])
+async def simple_forecast(
+    analysis_manager: AnalysisManagerDep,
+    query_manager: QueryManagerClientDep,
+    request: Annotated[
+        ForecastRequest,
+        Body(
+            examples=[
+                {
+                    "metric_id": "NewBizDeals",
+                    "start_date": "2024-01-01",
+                    "end_date": "2024-04-30",
+                    "grain": "day",
+                    "forecast_horizon": 7,
+                    "confidence_interval": 95,
+                }
+            ]
+        ),
+    ],
+) -> Any:
+    """
+    Simple Forecast a metric.
+    """
+    # get metric values for the given metric_ids and date range
+    values_df = await query_manager.get_metric_time_series_df(
+        metric_id=request.metric_id, start_date=request.start_date, end_date=request.end_date, grain=request.grain
+    )
+    if values_df.empty:
+        raise HTTPException(status_code=400, detail="No data found for the given metric")
+
+    try:
+        forecast_horizon = request.forecast_horizon
+        forcast_till_date = request.forecast_till_date
+        if forecast_horizon is None and forcast_till_date is None:
+            raise HTTPException(
+                status_code=400, detail="Either forecast_horizon or forecast_till_date should be provided"
+            )
+        res = analysis_manager.simple_forecast(
+            df=values_df,
+            grain=request.grain,  # type: ignore
+            forecast_horizon=request.forecast_horizon,
+            forecast_till_date=request.forecast_till_date,
+            conf_interval=request.confidence_interval,
+        )
+    except InsufficientDataError as e:
+        logger.error(f"Insufficient data for forecast analysis: {e}")
+        raise HTTPException(status_code=400, detail=e.message) from e
+
+    return res
