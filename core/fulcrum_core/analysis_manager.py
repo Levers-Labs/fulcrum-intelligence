@@ -208,7 +208,12 @@ class AnalysisManager:
         return response
 
     def simple_forecast(
-        self, df: pd.DataFrame, grain: Granularity, end_date: pd.Timestamp, conf_interval=None
+        self,
+        df: pd.DataFrame,
+        grain: Granularity,
+        forecast_horizon: int | None = None,
+        forecast_till_date: date | None = None,
+        conf_interval: float | None = None,
     ) -> list[dict]:
         """
         perform simple forecasting on the given time series data.
@@ -219,7 +224,8 @@ class AnalysisManager:
         Args:
             df (pd.DataFrame): The input time series data with 'date' and 'value' columns.
             grain (str): The granularity of the data. supported values are 'day', 'week', 'month', and 'quarter'.
-            end_date (pd.Timestamp): The end date for the forecast.
+            forecast_horizon (int): The number of periods to forecast into the future.
+            forecast_till_date (pd.Timestamp): The end date for the forecast.
             conf_interval (float): The confidence interval for the forecast. default is 0.95.
 
         Returns:
@@ -229,9 +235,16 @@ class AnalysisManager:
                 - 'value': The value of the metric for the time period.
                 - 'confidence_interval': The confidence intervals for the forecasted value.
         """
+        if forecast_horizon is None and forecast_till_date is None:
+            raise ValueError("Either forecast_horizon or forecast_till_date should be provided")
+
         kwargs = {}
         if conf_interval:
             kwargs["conf_interval"] = conf_interval
         forecast = SimpleForecast(df, grain=grain)
-        results = forecast.predict_till_date(end_date, **kwargs)
+        results = []
+        if forecast_horizon:
+            results = forecast.predict_n(forecast_horizon, **kwargs)
+        elif forecast_till_date:
+            results = forecast.predict_till_date(forecast_till_date, **kwargs)
         return results

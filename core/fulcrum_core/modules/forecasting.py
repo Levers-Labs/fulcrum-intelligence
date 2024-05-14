@@ -12,6 +12,10 @@ logger = logging.getLogger(__name__)
 
 class SimpleForecast:
     DEFAULT_CONFIDENCE_INTERVAL: float = 95
+    DECIMAL_PRECISION = 3
+
+    # todo: fix negative confidence_intervals
+    # todo: fix issues for month even with min values
 
     def __init__(self, df: pd.DataFrame, grain: Granularity):
         """
@@ -180,8 +184,8 @@ class SimpleForecast:
             res.append(
                 {
                     "date": future_dates[i].date(),  # noqa
-                    "value": forecast_values[i],
-                    "confidence_interval": conf_int[i],
+                    "value": round(forecast_values[i], self.DECIMAL_PRECISION),
+                    "confidence_interval": list(map(lambda x: round(x, self.DECIMAL_PRECISION), conf_int[i])),
                 }
             )
 

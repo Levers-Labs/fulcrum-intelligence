@@ -234,7 +234,7 @@ def test_analysis_manager_simple_forecast(input_df):
     expected_count = 12
 
     # Act
-    result = analysis_manager.simple_forecast(input_df.copy(), Granularity.MONTH, pd.Timestamp("2026-07-31"))
+    result = analysis_manager.simple_forecast(input_df.copy(), Granularity.MONTH, forecast_till_date=date(2026, 7, 1))
 
     # Assert
     assert len(result) == expected_count
@@ -246,9 +246,37 @@ def test_analysis_manager_simple_forecast(input_df):
     assert "confidence_interval" in result[-1]
 
     # Act
-    result = analysis_manager.simple_forecast(input_df.copy(), Granularity.MONTH, pd.Timestamp("2026-07-31"), 90)
+    result = analysis_manager.simple_forecast(
+        input_df.copy(), Granularity.MONTH, forecast_till_date=pd.Timestamp("2026-07-31"), conf_interval=90
+    )
 
     # Assert
     assert len(result) == expected_count
     assert result[0]["value"] == pytest.approx(12675, 100)
     assert result[-1]["value"] == pytest.approx(12415, 100)
+
+
+def test_analysis_manager_simple_forecast_forecast_horizon(input_df):
+    # Prepare
+    analysis_manager = AnalysisManager()
+    expected_count = 5
+
+    # Act
+    result = analysis_manager.simple_forecast(input_df.copy(), Granularity.MONTH, forecast_horizon=5)
+
+    # Assert
+    assert len(result) == expected_count
+    assert result[0]["date"] == date(2025, 8, 1)
+    assert result[-1]["date"] == date(2025, 12, 1)
+    assert result[0]["value"] == pytest.approx(12675, 100)
+    assert result[-1]["value"] == pytest.approx(12415, 100)
+    assert "confidence_interval" in result[0]
+
+
+def test_analysis_manager_simple_forecast_error(input_df):
+    # Prepare
+    analysis_manager = AnalysisManager()
+
+    # Act
+    with pytest.raises(AnalysisError):
+        analysis_manager.simple_forecast(input_df.copy(), Granularity.MONTH)

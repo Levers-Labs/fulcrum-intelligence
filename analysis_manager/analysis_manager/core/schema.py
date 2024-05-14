@@ -68,3 +68,24 @@ class ProcessControlResponse(BaseModel):
     slope: float | None = None
     slope_change: float | None = None
     trend_signal_detected: bool | None = None
+
+
+class ForecastRequest(BaseModel):
+    metric_id: str
+    start_date: date
+    end_date: date
+    grain: Granularity
+    # either forecast_horizon or forecast_till_date should be provided
+    forecast_horizon: int | None = None
+    # horizon is calculated based on the forecast_till_date
+    forecast_till_date: date | None = None
+    confidence_interval: float | None = Field(
+        None, description="Confidence interval for the forecast, between 0 and 100"
+    )
+
+
+class ForecastResponse(BaseModel):
+    date: date
+    value: float
+    # lower and upper bounds of the confidence interval
+    confidence_interval: tuple[float, float] | None = None

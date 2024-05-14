@@ -372,3 +372,141 @@ async def test_component_drift_route(client, mocker, metric_cac, metric_list):
     assert response.json()["components"][0]["metric_id"] == "SalesMktSpend"
     assert response.json()["components"][0]["drift"] is not None
     assert len(response.json()["components"][0]["components"]) == 2
+
+
+@pytest.mark.asyncio
+async def test_simple_forecast_route(client, mocker):
+    # Prepare
+    input_df = pd.DataFrame(
+        {
+            "date": pd.date_range("2022-01-01", periods=20, freq="MS"),
+            "value": random.sample(range(10000, 12000), 20),
+        }
+    )
+    mock_get_metric_time_series_df = AsyncMock(return_value=input_df)
+    mocker.patch.object(QueryManagerClient, "get_metric_time_series_df", mock_get_metric_time_series_df)
+
+    # Act
+    response = client.post(
+        "/v1/analyze/forecast/simple",
+        json={
+            "metric_id": "NewMRR",
+            "start_date": "2022-01-01",
+            "end_date": "2022-12-31",
+            "grain": "month",
+            "forecast_horizon": 6,
+            "confidence_interval": 95,
+        },
+    )
+
+    # Assert
+    response_data = response.json()
+    assert response.status_code == 200
+    assert len(response_data) == 6
+    assert [res["date"] for res in response_data] == [
+        "2023-09-01",
+        "2023-10-01",
+        "2023-11-01",
+        "2023-12-01",
+        "2024-01-01",
+        "2024-02-01",
+    ]
+    # value is not none
+    assert all(res["value"] is not None for res in response_data)
+
+    # Prepare with forecast_till_date
+    input_df = pd.DataFrame(
+        {
+            "date": pd.date_range("2022-05-01", periods=20, freq="MS"),
+            "value": random.sample(range(10000, 12000), 20),
+        }
+    )
+    mock_get_metric_time_series_df = AsyncMock(return_value=input_df)
+    mocker.patch.object(QueryManagerClient, "get_metric_time_series_df", mock_get_metric_time_series_df)
+
+    # Act
+    response = client.post(
+        "/v1/analyze/forecast/simple",
+        json={
+            "metric_id": "NewMRR",
+            "start_date": "2022-01-01",
+            "end_date": "2024-01-01",
+            "grain": "month",
+            "forecast_till_date": "2024-03-01",
+            "confidence_interval": 95,
+        },
+    )
+
+    # Assert
+    response_data = response.json()
+
+    assert response.status_code == 200
+    assert len(response_data) == 3
+    assert [res["date"] for res in response_data] == ["2024-01-01", "2024-02-01", "2024-03-01"]
+
+
+@pytest.mark.asyncio
+async def test_simple_forecast_route_bad_request(client, mocker):
+    # Prepare
+    input_df = pd.DataFrame(
+        {
+            "date": pd.date_range("2022-01-01", periods=20, freq="MS"),
+            "value": random.sample(range(10000, 12000), 20),
+        }
+    )
+    mock_get_metric_time_series_df = AsyncMock(return_value=input_df)
+    mocker.patch.object(QueryManagerClient, "get_metric_time_series_df", mock_get_metric_time_series_df)
+
+    # Act
+    response = client.post(
+        "/v1/analyze/forecast/simple",
+        json={"metric_id": "NewMRR", "start_date": "2022-01-01", "end_date": "2022-12-31", "grain": "month"},
+    )
+
+    # Assert
+    assert response.status_code == 400
+
+    # Prepare for insufficient data
+    input_df = pd.DataFrame(
+        {
+            "date": pd.date_range("2022-01-01", periods=5, freq="MS"),
+            "value": random.sample(range(10000, 12000), 5),
+        }
+    )
+    mock_get_metric_time_series_df = AsyncMock(return_value=input_df)
+    mocker.patch.object(QueryManagerClient, "get_metric_time_series_df", mock_get_metric_time_series_df)
+
+    # Act
+    response = client.post(
+        "/v1/analyze/forecast/simple",
+        json={
+            "metric_id": "NewMRR",
+            "start_date": "2022-01-01",
+            "end_date": "2022-12-31",
+            "grain": "month",
+            "forecast_horizon": 6,
+        },
+    )
+
+    # Assert
+    assert response.status_code == 400
+
+    # Prepare no data
+    input_df = pd.DataFrame()
+    mock_get_metric_time_series_df = AsyncMock(return_value=input_df)
+    mocker.patch.object(QueryManagerClient, "get_metric_time_series_df", mock_get_metric_time_series_df)
+
+    # Act
+    response = client.post(
+        "/v1/analyze/forecast/simple",
+        json={
+            "metric_id": "NewMRR",
+            "start_date": "2022-01-01",
+            "end_date": "2022-12-31",
+            "grain": "month",
+            "forecast_horizon": 6,
+        },
+    )
+
+    # Assert
+    assert response.status_code == 400
