@@ -101,7 +101,7 @@ def test_get_min_data_points(input_df):
     month_expected = 12
     week_expected = 52
     quarter_expected = 4
-    day_expected = 365
+    day_expected = 30
     forcast = SimpleForecast(input_df, Granularity.MONTH)
 
     # Act
@@ -278,5 +278,5 @@ def test_analysis_manager_simple_forecast_error(input_df):
     analysis_manager = AnalysisManager()
 
     # Act
-    with pytest.raises(AnalysisError):
+    with pytest.raises(ValueError):
         analysis_manager.simple_forecast(input_df.copy(), Granularity.MONTH)

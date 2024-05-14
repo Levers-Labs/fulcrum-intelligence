@@ -52,7 +52,7 @@ class SimpleForecast:
         elif self.grain == Granularity.QUARTER:
             return 4
         elif self.grain == Granularity.DAY:
-            return 365
+            return 30
         else:
             return 1
 
