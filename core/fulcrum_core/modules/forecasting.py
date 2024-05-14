@@ -16,6 +16,7 @@ class SimpleForecast:
 
     # todo: fix negative confidence_intervals
     # todo: fix issues for month even with min values
+    # todo: fix issues where day grain takes too long to train
 
     def __init__(self, df: pd.DataFrame, grain: Granularity):
         """
@@ -38,7 +39,7 @@ class SimpleForecast:
         """
         Get the start date for the forecasting
         """
-        return self.df["date"].iloc[-1]
+        return self.df.index[-1] if isinstance(self.df.index, pd.DatetimeIndex) else self.df["date"].iloc[-1]
 
     def _get_min_data_points(self) -> int:
         """
@@ -164,7 +165,7 @@ class SimpleForecast:
         :return: list of dict with date, value, confidence_interval
         """
         # Calculate confidence interval value according to percentage
-        alpha = 1 - (conf_interval / 100.0)
+        alpha = conf_interval / 100.0
 
         # train the model
         model = self.train()
