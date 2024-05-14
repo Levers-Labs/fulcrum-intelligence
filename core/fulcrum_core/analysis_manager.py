@@ -6,8 +6,8 @@ import pandas as pd
 
 from fulcrum_core.correlate import correlate
 from fulcrum_core.describe import describe
-from fulcrum_core.modules import ComponentDriftEvaluator
-from fulcrum_core.modules.process_control import ProcessControlAnalyzer
+from fulcrum_core.enums import Granularity
+from fulcrum_core.modules import ComponentDriftEvaluator, ProcessControlAnalyzer, SimpleForecast
 
 logger = logging.getLogger(__name__)
 
@@ -206,3 +206,32 @@ class AnalysisManager:
             response,
         )
         return response
+
+    def simple_forecast(
+        self, df: pd.DataFrame, grain: Granularity, end_date: pd.Timestamp, conf_interval=None
+    ) -> list[dict]:
+        """
+        perform simple forecasting on the given time series data.
+        the model is trained on the input data and used to forecast the future values.
+        for the period of the latest data point to the end date, n predictions are made
+        where n is the number of periods between the latest data point and the end date each granular level.
+
+        Args:
+            df (pd.DataFrame): The input time series data with 'date' and 'value' columns.
+            grain (str): The granularity of the data. supported values are 'day', 'week', 'month', and 'quarter'.
+            end_date (pd.Timestamp): The end date for the forecast.
+            conf_interval (float): The confidence interval for the forecast. default is 0.95.
+
+        Returns:
+            list[dict]: The forecasted time series data with additional calculated columns.
+            the result list will have the following dictionary for each time period:
+                - 'date': The date of the time period.
+                - 'value': The value of the metric for the time period.
+                - 'confidence_interval': The confidence intervals for the forecasted value.
+        """
+        kwargs = {}
+        if conf_interval:
+            kwargs["conf_interval"] = conf_interval
+        forecast = SimpleForecast(df, grain=grain)
+        results = forecast.predict_till_date(end_date, **kwargs)
+        return results
