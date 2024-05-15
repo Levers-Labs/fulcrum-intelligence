@@ -159,10 +159,12 @@ class QueryManagerClient(AsyncHttpClient):
         """
         return await self.get(endpoint=f"metrics/{metric_id}")
 
-    async def list_metrics(self, metric_ids: list[str] | None = None) -> list[dict[str, Any]]:
+    async def list_metrics(self, metric_ids: list[str] | None = None, **params) -> list[dict[str, Any]]:
         """
         List metrics.
         metric_ids: list of metric ids
         """
-        response = await self.get(endpoint="metrics", params={"metric_ids": metric_ids})
+        if metric_ids is not None:
+            params["metric_ids"] = metric_ids
+        response = await self.get(endpoint="metrics", params=params)
         return response["results"]
