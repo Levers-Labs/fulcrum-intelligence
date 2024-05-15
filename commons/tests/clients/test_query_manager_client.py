@@ -203,3 +203,50 @@ async def test_list_metrics(mocker):
     # Assert
     assert results == [{"id": "metric1"}, {"id": "metric2"}]
     get_mock.assert_called_once_with(endpoint="metrics", params={"metric_ids": metric_ids})
+
+
+@pytest.mark.asyncio
+async def test_get_metric_targets(mocker):
+    # Arrange
+    client = QueryManagerClient(base_url="https://example.com")
+    mock_response = [
+        {
+            "metric_id": "metric1",
+            "grain": "week",
+            "target_date": "2021-01-01",
+            "aim": "maximize",
+            "target_value": 100.0,
+            "target_upper_bound": 115.0,
+            "target_lower_bound": 85.0,
+            "yellow_buffer": 1.5,
+            "red_buffer": 3.0,
+        }
+    ]
+    get_mock = AsyncMock(return_value={"results": mock_response})
+    mocker.patch.object(client, "get", get_mock)
+    metric_id = "test_metric"
+
+    # Act
+    results = await client.get_metric_targets(metric_id)
+
+    # Assert
+    assert results == mock_response
+    get_mock.assert_called_once_with(endpoint=f"metrics/{metric_id}/targets", params={})
+
+    # Act
+    # with time range
+    start_date = date(2023, 1, 1)
+    end_date = date(2023, 1, 31)
+    grain = Granularity.WEEK
+    results = await client.get_metric_targets(metric_id, grain=grain, start_date=start_date, end_date=end_date)
+
+    # Assert
+    assert results == mock_response
+    get_mock.assert_called_with(
+        endpoint=f"metrics/{metric_id}/targets",
+        params={
+            "start_date": start_date.strftime("%Y-%m-%d"),
+            "end_date": end_date.strftime("%Y-%m-%d"),
+            "grain": grain.value,
+        },
+    )

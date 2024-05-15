@@ -168,3 +168,23 @@ class QueryManagerClient(AsyncHttpClient):
             params["metric_ids"] = metric_ids
         response = await self.get(endpoint="metrics", params=params)
         return response["results"]
+
+    async def get_metric_targets(
+        self,
+        metric_id: str,
+        grain: Granularity | None = None,
+        start_date: date | None = None,
+        end_date: date | None = None,
+    ) -> list[dict[str, Any]]:
+        """
+        Get metric targets.
+        metric_id: metric id
+        """
+        params = {}
+        if grain:
+            params["grain"] = grain.value
+        if start_date and end_date:
+            params["start_date"] = start_date.strftime(self.DATE_FORMAT)
+            params["end_date"] = end_date.strftime(self.DATE_FORMAT)
+        res = await self.get(endpoint=f"metrics/{metric_id}/targets", params=params)
+        return res["results"]
