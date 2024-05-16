@@ -17,6 +17,7 @@ from story_manager.core.enums import (
     StoryGroup,
     StoryType,
 )
+from story_manager.story_builder.constants import GRAIN_META, STORY_GROUP_TIME_DURATIONS
 
 logger = logging.getLogger(__name__)
 
@@ -29,13 +30,10 @@ class StoryBuilderBase(ABC):
     genre: StoryGenre
     group: StoryGroup
     supported_grains: list[Granularity] = []
-    grain_meta: dict[str, Any] = {
-        Granularity.DAY: {"comp_label": "d/d", "delta": {"days": 1}},
-        Granularity.WEEK: {"comp_label": "w/w", "delta": {"weeks": 1}},
-        Granularity.MONTH: {"comp_label": "m/m", "delta": {"months": 1}},
-        Granularity.QUARTER: {"comp_label": "q/q", "delta": {"months": 3}},
-        Granularity.YEAR: {"comp_label": "y/y", "delta": {"years": 1}},
-    }
+    # decimal precision
+    precision = 3
+    # date format
+    date_text_format = "%B %d, %Y"
 
     def __init__(
         self,
@@ -58,7 +56,7 @@ class StoryBuilderBase(ABC):
         self.db_session = db_session
 
     async def _get_time_series_data(
-        self, metric_id: str, grain: Granularity, start_date: date, end_date: date
+        self, metric_id: str, grain: Granularity, start_date: date, end_date: date, set_index: bool = False
     ) -> pd.DataFrame:
         """
         Retrieve time series data for the given metric, grain, and date range
@@ -67,6 +65,7 @@ class StoryBuilderBase(ABC):
         :param grain: The grain for which time series data is retrieved
         :param start_date: The start date of the time series data
         :param end_date: The end date of the time series data
+        :param set_index: Whether to set the date column as the index of the DataFrame
         :return: A pandas DataFrame containing the time series data
         """
         logger.debug(
@@ -77,34 +76,98 @@ class StoryBuilderBase(ABC):
         )
         time_series_df = pd.DataFrame(metric_values, columns=["date", "value"])
         time_series_df["date"] = pd.to_datetime(time_series_df["date"])
-        time_series_df.set_index("date", inplace=True)
+        if set_index:
+            time_series_df.set_index("date", inplace=True)
         return time_series_df
 
-    def _render_story_detail(self, story_type: StoryType, **context) -> str:
+    def get_story_context(self, grain: Granularity, metric: dict, **context) -> dict[str, Any]:
         """
-        Render the story detail using the story type and context variables
+        Get the context variables required for rendering the story detail and title
+
+        The base class will add some of the default context variables like
+        * eoi* → end of interval (EOD, EOW, EOM)
+        * interval* → daily, weekly, monthly
+        * grain* → day, week, month
+        * pop* → period over period (d/d , w/w, m/m)
+
+        Provided context variables will be added to the context dictionary
+
+        :param grain: The grain for which the context variables are retrieved
+        :param metric: The metric for which the context variables are retrieved
+        :param context: Additional context variables
+        :return: A dictionary containing the context variables
+        """
+        logger.debug(f"Getting story context for grain '{grain}' and metric '{metric['id']}'")
+        grain_meta = GRAIN_META[grain]
+        _context = {
+            "grain": grain.value,
+            "eoi": grain_meta["eoi"],
+            "metric": {"id": metric["id"], "label": metric["label"]},
+            "pop": grain_meta["pop"],
+            "interval": grain_meta["interval"],
+        }
+        # update the context with additional context variables
+        _context.update(context)
+        return _context
+
+    def _render_story_texts(
+        self, story_type: StoryType, grain: Granularity, metric: dict, **extra_context
+    ) -> dict[str, Any]:
+        """
+        Render the story title and detail using the story type and context variables
 
         :param story_type: The type of the story
-        :param context: Additional context variables required for rendering the story detail
-        :return: The rendered story detail
+        :param context: Additional context variables required for rendering the story title and detail
+        :return: The dict containing the rendered story title and detail as well as the context variables
         """
-        logger.debug(f"Rendering story text for story type '{story_type}'")
-        story_meta = STORY_TYPES_META[story_type]
-        detail = Template(story_meta["detail"])
-        return detail.render(**context)
+        logger.debug(f"Rendering story texts for story type '{story_type}'")
 
-    def _render_story_title(self, story_type: StoryType, **context) -> str:
-        """
-        Render the story title using the story type and context variables
+        context = self.get_story_context(grain, metric, **extra_context)
 
-        :param story_type: The type of the story
-        :param context: Additional context variables required for rendering the story title
-        :return: The rendered story title
-        """
-        logger.debug(f"Rendering story title for story type '{story_type}'")
+        # get the story meta-data
         story_meta = STORY_TYPES_META[story_type]
+        # render the story title and detail
         title = Template(story_meta["title"])
-        return title.render(**context)
+        detail = Template(story_meta["detail"])
+        return {
+            "title": title.render(context),
+            "detail": detail.render(context),
+            "title_template": story_meta["title"],
+            "detail_template": story_meta["detail"],
+            "variables": context,
+        }
+
+    def prepare_story_dict(
+        self, story_type: StoryType, grain: Granularity, metric: dict, df: pd.DataFrame, **extra_context
+    ) -> dict[str, Any]:
+        """
+        Prepare the story dictionary with the required fields
+
+        :param story_type: The type of the story
+        :param grain: The grain for which the story is generated.
+        :param metric: The metric for which the story is generated.
+        :param df: The time series data for the story
+        :param extra_context: Additional context variables for the story
+
+        :return: A dictionary containing the story details
+        """
+        logger.debug(f"Preparing story dictionary for story type '{story_type}'")
+        grain_durations = self.get_time_durations(grain)
+        series_length = grain_durations["output"]
+        story_texts = self._render_story_texts(story_type, grain=grain, metric=metric, **extra_context)
+        return {
+            "metric_id": metric["id"],
+            "genre": self.genre,
+            "group": self.group,
+            "type": story_type,
+            "grain": grain,
+            "series": df.tail(series_length).to_dict(orient="records"),
+            "title": story_texts["title"],
+            "detail": story_texts["detail"],
+            "title_template": story_texts["title_template"],
+            "detail_template": story_texts["detail_template"],
+            "variables": story_texts["variables"],
+        }
 
     @abstractmethod
     async def generate_stories(self, metric_id: str, grain: Granularity) -> list[dict]:
@@ -132,9 +195,9 @@ class StoryBuilderBase(ABC):
                 f"story group '{self.group.value}'"
             )
 
-        logger.info(f"Generating stories for metric '{metric_id}' with grain '{grain}'")
+        logger.info("Generating %s stories for metric '%s' with grain '%s'", self.group.value, metric_id, grain)
         stories = await self.generate_stories(metric_id, grain)
-        logger.info(f"Generated {len(stories)} stories for metric '{metric_id}' with grain '{grain}'")
+        logger.info("Generated %s stories for metric '%s' with grain '%s'", len(stories), metric_id, grain)
         await self.persist_stories(stories)
 
     async def persist_stories(self, stories: list[dict]) -> None:
@@ -186,6 +249,43 @@ class StoryBuilderBase(ABC):
         else:
             raise ValueError(f"Unsupported grain: {grain}")
         return start_date, end_date
+
+    def get_time_durations(self, grain: Granularity) -> dict[str, Any]:
+        """
+        Get the time durations for the given grain and group
+
+        :param grain: The grain for which the time durations are retrieved
+        :return: A dictionary containing the time durations
+        """
+        if self.group not in STORY_GROUP_TIME_DURATIONS or grain not in STORY_GROUP_TIME_DURATIONS[self.group]:
+            raise ValueError(f"Unsupported group '{self.group}' or grain '{grain}'")
+        return STORY_GROUP_TIME_DURATIONS[self.group][grain]
+
+    def _get_input_time_range(self, grain: Granularity, curr_date: date | None = None) -> tuple[date, date]:
+        """
+        Get the time range for the input data based on the grain.
+
+        :param curr_date: The current date for which the time range is calculated.
+        :param grain: The grain for which the time range is retrieved.
+
+        :return: The start and end date of the time range.
+        """
+
+        latest_start_date, latest_end_date = self._get_current_period_range(grain, curr_date)
+
+        grain_durations = self.get_time_durations(grain)
+
+        # figure out the number of grain deltas to go back
+        period_count = grain_durations["input"]
+
+        # figure out relevant grain delta .e.g weeks : 1
+        delta_eq = GRAIN_META[grain]["delta"]
+
+        # Go back by the determined grain delta
+        delta = pd.DateOffset(**delta_eq)
+        start_date = (latest_start_date - period_count * delta).date()
+
+        return start_date, latest_end_date
 
     @staticmethod
     def _calculate_growth_rates_of_series(series_df: pd.DataFrame, remove_first_nan_row: bool = True) -> pd.DataFrame:

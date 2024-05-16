@@ -211,8 +211,7 @@ class ProcessControlAnalyzer:
         df["value"] = pd.to_numeric(df["value"], errors="coerce")
         df = df.drop_duplicates(subset=["date"]).reset_index(drop=True)
 
-        # drop rows with missing/0 values
-        df = df.dropna(subset=["value"]).query("value != 0").reset_index(drop=True)
+        # todo: should we drop 0 values?
 
         # check if the minimum of 10 data points is available for analysis
         if len(df) < 10:
