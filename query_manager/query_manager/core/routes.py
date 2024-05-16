@@ -18,7 +18,7 @@ from query_manager.core.schemas import (
     MetricDetail,
     MetricListResponse,
     MetricValuesResponse,
-    Target,
+    TargetListResponse,
 )
 from query_manager.exceptions import MetricNotFoundError
 from query_manager.services.s3 import NoSuchKeyError
@@ -102,18 +102,16 @@ async def get_metric_values(
     return {"data": res}
 
 
-@router.get("/metrics/{metric_id}/targets", response_model=list[Target], tags=["metrics"])
+@router.get("/metrics/{metric_id}/targets", response_model=TargetListResponse, tags=["metrics"])
 async def get_metric_targets(
     client: QueryClientDep,
     metric_id: str,
-    start_date: str | None = None,
-    end_date: str | None = None,
+    start_date: date | None = None,
+    end_date: date | None = None,
+    grain: Granularity | None = None,
 ):
     """
     Retrieve targets for a metric within a date range.
     """
-    try:
-        res = await client.get_metric_targets(metric_id, start_date=start_date, end_date=end_date)
-    except NoSuchKeyError as e:
-        raise MetricNotFoundError(metric_id) from e
-    return res
+    res = await client.get_metric_targets(metric_id, start_date=start_date, end_date=end_date, grain=grain)
+    return {"results": res}

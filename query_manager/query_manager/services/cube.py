@@ -10,7 +10,12 @@ from commons.clients.auth import JWTAuth, JWTSecretKeyAuth
 from commons.clients.base import AsyncHttpClient, HttpClientError
 from commons.models.enums import Granularity
 from query_manager.core.schemas import MetricDetail
-from query_manager.exceptions import MalformedMetricMetadataError, MetricValueNotFoundError
+from query_manager.exceptions import (
+    ErrorCode,
+    MalformedMetricMetadataError,
+    MetricValueNotFoundError,
+    QueryManagerError,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -26,6 +31,7 @@ class CubeJWTAuthType(str, Enum):
 
 class CubeClient(AsyncHttpClient):
     CONTINUE_WAIT_MAX_RETRIES = 6
+    METRIC_TARGETS_CUBE = "metric_targets"
 
     def __init__(
         self,
@@ -295,3 +301,62 @@ class CubeClient(AsyncHttpClient):
             logger.warning("No values found for metric_id: %s", metric.id)
             raise MetricValueNotFoundError(metric.id)
         return metric_values
+
+    async def load_metric_targets_from_cube(
+        self,
+        metric: MetricDetail,
+        grain: Granularity | None = None,
+        start_date: date | None = None,
+        end_date: date | None = None,
+    ) -> list[dict[str, Any]]:
+        """
+        Loads target values from the Cube API for a given metric.
+        :param metric: The metric to fetch targets for.
+        :param grain: The granularity of the target values.
+        :param start_date: The start date of the period to fetch targets for.
+        :param end_date: The end date of the period to fetch targets for.
+        :return: A list of dictionaries representing the target values.
+        :raises QueryManagerError: If the Cube API request fails.
+        """
+        targets_cube = self.METRIC_TARGETS_CUBE
+        target_columns: list[str] = [
+            "metric_id",
+            "grain",
+            "target_date",
+            "target_value",
+            "aim",
+            "target_lower_bound",
+            "target_upper_bound",
+            "yellow_buffer",
+            "red_buffer",
+        ]
+        cube_columns = [f"{targets_cube}.{col}" for col in target_columns]
+        query: dict = {
+            "dimensions": cube_columns,
+            "filters": [{"member": f"{targets_cube}.metric_id", "operator": "equals", "values": [metric.id]}],
+            "timeDimensions": [],
+        }
+
+        if grain is not None:
+            query["filters"].append({"member": f"{targets_cube}.grain", "operator": "equals", "values": [grain.value]})
+
+        if start_date and end_date:
+            query["timeDimensions"].append(
+                {"dimension": f"{targets_cube}.target_date", "dateRange": [start_date, end_date]}
+            )
+
+        try:
+            response = await self.load_query_data(query)
+        except HttpClientError as exc:
+            logger.error("Cube API request failed with error: %s", exc)
+            raise QueryManagerError(
+                500, ErrorCode.METRIC_TARGET_ERROR, f"Failed to fetch targets for metric_id: {metric.id}"
+            ) from exc
+
+        # convert cube response to target values
+        target_values = []
+        for row in response:
+            # remove the cube prefix from the column names
+            target_values.append({col.split(".")[1]: row[col] for col in row if col in cube_columns})
+
+        return target_values

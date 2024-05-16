@@ -108,36 +108,57 @@ async def test_get_dimension_members(mocker, dimension, query_client):
     assert result == dimension["members"]
 
 
-# @pytest.mark.asyncio
-# async def test_get_metric_targets_with_time_range(mocker, query_client):
-#     query_client = await query_client
-#     mock_query_s3_json = AsyncMock(return_value=[{"target": "value1"}, {"target": "value2"}])
-#     mocker.patch.object(query_client.cube_client, "load_query_data", mock_query_s3_json)
-#
-#     result = await query_client.get_metric_targets("metric_id", "2022-01-01", "2022-01-31")
-#
-#     # Assert that the results match the mock return value
-#     assert result == [{"target": "value1"}, {"target": "value2"}]
-#     mock_query_s3_json.assert_awaited_with("mock_data/metric/metric_id/target.json", "SELECT * FROM s3object")
+@pytest.mark.asyncio
+async def test_get_metric_targets_with_time_range(mocker, metric, query_client):
+    query_client = await query_client
+    mock_load_targets_from_cube = AsyncMock(
+        return_value=[
+            {
+                "metric_id": metric["id"],
+                "grain": "week",
+                "target_date": "2021-01-01",
+                "aim": "maximize",
+                "target_value": 100.0,
+                "target_upper_bound": 115.0,
+                "target_lower_bound": 85.0,
+                "yellow_buffer": 1.5,
+                "red_buffer": 3.0,
+            }
+        ]
+    )
+    mocker.patch.object(query_client.cube_client, "load_metric_targets_from_cube", mock_load_targets_from_cube)
+    mocker.patch.object(query_client, "get_metric_details", AsyncMock(return_value=metric))
+
+    # Act
+    result = await query_client.get_metric_targets(metric["id"], date(2021, 1, 1), date(2021, 1, 31), Granularity.WEEK)
+
+    # Assert
+    assert len(result) == 1
+    assert result[0]["metric_id"] == metric["id"]
+    assert result[0]["grain"] == "week"
+    assert result[0]["target_date"] == "2021-01-01"
 
 
-# @pytest.mark.asyncio
-# async def test_get_metric_targets_without_time_range(mocker, query_client):
-#     query_client = await query_client
-#     mock_query_s3_json = AsyncMock(return_value=[{"target": "value3"}])
-#     mocker.patch.object(query_client.s3_client, "query_s3_json", mock_query_s3_json)
-#
-#     result = await query_client.get_metric_targets("metric_id")
-#
-#     # Assert that the results match the mock return value
-#     assert result == [{"target": "value3"}]
-#     mock_query_s3_json.assert_awaited_with("mock_data/metric/metric_id/target.json", "SELECT * FROM s3object")
+@pytest.mark.asyncio
+async def test_get_metric_targets_invalid_metric_id(mocker, query_client):
+    query_client = await query_client
+    mocker.patch.object(query_client, "get_metric_details", AsyncMock(return_value=None))
+    with pytest.raises(MetricNotFoundError):
+        await query_client.get_metric_targets("invalid_metric_id")
+
+
+@pytest.mark.asyncio
+async def test_get_metric_values_invalid_metric_id(mocker, query_client):
+    query_client = await query_client
+    mocker.patch.object(query_client, "get_metric_details", AsyncMock(return_value=None))
+    with pytest.raises(MetricNotFoundError):
+        await query_client.get_metric_values("invalid_metric_id")
 
 
 @pytest.mark.asyncio
 async def test_get_metric_values_without_dimensions(mocker, metric, query_client):
     query_client = await query_client
-    # Mock response from S3 for values without dimensions
+    # Mock response from cube for values without dimensions
     mock_load_metric_values_from_cube = AsyncMock(return_value=[{"date": "2022-01-01", "value": 200}])
     mocker.patch.object(query_client.cube_client, "load_metric_values_from_cube", mock_load_metric_values_from_cube)
     mocker.patch.object(query_client, "get_metric_details", AsyncMock(return_value=metric))

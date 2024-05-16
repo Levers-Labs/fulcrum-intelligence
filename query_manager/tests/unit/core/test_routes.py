@@ -9,6 +9,7 @@ from query_manager.core.schemas import (
     MetricDetail,
     MetricList,
 )
+from query_manager.exceptions import MetricNotFoundError
 from query_manager.services.parquet import ParquetService
 from query_manager.services.query_client import QueryClient
 from query_manager.services.s3 import NoSuchKeyError
@@ -143,35 +144,33 @@ async def test_get_metric_values_404(client, mocker):
 @pytest.mark.asyncio
 async def test_get_metric_targets(mocker, client):
     # Mock dependencies
-    mock_get_metric_targets = AsyncMock(
-        return_value=[
-            {"id": "test_metric", "aim": TargetAim.MAXIMIZE, "target_value": 123, "target_date": "2022-01-01"}
-        ]
-    )
-    mocker.patch.object(QueryClient, "get_metric_targets", mock_get_metric_targets)
-
-    response = client.get("/v1/metrics/test_metric/targets?start_date=2022-01-01&end_date=2022-01-31")
-
-    assert response.status_code == 200
-    assert response.json() == [
+    target_values = [
         {
-            "id": "test_metric",
-            "aim": "Maximize",
+            "metric_id": "test_metric",
+            "grain": "week",
+            "aim": TargetAim.MAXIMIZE,
             "target_value": 123,
             "target_date": "2022-01-01",
             "target_upper_bound": None,
             "target_lower_bound": None,
             "yellow_buffer": None,
             "red_buffer": None,
-        },
+        }
     ]
+    mock_get_metric_targets = AsyncMock(return_value=target_values)
+    mocker.patch.object(QueryClient, "get_metric_targets", mock_get_metric_targets)
+
+    response = client.get("/v1/metrics/test_metric/targets?start_date=2022-01-01&end_date=2022-01-31&grain=week")
+
+    assert response.status_code == 200
+    assert response.json() == {"results": target_values}
     mock_get_metric_targets.assert_awaited_once()
 
 
 @pytest.mark.asyncio
 async def test_get_metric_targets_404(client, mocker):
     # Mock the QueryClient's get_metric_targets method
-    mock_get_metric_targets = AsyncMock(side_effect=NoSuchKeyError(key="test_metric"))
+    mock_get_metric_targets = AsyncMock(side_effect=MetricNotFoundError("test_metric"))
     mocker.patch.object(QueryClient, "get_metric_targets", mock_get_metric_targets)
 
     response = client.get("/v1/metrics/test_metric/targets?start_date=2022-01-01&end_date=2022-01-31")

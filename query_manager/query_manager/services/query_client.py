@@ -123,10 +123,10 @@ class QueryClient:
         :return: A list of dictionaries representing the metric values.
         """
         metric_dict = await self.get_metric_details(metric_id)
-        metric = MetricDetail.parse_obj(metric_dict)
-        if not metric:
+        if not metric_dict:
             raise MetricNotFoundError(metric_id)
 
+        metric = MetricDetail.parse_obj(metric_dict)
         # filter out valid dimensions
         valid_dimensions = []
         if dimensions and metric.dimensions:
@@ -135,16 +135,25 @@ class QueryClient:
         return res
 
     async def get_metric_targets(
-        self, metric_id: str, start_date: str | None = None, end_date: str | None = None
+        self,
+        metric_id: str,
+        start_date: date | None = None,
+        end_date: date | None = None,
+        grain: Granularity | None = None,
     ) -> list[dict[str, Any]]:
         """
-        Fetches target values for a given metric ID within an optional time range.
+        Fetches target values for a given metric ID within an optional time range and grain.
 
         :param metric_id: The ID of the metric to fetch targets for.
         :param start_date: The start date of the period to fetch targets for (inclusive).
         :param end_date: The end date of the period to fetch targets for (exclusive).
+        :param grain: The granularity of the target values, represented as a Grain enum.
         :return: A list of dictionaries representing the target values.
         """
-        # todo: Actual implementation with cube api
-
-        return []
+        metric_dict = await self.get_metric_details(metric_id)
+        if not metric_dict:
+            raise MetricNotFoundError(metric_id)
+        metric = MetricDetail.parse_obj(metric_dict)
+        return await self.cube_client.load_metric_targets_from_cube(
+            metric, grain=grain, start_date=start_date, end_date=end_date
+        )

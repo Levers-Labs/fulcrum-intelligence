@@ -6,6 +6,7 @@ from typing import Literal
 from pydantic import Extra, Field
 
 from commons.models import BaseModel
+from commons.models.enums import Granularity
 from query_manager.core.enums import SemanticMemberType, TargetAim
 
 
@@ -125,11 +126,16 @@ class MetricValuesResponse(BaseModel):
 
 
 class Target(BaseModel):
-    id: str
-    target_date: str
+    metric_id: str
+    grain: Granularity
     aim: TargetAim
-    target_value: int
-    target_upper_bound: int | None = None
-    target_lower_bound: int | None = None
-    yellow_buffer: int | None = None
-    red_buffer: int | None = None
+    target_date: datetime.date
+    target_value: float
+    target_upper_bound: float | None = None
+    target_lower_bound: float | None = None
+    yellow_buffer: float | None = None
+    red_buffer: float | None = None
+
+
+class TargetListResponse(BaseModel):
+    results: list[Target]

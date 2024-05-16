@@ -8,7 +8,7 @@ from commons.clients.base import HttpClientError
 from commons.models.enums import Granularity
 from query_manager.core.dependencies import get_cube_client
 from query_manager.core.schemas import MetricDetail, SemanticMetaDimension, SemanticMetaMetric
-from query_manager.exceptions import MalformedMetricMetadataError, MetricValueNotFoundError
+from query_manager.exceptions import MalformedMetricMetadataError, MetricValueNotFoundError, QueryManagerError
 from query_manager.services.cube import CubeClient, CubeJWTAuthType
 
 
@@ -325,3 +325,91 @@ async def test_load_metric_values_from_cube_error(mocker, metric, cube_client):
     # Execute/Assert
     with pytest.raises(MetricValueNotFoundError):
         await cube_client.load_metric_values_from_cube(metric)
+
+
+@pytest.mark.asyncio
+async def test_load_metric_targets_from_cube(mocker, metric, cube_client):
+    # Prepare
+    cube_client = await cube_client
+    metric = MetricDetail.parse_obj(metric)
+    grain = Granularity.WEEK
+    start_date = date(2021, 1, 1)
+    end_date = date(2021, 2, 1)
+    query = {
+        "dimensions": [
+            "metric_targets.metric_id",
+            "metric_targets.grain",
+            "metric_targets.target_date",
+            "metric_targets.target_value",
+            "metric_targets.aim",
+            "metric_targets.target_lower_bound",
+            "metric_targets.target_upper_bound",
+            "metric_targets.yellow_buffer",
+            "metric_targets.red_buffer",
+        ],
+        "filters": [
+            {"member": "metric_targets.metric_id", "operator": "equals", "values": [metric.id]},
+            {"member": "metric_targets.grain", "operator": "equals", "values": [grain.value]},
+        ],
+        "timeDimensions": [
+            {
+                "dimension": "metric_targets.target_date",
+                "dateRange": [start_date, end_date],
+            }
+        ],
+    }
+    cube_response = [
+        {
+            "metric_targets.metric_id": "metric1",
+            "metric_targets.grain": "week",
+            "metric_targets.target_value": 100.0,
+            "metric_targets.target_date": "2021-01-01",
+            "metric_targets.aim": "maximize",
+            "metric_targets.target_upper_bound": 115.0,
+            "metric_targets.target_lower_bound": 85.0,
+            "metric_targets.yellow_buffer": 1.5,
+            "metric_targets.red_buffer": 3.0,
+        }
+    ]
+    exp_target_values = [
+        {
+            "metric_id": "metric1",
+            "grain": "week",
+            "target_date": "2021-01-01",
+            "aim": "maximize",
+            "target_value": 100.0,
+            "target_upper_bound": 115.0,
+            "target_lower_bound": 85.0,
+            "yellow_buffer": 1.5,
+            "red_buffer": 3.0,
+        }
+    ]
+    # mock the load_query_data method
+    load_query_data_mock = AsyncMock(return_value=cube_response)
+    mocker.patch.object(cube_client, "load_query_data", load_query_data_mock)
+
+    # Execute
+    target_values = await cube_client.load_metric_targets_from_cube(
+        metric, grain=grain, start_date=start_date, end_date=end_date
+    )
+
+    # Assert
+    assert target_values == exp_target_values
+    load_query_data_mock.assert_called_once_with(query)
+
+
+@pytest.mark.asyncio
+async def test_load_metric_targets_from_cube_error(mocker, metric, cube_client):
+    # Prepare
+    cube_client = await cube_client
+    metric = MetricDetail.parse_obj(metric)
+    grain = Granularity.WEEK
+    start_date = date(2021, 1, 1)
+    end_date = date(2021, 2, 1)
+    # mock the load_query_data method
+    load_query_data_mock = AsyncMock(side_effect=HttpClientError("Error"))
+    mocker.patch.object(cube_client, "load_query_data", load_query_data_mock)
+
+    # Execute
+    with pytest.raises(QueryManagerError):
+        await cube_client.load_metric_targets_from_cube(metric, grain=grain, start_date=start_date, end_date=end_date)
