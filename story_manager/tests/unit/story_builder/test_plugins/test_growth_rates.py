@@ -9,8 +9,8 @@ from story_manager.story_builder.plugins import GrowthStoryBuilder
 
 
 @pytest.fixture
-def growth_story_builder(mock_query_service, mock_analysis_service, mock_db_session):
-    return GrowthStoryBuilder(mock_query_service, mock_analysis_service, mock_db_session)
+def growth_story_builder(mock_query_service, mock_analysis_service, mock_analysis_manager, mock_db_session):
+    return GrowthStoryBuilder(mock_query_service, mock_analysis_service, mock_analysis_manager, mock_db_session)
 
 
 @pytest.fixture

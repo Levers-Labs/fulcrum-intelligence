@@ -6,6 +6,7 @@ from fastapi import Depends
 
 from commons.clients.analysis_manager import AnalysisManagerClient
 from commons.clients.query_manager import QueryManagerClient
+from fulcrum_core import AnalysisManager
 from story_manager.config import get_settings
 from story_manager.core.crud import CRUDStory
 from story_manager.core.models import Story
@@ -26,6 +27,11 @@ async def get_analysis_manager_client() -> AnalysisManagerClient:
     return AnalysisManagerClient(base_url=settings.ANALYSIS_MANAGER_SERVER_HOST)
 
 
+async def get_analysis_manager() -> AnalysisManager:
+    return AnalysisManager()
+
+
 CRUDStoryDep = Annotated[CRUDStory, Depends(get_stories_crud)]
 QueryManagerClientDep = Annotated[QueryManagerClient, Depends(get_query_manager_client)]
 AnalysisManagerClientDep = Annotated[AnalysisManagerClient, Depends(get_analysis_manager_client)]
+AnalysisManagerDep = Annotated[AnalysisManager, Depends(get_analysis_manager)]

@@ -4,6 +4,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from commons.clients.analysis_manager import AnalysisManagerClient
 from commons.clients.query_manager import QueryManagerClient
+from fulcrum_core import AnalysisManager
 from story_manager.core.enums import StoryGroup
 from story_manager.story_builder import StoryFactory
 
@@ -16,17 +17,24 @@ class StoryManager:
     """
 
     def __init__(
-        self, query_service: QueryManagerClient, analysis_service: AnalysisManagerClient, db_session: AsyncSession
+        self,
+        query_service: QueryManagerClient,
+        analysis_service: AnalysisManagerClient,
+        analysis_manager: AnalysisManager,
+        db_session: AsyncSession,
     ):
         """
         Initialize the StoryManager instance
 
         :param query_service: QueryService instance for retrieving data
-        :param analysis_service: AnalysisService instance for performing analysis
+        :param analysis_service: AnalysisService instance for performing analysis via analysis manager api
+        :param analysis_manager: AnalysisManager instance for performing analysis
+        that directly interacts with the analysis manager core library
         :param db_session: Database session for persisting stories
         """
         self.query_service = query_service
         self.analysis_service = analysis_service
+        self.analysis_manager = analysis_manager
         self.db_session = db_session
 
     async def run_all_builders(self) -> None:
@@ -39,7 +47,11 @@ class StoryManager:
         for group in StoryGroup.__members__.values():
             logger.info(f"Running story builders for story group: {group}")
             story_builder = StoryFactory.create_story_builder(
-                group, self.query_service, self.analysis_service, self.db_session
+                group,
+                self.query_service,
+                self.analysis_service,
+                analysis_manager=self.analysis_manager,
+                db_session=self.db_session,
             )
             await self._run_builder_for_metrics(story_builder, metrics)
 

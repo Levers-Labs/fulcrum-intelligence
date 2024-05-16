@@ -10,6 +10,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from commons.clients.analysis_manager import AnalysisManagerClient
 from commons.clients.query_manager import QueryManagerClient
 from commons.models.enums import Granularity
+from fulcrum_core import AnalysisManager
 from story_manager.core.enums import (
     STORY_TYPES_META,
     StoryGenre,
@@ -37,16 +38,23 @@ class StoryBuilderBase(ABC):
     }
 
     def __init__(
-        self, query_service: QueryManagerClient, analysis_service: AnalysisManagerClient, db_session: AsyncSession
+        self,
+        query_service: QueryManagerClient,
+        analysis_service: AnalysisManagerClient,
+        analysis_manager: AnalysisManager,
+        db_session: AsyncSession,
     ):
         """
         Initialize the StoryBuilderBase instance
         :param query_service: QueryService instance for retrieving data
-        :param analysis_service: AnalysisService instance for performing analysis
+        :param analysis_service: AnalysisService instance for performing analysis via analysis manager api
+        :param analysis_manager: AnalysisManager instance for performing analysis
+        that directly interacts with the analysis manager core library
         :param db_session: Database session for persisting stories
         """
         self.query_service = query_service
         self.analysis_service = analysis_service
+        self.analysis_manager = analysis_manager
         self.db_session = db_session
 
     async def _get_time_series_data(

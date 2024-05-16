@@ -10,7 +10,7 @@ from story_manager.story_builder import StoryBuilderBase
 
 
 @pytest.fixture
-def story_builder(mock_query_service, mock_analysis_service, mock_db_session):
+def story_builder(mock_query_service, mock_analysis_service, mock_analysis_manager, mock_db_session):
     class ConcreteStoryBuilder(StoryBuilderBase):
         genre = StoryGenre.GROWTH
         group = StoryGroup.GROWTH_RATES
@@ -19,7 +19,7 @@ def story_builder(mock_query_service, mock_analysis_service, mock_db_session):
         async def generate_stories(self, metric_id: str, grain: Granularity) -> list:
             return []
 
-    return ConcreteStoryBuilder(mock_query_service, mock_analysis_service, mock_db_session)
+    return ConcreteStoryBuilder(mock_query_service, mock_analysis_service, mock_analysis_manager, mock_db_session)
 
 
 @pytest.mark.asyncio

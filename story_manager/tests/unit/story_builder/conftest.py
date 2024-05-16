@@ -30,5 +30,10 @@ def mock_analysis_service():
 
 
 @pytest.fixture
+def mock_analysis_manager():
+    return AsyncMock()
+
+
+@pytest.fixture
 def mock_db_session():
     return AsyncMock()
