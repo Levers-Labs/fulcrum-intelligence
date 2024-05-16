@@ -4,7 +4,13 @@ import pytest
 
 from commons.clients.analysis_manager import AnalysisManagerClient
 from commons.clients.query_manager import QueryManagerClient
-from story_manager.core.dependencies import get_analysis_manager_client, get_query_manager_client, get_stories_crud
+from fulcrum_core import AnalysisManager
+from story_manager.core.dependencies import (
+    get_analysis_manager,
+    get_analysis_manager_client,
+    get_query_manager_client,
+    get_stories_crud,
+)
 from story_manager.core.models import Story
 
 
@@ -26,3 +32,9 @@ async def test_get_query_manager_client():
 async def test_get_analysis_manager_client():
     client = await get_analysis_manager_client()
     assert isinstance(client, AnalysisManagerClient)
+
+
+@pytest.mark.asyncio
+async def test_get_analysis_manager():
+    client = await get_analysis_manager()
+    assert isinstance(client, AnalysisManager)

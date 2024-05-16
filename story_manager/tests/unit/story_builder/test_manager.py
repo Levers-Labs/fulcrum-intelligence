@@ -8,8 +8,8 @@ from story_manager.story_builder import StoryBuilderBase, StoryManager
 
 
 @pytest.fixture
-def story_manager(mock_query_service, mock_analysis_service, mock_db_session):
-    return StoryManager(mock_query_service, mock_analysis_service, mock_db_session)
+def story_manager(mock_query_service, mock_analysis_service, mock_analysis_manager, mock_db_session):
+    return StoryManager(mock_query_service, mock_analysis_service, mock_analysis_manager, mock_db_session)
 
 
 @pytest.mark.asyncio

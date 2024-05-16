@@ -12,8 +12,8 @@ end_date = date(2024, 5, 7)
 
 
 @pytest.fixture
-def trends_story_builder(mock_query_service, mock_analysis_service, mock_db_session):
-    return TrendChangesStoryBuilder(mock_query_service, mock_analysis_service, mock_db_session)
+def trends_story_builder(mock_query_service, mock_analysis_service, mock_analysis_manager, mock_db_session):
+    return TrendChangesStoryBuilder(mock_query_service, mock_analysis_service, mock_analysis_manager, mock_db_session)
 
 
 @pytest.fixture

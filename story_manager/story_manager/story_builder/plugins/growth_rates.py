@@ -148,7 +148,7 @@ class GrowthStoryBuilder(StoryBuilderBase):
             story = {
                 "metric_id": metric_id,
                 "genre": self.genre,  # type: ignore
-                "group": self.group,
+                "group": self.group,  # type: ignore
                 "type": story_type,
                 "grain": grain.value,
                 "title": story_title,
