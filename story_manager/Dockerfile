@@ -4,6 +4,7 @@ FROM public.ecr.aws/lambda/python:3.10
 RUN pip install --no-cache-dir --upgrade pip poetry
 # Copy the local package dependencies
 COPY ./commons ${LAMBDA_TASK_ROOT}/commons
+COPY ./core ${LAMBDA_TASK_ROOT}/core
 
 # Install dependencioes
 COPY ./story_manager/pyproject.toml ./story_manager/poetry.lock* ${LAMBDA_TASK_ROOT}/story_manager/
