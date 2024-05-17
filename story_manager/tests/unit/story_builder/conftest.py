@@ -2,6 +2,8 @@ from unittest.mock import AsyncMock
 
 import pytest
 
+from fulcrum_core import AnalysisManager
+
 
 @pytest.fixture
 def mock_query_service():
@@ -31,7 +33,7 @@ def mock_analysis_service():
 
 @pytest.fixture
 def mock_analysis_manager():
-    return AsyncMock()
+    return AnalysisManager()
 
 
 @pytest.fixture
