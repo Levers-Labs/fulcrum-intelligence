@@ -33,7 +33,8 @@ class AnalysisManager:
         result = correlate(data, start_date, end_date)
         return result
 
-    def process_control(self, df: pd.DataFrame) -> pd.DataFrame:
+    @staticmethod
+    def process_control(df: pd.DataFrame) -> pd.DataFrame:
         """
         Perform time series analysis using process control techniques.
         For a given metric time series, Process Control generates:
@@ -248,3 +249,26 @@ class AnalysisManager:
         elif forecast_till_date:
             results = forecast.predict_till_date(forecast_till_date, **kwargs)
         return results
+
+    @staticmethod
+    def calculate_deviations(df: pd.DataFrame) -> tuple[pd.DataFrame, pd.Series, pd.Series]:
+        """
+        Calculate deviations in the provided DataFrame.
+
+        This method updates the DataFrame to include a 'deviation' column based on the comparison
+        of values with their respective control limits.
+
+        :param df: The DataFrame containing time series data with control limits.
+        :return: A tuple containing the updated DataFrame, a Series indicating values above UCL,
+             and a Series indicating values below LCL.
+        """
+        above_ucl = df["value"] > df["ucl"]
+        below_lcl = df["value"] < df["lcl"]
+
+        deviations = pd.Series(0.0, index=df.index)
+        deviations[above_ucl] = ((df["value"][above_ucl] - df["ucl"][above_ucl]) / df["ucl"][above_ucl]) * 100
+        deviations[below_lcl] = ((df["lcl"][below_lcl] - df["value"][below_lcl]) / df["lcl"][below_lcl]) * 100
+
+        df["deviation"] = deviations.round(3)
+
+        return df, above_ucl, below_lcl

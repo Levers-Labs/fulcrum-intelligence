@@ -80,3 +80,28 @@ def test_calculate_component_drift(metric_expression, component_drift_response):
     assert sales_dev_spend_drift["drift"]["marginal_contribution"] == pytest.approx(0.009625195466218992)
     assert round(sales_dev_spend_drift["drift"]["relative_impact_root"], 2) == pytest.approx(-0.1)
     assert round(sales_dev_spend_drift["drift"]["marginal_contribution_root"], 4) == pytest.approx(0.0029)
+
+
+def test_calculate_deviations():
+    """
+    Test the calculate_deviations method of AnalysisManager
+    """
+    analysis_manager = AnalysisManager()
+    df = pd.DataFrame(
+        {
+            "date": pd.date_range(start="2024-01-01", periods=10),
+            "value": [10, 25, 30, 35, 40, 45, 30, 55, 40, 65],
+            "central_line": [30] * 10,
+            "ucl": [40] * 10,
+            "lcl": [20] * 10,
+        }
+    )
+
+    result_df, above_ucl, below_lcl = analysis_manager.calculate_deviations(df)
+
+    assert "deviation" in result_df.columns
+
+    # Check if deviation is not 0.0 at specific indices
+    deviation_not_zero_indices = [0, 5, 7, 9]
+    for index in deviation_not_zero_indices:
+        assert result_df.at[index, "deviation"] != 0.0

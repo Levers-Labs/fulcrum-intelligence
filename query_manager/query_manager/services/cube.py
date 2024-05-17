@@ -162,7 +162,7 @@ class CubeClient(AsyncHttpClient):
         semantic_meta = metric.metadata.semantic_meta
         time_dimension = semantic_meta.time_dimension
         time_dimension_member = (
-            f"{time_dimension.cube}.{time_dimension.member}.{grain}"
+            f"{time_dimension.cube}.{time_dimension.member}.{grain.value}"
             if grain
             else f"{time_dimension.cube}.{time_dimension.member}"
         )
