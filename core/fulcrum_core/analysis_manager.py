@@ -270,38 +270,35 @@ class AnalysisManager:
         return results
 
     @staticmethod
-    def calculate_deviations(df: pd.DataFrame) -> tuple[pd.DataFrame, pd.Series, pd.Series]:
-        """
-        Calculate deviations in the provided DataFrame.
-
-        This method updates the DataFrame to include a 'deviation' column based on the comparison
-        of values with their respective control limits.
-
-        :param df: The DataFrame containing time series data with control limits.
-        :return: A tuple containing the updated DataFrame, a Series indicating values above UCL,
-             and a Series indicating values below LCL.
-        """
-        above_ucl = df["value"] > df["ucl"]
-        below_lcl = df["value"] < df["lcl"]
-
-        deviations = pd.Series(0.0, index=df.index)
-        deviations[above_ucl] = ((df["value"][above_ucl] - df["ucl"][above_ucl]) / df["ucl"][above_ucl]) * 100
-        deviations[below_lcl] = ((df["lcl"][below_lcl] - df["value"][below_lcl]) / df["lcl"][below_lcl]) * 100
-
-        df["deviation"] = deviations.round(3)
-
-        return df, above_ucl, below_lcl
-
-    @staticmethod
-    def calculate_growth_rates_of_series(series_df: pd.DataFrame, remove_first_nan_row: bool = True) -> pd.DataFrame:
+    def calculate_growth_rates_of_series(series_df: pd.DataFrame) -> pd.Series:
         """
         Calculate the growth rates for each data point in the time series.
 
-        :param series_df: The time series data frame containing the values.
-        :param remove_first_nan_row: Whether to remove the first row of the data frame.
+        Parameters:
+        - series_df (pd.DataFrame): The time series data frame containing the values.
+
+        Returns:
+        pd.Series: Series of growth rates.
         """
-        series_df["growth_rate"] = series_df["value"].pct_change() * 100
-        # only drop the first row only if it has NaN value
-        if remove_first_nan_row and not series_df.empty and pd.isna(series_df.iloc[0]["growth_rate"]):
-            series_df = series_df.iloc[1:]
-        return series_df
+
+        growth_rates = series_df["value"].pct_change() * 100
+
+        # Remove the first NaN value if present
+        growth_rates = growth_rates[~growth_rates.isna()]
+
+        return growth_rates
+
+    @staticmethod
+    def calculate_deviation(value: float, limit: float) -> float:
+        """
+        Calculate the deviation percentage based on an observed value and a reference limit.
+
+        :param value: The observed value for which deviation is calculated.
+        :param limit: The upper or lower limit.
+
+        :return: The deviation percentage.
+        """
+        if limit == 0:
+            return 0.0
+        deviation = round(((value - limit) / limit) * 100)
+        return deviation

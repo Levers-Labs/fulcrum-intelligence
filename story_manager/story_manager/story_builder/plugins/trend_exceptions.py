@@ -13,8 +13,8 @@ logger = logging.getLogger(__name__)
 
 
 class TrendExceptionsStoryBuilder(StoryBuilderBase):
-    genre = StoryGenre.TRENDS  # type: ignore
-    group = StoryGroup.TREND_EXCEPTIONS  # type: ignore
+    genre = StoryGenre.TRENDS
+    group = StoryGroup.TREND_EXCEPTIONS
     supported_grains = [Granularity.DAY, Granularity.WEEK, Granularity.MONTH]
 
     async def generate_stories(self, metric_id: str, grain: str) -> list[dict]:
@@ -77,29 +77,29 @@ class TrendExceptionsStoryBuilder(StoryBuilderBase):
 
         pc_df = self.analysis_manager.process_control(df=series_df)
 
-        pc_df, above_ucl, below_lcl = self.analysis_manager.calculate_deviations(df=pc_df)
+        ref_data = pc_df.iloc[-1]
 
-        pc_df["story_type"] = None
-        pc_df.loc[above_ucl, "story_type"] = StoryType.SPIKE
-        pc_df.loc[below_lcl, "story_type"] = StoryType.DROP
-        pc_df["position"] = None
-        pc_df.loc[above_ucl, "position"] = Position.ABOVE.value
-        pc_df.loc[below_lcl, "position"] = Position.BELOW.value
+        story_type = None
+        if ref_data["value"] > ref_data["ucl"]:
+            deviation = round(((ref_data["value"] - ref_data["ucl"]) / ref_data["ucl"]) * 100)
+            story_type = StoryType.SPIKE
+            position = Position.ABOVE
+        elif ref_data["value"] < ref_data["lcl"]:
+            deviation = round(((ref_data["lcl"] - ref_data["value"]) / ref_data["lcl"]) * 100)
+            story_type = StoryType.DROP
+            position = Position.BELOW
 
-        # Filter out rows with story_type not None
-        stories_to_add = pc_df[pc_df["story_type"].notnull()]
-
-        for _, row in stories_to_add.iterrows():
+        if story_type:
             story_details = self.prepare_story_dict(
-                story_type=row["story_type"],  # type: ignore
-                grain=grain,  # type: ignore
+                story_type=story_type,
+                grain=grain,
                 metric=metric,
                 df=pc_df,
-                deviation=row["deviation"],
-                position=row["position"],
+                deviation=deviation,
+                position=position.value,
             )
             stories.append(story_details)
-            logger.info("A new story added for metric '%s' with grain '%s'")
+            logger.info("A new story created for metric '%s' with grain '%s'")
             logger.info(f"Story details: {story_details}")
         logger.info(f"Trends exceptions stories complete for metric '{metric_id}'")
         return stories

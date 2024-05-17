@@ -23,14 +23,45 @@ def trends_story_builder(
 
 
 @pytest.mark.asyncio
-async def test_generate_stories(mocker, trends_story_builder, process_control_df):
+async def test_generate_stories_spike(mocker, trends_story_builder, process_control_df):
     process_control_df = process_control_df.copy()
+    spike_sample = {
+        "value": 100,
+        "central_line": 50,
+        "ucl": 70,
+        "lcl": 40,
+        "slope": 1.5,
+        "slope_change": 0,
+        "trend_signal_detected": False,
+    }
+    process_control_df.loc[len(process_control_df)] = spike_sample
+
     mocker.patch.object(trends_story_builder.analysis_manager, "process_control", return_value=process_control_df)
 
     result = await trends_story_builder.generate_stories("metric_1", Granularity.DAY)
-
     story = result[0]
-    assert story["story_type"] in [StoryType.DROP, StoryType.SPIKE]
+    assert story["story_type"] == StoryType.SPIKE
+
+
+@pytest.mark.asyncio
+async def test_generate_stories_drop(mocker, trends_story_builder, process_control_df):
+    process_control_df = process_control_df.copy()
+    drop_sample = {
+        "value": 30,
+        "central_line": 50,
+        "ucl": 70,
+        "lcl": 40,
+        "slope": 1.5,
+        "slope_change": 0,
+        "trend_signal_detected": False,
+    }
+    process_control_df.loc[len(process_control_df)] = drop_sample
+
+    mocker.patch.object(trends_story_builder.analysis_manager, "process_control", return_value=process_control_df)
+
+    result = await trends_story_builder.generate_stories("metric_1", Granularity.DAY)
+    story = result[0]
+    assert story["story_type"] == StoryType.DROP
 
 
 @pytest.mark.asyncio
