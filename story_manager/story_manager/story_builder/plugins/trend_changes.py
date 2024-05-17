@@ -1,5 +1,4 @@
 import logging
-from datetime import date
 
 from commons.models.enums import Granularity
 from story_manager.core.enums import (
@@ -58,11 +57,8 @@ class TrendChangesStoryBuilder(StoryBuilderBase):
         # get metric details
         metric = await self.query_service.get_metric(metric_id)
 
-        # todo: remove temp curr_date
-        curr_date = date(2024, 4, 12)
-
         # find the start and end date for the input time series data
-        start_date, end_date = self._get_input_time_range(grain, curr_date=curr_date)
+        start_date, end_date = self._get_input_time_range(grain)
 
         # get time series data
         df = await self._get_time_series_data(metric_id, grain, start_date, end_date, set_index=False)
@@ -79,16 +75,18 @@ class TrendChangesStoryBuilder(StoryBuilderBase):
         # Run process control analysis over the time series data
         pc_df = self.analysis_manager.process_control(df=df)
 
-        # todo: should we look for trend changes in series length or full period?
-        # check if trend signal detected or not
-        if not pc_df["trend_signal_detected"].any():
+        # check if trend signal detected or not within an output period
+        grain_durations = self.get_time_durations(grain)
+        output_period = grain_durations["output"]
+        stories_df = pc_df.tail(output_period)
+        if not stories_df["trend_signal_detected"].any():
             # Calculate average growth for the stable trend
-            avg_growth = self.analysis_manager.cal_average_growth(pc_df["value"])
+            avg_growth = self.analysis_manager.cal_average_growth(stories_df["value"])
 
             # Movement is increase if avg_growth is positive, otherwise decrease
             movement = Movement.INCREASE if avg_growth > 0 else Movement.DECREASE
             # todo: add util that calculates no. of grain periods between start and end date
-            trend_duration = len(pc_df)
+            trend_duration = len(stories_df)
             logging.info(
                 "Following a stable trend for metric '%s' with grain '%s'. Average growth: %s",
                 metric_id,
@@ -99,7 +97,7 @@ class TrendChangesStoryBuilder(StoryBuilderBase):
                 StoryType.STABLE_TREND,
                 grain=grain,
                 metric=metric,
-                df=pc_df,
+                df=stories_df,
                 avg_growth=abs(avg_growth),
                 trend_duration=trend_duration,
                 movement=movement.value,
@@ -152,7 +150,6 @@ class TrendChangesStoryBuilder(StoryBuilderBase):
             stories.append(story_details)
 
             # check for performance plateau
-            # todo: should we check absolute value of slope is less than 1?
             if latest_slope < 1:
                 logging.info("Performance Plateau detected for metric '%s' with grain '%s'", metric_id, grain)
                 avg_value = round(current_trend["value"].mean())
