@@ -85,7 +85,8 @@ class GrowthStoryBuilder(StoryBuilderBase):
             series_df = series_df.interpolate()
 
             # calculate growth rates
-            series_df = self.analysis_manager.calculate_growth_rates_of_series(series_df)
+            growth_rates = self.analysis_manager.calculate_growth_rates_of_series(series_df)
+            series_df["growth_rate"] = growth_rates
 
             if series_df.empty:
                 logger.warning(
