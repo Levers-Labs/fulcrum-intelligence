@@ -7,6 +7,36 @@ import pytest
 from fulcrum_core import AnalysisManager
 
 
+def test_cal_average_growth():
+    """
+    Test the cal_average_growth method of AnalysisManager
+    """
+    # Arrange
+    analysis_manager = AnalysisManager()
+    values = pd.Series([10, 12, 15, 12, 18])
+
+    # Act
+    response = analysis_manager.cal_average_growth(values)
+
+    # Assert
+    assert response == 19
+
+    # Act
+    response = analysis_manager.cal_average_growth(values, 2)
+
+    # Assert
+    assert response == 18.75
+
+    # Inf growth rate
+    values = pd.Series([10, 12, 15, 12, 0, 10])
+
+    # Act
+    response = analysis_manager.cal_average_growth(values)
+
+    # Assert
+    assert response == -19
+
+
 def test_correlate(correlate_df):
     """
     Test the correlate method of AnalysisManager

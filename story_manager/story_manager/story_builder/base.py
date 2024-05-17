@@ -158,8 +158,8 @@ class StoryBuilderBase(ABC):
         return {
             "metric_id": metric["id"],
             "genre": self.genre,
-            "group": self.group,
-            "type": story_type,
+            "story_group": self.group,
+            "story_type": story_type,
             "grain": grain,
             "series": df.tail(series_length).to_dict(orient="records"),
             "title": story_texts["title"],

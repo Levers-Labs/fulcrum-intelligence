@@ -1,208 +1,156 @@
+import random
 from datetime import date
+from unittest.mock import AsyncMock
 
 import pandas as pd
 import pytest
 
 from commons.models.enums import Granularity
-from story_manager.core.enums import StoryGenre, StoryType
+from story_manager.core.enums import StoryType
 from story_manager.story_builder.plugins import TrendChangesStoryBuilder
 
-start_date = date(2024, 4, 7)
-end_date = date(2024, 5, 7)
+start_date = date(2023, 4, 7)
+number_of_data_points = 90
 
 
 @pytest.fixture
-def trends_story_builder(mock_query_service, mock_analysis_service, mock_analysis_manager, mock_db_session):
-    return TrendChangesStoryBuilder(mock_query_service, mock_analysis_service, mock_analysis_manager, mock_db_session)
-
-
-@pytest.fixture
-def mock_process_control_output(trend_type):
-    trend_data = {
-        "upward": [
-            {
-                "date": "2024-02-05",
-                "metric_id": "test_metric",
-                "value": 3332,
-                "central_line": 3529.48,
-                "trend_type": "",
-            },
-            {
-                "date": "2024-02-22",
-                "metric_id": "test_metric",
-                "value": 3576,
-                "central_line": 3614.56,
-                "trend_type": "",
-            },
-            {
-                "date": "2024-04-14",
-                "metric_id": "test_metric",
-                "value": 3646,
-                "central_line": 3699.63,
-                "trend_type": "",
-            },
-            {
-                "date": "2024-02-09",
-                "metric_id": "test_metric",
-                "value": 4026,
-                "central_line": 3784.7,
-                "trend_type": "",
-            },
-            {
-                "date": "2024-02-18",
-                "metric_id": "test_metric",
-                "value": 3841,
-                "central_line": 3869.78,
-                "trend_type": "",
-            },
-            {
-                "date": "2024-03-18",
-                "metric_id": "test_metric",
-                "value": 3315,
-                "central_line": 3954.85,
-                "trend_type": "",
-            },
-            {
-                "date": "2024-04-11",
-                "metric_id": "test_metric",
-                "value": 3843,
-                "central_line": 4039.93,
-                "trend_type": "",
-            },
-        ],
-        "downward": [
-            {
-                "date": "2024-04-11",
-                "metric_id": "test_metric",
-                "value": 3843,
-                "central_line": 4039.93,
-                "trend_type": "",
-            },
-            {
-                "date": "2024-04-12",
-                "metric_id": "test_metric",
-                "value": 3800,
-                "central_line": 4039.93,
-                "trend_type": "",
-            },
-            {
-                "date": "2024-04-13",
-                "metric_id": "test_metric",
-                "value": 3775,
-                "central_line": 4039.93,
-                "trend_type": "",
-            },
-            {
-                "date": "2024-04-15",
-                "metric_id": "test_metric",
-                "value": 3725,
-                "central_line": 4039.93,
-                "trend_type": "",
-            },
-            {
-                "date": "2024-04-16",
-                "metric_id": "test_metric",
-                "value": 3700,
-                "central_line": 4039.93,
-                "trend_type": "",
-            },
-            {
-                "date": "2024-04-17",
-                "metric_id": "test_metric",
-                "value": 3675,
-                "central_line": 4039.93,
-                "trend_type": "",
-            },
-            {
-                "date": "2024-04-18",
-                "metric_id": "test_metric",
-                "value": 3650,
-                "central_line": 4039.93,
-                "trend_type": "",
-            },
-            {
-                "date": "2024-04-19",
-                "metric_id": "test_metric",
-                "value": 3550,
-                "central_line": 4039.93,
-                "trend_type": "",
-            },
-        ],
-    }
-
-    if trend_type not in trend_data:
-        raise ValueError(f"Invalid trend_type: {trend_type}")
-
-    df = pd.DataFrame(trend_data[trend_type])
-    df["slope"] = 0.0
-    df["has_discontinuity"] = False
-    df["growth_rate"] = 0.0
+def values_df():
+    df = pd.DataFrame(
+        {
+            "date": pd.date_range(start=start_date, periods=number_of_data_points, freq="D"),
+            "value": random.sample(range(100, 200), number_of_data_points),
+        }
+    )
     return df
 
 
-@pytest.mark.parametrize("trend_type", ["upward"])
-def test_trends_story_builder_analyze_upward_trend(trends_story_builder, mock_process_control_output, trend_type):
-    trends_df = trends_story_builder._analyze_trends(
-        mock_process_control_output, "test_metric", Granularity.DAY, start_date, end_date
+@pytest.fixture
+def metric_values(values_df):
+    return values_df.to_dict(orient="records")
+
+
+@pytest.fixture
+def process_control_df(values_df):
+    df = values_df.copy()
+    df["central_line"] = df["value"].rolling(window=5).mean()
+    df["ucl"] = df["central_line"].max()
+    df["lcl"] = df["central_line"].min()
+    df["slope"] = 1.5
+    df["slope_change"] = 0
+    df["trend_signal_detected"] = False
+    return df
+
+
+@pytest.fixture
+def trends_story_builder(
+    mock_query_service, mock_analysis_service, mock_analysis_manager, mock_db_session, metric_values
+):
+    mock_query_service.get_metric = AsyncMock(return_value={"id": "metric_1", "label": "Metric 1"})
+    mock_query_service.get_metric_time_series = AsyncMock(return_value=metric_values)
+    return TrendChangesStoryBuilder(mock_query_service, mock_analysis_service, mock_analysis_manager, mock_db_session)
+
+
+@pytest.mark.asyncio
+async def test_generate_stories_stable_trend(mocker, trends_story_builder, process_control_df):
+    # Prepare
+    process_control_df = process_control_df.copy()
+    process_control_df["trend_signal_detected"] = False
+    process_control_df["slope"] = 1.2
+    mocker.patch.object(trends_story_builder.analysis_manager, "process_control", return_value=process_control_df)
+
+    # Act
+    result = await trends_story_builder.generate_stories("metric_1", Granularity.DAY)
+
+    # Assert
+    assert len(result) == 1
+    story = result[0]
+    assert story["story_type"] == StoryType.STABLE_TREND
+
+
+@pytest.mark.asyncio
+async def test_generate_stories_upward_trend(mocker, trends_story_builder, process_control_df):
+    # Prepare
+    process_control_df = process_control_df.copy()
+    # set 10th from last as signal detected
+    process_control_df.loc[process_control_df.index[-30], "trend_signal_detected"] = True
+    process_control_df.loc[process_control_df.index[-10], "trend_signal_detected"] = True
+    # set slope for them to be greater than those before
+    process_control_df["slope"] = 1.8
+    process_control_df.loc[process_control_df.index[-30:-10], "slope"] = 1.2
+    process_control_df.loc[process_control_df.index[-10:], "slope"] = 1.5
+
+    mocker.patch.object(trends_story_builder.analysis_manager, "process_control", return_value=process_control_df)
+
+    # Act
+    result = await trends_story_builder.generate_stories("metric_1", Granularity.DAY)
+
+    # Assert
+    assert len(result) == 1
+    story = result[0]
+    assert story["story_type"] == StoryType.NEW_UPWARD_TREND
+    assert story["variables"]["trend_start_date"] == process_control_df["date"].iloc[-10].strftime(
+        trends_story_builder.date_text_format
     )
-
-    assert trends_df[0]["metric_id"] == "test_metric"
-    assert trends_df[0]["type"] == StoryType.NEW_UPWARD_TREND
-    assert trends_df[0]["genre"] == StoryGenre.TRENDS
+    assert story["variables"]["previous_trend_duration"] == 20
 
 
-@pytest.mark.parametrize("trend_type", ["downward"])
-def test_trends_story_builder_analyze_downward_trend(trends_story_builder, mock_process_control_output, trend_type):
-    trends_df = trends_story_builder._analyze_trends(
-        mock_process_control_output, "test_metric", Granularity.DAY, start_date, end_date
+@pytest.mark.asyncio
+async def test_generate_stories_downward_trend(mocker, trends_story_builder, process_control_df):
+    # Prepare
+    process_control_df = process_control_df.copy()
+    # set 10th from last as signal detected
+    process_control_df.loc[process_control_df.index[-30], "trend_signal_detected"] = True
+    process_control_df.loc[process_control_df.index[-10], "trend_signal_detected"] = True
+    # set slope for them to be less than those before
+    process_control_df["slope"] = 1.2
+    process_control_df.loc[process_control_df.index[-30:-10], "slope"] = 1.8
+    process_control_df.loc[process_control_df.index[-10:], "slope"] = 1.5
+
+    mocker.patch.object(trends_story_builder.analysis_manager, "process_control", return_value=process_control_df)
+
+    # Act
+    result = await trends_story_builder.generate_stories("metric_1", Granularity.DAY)
+
+    # Assert
+    assert len(result) == 1
+    story = result[0]
+    assert story["story_type"] == StoryType.NEW_DOWNWARD_TREND
+    assert story["variables"]["trend_start_date"] == process_control_df["date"].iloc[-10].strftime(
+        trends_story_builder.date_text_format
     )
-
-    assert trends_df[0]["metric_id"] == "test_metric"
-    assert trends_df[0]["type"] == StoryType.NEW_DOWNWARD_TREND
-    assert trends_df[0]["genre"] == StoryGenre.TRENDS
+    assert story["variables"]["previous_trend_duration"] == 20
 
 
-def test_trends_story_builder_analyze_for_empty_data(trends_story_builder):
-    mock_df_data = []
+@pytest.mark.asyncio
+async def test_generate_stories_performance_plateau(mocker, trends_story_builder, process_control_df):
+    # Prepare
+    process_control_df = process_control_df.copy()
+    # set 10th from last as signal detected
+    process_control_df.loc[process_control_df.index[-30], "trend_signal_detected"] = True
+    process_control_df.loc[process_control_df.index[-10], "trend_signal_detected"] = True
+    # set slope for them to be less than those before
+    process_control_df["slope"] = 1.2
+    process_control_df.loc[process_control_df.index[-30:-10], "slope"] = 1.8
+    process_control_df.loc[process_control_df.index[-10:], "slope"] = 0.9
 
-    trends_df = trends_story_builder._analyze_trends(
-        pd.DataFrame(mock_df_data), "test_metric", Granularity.DAY, start_date, end_date
-    )
+    mocker.patch.object(trends_story_builder.analysis_manager, "process_control", return_value=process_control_df)
 
-    assert len(trends_df) == 0
+    # Act
+    result = await trends_story_builder.generate_stories("metric_1", Granularity.DAY)
 
-
-@pytest.mark.parametrize(
-    "grain, expected_start_date",
-    [
-        ("day", date(2024, 4, 7)),
-        ("week", date(2024, 3, 12)),
-    ],
-)
-def test_get_sliding_start_date(grain, expected_start_date):
-    curr_start_date = end_date
-    actual_start_date = TrendChangesStoryBuilder._get_sliding_start_date(curr_start_date, grain)
-
-    assert actual_start_date == expected_start_date
-
-
-def test_has_discontinuity_condition(trends_story_builder):
-    series_df = pd.DataFrame(
-        {
-            "has_discontinuity": [False, False, False, False, False, False, False],
-            "central_line": [100, 100, 100, 100, 100, 100, 100],
-            "value": [110, 105, 103, 102, 101, 100, 99],
-        }
-    )
-    assert trends_story_builder._has_discontinuity_condition(series_df, 6)
+    # Assert
+    assert len(result) == 2
+    story_types = [story["story_type"] for story in result]
+    assert StoryType.PERFORMANCE_PLATEAU in story_types
 
 
-@pytest.mark.parametrize(
-    "prev_slope, slope, slope_change, expected_trend_type",
-    [
-        (0.0, 100.0, 100.0, StoryType.NEW_UPWARD_TREND),
-        (10.0, 0.0, -100.0, StoryType.NEW_DOWNWARD_TREND),
-    ],
-)
-def test_identify_trend_type(trends_story_builder, prev_slope, slope, slope_change, expected_trend_type):
-    assert trends_story_builder._identify_trend_type(prev_slope, slope, slope_change) == expected_trend_type
+@pytest.mark.asyncio
+async def test_generate_stories_no_min_data_points(mocker, trends_story_builder, metric_values):
+    # Prepare
+    trends_story_builder.query_service.get_metric_time_series = AsyncMock(return_value=metric_values[:5])
+
+    # Act
+    result = await trends_story_builder.generate_stories("metric_1", Granularity.DAY)
+
+    # Assert
+    assert len(result) == 0
