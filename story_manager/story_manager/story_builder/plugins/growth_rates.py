@@ -88,6 +88,9 @@ class GrowthStoryBuilder(StoryBuilderBase):
             growth_rates = self.analysis_manager.calculate_growth_rates_of_series(series_df)
             series_df["growth_rate"] = growth_rates
 
+            if not series_df.empty and pd.isna(series_df.iloc[0]["growth_rate"]):
+                series_df = series_df.iloc[1:]
+
             if series_df.empty:
                 logger.warning(
                     "Skipping story generation for metric '%s' with grain '%s' and reference period '%s' due to "
