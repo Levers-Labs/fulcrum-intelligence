@@ -17,6 +17,25 @@ class AnalysisManager:
     Core class for implementing all major functions for analysis manager
     """
 
+    def cal_average_growth(self, series: pd.Series, precision: int | None = None) -> float:
+        """
+        Calculate the average growth rate for the given time series data.
+        The average growth rate is mean of the growth rate (pct_change) of the time series data.
+        Avoid inf average growth, if present in the data.
+
+        :param series: The input time series data.
+        :param precision: The number of decimal places to round the result.
+        :return: The average growth rate for the time series data.
+        """
+        growth_rate = series.pct_change()
+        avg_growth = growth_rate.mean()
+        # Avoid inf average growth
+        if avg_growth == float("inf"):
+            avg_growth = growth_rate[growth_rate != float("inf")].mean()
+        # convert to percentage
+        avg_growth = avg_growth * 100
+        return round(avg_growth, precision) if precision else round(avg_growth)
+
     def describe(
         self,
         data: list[dict],

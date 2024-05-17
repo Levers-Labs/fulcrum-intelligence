@@ -5,13 +5,9 @@ from typing import Any
 import pandas as pd
 
 from commons.models.enums import Granularity, GranularityOrder
-from story_manager.core.enums import (
-    STORY_TYPES_META,
-    StoryGenre,
-    StoryGroup,
-    StoryType,
-)
+from story_manager.core.enums import StoryGenre, StoryGroup, StoryType
 from story_manager.story_builder import StoryBuilderBase
+from story_manager.story_builder.constants import GRAIN_META
 
 logger = logging.getLogger(__name__)
 
@@ -131,40 +127,21 @@ class GrowthStoryBuilder(StoryBuilderBase):
             story_type = (
                 StoryType.ACCELERATING_GROWTH if current_growth > reference_growth else StoryType.SLOWING_GROWTH
             )
-            story_meta = STORY_TYPES_META[story_type]
-            story_title = self._render_story_title(
-                story_type,  # type: ignore
-                pop=self.grain_meta[grain]["comp_label"],
-            )
-            story_detail = self._render_story_detail(
-                story_type,  # type: ignore
-                pop=self.grain_meta[grain]["comp_label"],
-                grain=grain.value,
-                current_growth=f"{current_growth:.0f}",
-                reference_growth=f"{reference_growth:.0f}",
-                metric=metric,
-                reference_period_days=0,
-            )
             story = {
                 "metric_id": metric_id,
                 "genre": self.genre,  # type: ignore
                 "group": self.group,  # type: ignore
                 "type": story_type,
                 "grain": grain.value,
-                "title": story_title,
-                "title_template": story_meta["title"],
-                "detail": story_detail,
-                "detail_template": story_meta["detail"],
-                "variables": {
-                    "pop": self.grain_meta[grain]["comp_label"],
-                    "grain": grain.value,
-                    "reference_period": reference_period.value,
-                    "current_growth": current_growth,
-                    "reference_growth": reference_growth,
-                    "metric_id": metric_id,
-                    "metric": {"label": metric["label"]},
-                },
                 "series": series_df.reset_index().astype({"date": str}).to_dict(orient="records"),
+                **self._render_story_texts(
+                    story_type,
+                    grain=grain,
+                    metric=metric,
+                    current_growth=current_growth,
+                    reference_growth=reference_growth,
+                    reference_period_days=len(series_df),
+                ),
             }
             stories.append(story)
 
@@ -182,11 +159,11 @@ class GrowthStoryBuilder(StoryBuilderBase):
         start_date = curr_start_date
 
         # Go back by the reference period
-        ref_delta = pd.DateOffset(**self.grain_meta[reference_period]["delta"])
+        ref_delta = pd.DateOffset(**GRAIN_META[reference_period]["delta"])
         start_date -= ref_delta
 
         # Go back by the grain period
-        grain_delta = pd.DateOffset(**self.grain_meta[grain]["delta"])
+        grain_delta = pd.DateOffset(**GRAIN_META[grain]["delta"])
         start_date -= grain_delta
 
         return start_date.date() if isinstance(start_date, pd.Timestamp) else start_date

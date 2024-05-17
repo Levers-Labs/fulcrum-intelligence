@@ -1,7 +1,7 @@
-from commons.models.enums import StrEnum
+from enum import Enum
 
 
-class StoryGenre(StrEnum):
+class StoryGenre(str, Enum):
     """
     Defines the genre of the story
     """
@@ -10,7 +10,7 @@ class StoryGenre(StrEnum):
     TRENDS = "TRENDS"
 
 
-class StoryType(StrEnum):
+class StoryType(str, Enum):
     """
     Defines the type of the story for each genre
     """
@@ -25,13 +25,22 @@ class StoryType(StrEnum):
     PERFORMANCE_PLATEAU = "PERFORMANCE_PLATEAU"
 
 
-class StoryGroup(StrEnum):
+class StoryGroup(str, Enum):
     """
     Defines the group of the story
     """
 
     GROWTH_RATES = "GROWTH_RATES"
     TREND_CHANGES = "TREND_CHANGES"
+
+
+class Movement(str, Enum):
+    """
+    Defines the movement of the numeric value
+    """
+
+    INCREASE = "increase"
+    DECREASE = "decrease"
 
 
 GROUP_TO_STORY_TYPE_MAPPING = {
@@ -69,31 +78,30 @@ STORY_TYPES_META: dict[str, dict[str, str]] = {
         "title": "Following a stable trend",
         # e.g., NewBizDeals continues to follow the trend line it has followed for the past 30 days, averaging a 10%
         # d/d increase.
-        "detail": "{{metric.label}} continues to follow the trend line it has followed for the past {{"
-        "trend_duration_days}} {{grain}}s, averaging a {{current_growth}}% {{pop}} {{"
-        "movement}}.",
+        "detail": "{{metric.label}} continues to follow the trend line it has followed for the "
+        "past {{trend_duration}} {{grain}}s, averaging a {{avg_growth}}% {{pop}} {{movement}}.",
     },
     StoryType.NEW_UPWARD_TREND: {
         "title": "New upward trend",
-        # e.g., Since 07-04-2024, NewBizDeals has been following a new, upward trend line that averages 15% d/d
+        # E.g., Since Mar 15, 2024, NewBizDeals has been following a new, upward trend line that averages 15% d/d
         # growth. The prior trend for this metric lasted 30 days and averaged 10% d/d growth.
         "detail": "Since {{trend_start_date}}, {{metric.label}} has been following a new, upward trend line that "
-        "averages {{current_growth}}% {{pop}} growth. The prior trend for this metric lasted {{"
-        "prior_trend_days}} days and averaged {{prior_trend_growth}}% {{pop}} growth.",
+        "averages {{current_avg_growth}}% {{pop}} growth. The prior trend for this metric "
+        "lasted {{previous_trend_duration}} {{grain}}s and averaged {{previous_avg_growth}}% {{pop}} growth.",
     },
     StoryType.NEW_DOWNWARD_TREND: {
         "title": "New downward trend",
-        # e.g.,  Since 07-04-2024, NewBizDeals has been following a new, downward trend line that averages 5% d/d
+        # E.g., Since Mar 15, 2024, NewBizDeals has been following a new, downward trend line that averages 5% d/d
         # growth. The prior trend for this metric lasted 30 days and averaged 10% d/d growth.
         "detail": "Since {{trend_start_date}}, {{metric.label}} has been following a new, downward trend line that "
-        "averages {{current_growth}}% {{pop}} growth. The prior trend for this metric lasted {{"
-        "prior_trend_days}} days and averaged {{prior_trend_growth}}% {{pop}} growth.",
+        "averages {{current_avg_growth}}% {{pop}} growth. The prior trend for this metric "
+        "lasted {{previous_trend_duration}} {{grain}}s and averaged {{previous_avg_growth}}% {{pop}} growth.",
     },
     StoryType.PERFORMANCE_PLATEAU: {
         "title": "Performance has leveled off",
-        # e.g.,  Since 07-04-2024, NewBizDeals growth has steadied into a new normal, hovering around a 30day
+        # e.g., Since Mar 15, 2024, NewBizDeals growth has steadied into a new normal, hovering around a 30day
         # average of 8%.
         "detail": "Since {{trend_start_date}}, {{metric.label}} growth has steadied into a new normal, hovering "
-        "around a {{grain}} average of {{current_growth}}%.",
+        "around a {{grain}} average of {{avg_value}}.",
     },
 }
