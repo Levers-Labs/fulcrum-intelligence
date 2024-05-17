@@ -12,6 +12,7 @@ from story_manager.core.enums import (
     StoryType,
 )
 from story_manager.story_builder import StoryBuilderBase
+from story_manager.story_builder.constants import GRAIN_META
 
 logger = logging.getLogger(__name__)
 
@@ -89,7 +90,7 @@ class GrowthStoryBuilder(StoryBuilderBase):
             series_df = series_df.interpolate()
 
             # calculate growth rates
-            series_df = self._calculate_growth_rates_of_series(series_df)
+            series_df = self.analysis_manager.calculate_growth_rates_of_series(series_df)
 
             if series_df.empty:
                 logger.warning(
@@ -132,19 +133,8 @@ class GrowthStoryBuilder(StoryBuilderBase):
                 StoryType.ACCELERATING_GROWTH if current_growth > reference_growth else StoryType.SLOWING_GROWTH
             )
             story_meta = STORY_TYPES_META[story_type]
-            story_title = self._render_story_title(
-                story_type,  # type: ignore
-                pop=self.grain_meta[grain]["comp_label"],
-            )
-            story_detail = self._render_story_detail(
-                story_type,  # type: ignore
-                pop=self.grain_meta[grain]["comp_label"],
-                grain=grain.value,
-                current_growth=f"{current_growth:.0f}",
-                reference_growth=f"{reference_growth:.0f}",
-                metric=metric,
-                reference_period_days=0,
-            )
+            story_title = ""
+            story_detail = ""
             story = {
                 "metric_id": metric_id,
                 "genre": self.genre,  # type: ignore
@@ -156,7 +146,6 @@ class GrowthStoryBuilder(StoryBuilderBase):
                 "detail": story_detail,
                 "detail_template": story_meta["detail"],
                 "variables": {
-                    "pop": self.grain_meta[grain]["comp_label"],
                     "grain": grain.value,
                     "reference_period": reference_period.value,
                     "current_growth": current_growth,
@@ -182,11 +171,11 @@ class GrowthStoryBuilder(StoryBuilderBase):
         start_date = curr_start_date
 
         # Go back by the reference period
-        ref_delta = pd.DateOffset(**self.grain_meta[reference_period]["delta"])
+        ref_delta = pd.DateOffset(**GRAIN_META[reference_period]["default"])
         start_date -= ref_delta
 
         # Go back by the grain period
-        grain_delta = pd.DateOffset(**self.grain_meta[grain]["delta"])
+        grain_delta = pd.DateOffset(**GRAIN_META[grain]["default"])
         start_date -= grain_delta
 
         return start_date.date() if isinstance(start_date, pd.Timestamp) else start_date

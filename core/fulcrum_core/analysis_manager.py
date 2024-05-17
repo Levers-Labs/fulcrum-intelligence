@@ -272,3 +272,17 @@ class AnalysisManager:
         df["deviation"] = deviations.round(3)
 
         return df, above_ucl, below_lcl
+
+    @staticmethod
+    def calculate_growth_rates_of_series(series_df: pd.DataFrame, remove_first_nan_row: bool = True) -> pd.DataFrame:
+        """
+        Calculate the growth rates for each data point in the time series.
+
+        :param series_df: The time series data frame containing the values.
+        :param remove_first_nan_row: Whether to remove the first row of the data frame.
+        """
+        series_df["growth_rate"] = series_df["value"].pct_change() * 100
+        # only drop the first row only if it has NaN value
+        if remove_first_nan_row and not series_df.empty and pd.isna(series_df.iloc[0]["growth_rate"]):
+            series_df = series_df.iloc[1:]
+        return series_df

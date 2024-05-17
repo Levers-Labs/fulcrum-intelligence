@@ -225,7 +225,7 @@ class TrendChangesStoryBuilder(StoryBuilderBase):
             slope, slope_change = self._calculate_slope_and_slope_change(curr_metric_val, i, series_df, prev_metric_val)
 
             # Calculate growth rates
-            self._calculate_growth_rates_of_series(series_df)
+            self.analysis_manager.calculate_growth_rates_of_series(series_df)
 
             # Wheeler rules to identify discontinuity
             if self._has_discontinuity_condition(series_df, i):
@@ -239,23 +239,8 @@ class TrendChangesStoryBuilder(StoryBuilderBase):
         trend_type = last_data_point["trend_type"]
         if trend_type:
             story_meta = STORY_TYPES_META[trend_type]  # type: ignore
-            story_title = self._render_story_title(
-                trend_type,  # type: ignore
-                pop=self.grain_meta[grain]["comp_label"],
-            )
-            story_detail = self._render_story_detail(
-                trend_type,  # type: ignore
-                metric=metric_id,
-                start_date=start_date,
-                current_growth=current_data["growth_rate"],
-                prior_trend_growth=prev_data["growth_rate"],
-                prior_trend_days=0,
-                grain=grain,
-                pop=self.grain_meta[grain]["comp_label"],
-                direction="up" if trend_type == StoryType.NEW_UPWARD_TREND else "down",
-                trend_start_date="",
-                position="",
-            )
+            story_title = ""
+            story_detail = ""
 
         story_metadata = {
             "metric_id": metric_id,

@@ -1,4 +1,5 @@
 from datetime import date
+from unittest.mock import ANY
 
 import pandas as pd
 import pytest
@@ -105,3 +106,27 @@ def test_calculate_deviations():
     deviation_not_zero_indices = [0, 5, 7, 9]
     for index in deviation_not_zero_indices:
         assert result_df.at[index, "deviation"] != 0.0
+
+
+def test_calculate_growth_rates_of_series():
+    analysis_manager = AnalysisManager()
+
+    series_df = pd.DataFrame(
+        {
+            "value": [10, 20, 30, 40, 50],
+        },
+        index=pd.date_range(start="2023-01-01", periods=5, freq="D"),
+    )
+    series_df2 = series_df.copy()
+
+    # Act
+    series_df = analysis_manager.calculate_growth_rates_of_series(series_df)
+
+    # Assert
+    assert series_df["growth_rate"].tolist() == [100.0, 50.0, 33.33333333333333, 25.0]
+
+    # Act
+    series_df2 = analysis_manager.calculate_growth_rates_of_series(series_df2, remove_first_nan_row=False)
+
+    # Assert
+    assert series_df2["growth_rate"].tolist() == [ANY, 100.0, 50.0, 33.33333333333333, 25.0]
