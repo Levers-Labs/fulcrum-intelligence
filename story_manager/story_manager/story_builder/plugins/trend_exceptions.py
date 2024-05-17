@@ -92,7 +92,7 @@ class TrendExceptionsStoryBuilder(StoryBuilderBase):
         if story_type:
             story_details = self.prepare_story_dict(
                 story_type=story_type,
-                grain=grain,
+                grain=grain,  # type: ignore
                 metric=metric,
                 df=pc_df,
                 deviation=deviation,
