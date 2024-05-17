@@ -61,7 +61,9 @@ class TrendExceptionsStoryBuilder(StoryBuilderBase):
         start_date, end_date = self._get_input_time_range(grain)  # type: ignore
 
         # get time series data
-        series_df = await self._get_time_series_data(metric_id, grain, start_date, end_date, set_index=False)
+        series_df = await self._get_time_series_data(
+            metric_id, grain, start_date, end_date, set_index=False  # type: ignore
+        )
 
         # validate time series data has minimum required data points
         time_durations = self.get_time_durations(grain)  # type: ignore
