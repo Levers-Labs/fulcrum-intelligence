@@ -95,7 +95,7 @@ class TrendExceptionsStoryBuilder(StoryBuilderBase):
                 grain=grain,  # type: ignore
                 metric=metric,
                 df=pc_df,
-                deviation=deviation.item(),
+                deviation=deviation,
                 position=position.value,
             )
             stories.append(story_details)

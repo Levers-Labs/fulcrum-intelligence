@@ -286,7 +286,7 @@ class AnalysisManager:
         return growth_rates
 
     @staticmethod
-    def calculate_deviation(value: pd.Series, limit: pd.Series) -> pd.Series:
+    def calculate_deviation(value: pd.Series, limit: pd.Series) -> float:
         """
         Calculate the deviation percentage based on an observed value and a reference limit.
 
@@ -297,8 +297,8 @@ class AnalysisManager:
         """
 
         # Check if all values in the 'limit' Series are zero
-        if (limit == 0).all():
-            return pd.Series([0.0])
+        if (limit == 0).all() or (limit < 0).all():
+            return 0.0
 
         deviation = round(((value - limit) / limit) * 100)
-        return pd.Series(deviation)
+        return float(deviation)
