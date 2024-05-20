@@ -23,6 +23,8 @@ class StoryType(str, Enum):
     NEW_UPWARD_TREND = "NEW_UPWARD_TREND"
     NEW_DOWNWARD_TREND = "NEW_DOWNWARD_TREND"
     PERFORMANCE_PLATEAU = "PERFORMANCE_PLATEAU"
+    SPIKE = "SPIKE"
+    DROP = "DROP"
 
 
 class StoryGroup(str, Enum):
@@ -32,6 +34,16 @@ class StoryGroup(str, Enum):
 
     GROWTH_RATES = "GROWTH_RATES"
     TREND_CHANGES = "TREND_CHANGES"
+    TREND_EXCEPTIONS = "TREND_EXCEPTIONS"
+
+
+class Position(str, Enum):
+    """
+    Defines the position of the value
+    """
+
+    ABOVE = "above"
+    BELOW = "below"
 
 
 class Movement(str, Enum):
@@ -103,5 +115,21 @@ STORY_TYPES_META: dict[str, dict[str, str]] = {
         # average of 8%.
         "detail": "Since {{trend_start_date}}, {{metric.label}} growth has steadied into a new normal, hovering "
         "around a {{grain}} average of {{avg_value}}.",
+    },
+    StoryType.SPIKE: {
+        "title": "Performance spike above {{grain}} trend",
+        # e.g.,  NewBizDeals is currently performing at 12% above its normal range. This may indicate an anomaly,
+        # a data issue, or a fundamental change in how this metric performs.
+        "detail": "{{metric.label}} is currently performing at {{deviation}}% {{position}} its normal "
+        "range. This may indicate an anomaly, a data issue, or a fundamental change in how this metric "
+        "performs.",
+    },
+    StoryType.DROP: {
+        "title": "Performance drop below {{grain}} trend",
+        # e.g.,  NewBizDeals is currently performing at -25% below its normal range. This may indicate an anomaly,
+        # a data issue, or a fundamental change in how this metric performs.
+        "detail": "{{metric.label}} is currently performing at {{deviation}}% {{position}} its normal "
+        "range. This may indicate an anomaly, a data issue, or a fundamental change in how this metric "
+        "performs.",
     },
 }

@@ -173,29 +173,6 @@ def test_get_current_period_range_from_today(story_builder):
     assert end_date == expected_end_date
 
 
-def test_calculate_growth_rates_of_series(story_builder):
-    # prepare
-    series_df = pd.DataFrame(
-        {
-            "value": [10, 20, 30, 40, 50],
-        },
-        index=pd.date_range(start="2023-01-01", periods=5, freq="D"),
-    )
-    series_df2 = series_df.copy()
-
-    # Act
-    series_df = story_builder._calculate_growth_rates_of_series(series_df)
-
-    # Assert
-    assert series_df["growth_rate"].tolist() == [100.0, 50.0, 33.33333333333333, 25.0]
-
-    # Act
-    series_df2 = story_builder._calculate_growth_rates_of_series(series_df2, remove_first_nan_row=False)
-
-    # Assert
-    assert series_df2["growth_rate"].tolist() == [ANY, 100.0, 50.0, 33.33333333333333, 25.0]
-
-
 def test_get_story_context(story_builder):
     # prepare
     grain = Granularity.DAY

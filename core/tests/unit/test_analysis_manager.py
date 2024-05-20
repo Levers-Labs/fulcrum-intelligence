@@ -1,4 +1,5 @@
 from datetime import date
+from unittest.mock import ANY
 
 import pandas as pd
 import pytest
@@ -110,3 +111,56 @@ def test_calculate_component_drift(metric_expression, component_drift_response):
     assert sales_dev_spend_drift["drift"]["marginal_contribution"] == pytest.approx(0.009625195466218992)
     assert round(sales_dev_spend_drift["drift"]["relative_impact_root"], 2) == pytest.approx(-0.1)
     assert round(sales_dev_spend_drift["drift"]["marginal_contribution_root"], 4) == pytest.approx(0.0029)
+
+
+def test_calculate_growth_rates_of_series():
+    analysis_manager = AnalysisManager()
+
+    series_df = pd.DataFrame(
+        {
+            "value": [10, 20, 30, 40, 50],
+        },
+        index=pd.date_range(start="2023-01-01", periods=5, freq="D"),
+    )
+    series_df2 = series_df.copy()
+
+    # Act
+    growth_rates = analysis_manager.calculate_growth_rates_of_series(series_df)
+
+    # Assert
+    assert growth_rates.tolist() == [ANY, 100.0, 50.0, 33.33333333333333, 25.0]
+
+    # Act
+    growth_rates2 = analysis_manager.calculate_growth_rates_of_series(series_df2)
+    series_df2["growth_rate"] = growth_rates2
+
+    # Assert
+    assert series_df2["growth_rate"].tolist() == [ANY, 100.0, 50.0, 33.33333333333333, 25.0]
+
+
+def test_calculate_deviation():
+    analysis_manager = AnalysisManager()
+
+    # Value greater than limit (positive deviation)
+    value = 15.5
+    limit = 10.0
+    expected_deviation = 55.0  # ((15.5 - 10.5) / 10.0) * 100 = 55.0
+    assert analysis_manager.calculate_deviation(value, limit) == expected_deviation
+
+    # Value less than limit (negative deviation)
+    value = 5.0
+    limit = 10.0
+    expected_deviation = -50.0  # ((5 - 10) / 10) * 100 = -50.0
+    assert analysis_manager.calculate_deviation(value, limit) == expected_deviation
+
+    # Value equal to limit (zero deviation)
+    value = 10.0
+    limit = 10.0
+    expected_deviation = 0.0  # ((10 - 10) / 10) * 100 = 0.0
+    assert analysis_manager.calculate_deviation(value, limit) == expected_deviation
+
+    # # Zero value
+    value = 0.0
+    limit = 10.0
+    expected_deviation = -100.0  # ((0 - 10) / 10) * 100 = -100.0
+    assert analysis_manager.calculate_deviation(value, limit) == expected_deviation

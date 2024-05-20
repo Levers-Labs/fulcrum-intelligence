@@ -31,5 +31,10 @@ STORY_GROUP_TIME_DURATIONS: dict[str, Any] = {
             "input": 60,
             "output": 10,
         },
-    }
+    },
+    StoryGroup.TREND_EXCEPTIONS: {
+        Granularity.DAY: {"min": 30, "input": 90, "output": 20},
+        Granularity.WEEK: {"min": 20, "input": 104, "output": 20},
+        Granularity.MONTH: {"min": 20, "input": 60, "output": 10},
+    },
 }

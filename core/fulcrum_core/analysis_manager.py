@@ -52,7 +52,8 @@ class AnalysisManager:
         result = correlate(data, start_date, end_date)
         return result
 
-    def process_control(self, df: pd.DataFrame) -> pd.DataFrame:
+    @staticmethod
+    def process_control(df: pd.DataFrame) -> pd.DataFrame:
         """
         Perform time series analysis using process control techniques.
         For a given metric time series, Process Control generates:
@@ -267,3 +268,37 @@ class AnalysisManager:
         elif forecast_till_date:
             results = forecast.predict_till_date(forecast_till_date, **kwargs)
         return results
+
+    @staticmethod
+    def calculate_growth_rates_of_series(series_df: pd.DataFrame) -> pd.Series:
+        """
+        Calculate the growth rates for each data point in the time series.
+
+        Parameters:
+        - series_df (pd.DataFrame): The time series data frame containing the values.
+
+        Returns:
+        pd.Series: Series of growth rates.
+        """
+
+        growth_rates = series_df["value"].pct_change() * 100
+
+        return growth_rates
+
+    @staticmethod
+    def calculate_deviation(value: float, limit: float) -> float:
+        """
+        Calculate the deviation percentage based on an observed value and a reference limit.
+
+        :param value: The observed value for which deviation is calculated.
+        :param limit: The upper or lower limit.
+
+        :return: The deviation percentage.
+        """
+
+        # Check if all values in the 'limit' Series are zero
+        if limit == 0:
+            return 0.0
+
+        deviation = round(((value - limit) / limit) * 100)
+        return float(deviation)
