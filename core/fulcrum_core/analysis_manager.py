@@ -293,7 +293,7 @@ class AnalysisManager:
         :param value: The observed value for which deviation is calculated.
         :param limit: The upper or lower limit.
 
-        :return: The deviation percentage as a Pandas Series containing a single value.
+        :return: The deviation percentage.
         """
 
         # Check if all values in the 'limit' Series are zero
