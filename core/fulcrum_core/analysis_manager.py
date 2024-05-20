@@ -288,22 +288,22 @@ class AnalysisManager:
         return growth_rates
 
     @staticmethod
-    def calculate_deviation(value: float, limit: float) -> float:
+    def calculate_percentage_difference(curr_value: float, ref_value: float) -> float:
         """
-        Calculate the deviation percentage based on an observed value and a reference limit.
+        Calculate the percentage difference between two values.
 
-        :param value: The observed value for which deviation is calculated.
-        :param limit: The upper or lower limit.
+        :param curr_value: The current value for which deviation is calculated.
+        :param ref_value: The reference value.
 
         :return: The deviation percentage.
         """
 
-        # Check if all values in the 'limit' Series are zero
-        if limit == 0:
+        # Check if the reference value is zero to avoid division by zero
+        if ref_value == 0:
             return 0.0
 
-        deviation = round(((value - limit) / limit) * 100)
-        return float(deviation)
+        diff_percentage = round(((curr_value - ref_value) / ref_value) * 100)
+        return float(diff_percentage)
 
     @staticmethod
     def calculate_slope_of_series(df: pd.DataFrame) -> float:
@@ -327,20 +327,3 @@ class AnalysisManager:
         slope, _, _, _, _ = linregress(x_values, df["value"])
 
         return slope
-
-    @staticmethod
-    def calculate_overall_growth_rate_of_series(df: pd.DataFrame) -> float:
-        """
-        Calculate the overall growth rate percentage of a time series.
-
-        :param df: Time series
-        :return: Overall growth rate percentage.
-        """
-
-        # Calculate the overall growth rate percentage
-        initial_value = df["value"].iloc[0]
-        final_value = df["value"].iloc[-1]
-
-        growth_rate = ((final_value - initial_value) / initial_value) * 100
-
-        return growth_rate

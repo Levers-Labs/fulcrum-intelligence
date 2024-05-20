@@ -66,7 +66,9 @@ class LongRangeStoryBuilder(StoryBuilderBase):
             return []
 
         avg_growth = self.analysis_manager.cal_average_growth(series_df["value"])
-        overall_growth = self.analysis_manager.calculate_overall_growth_rate_of_series(series_df)
+        initial_value = series_df["value"].iloc[0]
+        final_value = series_df["value"].iloc[-1]
+        overall_growth = self.analysis_manager.calculate_percentage_difference(final_value, initial_value)
 
         slope = self.analysis_manager.calculate_slope_of_series(series_df)
 
