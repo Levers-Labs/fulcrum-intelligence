@@ -81,11 +81,11 @@ class TrendExceptionsStoryBuilder(StoryBuilderBase):
 
         story_type = None
         if ref_data["value"] > ref_data["ucl"]:
-            deviation = self.analysis_manager.calculate_deviation(ref_data["value"], ref_data["ucl"])
+            deviation = self.analysis_manager.calculate_deviation(ref_data["value"].item(), ref_data["ucl"].item())
             story_type = StoryType.SPIKE
             position = Position.ABOVE
         elif ref_data["value"] < ref_data["lcl"]:
-            deviation = self.analysis_manager.calculate_deviation(ref_data["value"], ref_data["lcl"])
+            deviation = self.analysis_manager.calculate_deviation(ref_data["value"].item(), ref_data["lcl"].item())
             story_type = StoryType.DROP
             position = Position.BELOW
 

@@ -142,25 +142,25 @@ def test_calculate_deviation():
     analysis_manager = AnalysisManager()
 
     # Value greater than limit (positive deviation)
-    value = pd.Series(15)
-    limit = pd.Series(10)
-    expected_deviation = 50.0  # ((15 - 10) / 10) * 100 = 50.0
+    value = 15.5
+    limit = 10.0
+    expected_deviation = 55.0  # ((15.5 - 10.5) / 10.0) * 100 = 55.0
     assert analysis_manager.calculate_deviation(value, limit) == expected_deviation
 
     # Value less than limit (negative deviation)
-    value = pd.Series(5)
-    limit = pd.Series(10)
+    value = 5.0
+    limit = 10.0
     expected_deviation = -50.0  # ((5 - 10) / 10) * 100 = -50.0
     assert analysis_manager.calculate_deviation(value, limit) == expected_deviation
 
     # Value equal to limit (zero deviation)
-    value = pd.Series(10)
-    limit = pd.Series(10)
+    value = 10.0
+    limit = 10.0
     expected_deviation = 0.0  # ((10 - 10) / 10) * 100 = 0.0
     assert analysis_manager.calculate_deviation(value, limit) == expected_deviation
 
     # # Zero value
-    value = pd.Series(0)
-    limit = pd.Series(10)
+    value = 0.0
+    limit = 10.0
     expected_deviation = -100.0  # ((0 - 10) / 10) * 100 = -100.0
     assert analysis_manager.calculate_deviation(value, limit) == expected_deviation
