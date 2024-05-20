@@ -288,11 +288,11 @@ class AnalysisManager:
         return growth_rates
 
     @staticmethod
-    def calculate_percentage_difference(curr_value: float, ref_value: float) -> float:
+    def calculate_percentage_difference(value: float, ref_value: float) -> float:
         """
         Calculate the percentage difference between two values.
 
-        :param curr_value: The current value for which deviation is calculated.
+        :param value: The value for which deviation is calculated.
         :param ref_value: The reference value.
 
         :return: The deviation percentage.
@@ -302,7 +302,7 @@ class AnalysisManager:
         if ref_value == 0:
             return 0.0
 
-        diff_percentage = round(((curr_value - ref_value) / ref_value) * 100)
+        diff_percentage = round(((value - ref_value) / ref_value) * 100)
         return float(diff_percentage)
 
     @staticmethod
