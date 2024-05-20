@@ -82,7 +82,7 @@ class LongRangeStoryBuilder(StoryBuilderBase):
             avg_growth=avg_growth,
             overall_growth=overall_growth,
             duration=len(series_df),
-            start_time=start_date,
+            start_date=start_date.strftime(self.date_text_format),
         )
         stories.append(story_details)
         logger.info("A new long range story created for metric '%s' with grain '%s'")
