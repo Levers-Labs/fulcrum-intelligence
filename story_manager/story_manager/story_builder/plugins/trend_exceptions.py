@@ -81,11 +81,11 @@ class TrendExceptionsStoryBuilder(StoryBuilderBase):
 
         story_type = None
         if ref_data["value"] > ref_data["ucl"]:
-            deviation = round(((ref_data["value"] - ref_data["ucl"]) / ref_data["ucl"]) * 100)
+            deviation = self.analysis_manager.calculate_deviation(ref_data["value"], ref_data["ucl"])
             story_type = StoryType.SPIKE
             position = Position.ABOVE
         elif ref_data["value"] < ref_data["lcl"]:
-            deviation = round(((ref_data["lcl"] - ref_data["value"]) / ref_data["lcl"]) * 100)
+            deviation = self.analysis_manager.calculate_deviation(ref_data["value"], ref_data["lcl"])
             story_type = StoryType.DROP
             position = Position.BELOW
 
@@ -95,7 +95,7 @@ class TrendExceptionsStoryBuilder(StoryBuilderBase):
                 grain=grain,  # type: ignore
                 metric=metric,
                 df=pc_df,
-                deviation=deviation,
+                deviation=deviation.item(),
                 position=position.value,
             )
             stories.append(story_details)

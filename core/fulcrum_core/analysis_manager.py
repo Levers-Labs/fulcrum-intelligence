@@ -283,22 +283,22 @@ class AnalysisManager:
 
         growth_rates = series_df["value"].pct_change() * 100
 
-        # Remove the first NaN value if present
-        growth_rates = growth_rates[~growth_rates.isna()]
-
         return growth_rates
 
     @staticmethod
-    def calculate_deviation(value: float, limit: float) -> float:
+    def calculate_deviation(value: pd.Series, limit: pd.Series) -> pd.Series:
         """
         Calculate the deviation percentage based on an observed value and a reference limit.
 
         :param value: The observed value for which deviation is calculated.
         :param limit: The upper or lower limit.
 
-        :return: The deviation percentage.
+        :return: The deviation percentage as a Pandas Series containing a single value.
         """
-        if limit == 0:
-            return 0.0
+
+        # Check if all values in the 'limit' Series are zero
+        if (limit == 0).all():
+            return pd.Series([0.0])
+
         deviation = round(((value - limit) / limit) * 100)
-        return deviation
+        return pd.Series(deviation)
