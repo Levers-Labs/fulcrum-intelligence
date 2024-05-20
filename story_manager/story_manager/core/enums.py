@@ -25,6 +25,8 @@ class StoryType(str, Enum):
     PERFORMANCE_PLATEAU = "PERFORMANCE_PLATEAU"
     SPIKE = "SPIKE"
     DROP = "DROP"
+    IMPROVING_PERFORMANCE = "IMPROVING_PERFORMANCE"
+    WORSENING_PERFORMANCE = "WORSENING_PERFORMANCE"
 
 
 class StoryGroup(str, Enum):
@@ -35,6 +37,7 @@ class StoryGroup(str, Enum):
     GROWTH_RATES = "GROWTH_RATES"
     TREND_CHANGES = "TREND_CHANGES"
     TREND_EXCEPTIONS = "TREND_EXCEPTIONS"
+    LONG_RANGE = "LONG_RANGE"
 
 
 class Position(str, Enum):
@@ -131,5 +134,19 @@ STORY_TYPES_META: dict[str, dict[str, str]] = {
         "detail": "{{metric.label}} is currently performing at {{deviation}}% {{position}} its normal "
         "range. This may indicate an anomaly, a data issue, or a fundamental change in how this metric "
         "performs.",
+    },
+    StoryType.IMPROVING_PERFORMANCE: {
+        "title": "Performance has improved over the past {{duration}} {{grain}}s",
+        # e.g.,  Over the past 30 days, NewBizDeals has been averaging 10% d/d growth and has grown 5% overall
+        # since Mar 15, 2024.
+        "detail": "Over the past {{duration}} {{grain}}s, {{metric.label}} has been averaging {{avg_growth}}% {{pop}} "
+        "growth and has grown {{overall_growth}}% overall since {{start_date}}.",
+    },
+    StoryType.WORSENING_PERFORMANCE: {
+        "title": "Performance has worsened over the past {{duration}} {{grain}}s",
+        # e.g.,  Over the past 30 days, NewBizDeals has been declining 10% d/d growth and has fallen 5% overall
+        # since Mar 15, 2024.
+        "detail": "Over the past {{duration}} {{grain}}s, {{metric.label}} has been declining {{avg_growth}}% {{pop}} "
+        "growth and has fallen {{overall_growth}}% overall since {{start_date}}.",
     },
 }

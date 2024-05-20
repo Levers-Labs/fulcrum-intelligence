@@ -3,6 +3,7 @@ from datetime import date
 from typing import Any
 
 import pandas as pd
+from scipy.stats import linregress
 
 from fulcrum_core.correlate import correlate
 from fulcrum_core.describe import describe
@@ -17,7 +18,8 @@ class AnalysisManager:
     Core class for implementing all major functions for analysis manager
     """
 
-    def cal_average_growth(self, series: pd.Series, precision: int | None = None) -> float:
+    @staticmethod
+    def cal_average_growth(series: pd.Series, precision: int | None = None) -> float:
         """
         Calculate the average growth rate for the given time series data.
         The average growth rate is mean of the growth rate (pct_change) of the time series data.
@@ -302,3 +304,43 @@ class AnalysisManager:
 
         deviation = round(((value - limit) / limit) * 100)
         return float(deviation)
+
+    @staticmethod
+    def calculate_slope_of_series(df: pd.DataFrame) -> float:
+        """
+        Calculate the slope of the time series.
+
+        Parameters:
+        - df (pd.DataFrame): The time series data frame containing the values.
+
+        Returns:
+        - slope of the time series.
+        """
+
+        # Convert date column to datetime dtype
+        df["date"] = pd.to_datetime(df["date"])
+
+        # Convert date column to numeric values (e.g., timestamps) for linear regression
+        x_values = df["date"].astype(int)
+
+        # Calculate the slope using linear regression
+        slope, _, _, _, _ = linregress(x_values, df["value"])
+
+        return slope
+
+    @staticmethod
+    def calculate_overall_growth_rate_of_series(df: pd.DataFrame) -> float:
+        """
+        Calculate the overall growth rate percentage of a time series.
+
+        :param df: Time series
+        :return: Overall growth rate percentage.
+        """
+
+        # Calculate the overall growth rate percentage
+        initial_value = df["value"].iloc[0]
+        final_value = df["value"].iloc[-1]
+
+        growth_rate = ((final_value - initial_value) / initial_value) * 100
+
+        return growth_rate
