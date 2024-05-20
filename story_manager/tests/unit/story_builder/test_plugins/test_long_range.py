@@ -36,7 +36,9 @@ async def test_generate_stories_success(mocker, long_range_story_builder, sample
     long_range_story_builder.query_service.get_metric = AsyncMock(
         return_value={"id": metric_id, "name": "Sample Metric"}
     )
-    mocker.patch.object(long_range_story_builder, "_get_input_time_range", return_value=("2020-01-01", "2020-04-01"))
+    mocker.patch.object(
+        long_range_story_builder, "_get_input_time_range", return_value=(date(2020, 1, 1), date(2020, 4, 1))
+    )
     mocker.patch.object(long_range_story_builder, "_get_time_series_data", return_value=sample_data)
     mocker.patch.object(long_range_story_builder, "get_time_durations", return_value={"min": 3})
     mocker.patch.object(long_range_story_builder.analysis_manager, "cal_average_growth", return_value=50.0)
@@ -69,7 +71,9 @@ async def test_generate_stories_insufficient_data(mocker, long_range_story_build
     long_range_story_builder.query_service.get_metric = AsyncMock(
         return_value={"id": metric_id, "name": "Sample Metric"}
     )
-    mocker.patch.object(long_range_story_builder, "_get_input_time_range", return_value=("2020-01-01", "2020-04-01"))
+    mocker.patch.object(
+        long_range_story_builder, "_get_input_time_range", return_value=(date(2020, 1, 1), date(2020, 4, 1))
+    )
     mocker.patch.object(long_range_story_builder, "_get_time_series_data", return_value=short_data)
     mocker.patch.object(long_range_story_builder, "get_time_durations", return_value={"min": 3})
 
@@ -83,7 +87,9 @@ async def test_generate_stories_improving_performance(mocker, long_range_story_b
     long_range_story_builder.query_service.get_metric = AsyncMock(
         return_value={"id": metric_id, "name": "Sample Metric"}
     )
-    mocker.patch.object(long_range_story_builder, "_get_input_time_range", return_value=("2020-01-01", "2020-04-01"))
+    mocker.patch.object(
+        long_range_story_builder, "_get_input_time_range", return_value=(date(2020, 1, 1), date(2020, 4, 1))
+    )
     mocker.patch.object(long_range_story_builder, "_get_time_series_data", return_value=sample_data)
     mocker.patch.object(long_range_story_builder, "get_time_durations", return_value={"min": 3})
     mocker.patch.object(
@@ -110,7 +116,9 @@ async def test_generate_stories_worsening_performance(mocker, long_range_story_b
     long_range_story_builder.query_service.get_metric = AsyncMock(
         return_value={"id": metric_id, "name": "Sample Metric"}
     )
-    mocker.patch.object(long_range_story_builder, "_get_input_time_range", return_value=("2020-01-01", "2020-04-01"))
+    mocker.patch.object(
+        long_range_story_builder, "_get_input_time_range", return_value=(date(2020, 1, 1), date(2020, 4, 1))
+    )
     mocker.patch.object(long_range_story_builder, "_get_time_series_data", return_value=sample_worsening_data)
     mocker.patch.object(long_range_story_builder, "get_time_durations", return_value={"min": 3})
     mocker.patch.object(
