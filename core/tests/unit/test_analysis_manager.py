@@ -138,29 +138,50 @@ def test_calculate_growth_rates_of_series():
     assert series_df2["growth_rate"].tolist() == [ANY, 100.0, 50.0, 33.33333333333333, 25.0]
 
 
-def test_calculate_deviation():
+def test_calculate_percentage_change():
     analysis_manager = AnalysisManager()
 
     # Value greater than limit (positive deviation)
     value = 15.5
     limit = 10.0
     expected_deviation = 55.0  # ((15.5 - 10.5) / 10.0) * 100 = 55.0
-    assert analysis_manager.calculate_deviation(value, limit) == expected_deviation
+    assert analysis_manager.calculate_percentage_difference(value, limit) == expected_deviation
 
     # Value less than limit (negative deviation)
     value = 5.0
     limit = 10.0
     expected_deviation = -50.0  # ((5 - 10) / 10) * 100 = -50.0
-    assert analysis_manager.calculate_deviation(value, limit) == expected_deviation
+    assert analysis_manager.calculate_percentage_difference(value, limit) == expected_deviation
 
     # Value equal to limit (zero deviation)
     value = 10.0
     limit = 10.0
     expected_deviation = 0.0  # ((10 - 10) / 10) * 100 = 0.0
-    assert analysis_manager.calculate_deviation(value, limit) == expected_deviation
+    assert analysis_manager.calculate_percentage_difference(value, limit) == expected_deviation
 
     # # Zero value
     value = 0.0
     limit = 10.0
     expected_deviation = -100.0  # ((0 - 10) / 10) * 100 = -100.0
-    assert analysis_manager.calculate_deviation(value, limit) == expected_deviation
+    assert analysis_manager.calculate_percentage_difference(value, limit) == expected_deviation
+
+
+def test_calculate_slope_of_time_series():
+    # Create an instance of AnalysisManager
+    analysis_manager = AnalysisManager()
+
+    series_df = pd.DataFrame(
+        {
+            "value": [10, 20, 30, 40, 50],
+            "date": pd.date_range(start="2023-01-01", periods=5, freq="D"),
+        },
+    )
+
+    # Expected output based on test_df
+    expected_slope = 10.0
+
+    # Call the function
+    slope = analysis_manager.calculate_slope_of_time_series(series_df)
+
+    # Assertion
+    assert slope == expected_slope

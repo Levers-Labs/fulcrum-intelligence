@@ -3,6 +3,7 @@ from datetime import date
 from typing import Any
 
 import pandas as pd
+from scipy.stats import linregress
 
 from fulcrum_core.correlate import correlate
 from fulcrum_core.describe import describe
@@ -17,7 +18,8 @@ class AnalysisManager:
     Core class for implementing all major functions for analysis manager
     """
 
-    def cal_average_growth(self, series: pd.Series, precision: int | None = None) -> float:
+    @staticmethod
+    def cal_average_growth(series: pd.Series, precision: int | None = None) -> float:
         """
         Calculate the average growth rate for the given time series data.
         The average growth rate is mean of the growth rate (pct_change) of the time series data.
@@ -286,19 +288,43 @@ class AnalysisManager:
         return growth_rates
 
     @staticmethod
-    def calculate_deviation(value: float, limit: float) -> float:
+    def calculate_percentage_difference(value: float, ref_value: float) -> float:
         """
-        Calculate the deviation percentage based on an observed value and a reference limit.
+        Calculate the percentage difference between two values.
 
-        :param value: The observed value for which deviation is calculated.
-        :param limit: The upper or lower limit.
+        :param value: The value for which deviation is calculated.
+        :param ref_value: The reference value.
 
         :return: The deviation percentage.
         """
 
-        # Check if all values in the 'limit' Series are zero
-        if limit == 0:
+        # Check if the reference value is zero to avoid division by zero
+        if ref_value == 0:
             return 0.0
 
-        deviation = round(((value - limit) / limit) * 100)
-        return float(deviation)
+        diff_percentage = round(((value - ref_value) / ref_value) * 100)
+        return float(diff_percentage)
+
+    @staticmethod
+    def calculate_slope_of_time_series(df: pd.DataFrame, precision: int | None = None) -> float:
+        """
+        Calculate the slope of the time series.
+
+        Parameters:
+        - df (pd.DataFrame): The time series data frame containing the values.
+
+        Returns:
+        - slope of the time series.
+        """
+
+        # Convert date column to datetime dtype
+        df["date"] = pd.to_datetime(df["date"])
+
+        # Calculate the number of days elapsed since the earliest date in the DataFrame,
+        # and store the result as x_values
+        x_values = (df["date"] - df["date"].min()).dt.days
+
+        # Calculate the slope using linear regression
+        slope, _, _, _, _ = linregress(x_values, df["value"])
+
+        return round(slope, precision)
