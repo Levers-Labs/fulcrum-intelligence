@@ -1,53 +1,53 @@
 import logging
-from datetime import date
 from typing import Any
 
-import pandas as pd
-
-from commons.models.enums import Granularity, GranularityOrder
+from commons.models.enums import Granularity
 from story_manager.core.enums import StoryGenre, StoryGroup, StoryType
 from story_manager.story_builder import StoryBuilderBase
-from story_manager.story_builder.constants import GRAIN_META
 
 logger = logging.getLogger(__name__)
 
 
 class GrowthStoryBuilder(StoryBuilderBase):
-    genre = StoryGenre.GROWTH  # type: ignore
-    group = StoryGroup.GROWTH_RATES  # type: ignore
-    supported_grains = [Granularity.DAY, Granularity.WEEK, Granularity.MONTH, Granularity.QUARTER]
+    genre = StoryGenre.GROWTH
+    group = StoryGroup.GROWTH_RATES
+    supported_grains = [Granularity.DAY, Granularity.WEEK, Granularity.MONTH]
 
     async def generate_stories(self, metric_id: str, grain: Granularity) -> list[dict[str, Any]]:
         """
         Generate growth stories for the given metric and grain.
 
         The logic for generating growth stories is as follows:
-        1. Figure out the end date of the last period based on the grain.
-        2. For each reference period (week, month, quarter):
-            A. Calculate the period difference between the current grain and the reference period.
-            B. Get the time series data for the given metric and grain.
-            C. Calculate growth rates for each data point in the time series.
-            D. Retrieve current and reference growth rates from the growth rates DataFrame.
-            E. Check discard conditions.
-            F. Determine the story type based on whether the current growth rate is greater
-           than the reference growth rate.
-           G. Render the story text using the story type and relevant variables.
+        - A time series of metric values is constructed for the grain and span relevant to the digest.
+        - The time series is “once-differenced” to produce a series of growth rates.
+            That is, for an ordered series {1, 2, 3, 4, 5}, the once-differenced series is
+            {(2-1)/1, (3-2)/2, (4-3)/3, (5-4)/4}.
+            The once-differenced time series represents growth rates.
+        - The time series is then “twice-differenced” to produce a series representing the
+            acceleration of growth rates (the second derivative).
+        - The standard deviation is computed for the “twice-differenced” series.
+        - If the most recent value in the twice-differenced series is more
+            than one standard deviation above the previous value,
+            this is an Accelerating Growth story.
+            If the most recent value in the twice-differenced series is more than
+            1 standard deviation below the previous value, this is a Slowing Growth story.
+            Otherwise, no story is produced.
 
         Example output:
         [
             {
-                "metric_id": "cac",
+                "metric_id": "NewBizDeals",
                 "genre": "GROWTH",
                 "group": "GROWTH_RATES",
                 "type": "ACCELERATING_GROWTH",
                 "grain": "day",
-                "text": "The d/d growth rate for CAC has accelerated over the past prior week,
-                growing from 8% d/d growth to 10% now.",
+                "text": " The d/d growth rate for NewBizDeals is speeding up. It is currently 15%
+                    and up from the 10% average over the past 30 days.",
                 "variables": {
                     "grain": "day",
-                    "reference_period": "week",
+                    "duration": 30,
                     "current_growth": 10.0,
-                    "reference_growth": 8.0
+                    "avg_growth": 8.0
                 },
                 "series": [
                     {"date": "2023-04-10", "value": 100, "growth_rate": 8.0},
@@ -62,112 +62,74 @@ class GrowthStoryBuilder(StoryBuilderBase):
         :param grain: The grain for which growth stories are generated
         :return: A list of generated growth stories
         """
-        reference_periods = [Granularity.WEEK, Granularity.MONTH, Granularity.QUARTER]
+        # get metric details
         metric = await self.query_service.get_metric(metric_id)
-        stories: list[dict[str, Any]] = []
-        # Get the end date of the last period based on the grain
-        curr_start_date, curr_end_date = self._get_current_period_range(grain)
 
-        # compare the current growth rate with the reference growth rate
-        # by iterating over the reference periods (week, month, quarter)
-        for reference_period in reference_periods:
-            # continue if the reference period is greater than the current grain
-            if GranularityOrder[reference_period.name].value < GranularityOrder[grain.name].value:
-                continue
+        # find the start and end date for the input time series data
+        start_date, end_date = self._get_input_time_range(grain)
 
-            # Get the start date of the period based on the end date, reference period, and grain
-            start_date = self._get_sliding_start_date(curr_start_date, reference_period, grain)
+        # get time series data
+        df = await self._get_time_series_data(metric_id, grain, start_date, end_date, set_index=False)
 
-            # Retrieve time series data for the given metric and grain
-            series_df = await self._get_time_series_data(metric_id, grain, start_date, curr_end_date)
-
-            # Interpolate missing values in the time series data
-            series_df = series_df.interpolate()
-
-            # calculate growth rates
-            growth_rates = self.analysis_manager.calculate_growth_rates_of_series(series_df)
-            series_df["growth_rate"] = growth_rates
-
-            if not series_df.empty and pd.isna(series_df.iloc[0]["growth_rate"]):
-                series_df = series_df.iloc[1:]
-
-            if series_df.empty:
-                logger.warning(
-                    "Skipping story generation for metric '%s' with grain '%s' and reference period '%s' due to "
-                    "insufficient data points.",
-                    metric_id,
-                    grain,
-                    reference_period,
-                )
-                continue
-
-            # Retrieve the reference growth rate from the growth rates DataFrame based on the period difference
-            reference_growth = series_df.iloc[0]["growth_rate"]
-            # Retrieve the current growth rate from the last row of the growth rates DataFrame
-            current_growth = series_df.iloc[-1]["growth_rate"]
-
-            # Check if either the reference growth rate or current growth rate is missing
-            if pd.isna(reference_growth) or pd.isna(current_growth):
-                logger.warning(
-                    "Discarding story generation for metric '%s' with grain '%s' and reference period '%s' "
-                    "due to missing growth rates.",
-                    metric_id,
-                    grain,
-                    reference_period,
-                )
-                continue
-
-            # Check if the reference growth rate is equal to the current growth rate
-            if reference_growth == current_growth:
-                logger.warning(
-                    "Discarding story generation for metric '%s' with grain '%s' and reference period '%s' "
-                    "due to equal growth rates.",
-                    metric_id,
-                    grain,
-                    reference_period,
-                )
-                continue
-
-            story_type = (
-                StoryType.ACCELERATING_GROWTH if current_growth > reference_growth else StoryType.SLOWING_GROWTH
+        # validate time series data has minimum required data points
+        time_durations = self.get_time_durations(grain)
+        if len(df) < time_durations["min"]:
+            logging.warning(
+                "Discarding story generation for metric '%s' with grain '%s' due to insufficient data", metric_id, grain
             )
-            story = {
-                "metric_id": metric_id,
-                "genre": self.genre,  # type: ignore
-                "group": self.group,  # type: ignore
-                "type": story_type,
-                "grain": grain.value,
-                "series": series_df.reset_index().astype({"date": str}).to_dict(orient="records"),
-                **self._render_story_texts(
-                    story_type,
-                    grain=grain,
-                    metric=metric,
-                    current_growth=current_growth,
-                    reference_growth=reference_growth,
-                    reference_period_days=len(series_df),
-                ),
-            }
-            stories.append(story)
+            return []
 
+        stories: list[dict] = []
+
+        # Compute once-differenced series (growth rates)
+        df["growth_rate"] = self.analysis_manager.calculate_growth_rates_of_series(df["value"])
+
+        # Compute twice-differenced series (acceleration of growth rates)
+        df["acceleration"] = self.analysis_manager.calculate_growth_rates_of_series(df["growth_rate"])
+
+        # Compute standard deviation of the twice-differenced series
+        std_acceleration = df["acceleration"].std()
+
+        recent_acceleration = df["acceleration"].iloc[-1]
+        previous_acceleration = df["acceleration"].iloc[-2]
+
+        # Check if the most recent value in the twice-differenced series is more
+        # than one standard deviation above the previous value
+        if recent_acceleration > (previous_acceleration + std_acceleration):
+            story_type = StoryType.ACCELERATING_GROWTH
+        # Check if the most recent value in the twice-differenced series is more
+        # than one standard deviation below the previous value
+        elif recent_acceleration < (previous_acceleration - std_acceleration):
+            story_type = StoryType.SLOWING_GROWTH
+        else:
+            logger.info(
+                "Discarding story generation for metric '%s' with grain '%s' due to no significant growth acceleration",
+                metric_id,
+                grain,
+            )
+            return []
+
+        logging.info(
+            "%s detected for metric '%s' with grain '%s'. "
+            "Recent acceleration: %s, Previous acceleration: %s, Std Dev: %s",
+            story_type.value,
+            metric_id,
+            grain,
+            recent_acceleration,
+            previous_acceleration,
+            std_acceleration,
+        )
+        current_growth = df["growth_rate"].iloc[-1]
+        avg_growth = self.analysis_manager.cal_average_growth(df["value"])
+        duration = len(df)
+        story_details = self.prepare_story_dict(
+            story_type,
+            grain=grain,
+            metric=metric,
+            df=df,
+            current_growth=round(current_growth),
+            avg_growth=avg_growth,
+            duration=duration,
+        )
+        stories.append(story_details)
         return stories
-
-    def _get_sliding_start_date(self, curr_start_date: date, reference_period: Granularity, grain: Granularity) -> date:
-        """
-        Get the start date of the period based on the end date, reference period, and grain.
-
-        :param curr_start_date: The end date of the last period.
-        :param reference_period: The reference period for which the start date is retrieved.
-        :param grain: The grain for which the start date is aligned.
-        :return: The start date of the period.
-        """
-        start_date = curr_start_date
-
-        # Go back by the reference period
-        ref_delta = pd.DateOffset(**GRAIN_META[reference_period]["delta"])
-        start_date -= ref_delta
-
-        # Go back by the grain period
-        grain_delta = pd.DateOffset(**GRAIN_META[grain]["delta"])
-        start_date -= grain_delta
-
-        return start_date.date() if isinstance(start_date, pd.Timestamp) else start_date

@@ -277,20 +277,20 @@ class AnalysisManager:
         return results
 
     @staticmethod
-    def calculate_growth_rates_of_series(series_df: pd.DataFrame) -> pd.Series:
+    def calculate_growth_rates_of_series(values: pd.Series, precision: int | None = None) -> pd.Series:
         """
         Calculate the growth rates for each data point in the time series.
 
         Parameters:
-        - series_df (pd.DataFrame): The time series data frame containing the values.
+        - series_df (pd.Series): The time series data for which growth rates are calculated.
 
         Returns:
         pd.Series: Series of growth rates.
         """
+        # Calculate the growth rates using the pct_change method
+        growth_rates = values.pct_change() * 100
 
-        growth_rates = series_df["value"].pct_change() * 100
-
-        return growth_rates
+        return round(growth_rates, precision) if precision else round(growth_rates)
 
     @staticmethod
     def calculate_percentage_difference(value: float, ref_value: float) -> float:
