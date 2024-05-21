@@ -70,7 +70,9 @@ class LongRangeStoryBuilder(StoryBuilderBase):
         final_value = series_df["value"].iloc[-1]
         overall_growth = self.analysis_manager.calculate_percentage_difference(final_value, initial_value)
 
-        slope = self.analysis_manager.calculate_slope_of_series(series_df)
+        slope = self.analysis_manager.calculate_slope_of_time_series(df=series_df)
+
+        series_df["slope"] = slope
 
         story_type = StoryType.IMPROVING_PERFORMANCE if slope > 0 else StoryType.WORSENING_PERFORMANCE
 
@@ -85,6 +87,6 @@ class LongRangeStoryBuilder(StoryBuilderBase):
             start_date=start_date.strftime(self.date_text_format),
         )
         stories.append(story_details)
-        logger.info("A new long range story created for metric '%s' with grain '%s'")
+        logger.info("A new long range story created for metric '%s' with grain '%s'", metric_id, grain)
         logger.info(f"Story details: {story_details}")
         return stories

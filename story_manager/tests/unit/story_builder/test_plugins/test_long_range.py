@@ -45,7 +45,7 @@ async def test_generate_stories_success(mocker, long_range_story_builder, sample
     mocker.patch.object(
         long_range_story_builder.analysis_manager, "calculate_percentage_difference", return_value=150.0
     )
-    mocker.patch.object(long_range_story_builder.analysis_manager, "calculate_slope_of_series", return_value=1.0)
+    mocker.patch.object(long_range_story_builder.analysis_manager, "calculate_slope_of_time_series", return_value=1.0)
     mocker.patch.object(
         long_range_story_builder,
         "prepare_story_dict",

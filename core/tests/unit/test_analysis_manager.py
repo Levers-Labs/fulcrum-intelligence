@@ -164,3 +164,24 @@ def test_calculate_percentage_change():
     limit = 10.0
     expected_deviation = -100.0  # ((0 - 10) / 10) * 100 = -100.0
     assert analysis_manager.calculate_percentage_difference(value, limit) == expected_deviation
+
+
+def test_calculate_slope_of_time_series():
+    # Create an instance of AnalysisManager
+    analysis_manager = AnalysisManager()
+
+    series_df = pd.DataFrame(
+        {
+            "value": [10, 20, 30, 40, 50],
+            "date": pd.date_range(start="2023-01-01", periods=5, freq="D"),
+        },
+    )
+
+    # Expected output based on test_df
+    expected_slope = 10.0
+
+    # Call the function
+    slope = analysis_manager.calculate_slope_of_time_series(series_df)
+
+    # Assertion
+    assert slope == expected_slope
