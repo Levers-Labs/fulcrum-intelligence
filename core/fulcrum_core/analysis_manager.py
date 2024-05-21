@@ -306,7 +306,7 @@ class AnalysisManager:
         return float(diff_percentage)
 
     @staticmethod
-    def calculate_slope_of_time_series(df: pd.DataFrame) -> float:
+    def calculate_slope_of_time_series(df: pd.DataFrame, precision: int | None = None) -> float:
         """
         Calculate the slope of the time series.
 
@@ -320,10 +320,11 @@ class AnalysisManager:
         # Convert date column to datetime dtype
         df["date"] = pd.to_datetime(df["date"])
 
-        # Convert date column to numeric values for linear regression
+        # Calculate the number of days elapsed since the earliest date in the DataFrame,
+        # and store the result as x_values
         x_values = (df["date"] - df["date"].min()).dt.days
 
         # Calculate the slope using linear regression
         slope, _, _, _, _ = linregress(x_values, df["value"])
 
-        return round(slope, 2)
+        return round(slope, precision)
