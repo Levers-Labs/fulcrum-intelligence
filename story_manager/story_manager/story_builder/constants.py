@@ -21,16 +21,8 @@ STORY_GROUP_TIME_DURATIONS: dict[str, Any] = {
             # period which will be used for story output and visualization
             "output": 20,
         },
-        Granularity.WEEK: {
-            "min": 20,
-            "input": 104,
-            "output": 20,
-        },
-        Granularity.MONTH: {
-            "min": 20,
-            "input": 60,
-            "output": 10,
-        },
+        Granularity.WEEK: {"min": 20, "input": 104, "output": 20},
+        Granularity.MONTH: {"min": 20, "input": 60, "output": 10},
     },
     StoryGroup.TREND_EXCEPTIONS: {
         Granularity.DAY: {"min": 30, "input": 90, "output": 20},
@@ -41,5 +33,10 @@ STORY_GROUP_TIME_DURATIONS: dict[str, Any] = {
         Granularity.DAY: {"min": 7, "input": 30, "output": 30},
         Granularity.WEEK: {"min": 4, "input": 14, "output": 14},
         Granularity.MONTH: {"min": 3, "input": 4, "output": 4},
+    },
+    StoryGroup.GROWTH_RATES: {
+        Granularity.DAY: {"min": 8, "input": 30, "output": 30},
+        Granularity.WEEK: {"min": 8, "input": 14, "output": 14},
+        Granularity.MONTH: {"min": 8, "input": 12, "output": 12},
     },
 }
