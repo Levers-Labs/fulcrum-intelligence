@@ -125,17 +125,17 @@ def test_calculate_growth_rates_of_series():
     series_df2 = series_df.copy()
 
     # Act
-    growth_rates = analysis_manager.calculate_growth_rates_of_series(series_df)
+    growth_rates = analysis_manager.calculate_growth_rates_of_series(series_df["value"])
 
     # Assert
-    assert growth_rates.tolist() == [ANY, 100.0, 50.0, 33.33333333333333, 25.0]
+    assert growth_rates.tolist() == [ANY, 100.0, 50.0, 33.0, 25.0]
 
     # Act
-    growth_rates2 = analysis_manager.calculate_growth_rates_of_series(series_df2)
+    growth_rates2 = analysis_manager.calculate_growth_rates_of_series(series_df2["value"], 2)
     series_df2["growth_rate"] = growth_rates2
 
     # Assert
-    assert series_df2["growth_rate"].tolist() == [ANY, 100.0, 50.0, 33.33333333333333, 25.0]
+    assert series_df2["growth_rate"].tolist() == [ANY, 100.0, 50.0, 33.33, 25.0]
 
 
 def test_calculate_percentage_change():
