@@ -1,3 +1,4 @@
+import asyncio
 from datetime import date
 from unittest.mock import ANY
 
@@ -5,6 +6,8 @@ import pandas as pd
 import pytest
 
 from fulcrum_core import AnalysisManager
+from fulcrum_core.enums import MetricChangeDirection
+from fulcrum_core.modules import SegmentDriftEvaluator
 
 
 def test_cal_average_growth():
@@ -185,3 +188,60 @@ def test_calculate_slope_of_time_series():
 
     # Assertion
     assert slope == expected_slope
+
+
+def recursive_dict_compare(dict1, dict2):
+    """
+    Recursively compares the values in two dictionaries.
+    Args:
+        dict1 (dict): First dictionary to compare.
+        dict2 (dict): Second dictionary to compare.
+    Returns:
+        bool: True if all values match recursively, False otherwise.
+    """
+    # If both inputs are not dictionaries, compare their values directly
+    if not isinstance(dict1, dict) or not isinstance(dict2, dict):
+        return dict1 == dict2
+
+    # If the keys of both dictionaries don't match, return False
+    if set(dict1.keys()) != set(dict2.keys()):
+        return False
+
+    # Recursively compare the values for each key
+    for key in dict1:
+        if not recursive_dict_compare(dict1[key], dict2[key]):
+            return False
+
+    return True
+
+
+def recursively_round_up_values(dict1):
+    for key1, value1 in dict1.items():
+        if isinstance(value1, float):
+            dict1[key1] = round(value1, 4)
+        elif isinstance(value1, dict):
+            recursively_round_up_values(value1)
+    return dict1
+
+
+def test_segment_drift(segment_drift_data, segment_drift_output):
+    analysis_manager = AnalysisManager()
+    dsensei_base_url = "http://localhost:5001"
+    response = asyncio.run(analysis_manager.segment_drift(dsensei_base_url, segment_drift_data))
+    assert recursive_dict_compare(
+        sorted(recursively_round_up_values(response)), sorted(recursively_round_up_values(segment_drift_output))
+    )
+
+
+def test_get_metric_change_direction():
+    segment_drift_evaluator = SegmentDriftEvaluator("")
+    unchanged = segment_drift_evaluator.get_metric_change_direction(0, "increasing")
+    assert unchanged == MetricChangeDirection.UNCHANGED
+
+
+def test_get_overall_change():
+    assert SegmentDriftEvaluator("").get_overall_change(10, 0) == 0.0
+
+
+def test_calculate_segment_relative_change():
+    assert SegmentDriftEvaluator("").calculate_segment_relative_change("", 0, {}) == 0

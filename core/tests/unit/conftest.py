@@ -89,3 +89,38 @@ def describe_output():
     with open(pathlib.Path.joinpath(Paths.BASE_DIR, "tests/data/describe_output.json")) as fr:  # noqa: UP015
         describe_output = json.loads(fr.read())
     return describe_output
+
+
+@pytest.fixture
+def segment_drift_data():
+    with open("tests/data/segment_drift_data.json") as fr:  # noqa: UP015
+        data = json.load(fr)
+
+    date_column = "date"
+    aggregation_option = "sum"
+    metric_value_column = "value"
+    dimensions = ["region", "stage_name"]
+    target_metric_direction = "increasing"  # or "decreasing"
+
+    segment_drift_data = {
+        "data": data,
+        "evaluation_start_date": "2025-03-01",
+        "evaluation_end_date": "2025-03-30",
+        "comparison_start_date": "2024-03-01",
+        "comparison_end_date": "2024-03-30",
+        "date_column": date_column,
+        "metric_id": metric_value_column,
+        "dimensions": dimensions,
+        "aggregationOption": aggregation_option,
+        "aggregationMethod": "SUM",
+        "target_metric_direction": target_metric_direction,
+    }
+
+    return segment_drift_data
+
+
+@pytest.fixture
+def segment_drift_output():
+    with open("tests/data/segment_drift_output.json") as fr:  # noqa: UP015
+        segment_drift_output = json.loads(fr.read())
+    return segment_drift_output
