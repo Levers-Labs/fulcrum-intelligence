@@ -96,17 +96,15 @@ STORY_TYPES_META: dict[str, dict[str, str]] = {
         "title": "{{pop}} growth is slowing down",
         # e.g., The d/d growth rate for NewBizDeals is slowing down. It is currently 10% and down from the 15% average
         # over the past 5 days.
-        "detail": "The {{pop}} growth rate for {{metric.label}} is slowing down. It is currently {{"
-        "current_growth}}% and down from the {{reference_growth}}% average over the past {{"
-        "reference_period_days}} {{grain}}s.",
+        "detail": "The {{pop}} growth rate for {{metric.label}} is slowing down. It is currently "
+        "{{current_growth}}% and down from the {{avg_growth}}% average over the past {{duration}} {{grain}}s.",
     },
     StoryType.ACCELERATING_GROWTH: {
         "title": "{{pop}} growth is speeding up",
         # e.g., The d/d growth rate for NewBizDeals is speeding up. It is currently 15% and up from the 10% average
         # over the past 11 days.
-        "detail": "The {{pop}} growth rate for {{metric.label}} is speeding up. It is currently {{current_growth}}% "
-        "and up from the {{reference_growth}}% average over the past {{reference_period_days}} {{"
-        "days}}s.",
+        "detail": "The {{pop}} growth rate for {{metric.label}} is speeding up. It is currently "
+        "{{current_growth}}% and up from the {{avg_growth}}% average over the past {{duration}} {{grain}}s.",
     },
     StoryType.STABLE_TREND: {
         "title": "Following a stable trend",
