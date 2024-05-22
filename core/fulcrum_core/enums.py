@@ -9,9 +9,9 @@ class Granularity(str, Enum):
     YEAR = "year"
 
 
-class TargetAim(str, Enum):
-    MAXIMIZE = "increasing"
-    MINIMIZE = "decreasing"
+class MetricAim(str, Enum):
+    INCREASING = "increasing"
+    DECREASING = "decreasing"
 
 
 class MetricChangeDirection(str, Enum):
@@ -20,7 +20,13 @@ class MetricChangeDirection(str, Enum):
     UNCHANGED = "UNCHANGED"
 
 
-class AggregationMethod(str, Enum):
-    DISTINCT = "unique"
+class AggregationOption(str, Enum):
+    DISTINCT = "nunique"
     SUM = "sum"
     COUNT = "count"
+
+
+class AggregationMethod(str, Enum):
+    DISTINCT = "DISTINCT"
+    SUM = "SUM"
+    COUNT = "COUNT"

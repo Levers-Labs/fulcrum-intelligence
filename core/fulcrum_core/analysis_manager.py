@@ -7,7 +7,12 @@ from scipy.stats import linregress
 
 from fulcrum_core.correlate import correlate
 from fulcrum_core.describe import describe
-from fulcrum_core.enums import Granularity
+from fulcrum_core.enums import (
+    AggregationMethod,
+    AggregationOption,
+    Granularity,
+    MetricAim,
+)
 from fulcrum_core.modules import (
     ComponentDriftEvaluator,
     ProcessControlAnalyzer,
@@ -334,19 +339,33 @@ class AnalysisManager:
 
         return round(slope, precision)
 
-    async def segment_drift(self, dsensei_base_url: str, request_data: dict[str, Any]) -> dict:
-        df = pd.json_normalize(request_data["data"])
+    async def segment_drift(
+        self,
+        dsensei_base_url: str,
+        df: pd.DataFrame,
+        evaluation_start_date: str,
+        evaluation_end_date: str,
+        comparison_start_date: str,
+        comparison_end_date: str,
+        dimensions: list[str],
+        metric_column: str = "value",
+        date_column: str = "date",
+        aggregation_option: AggregationOption = AggregationOption.SUM,
+        aggregation_method: AggregationMethod = AggregationMethod.SUM,
+        target_metric_direction: MetricAim = MetricAim.INCREASING,
+    ) -> dict:
+
         result = await SegmentDriftEvaluator(dsensei_base_url).calculate_segment_drift(
             df,
-            request_data["evaluation_start_date"],
-            request_data["evaluation_end_date"],
-            request_data["comparison_start_date"],
-            request_data["comparison_end_date"],
-            request_data["dimensions"],
-            request_data["metric_id"],
-            request_data["date_column"],
-            aggregation_option=request_data.get("aggregation_option", "sum"),
-            aggregation_method=request_data.get("aggregation_method", "SUM"),
-            target_metric_direction=request_data.get("target_metric_direction", "increasing"),
+            evaluation_start_date,
+            evaluation_end_date,
+            comparison_start_date,
+            comparison_end_date,
+            dimensions,
+            metric_column,
+            date_column,
+            aggregation_option=aggregation_option,
+            aggregation_method=aggregation_method,
+            target_metric_direction=target_metric_direction,
         )
         return result

@@ -9,15 +9,20 @@ import httpx
 import pandas as pd
 from sqlalchemy.exc import InvalidRequestError
 
-from fulcrum_core.enums import MetricChangeDirection, TargetAim
+from fulcrum_core.enums import (
+    AggregationMethod,
+    AggregationOption,
+    MetricAim,
+    MetricChangeDirection,
+)
 
 
 class SegmentDriftEvaluator:
     TIMESTAMP_FORMAT = "%Y-%m-%dT%H:%M:%S.%fZ"
 
     def __init__(self, dsensei_base_url: str):
-        self.DSENSEI_BASE_URL = dsensei_base_url
-        self.PATH_FOR_CSV = tempfile.gettempdir()
+        self.dsensei_base_url = dsensei_base_url
+        self.temp_dir = tempfile.gettempdir()
 
     async def calculate_segment_drift(
         self,
@@ -27,11 +32,11 @@ class SegmentDriftEvaluator:
         comparison_start_date: str,
         comparison_end_date: str,
         dimensions: list[str],
-        metric_id: str = "value",
+        metric_column: str = "value",
         date_column: str = "date",
-        aggregation_option: str = "sum",
-        aggregation_method: str = "SUM",
-        target_metric_direction: str = "increasing",
+        aggregation_option: AggregationOption = AggregationOption.SUM,
+        aggregation_method: AggregationMethod = AggregationMethod.SUM,
+        target_metric_direction: MetricAim = MetricAim.INCREASING,
     ):
         """
         This is the entrypoint for calculating the segment drift in the given data.
@@ -42,10 +47,11 @@ class SegmentDriftEvaluator:
 
         """
         self.validate_request_data(
-            df, aggregation_option=aggregation_option, aggregation_method=aggregation_method, metric_column=metric_id
+            df,
+            metric_column=metric_column,
         )
 
-        csv_path = self.write_dataframe_to_csv(df)  # convert it to async
+        csv_path = self.write_dataframe_to_csv(df)
 
         # Uploading the file to dsensei server, as it works with CSV files only.
         file_id = await self.send_file_to_dsensei(csv_path)
@@ -56,52 +62,59 @@ class SegmentDriftEvaluator:
 
         # fetching the insights of our data from dsensei server, get_insights
         result = await self.get_insights(
-            file_id,
-            evaluation_start_date,
-            evaluation_end_date,
-            comparison_start_date,
-            comparison_end_date,
-            dimensions,
-            metric_id,
-            date_column,
-            aggregation_option,
-            aggregation_method,
+            csv_file_id=file_id,
+            evaluation_start_date=evaluation_start_date,
+            evaluation_end_date=evaluation_end_date,
+            comparison_start_date=comparison_start_date,
+            comparison_end_date=comparison_end_date,
+            dimensions=dimensions,
+            metric_column=metric_column,
+            date_column=date_column,
+            aggregation_option=aggregation_option,
+            aggregation_method=aggregation_method,
         )
+
         # main_key is the parent key of the whole result, its format is "metricColumn_aggregationMethod"
         # EX: "value_SUM"  or "region_DISTINCT"
-        main_key = f"{metric_id}_{aggregation_method}"
+        main_key = f"{metric_column}_{aggregation_method}"
 
         # dimension slice info consist of all calculations for all permutations of the provided dimensions
         dimension_slice_info = result[main_key]["dimensionSliceInfo"]
-        overall_change = self.get_overall_change(result[main_key]["comparisonValue"], result[main_key]["baselineValue"])
+        overall_change = self.get_overall_change(
+            comparison_value=result[main_key]["comparisonValue"],
+            baseline_value=result[main_key]["baselineValue"],
+        )
 
         # processing the result to calculate the direction of metric change, whether its UPWARD DOWNWARD or UNCHANGED
         for segment in dimension_slice_info.keys():
-            relative_change = self.calculate_segment_relative_change(segment, overall_change, dimension_slice_info)
+            relative_change = self.calculate_segment_relative_change(
+                segment, overall_change=overall_change, slice_info=dimension_slice_info
+            )
 
             dimension_slice_info[segment]["relative_change"] = relative_change
 
             dimension_slice_info[segment]["pressure"] = self.get_metric_change_direction(
-                relative_change, target_metric_direction
+                relative_change=relative_change,
+                target_metric_direction=target_metric_direction,
             )
 
         return result
 
-    def get_overall_change(self, comparison_value, baseline_value):
+    def get_overall_change(self, comparison_value: float, baseline_value: float) -> float:
         try:
             overall_change = (comparison_value - baseline_value) / baseline_value
         except ZeroDivisionError:
             overall_change = 0.0
         return overall_change
 
-    def calculate_segment_relative_change(self, segment: str, overall_change: float, dimension_slice_info: dict):
+    def calculate_segment_relative_change(self, segment: str, overall_change: float, slice_info: dict) -> float:
         try:
-            slice_comparison_value = dimension_slice_info[segment]["comparisonValue"]["sliceValue"]
+            slice_comparison_value = slice_info[segment]["comparisonValue"]["sliceValue"]
         except KeyError:
             slice_comparison_value = 0
 
         try:
-            slice_baseline_value = dimension_slice_info[segment]["baselineValue"]["sliceValue"]
+            slice_baseline_value = slice_info[segment]["baselineValue"]["sliceValue"]
         except KeyError:
             slice_baseline_value = 0
 
@@ -113,36 +126,38 @@ class SegmentDriftEvaluator:
 
         return (change - overall_change) * 100
 
-    def get_metric_change_direction(self, relative_change: float, target_metric_direction: str):
+    def get_metric_change_direction(
+        self, relative_change: float, target_metric_direction: str
+    ) -> MetricChangeDirection:
         """
         Method to indentify the direction of metric change.
         Params:
             relative_change: relative change we calculated in calculate_segment_relative_change.
             target_metric_direction: It could be "increasing" or "decreasing".
         """
-        if (relative_change > 0 and target_metric_direction == TargetAim.MAXIMIZE) or (
-            relative_change < 0 and target_metric_direction == TargetAim.MINIMIZE
+        if (relative_change > 0 and target_metric_direction == MetricAim.INCREASING) or (
+            relative_change < 0 and target_metric_direction == MetricAim.DECREASING
         ):
             return MetricChangeDirection.UPWARD
-        elif (relative_change > 0 and target_metric_direction == TargetAim.MINIMIZE) or (
-            relative_change < 0 and target_metric_direction == TargetAim.MAXIMIZE
+        elif (relative_change > 0 and target_metric_direction == MetricAim.INCREASING) or (
+            relative_change < 0 and target_metric_direction == MetricAim.DECREASING
         ):
             return MetricChangeDirection.DOWNWARD
-        elif relative_change == 0.0:
-            return MetricChangeDirection.UNCHANGED
 
-    def write_dataframe_to_csv(self, df: pd.DataFrame):
+        return MetricChangeDirection.UNCHANGED
+
+    def write_dataframe_to_csv(self, df: pd.DataFrame) -> str:
         """
         Using this function to write the provided data frame to a CSV, which would be used
         Dsensei server request
         Args: dataFrame of the data on which processing would be done
         Response: file_path, where the file is uploaded
         """
-        file_path = os.path.join(self.PATH_FOR_CSV, f"{uuid.uuid4()}.csv")
+        file_path = os.path.join(self.temp_dir, f"{uuid.uuid4()}.csv")
         df.to_csv(file_path)
         return file_path
 
-    async def send_file_to_dsensei(self, file_path: str):
+    async def send_file_to_dsensei(self, file_path: str) -> str:
         """
         To send the data csv file to dsensei server,
         this data would be used for calculation of insights on desensei
@@ -157,7 +172,7 @@ class SegmentDriftEvaluator:
         """
         with open(file_path, "rb") as file:
             response = await self.http_request(url="api/v1/source/file/schema", files={"file": file})
-            return response.get("name")
+            return response.get("name", " ")
 
     async def http_request(self, url: str, *args: list, **kwargs: dict) -> dict:
         """
@@ -165,13 +180,15 @@ class SegmentDriftEvaluator:
         Params:
             url: api endpoint of the dsensei server.
             args: we are not using for now
-            Kwargs: can have date or files keys or both.
+            Kwargs: can have json or files keys or both.
         """
         async with httpx.AsyncClient() as client:
             response = await client.post(
-                urllib.parse.urljoin(str(self.DSENSEI_BASE_URL), url),
-                json=kwargs.get("data"),
-                files=kwargs.get("files"),
+                urllib.parse.urljoin(
+                    str(self.dsensei_base_url),
+                    url,
+                ),
+                **kwargs,  # type: ignore
             )
 
             return response.json()
@@ -184,17 +201,17 @@ class SegmentDriftEvaluator:
         comparison_start_date: str,
         comparison_end_date: str,
         dimensions: list[str],
-        metric_id: str = "value",
+        metric_column: str = "value",
         date_column: str = "date",
-        aggregation_option: str = "sum",
-        aggregation_method: str = "SUM",
+        aggregation_option: AggregationOption = AggregationOption.SUM,
+        aggregation_method: AggregationMethod = AggregationMethod.SUM,
     ) -> dict:
-
-        # The name of the fields in request body of dsensei insight api request are different,
-        # from what we have in segement drift request,
-        # like evaluation_start_date -> baseDateRange
-        # Few additional mandatory but nullable fields are also required in request body
         """
+        - The name of the fields in request body of dsensei insight api request are different,
+          from what we have in segement drift request,
+          like evaluation_start_date -> baseDateRange
+        - Few additional mandatory but nullable fields are also required in request body
+
         Request payload structure:
         {
             "csv_file_id": "file_id we received in response from dsensei server",
@@ -212,19 +229,19 @@ class SegmentDriftEvaluator:
         }
         """
         request_payload = self.get_insight_request_payload(
-            csv_file_id,
-            evaluation_start_date,
-            evaluation_end_date,
-            comparison_start_date,
-            comparison_end_date,
-            dimensions,
-            metric_id,
-            date_column,
-            aggregation_option,
-            aggregation_method,
+            csv_file_id=csv_file_id,
+            evaluation_start_date=evaluation_start_date,
+            evaluation_end_date=evaluation_end_date,
+            comparison_start_date=comparison_start_date,
+            comparison_end_date=comparison_end_date,
+            dimensions=dimensions,
+            metric_column=metric_column,
+            date_column=date_column,
+            aggregation_option=aggregation_option,
+            aggregation_method=aggregation_method,
         )
 
-        return await self.http_request(url="api/v1/insight/file/metric", data=request_payload)
+        return await self.http_request(url="api/v1/insight/file/metric", json=request_payload)
 
     def get_insight_request_payload(
         self,
@@ -234,10 +251,10 @@ class SegmentDriftEvaluator:
         comparison_start_date: str,
         comparison_end_date: str,
         dimensions: list[str],
-        metric_id: str = "value",
+        metric_column: str = "value",
         date_column: str = "date",
-        aggregation_option: str = "sum",
-        aggregation_method: str = "SUM",
+        aggregation_option: AggregationOption = AggregationOption.SUM,
+        aggregation_method: AggregationMethod = AggregationMethod.SUM,
     ) -> dict:
         """
         Keys in our request are not matching with insight request payload so,
@@ -279,7 +296,7 @@ class SegmentDriftEvaluator:
         """
         request_payload["metricColumn"] = {
             "aggregationOption": aggregation_option,
-            "singularMetric": {"columnName": metric_id},
+            "singularMetric": {"columnName": metric_column},
         }
         request_payload["aggregationMethod"] = aggregation_method
 
@@ -291,7 +308,7 @@ class SegmentDriftEvaluator:
         request_payload["filters"] = []
         return request_payload
 
-    def update_dateformat(self, date_obj):
+    def update_dateformat(self, date_obj: str) -> str:
         return datetime.strptime(date_obj, "%Y-%m-%d").strftime(self.TIMESTAMP_FORMAT)
 
     def validate_request_data(self, df: pd.DataFrame, *args, **kwargs):
@@ -300,20 +317,9 @@ class SegmentDriftEvaluator:
         Params:
             df: Dataframe of the data on which the calculation will be performed.
             args: we are not using for now
-            kwargs: for now we are using the keyword args aggregationOption, aggregationMethod, and metric_column.
+            kwargs: for now we are using the keyword args metric_column, in future we can add validation for other
+                    columns as well.
         """
-        agg_options_mapping = {"sum": "SUM", "count": "COUNT", "nunique": "DISTINCT"}
-
-        # invalid aggregationOption
-        if kwargs["aggregation_option"] not in agg_options_mapping:
-            raise InvalidRequestError("Aggregation option must be one of ['sum', 'count', 'nunique']")
-
-        # invalid aggregationMethod
-        if kwargs["aggregation_method"] != agg_options_mapping[kwargs["aggregation_option"]]:
-            raise InvalidRequestError(
-                f"Aggregation method should be {agg_options_mapping[kwargs['aggregation_option']]},"
-                f"for Aggregation Option {kwargs['aggregation_option']}"
-            )
 
         # invalid metric column
         if kwargs.get("metric_column") not in df:

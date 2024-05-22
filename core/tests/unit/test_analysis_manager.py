@@ -1,6 +1,6 @@
-import asyncio
+import os
 from datetime import date
-from unittest.mock import ANY
+from unittest.mock import ANY, AsyncMock
 
 import pandas as pd
 import pytest
@@ -224,10 +224,33 @@ def recursively_round_up_values(dict1):
     return dict1
 
 
-def test_segment_drift(segment_drift_data, segment_drift_output):
+@pytest.mark.asyncio
+async def test_segment_drift(segment_drift_data, mocker, segment_drift_output, insight_response, dsensei_csv_file_id):
     analysis_manager = AnalysisManager()
-    dsensei_base_url = "http://localhost:5001"
-    response = asyncio.run(analysis_manager.segment_drift(dsensei_base_url, segment_drift_data))
+
+    mock_file_id = AsyncMock(return_value=dsensei_csv_file_id)
+    mocker.patch.object(SegmentDriftEvaluator, "send_file_to_dsensei", mock_file_id)
+
+    mock_insight_response = AsyncMock(return_value=insight_response)
+    mocker.patch.object(SegmentDriftEvaluator, "get_insights", mock_insight_response)
+
+    dsensei_base_url = os.environ.get("DSENSEI_BASE_URL", "http://localhost:5001")
+    df = pd.json_normalize(segment_drift_data["data"])
+
+    response = await analysis_manager.segment_drift(
+        dsensei_base_url,
+        df,
+        segment_drift_data["evaluation_start_date"],
+        segment_drift_data["evaluation_end_date"],
+        segment_drift_data["comparison_start_date"],
+        segment_drift_data["comparison_end_date"],
+        segment_drift_data["dimensions"],
+        segment_drift_data["metric_column"],
+        segment_drift_data["date_column"],
+        segment_drift_data["aggregation_option"],
+        segment_drift_data["aggregation_method"],
+        segment_drift_data["target_metric_direction"],
+    )
     assert recursive_dict_compare(
         sorted(recursively_round_up_values(response)), sorted(recursively_round_up_values(segment_drift_output))
     )
