@@ -72,7 +72,7 @@ class RecordValuesStoryBuilder(StoryBuilderBase):
             prior_date, prior_value, rank = self.get_rank_and_prior_values(top_two_rows, 1, top_index)
             growth = (
                 self.analysis_manager.calculate_percentage_difference(prior_value, ref_data["value"].item())
-                if prior_value
+                if prior_value is not None
                 else None
             )
             story_type = StoryType.RECORD_HIGH
@@ -81,7 +81,7 @@ class RecordValuesStoryBuilder(StoryBuilderBase):
             prior_date, prior_value, rank = self.get_rank_and_prior_values(bottom_two_rows, 0, bottom_index)
             growth = (
                 self.analysis_manager.calculate_percentage_difference(prior_value, ref_data["value"].item())
-                if prior_value
+                if prior_value is not None
                 else None
             )
             story_type = StoryType.RECORD_LOW
