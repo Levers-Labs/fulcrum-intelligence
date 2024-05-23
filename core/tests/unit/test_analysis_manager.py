@@ -4,9 +4,10 @@ from unittest.mock import ANY, AsyncMock
 
 import pandas as pd
 import pytest
+from sqlalchemy.exc import InvalidRequestError
 
 from fulcrum_core import AnalysisManager
-from fulcrum_core.enums import MetricChangeDirection
+from fulcrum_core.enums import AggregationMethod, AggregationOption, MetricChangeDirection
 from fulcrum_core.modules import SegmentDriftEvaluator
 
 
@@ -225,13 +226,15 @@ def recursively_round_up_values(dict1):
 
 
 @pytest.mark.asyncio
-async def test_segment_drift(segment_drift_data, mocker, segment_drift_output, insight_response, dsensei_csv_file_id):
+async def test_segment_drift(
+    segment_drift_data, mocker, segment_drift_output, get_insight_response, dsensei_csv_file_id
+):
     analysis_manager = AnalysisManager()
 
     mock_file_id = AsyncMock(return_value=dsensei_csv_file_id)
     mocker.patch.object(SegmentDriftEvaluator, "send_file_to_dsensei", mock_file_id)
 
-    mock_insight_response = AsyncMock(return_value=insight_response)
+    mock_insight_response = AsyncMock(return_value=get_insight_response)
     mocker.patch.object(SegmentDriftEvaluator, "get_insights", mock_insight_response)
 
     dsensei_base_url = os.environ.get("DSENSEI_BASE_URL", "http://localhost:5001")
@@ -267,4 +270,59 @@ def test_get_overall_change():
 
 
 def test_calculate_segment_relative_change():
-    assert SegmentDriftEvaluator("").calculate_segment_relative_change("", 0, {}) == 0
+    # for ZeroDivisionError
+    assert SegmentDriftEvaluator("").calculate_segment_relative_change(dict(), 0) == 0
+
+    segment = {"comparison_value": {"slice_value": 2100}, "evaluation_value": {"slice_value": 1000}}
+
+    # for valid values
+    assert SegmentDriftEvaluator("").calculate_segment_relative_change(segment, 0) == 110.00000000000001
+
+
+@pytest.mark.asyncio
+async def test_send_file_to_dsensei(mocker, dsensei_csv_file_id):
+    mock_file_id = AsyncMock(return_value={"name": dsensei_csv_file_id})
+    mocker.patch.object(SegmentDriftEvaluator, "http_request", mock_file_id)
+
+    segment_drift_evaluator = SegmentDriftEvaluator("")
+
+    empty_df = pd.DataFrame()
+    file_path = segment_drift_evaluator.write_dataframe_to_csv(empty_df)
+
+    response = await segment_drift_evaluator.send_file_to_dsensei(file_path)
+    assert response == "ac60684ce86261be1227a43f75ecef96"
+
+    if os.path.exists(file_path):
+        os.remove(file_path)
+
+
+@pytest.mark.asyncio
+async def test_get_insights(mocker, insight_api_response, get_insight_response):
+    mock_insight_response = AsyncMock(return_value=insight_api_response)
+    mocker.patch.object(SegmentDriftEvaluator, "http_request", mock_insight_response)
+
+    segment_drift_evaluator = SegmentDriftEvaluator("")
+    response = await segment_drift_evaluator.get_insights(
+        "ac60684ce86261be1227a43f75ecef96",
+        evaluation_start_date=date(2025, 3, 1),
+        evaluation_end_date=date(2025, 3, 30),
+        comparison_start_date=date(2024, 3, 1),
+        comparison_end_date=date(2024, 3, 30),
+        date_column="date",
+        metric_column="value",
+        dimensions=["region", "stage_name"],
+        aggregation_option=AggregationOption.SUM.value,
+        aggregation_method=AggregationMethod.SUM.value,
+    )
+    assert recursive_dict_compare(
+        sorted(recursively_round_up_values(response)), sorted(recursively_round_up_values(get_insight_response))
+    )
+
+
+def test_validate_request_data():
+    segment_drift_evaluator = SegmentDriftEvaluator("")
+    with pytest.raises(InvalidRequestError) as exc_info:
+        segment_drift_evaluator.validate_request_data(pd.DataFrame())
+
+    # Assert that the raised exception has the expected message
+    assert str(exc_info.value) == "Provided metric column name must exist in data"

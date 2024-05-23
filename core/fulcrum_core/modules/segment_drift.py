@@ -1,8 +1,9 @@
 import os
+import re
 import tempfile
 import urllib
 import uuid
-from datetime import datetime
+from datetime import date, datetime
 from typing import Any
 
 import httpx
@@ -27,17 +28,17 @@ class SegmentDriftEvaluator:
     async def calculate_segment_drift(
         self,
         df: pd.DataFrame,
-        evaluation_start_date: str,
-        evaluation_end_date: str,
-        comparison_start_date: str,
-        comparison_end_date: str,
+        evaluation_start_date: date,
+        evaluation_end_date: date,
+        comparison_start_date: date,
+        comparison_end_date: date,
         dimensions: list[str],
         metric_column: str = "value",
         date_column: str = "date",
         aggregation_option: AggregationOption = AggregationOption.SUM,
         aggregation_method: AggregationMethod = AggregationMethod.SUM,
         target_metric_direction: MetricAim = MetricAim.INCREASING,
-    ):
+    ) -> dict[str, Any]:
         """
         This is the entrypoint for calculating the segment drift in the given data.
         Steps:
@@ -73,27 +74,20 @@ class SegmentDriftEvaluator:
             aggregation_option=aggregation_option,
             aggregation_method=aggregation_method,
         )
-
-        # main_key is the parent key of the whole result, its format is "metricColumn_aggregationMethod"
-        # EX: "value_SUM"  or "region_DISTINCT"
-        main_key = f"{metric_column}_{aggregation_method}"
-
         # dimension slice info consist of all calculations for all permutations of the provided dimensions
-        dimension_slice_info = result[main_key]["dimensionSliceInfo"]
+        dimension_slices = result["dimension_slices"]
         overall_change = self.get_overall_change(
-            comparison_value=result[main_key]["comparisonValue"],
-            baseline_value=result[main_key]["baselineValue"],
+            comparison_value=result["comparison_value"],
+            baseline_value=result["evaluation_value"],
         )
 
         # processing the result to calculate the direction of metric change, whether its UPWARD DOWNWARD or UNCHANGED
-        for segment in dimension_slice_info.keys():
-            relative_change = self.calculate_segment_relative_change(
-                segment, overall_change=overall_change, slice_info=dimension_slice_info
-            )
+        for segment in dimension_slices:
+            relative_change = self.calculate_segment_relative_change(segment, overall_change=overall_change)
 
-            dimension_slice_info[segment]["relative_change"] = relative_change
+            segment["relative_change"] = relative_change
 
-            dimension_slice_info[segment]["pressure"] = self.get_metric_change_direction(
+            segment["pressure"] = self.get_metric_change_direction(
                 relative_change=relative_change,
                 target_metric_direction=target_metric_direction,
             )
@@ -107,19 +101,19 @@ class SegmentDriftEvaluator:
             overall_change = 0.0
         return overall_change
 
-    def calculate_segment_relative_change(self, segment: str, overall_change: float, slice_info: dict) -> float:
+    def calculate_segment_relative_change(self, segment: dict, overall_change: float) -> float:
         try:
-            slice_comparison_value = slice_info[segment]["comparisonValue"]["sliceValue"]
+            slice_comparison_value = segment["comparison_value"]["slice_value"]
         except KeyError:
             slice_comparison_value = 0
 
         try:
-            slice_baseline_value = slice_info[segment]["baselineValue"]["sliceValue"]
+            slice_evaluation_value = segment["evaluation_value"]["slice_value"]
         except KeyError:
-            slice_baseline_value = 0
+            slice_evaluation_value = 0
 
         try:
-            change = (slice_comparison_value - slice_baseline_value) / slice_baseline_value
+            change = (slice_comparison_value - slice_evaluation_value) / slice_evaluation_value
 
         except ZeroDivisionError:
             return 0.0
@@ -139,8 +133,8 @@ class SegmentDriftEvaluator:
             relative_change < 0 and target_metric_direction == MetricAim.DECREASING
         ):
             return MetricChangeDirection.UPWARD
-        elif (relative_change > 0 and target_metric_direction == MetricAim.INCREASING) or (
-            relative_change < 0 and target_metric_direction == MetricAim.DECREASING
+        elif (relative_change > 0 and target_metric_direction == MetricAim.DECREASING) or (
+            relative_change < 0 and target_metric_direction == MetricAim.INCREASING
         ):
             return MetricChangeDirection.DOWNWARD
 
@@ -172,7 +166,7 @@ class SegmentDriftEvaluator:
         """
         with open(file_path, "rb") as file:
             response = await self.http_request(url="api/v1/source/file/schema", files={"file": file})
-            return response.get("name", " ")
+            return response["name"]
 
     async def http_request(self, url: str, *args: list, **kwargs: dict) -> dict:
         """
@@ -196,10 +190,10 @@ class SegmentDriftEvaluator:
     async def get_insights(
         self,
         csv_file_id: str,
-        evaluation_start_date: str,
-        evaluation_end_date: str,
-        comparison_start_date: str,
-        comparison_end_date: str,
+        evaluation_start_date: date,
+        evaluation_end_date: date,
+        comparison_start_date: date,
+        comparison_end_date: date,
         dimensions: list[str],
         metric_column: str = "value",
         date_column: str = "date",
@@ -241,15 +235,19 @@ class SegmentDriftEvaluator:
             aggregation_method=aggregation_method,
         )
 
-        return await self.http_request(url="api/v1/insight/file/metric", json=request_payload)
+        # main_key is the parent key of the whole result, its format is "metricColumn_aggregationMethod"
+        # EX: "value_SUM"  or "region_DISTINCT"
+        main_key = f"{metric_column}_{aggregation_method}"
+        result = await self.http_request(url="api/v1/insight/file/metric", json=request_payload)
+        return self.post_process_insight_response(result[main_key])
 
     def get_insight_request_payload(
         self,
         csv_file_id: str,
-        evaluation_start_date: str,
-        evaluation_end_date: str,
-        comparison_start_date: str,
-        comparison_end_date: str,
+        evaluation_start_date: date,
+        evaluation_end_date: date,
+        comparison_start_date: date,
+        comparison_end_date: date,
         dimensions: list[str],
         metric_column: str = "value",
         date_column: str = "date",
@@ -264,6 +262,16 @@ class SegmentDriftEvaluator:
             csv_file_id: ID of the csv file uploaded to dsensei server.
         response:
             compatible payload dict for dsensei server insight request
+
+        Metric Column for the request is a nested structure as shown below:
+            "metricColumn": {
+                "aggregationOption": "",      any one option from these ["sum", "count", "nunique"]
+                "singularMetric": {
+                  "columnName": "metricColumn",
+                  "aggregationMethod": "",
+                }
+            },
+
         """
         request_payload: dict[str, Any] = dict()
 
@@ -285,15 +293,6 @@ class SegmentDriftEvaluator:
         request_payload["fileId"] = csv_file_id
 
         # Metric for Calculation
-        """
-            "metricColumn": {
-                "aggregationOption": "",      any one option from these ["sum", "count", "nunique"]
-                "singularMetric": {
-                  "columnName": "metricColumn",
-                  "aggregationMethod": "",
-                }
-            },
-        """
         request_payload["metricColumn"] = {
             "aggregationOption": aggregation_option,
             "singularMetric": {"columnName": metric_column},
@@ -308,8 +307,12 @@ class SegmentDriftEvaluator:
         request_payload["filters"] = []
         return request_payload
 
-    def update_dateformat(self, date_obj: str) -> str:
-        return datetime.strptime(date_obj, "%Y-%m-%d").strftime(self.TIMESTAMP_FORMAT)
+    def update_dateformat(self, date_obj: date) -> str:
+        # Convert date object to datetime object (assuming midnight as the time)
+        datetime_object = datetime.combine(date_obj, datetime.min.time())
+
+        # Convert datetime object to datetime string
+        return datetime_object.strftime(self.TIMESTAMP_FORMAT)  # Example format: YYYY-MM-DD HH:MM:SS
 
     def validate_request_data(self, df: pd.DataFrame, *args, **kwargs):
         """
@@ -324,3 +327,58 @@ class SegmentDriftEvaluator:
         # invalid metric column
         if kwargs.get("metric_column") not in df:
             raise InvalidRequestError("Provided metric column name must exist in data")
+
+    def post_process_insight_response(self, response: dict[str, Any]) -> dict[str, Any]:
+        """
+        In this function we are working with dict, key value pairs,
+        Goal here is to convert camelcase keys to snake case
+        - convert few values which are stored as dict to a list
+        Ex: dimensions are stored as a key value pair in insight response,
+            converting it to list as key also exist in value.
+            From => {region: {"name": "region", "score": 0.6888888888888889, "is_key_dimension": True}, ...}
+            to this => [{"name": "region", "score": 0.6888888888888889, "is_key_dimension": True}, ...]
+
+        - Same conversion for dimensions slices info
+        """
+        processed_response = self.convert_keys_camel_to_snake_case(dict(), response)
+
+        processed_response["dimensions"] = list(processed_response["dimensions"].values())
+        processed_response["dimension_slices"] = list(processed_response["dimension_slice_info"].values())
+        processed_response["dimension_slices_permutation_Keys"] = processed_response["top_driver_slice_keys"]
+        del processed_response["top_driver_slice_keys"]
+        del processed_response["dimension_slice_info"]
+        return processed_response
+
+    def convert_keys_camel_to_snake_case(self, processed_response: dict, insight_response: dict) -> dict:
+        """
+        In this function we are recursively converting
+        - camel case keys to snake case
+        - replacing "baseline" with "evaluation" in keys
+        Using recursion to perform above 2 operations in all the nested levels of dict
+        """
+        for key, value in insight_response.items():
+            # converting the key, Camelcase to snake case here
+            snake_case_key = re.sub(r"(?<!^)(?=[A-Z])", "_", key).lower()
+
+            # replacing baseline with evaluation in key
+            if snake_case_key.startswith("baseline"):
+                snake_case_key = "evaluation" + snake_case_key[len("baseline") :]
+
+            # if the value is of type dict we will call the function recursively to convert the nested dict keys as well
+            if isinstance(value, dict):
+                processed_response[snake_case_key] = self.convert_keys_camel_to_snake_case(dict(), value)
+
+            elif isinstance(value, list):
+                if snake_case_key not in processed_response:
+                    processed_response[snake_case_key] = []
+
+                for item in value:
+                    # converting nested dict keys with recursion
+                    if isinstance(item, dict):
+                        processed_response[snake_case_key].append(self.convert_keys_camel_to_snake_case(dict(), item))
+                    else:
+                        processed_response[snake_case_key].append(item)
+            else:
+                processed_response[snake_case_key] = value
+
+        return processed_response
