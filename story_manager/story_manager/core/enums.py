@@ -76,14 +76,6 @@ GROUP_TO_STORY_TYPE_MAPPING = {
         StoryType.NEW_DOWNWARD_TREND,
         StoryType.PERFORMANCE_PLATEAU,
     ],
-    StoryGroup.TREND_EXCEPTIONS: [
-        StoryType.SPIKE,
-        StoryType.DROP,
-    ],
-    StoryGroup.LONG_RANGE: [
-        StoryType.RECORD_HIGH,
-        StoryType.RECORD_LOW,
-    ],
     StoryGroup.RECORD_VALUES: [
         StoryType.RECORD_HIGH,
         StoryType.RECORD_LOW,

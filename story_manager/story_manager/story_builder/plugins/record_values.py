@@ -69,7 +69,9 @@ class RecordValuesStoryBuilder(StoryBuilderBase):
         bottom_index = self.get_value_index(ref_data, bottom_two_rows)
 
         if top_index:
-            prior_date, prior_value, rank = self.get_rank_and_prior_values(top_two_rows, 1, top_index)
+            prior_date, prior_value, rank = self.get_rank_and_prior_values(
+                df=top_two_rows, index=1, val_index=top_index
+            )
             growth = (
                 self.analysis_manager.calculate_percentage_difference(prior_value, ref_data["value"].item())
                 if prior_value is not None
@@ -78,7 +80,9 @@ class RecordValuesStoryBuilder(StoryBuilderBase):
             story_type = StoryType.RECORD_HIGH
 
         elif bottom_index:
-            prior_date, prior_value, rank = self.get_rank_and_prior_values(bottom_two_rows, 0, bottom_index)
+            prior_date, prior_value, rank = self.get_rank_and_prior_values(
+                df=bottom_two_rows, index=0, val_index=bottom_index
+            )
             growth = (
                 self.analysis_manager.calculate_percentage_difference(prior_value, ref_data["value"].item())
                 if prior_value is not None
@@ -104,21 +108,21 @@ class RecordValuesStoryBuilder(StoryBuilderBase):
         return stories
 
     def get_rank_and_prior_values(
-        self, row: pd.DataFrame, index: int, val_index: list
+        self, df: pd.DataFrame, index: int, val_index: list
     ) -> tuple[str | None, int | None, bool]:
         """
         Retrieve the prior date, value, and rank status based on the row index and value index.
 
-        :param row: The DataFrame containing the data.
+        :param df: The DataFrame containing the data.
         :param index: The index of the current row.
         :param val_index: A list of indices to compare with the row index.
 
         :return: A tuple containing the prior date (str), prior value (int), and rank status (bool).
         """
-        if val_index[index - 1] == row.index[index - 1]:
+        if val_index[index - 1] == df.index[index - 1]:
             rank = True
-            prior_value = row.iloc[index]["value"]
-            prior_date = row.iloc[index]["date"].strftime(self.date_text_format)
+            prior_value = df.iloc[index]["value"]
+            prior_date = df.iloc[index]["date"].strftime(self.date_text_format)
             return prior_date, prior_value, rank
         return None, None, False
 
