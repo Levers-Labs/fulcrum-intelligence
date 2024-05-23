@@ -140,14 +140,8 @@ async def correlate(
     if not metric_values:
         return []
     metrics_df = pd.DataFrame(metric_values, columns=["metric_id", "date", "value"])
-    columns = {"metric_id": "METRIC_ID", "date": "DAY", "value": "METRIC_VALUE"}
-    metrics_df.rename(columns=columns, inplace=True)
-    metrics_df["METRIC_ID"] = metrics_df["METRIC_ID"].astype(str)
-
     # return the correlation coefficient for each pair of metrics
-    return analysis_manager.correlate(
-        data=metrics_df, start_date=correlate_request.start_date, end_date=correlate_request.end_date
-    )
+    return analysis_manager.correlate(df=metrics_df)
 
 
 @router.post("/process-control", response_model=list[ProcessControlResponse])

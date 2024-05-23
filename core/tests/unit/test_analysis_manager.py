@@ -47,11 +47,9 @@ def test_correlate(correlate_df):
     """
     # Arrange
     analysis_manager = AnalysisManager()
-    start_date = date(2023, 1, 1)
-    end_date = date(2025, 4, 30)
 
     # Act
-    response = analysis_manager.correlate(correlate_df, start_date=start_date, end_date=end_date)
+    response = analysis_manager.correlate(correlate_df)
 
     # Assert
     assert len(response) == 1

@@ -122,9 +122,7 @@ async def test_correlate(client, mocker, metric_values_correlate):
         "/v1/analyze/correlate",
         json={"metric_ids": ["NewMRR", "CAC"], "start_date": "2024-01-01", "end_date": "2024-04-30", "grain": "day"},
     )
-    expected_response_dict = [
-        {"correlation_coefficient": 0.5155347459793249, "metric_id_1": "CAC", "metric_id_2": "NewMRR"}
-    ]
+    expected_response_dict = [{"correlation_coefficient": 0.516, "metric_id_1": "CAC", "metric_id_2": "NewMRR"}]
 
     assert response.status_code == 200
     assert DeepDiff(response.json(), expected_response_dict, ignore_order=True) == {}

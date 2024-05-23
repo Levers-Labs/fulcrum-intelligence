@@ -5,8 +5,6 @@ from typing import Any
 import pandas as pd
 from scipy.stats import linregress
 
-from fulcrum_core.correlate import correlate
-from fulcrum_core.describe import describe
 from fulcrum_core.enums import (
     AggregationMethod,
     AggregationOption,
@@ -18,6 +16,7 @@ from fulcrum_core.modules import (
     ProcessControlAnalyzer,
     SegmentDriftEvaluator,
     SimpleForecast,
+    CorrelationAnalyzer
 )
 
 logger = logging.getLogger(__name__)
@@ -60,8 +59,26 @@ class AnalysisManager:
         result = describe(data, dimensions, metric_id, start_date, end_date, aggregation_function)
         return result
 
-    def correlate(self, data: pd.DataFrame, start_date: date, end_date: date) -> list[dict]:
-        result = correlate(data, start_date, end_date)
+    @classmethod
+    def correlate(cls, df: pd.DataFrame) -> list[dict]:
+        """
+        compute the correlation between all the nC2 pairs generated from the given list metric_ids.
+        Args:
+            df (pd.DataFrame): The input time series data with 'date', 'metric_id', and 'value' columns.
+            e.g. df = pd.DataFrame({
+                "date": ["2021-01-01", "2021-01-02", "2021-01-03"],
+                "metric_id": ["1", "1", "2"],
+                "value": [100, 200, 300],
+            })
+
+        Returns:
+            list[dict]: The correlation analysis result with the following columns:
+                - 'metric_id_1': The first metric id in the pair.
+                - 'metric_id_2': The second metric id in the pair.
+                - 'correlation_coefficient': The correlation coefficient between the two metrics.
+        """
+        analyzer = CorrelationAnalyzer()
+        result = analyzer.run(df)
         return result
 
     @staticmethod
@@ -91,7 +108,7 @@ class AnalysisManager:
                 - 'trend_signal_detected': The signal detection result for the time period.
         """
         analyzer = ProcessControlAnalyzer()
-        res_df = analyzer.analyze(df)
+        res_df = analyzer.run(df)
         return res_df
 
     @staticmethod
@@ -273,12 +290,12 @@ class AnalysisManager:
         kwargs = {}
         if conf_interval:
             kwargs["conf_interval"] = conf_interval
-        forecast = SimpleForecast(df, grain=grain)
+        forecast = SimpleForecast(grain=grain)
         results = []
         if forecast_horizon:
-            results = forecast.predict_n(forecast_horizon, **kwargs)
+            results = forecast.predict_n(df, forecast_horizon, **kwargs)
         elif forecast_till_date:
-            results = forecast.predict_till_date(forecast_till_date, **kwargs)
+            results = forecast.predict_till_date(df, forecast_till_date, **kwargs)
         return results
 
     @staticmethod
