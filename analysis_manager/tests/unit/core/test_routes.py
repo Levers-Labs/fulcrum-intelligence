@@ -15,16 +15,19 @@ def test_health(client):
 
 
 @pytest.mark.asyncio
-async def test_describe(client, mocker, metric_values):
+async def test_describe(client, mocker, metric_values, metric_sms):
     # Mock the QueryClient's list_metrics method
     values = AsyncMock(return_value=metric_values)
-    mocker.patch.object(QueryManagerClient, "get_metric_values", values)
+    metric_mock = AsyncMock(return_value=metric_sms)
+    mocker.patch.object(QueryManagerClient, "get_metric", metric_mock)
+    mocker.patch.object(QueryManagerClient, "get_metric_time_series", values)
     response = client.post(
         "/v1/analyze/describe",
         json={
             "metric_id": "CAC",
             "start_date": "2024-01-01",
             "end_date": "2024-04-30",
+            "grain": "day",
             "dimensions": [
                 {"dimension": "customer_segment", "members": ["Enterprise", "SMB"]},
                 {"dimension": "channel", "members": []},

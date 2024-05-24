@@ -62,12 +62,19 @@ def test_describe(describe_data, describe_output):
     end_date = pd.to_datetime("2025-01-01")
     metric_id = "ToMRR"
     dimensions = ["region", "stage_name"]
+    df = pd.DataFrame(describe_data)
 
     results = analysis_manager.describe(
-        describe_data, dimensions, metric_id, start_date=start_date, end_date=end_date, aggregation_function="sum"
+        df,
+        dimensions=dimensions,
+        metric_id=metric_id,
+        start_date=start_date,
+        end_date=end_date,
+        aggregation_function="sum",
     )
+    response = results.to_dict(orient="records")
 
-    assert sorted(results, key=lambda x: (x["metric_id"], x["dimension"], x["member"])) == sorted(
+    assert sorted(response, key=lambda x: (x["metric_id"], x["dimension"], x["member"])) == sorted(
         describe_output, key=lambda x: (x["metric_id"], x["dimension"], x["member"])
     )
 

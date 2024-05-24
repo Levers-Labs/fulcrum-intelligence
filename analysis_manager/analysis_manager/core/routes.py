@@ -74,6 +74,7 @@ async def describe_analysis(
                     "metric_id": "NewBizDeals",
                     "start_date": "2024-01-01",
                     "end_date": "2024-04-30",
+                    "grain": "day",
                     "dimensions": [
                         {
                             "dimension": "Geosegmentation",
@@ -93,20 +94,35 @@ async def describe_analysis(
     Describe an analysis.
     """
     dimensions = [dimension.dimension for dimension in body.dimensions] if body.dimensions else []
-    metrics = await query_manager.get_metric_values(
-        metric_id=str(body.metric_id), start_date=body.start_date, end_date=body.end_date, dimensions=dimensions
+    metric = await query_manager.get_metric(body.metric_id)
+    metrics = await query_manager.get_metric_time_series(
+        metric_id=str(body.metric_id),
+        start_date=body.start_date,
+        end_date=body.end_date,
+        dimensions=dimensions,
+        grain=body.grain,
     )
     if not metrics:
         return []
 
-    return analysis_manager.describe(
+    # list of columns to include in df
+    columns = ["metric_id", "date", "value"]
+    for dimension in dimensions:
+        columns.append(dimension)
+        # prepare the input df
+    df = pd.DataFrame(metrics, columns=columns)
+
+    result_df = analysis_manager.describe(
         metric_id=body.metric_id,
-        data=metrics,
-        start_date=pd.Timestamp(body.start_date),
-        end_date=pd.Timestamp(body.end_date),
+        df=df,
+        start_date=body.start_date,
+        end_date=body.end_date,
         dimensions=dimensions,
-        aggregation_function="sum",
+        aggregation_function=metric.get("grain_aggregation") or "sum",
     )
+    # convert the result to a list of dictionaries
+    results = result_df.to_dict(orient="records")
+    return results
 
 
 @router.post("/correlate", response_model=list[CorrelateRead])

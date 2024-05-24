@@ -16,7 +16,8 @@ from fulcrum_core.modules import (
     ProcessControlAnalyzer,
     SegmentDriftEvaluator,
     SimpleForecast,
-    CorrelationAnalyzer
+    CorrelationAnalyzer,
+    DescribeAnalyzer
 )
 
 logger = logging.getLogger(__name__)
@@ -49,15 +50,59 @@ class AnalysisManager:
 
     def describe(
         self,
-        data: list[dict],
+        df: pd.DataFrame,
         dimensions: list[str],
         metric_id: str,
-        start_date: pd.Timestamp,
-        end_date: pd.Timestamp,
+        start_date: date,
+        end_date: date,
         aggregation_function: str,
-    ) -> list[dict]:
-        result = describe(data, dimensions, metric_id, start_date, end_date, aggregation_function)
-        return result
+    ) -> pd.DataFrame:
+        """
+        Describe the data
+        param:
+            df: pd.Dataframe containing metric values
+            dimensions: List['str']. For example, ["region", "stage_name"]
+            metric_id: str. Example: "ToMRR"
+            start_date: pd.Timestamp
+            end_date: pd.Timestamp
+
+        return:
+            pd.Dataframe : Statistics of metric values for each (dimension, slice) for a given metric ID within
+             the given start and end date ranges.
+
+        sample response:
+            [
+              {
+                "metric_id": "ToMRR",
+                "dimension": "region",
+                "slice": "Asia",
+                "mean": 1050.0,
+                "median": 1050.0,
+                "percentile_25": 775.0,
+                "percentile_50": 1050.0,
+                "percentile_75": 1325.0,
+                "percentile_90": 1490.0,
+                "percentile_95": 1545.0,
+                "percentile_99": 1589.0,
+                "min": 500,
+                "max": 1600,
+                "variance": 605000.0,
+                "count": 2,
+                "sum": 2100,
+                "unique": 2
+              }...
+            ]
+        """
+        analyzer = DescribeAnalyzer()
+        result_df = analyzer.run(
+            df,
+            dimensions=dimensions,
+            metric_id=metric_id,
+            start_date=start_date,
+            end_date=end_date,
+            aggregation_function=aggregation_function,
+        )
+        return result_df
 
     @classmethod
     def correlate(cls, df: pd.DataFrame) -> list[dict]:
