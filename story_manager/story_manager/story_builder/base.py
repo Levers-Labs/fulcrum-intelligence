@@ -1,5 +1,6 @@
 import logging
 from abc import ABC, abstractmethod
+from collections.abc import Hashable
 from datetime import date, timedelta
 from typing import Any
 
@@ -17,6 +18,7 @@ from story_manager.core.enums import (
     StoryGroup,
     StoryType,
 )
+from story_manager.core.models import Story
 from story_manager.story_builder.constants import GRAIN_META, STORY_GROUP_TIME_DURATIONS
 
 logger = logging.getLogger(__name__)
@@ -154,20 +156,38 @@ class StoryBuilderBase(ABC):
         logger.debug(f"Preparing story dictionary for story type '{story_type}'")
         grain_durations = self.get_time_durations(grain)
         series_length = grain_durations["output"]
+        series = self.format_series(df, series_length)
         story_texts = self._render_story_texts(story_type, grain=grain, metric=metric, **extra_context)
+
         return {
             "metric_id": metric["id"],
             "genre": self.genre,
             "story_group": self.group,
             "story_type": story_type,
             "grain": grain,
-            "series": df.tail(series_length).to_dict(orient="records"),
+            "series": series,
             "title": story_texts["title"],
             "detail": story_texts["detail"],
             "title_template": story_texts["title_template"],
             "detail_template": story_texts["detail_template"],
             "variables": story_texts["variables"],
         }
+
+    def format_series(self, df: pd.DataFrame, series_length: int) -> list[dict[Hashable, Any]]:
+        """
+        Format the time series data in the DataFrame by converting the 'date' column to a string format specified
+        by 'date_text_format' attribute and replacing NaN values with the string 'None'.
+
+        :param series_length: the length of the time series data
+        :param df: The DataFrame containing the time series data.
+        :return: series: The DataFrame with formatted time series data.
+        """
+        if "date" in df.columns:
+            df["date"] = df["date"].dt.strftime(self.date_text_format) if hasattr(df["date"], "dt") else df["date"]
+        df.replace(float("inf"), "None", inplace=True)
+        df.fillna(value="None", inplace=True)
+        series = df.tail(series_length).to_dict(orient="records")
+        return series
 
     @abstractmethod
     async def generate_stories(self, metric_id: str, grain: Granularity) -> list[dict]:
@@ -209,9 +229,15 @@ class StoryBuilderBase(ABC):
         # perform the necessary data transformations
         # persist the stories in the database
         logger.info(f"Persisting {len(stories)} stories in the database")
-        self.db_session.add_all(stories)
-        await self.db_session.commit()
-        logger.info("Stories persisted successfully")
+        logger.info(f"stories: {stories}")
+
+        if stories:
+            for story_dict in stories:
+                logger.warning(f"story dict: {story_dict}")
+            stories = [Story.parse_obj(story_dict) for story_dict in stories]
+            self.db_session.add_all(stories)
+            await self.db_session.commit()
+            logger.info("Stories persisted successfully")
 
     @classmethod
     def _get_current_period_range(cls, grain: Granularity, curr_date: date | None = None) -> tuple[date, date]:

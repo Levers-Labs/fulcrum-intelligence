@@ -22,20 +22,34 @@ class AnalysisManager:
     def cal_average_growth(series: pd.Series, precision: int | None = None) -> float:
         """
         Calculate the average growth rate for the given time series data.
-        The average growth rate is mean of the growth rate (pct_change) of the time series data.
-        Avoid inf average growth, if present in the data.
+        The average growth rate is the mean of the growth rate (pct_change) of the time series data.
+        Avoid inf average growth and handle NaN values.
 
         :param series: The input time series data.
         :param precision: The number of decimal places to round the result.
         :return: The average growth rate for the time series data.
         """
+        # Drop NaN values from the series
+        series = series.dropna()
+
+        # Calculate growth rate
         growth_rate = series.pct_change()
+
+        # Check if all growth rates are NaN
+        if growth_rate.isnull().all():
+            return 0.0  # If all growth rates are NaN, return 0.0 or any default value you prefer
+
+        # Calculate average growth rate
         avg_growth = growth_rate.mean()
+
         # Avoid inf average growth
         if avg_growth == float("inf"):
             avg_growth = growth_rate[growth_rate != float("inf")].mean()
-        # convert to percentage
+
+        # Convert to percentage
         avg_growth = avg_growth * 100
+
+        # Round the result to the specified precision
         return round(avg_growth, precision) if precision else round(avg_growth)
 
     def describe(
