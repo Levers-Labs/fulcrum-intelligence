@@ -1,5 +1,4 @@
 import os
-import re
 import tempfile
 import urllib
 import uuid
@@ -16,6 +15,7 @@ from fulcrum_core.enums import (
     MetricAim,
     MetricChangeDirection,
 )
+from fulcrum_core.utilities.camel_to_snake_case import convert_keys_camel_to_snake_case
 
 
 class SegmentDriftEvaluator:
@@ -340,8 +340,8 @@ class SegmentDriftEvaluator:
 
         - Same conversion for dimensions slices info
         """
-        processed_response = self.convert_keys_camel_to_snake_case(dict(), response)
-
+        processed_response = convert_keys_camel_to_snake_case(dict(), response)
+        processed_response = self.dict_keys_replace_baseline_with_evaluation(dict(), processed_response)
         processed_response["dimensions"] = list(processed_response["dimensions"].values())
         processed_response["dimension_slices"] = list(processed_response["dimension_slice_info"].values())
         processed_response["dimension_slices_permutation_Keys"] = processed_response["top_driver_slice_keys"]
@@ -349,36 +349,36 @@ class SegmentDriftEvaluator:
         del processed_response["dimension_slice_info"]
         return processed_response
 
-    def convert_keys_camel_to_snake_case(self, processed_response: dict, insight_response: dict) -> dict:
+    def dict_keys_replace_baseline_with_evaluation(
+        self, processed_response: dict, snake_case_converted_response: dict
+    ) -> dict:
         """
         In this function we are recursively converting
         - camel case keys to snake case
         - replacing "baseline" with "evaluation" in keys
         Using recursion to perform above 2 operations in all the nested levels of dict
         """
-        for key, value in insight_response.items():
-            # converting the key, Camelcase to snake case here
-            snake_case_key = re.sub(r"(?<!^)(?=[A-Z])", "_", key).lower()
+        for key, value in snake_case_converted_response.items():
 
             # replacing baseline with evaluation in key
-            if snake_case_key.startswith("baseline"):
-                snake_case_key = "evaluation" + snake_case_key[len("baseline") :]
+            if key.startswith("baseline"):
+                key = "evaluation" + key[len("baseline") :]
 
             # if the value is of type dict we will call the function recursively to convert the nested dict keys as well
             if isinstance(value, dict):
-                processed_response[snake_case_key] = self.convert_keys_camel_to_snake_case(dict(), value)
+                processed_response[key] = self.dict_keys_replace_baseline_with_evaluation(dict(), value)
 
             elif isinstance(value, list):
-                if snake_case_key not in processed_response:
-                    processed_response[snake_case_key] = []
+                if key not in processed_response:
+                    processed_response[key] = []
 
                 for item in value:
                     # converting nested dict keys with recursion
                     if isinstance(item, dict):
-                        processed_response[snake_case_key].append(self.convert_keys_camel_to_snake_case(dict(), item))
+                        processed_response[key].append(self.dict_keys_replace_baseline_with_evaluation(dict(), item))
                     else:
-                        processed_response[snake_case_key].append(item)
+                        processed_response[key].append(item)
             else:
-                processed_response[snake_case_key] = value
+                processed_response[key] = value
 
         return processed_response
