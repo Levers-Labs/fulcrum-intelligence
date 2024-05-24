@@ -7,8 +7,18 @@ from scipy.stats import linregress
 
 from fulcrum_core.correlate import correlate
 from fulcrum_core.describe import describe
-from fulcrum_core.enums import Granularity
-from fulcrum_core.modules import ComponentDriftEvaluator, ProcessControlAnalyzer, SimpleForecast
+from fulcrum_core.enums import (
+    AggregationMethod,
+    AggregationOption,
+    Granularity,
+    MetricAim,
+)
+from fulcrum_core.modules import (
+    ComponentDriftEvaluator,
+    ProcessControlAnalyzer,
+    SegmentDriftEvaluator,
+    SimpleForecast,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -328,3 +338,34 @@ class AnalysisManager:
         slope, _, _, _, _ = linregress(x_values, df["value"])
 
         return round(slope, precision)
+
+    async def segment_drift(
+        self,
+        dsensei_base_url: str,
+        df: pd.DataFrame,
+        evaluation_start_date: date,
+        evaluation_end_date: date,
+        comparison_start_date: date,
+        comparison_end_date: date,
+        dimensions: list[str],
+        metric_column: str = "value",
+        date_column: str = "date",
+        aggregation_option: AggregationOption = AggregationOption.SUM,
+        aggregation_method: AggregationMethod = AggregationMethod.SUM,
+        target_metric_direction: MetricAim = MetricAim.INCREASING,
+    ) -> dict:
+
+        result = await SegmentDriftEvaluator(dsensei_base_url).calculate_segment_drift(
+            df,
+            evaluation_start_date,
+            evaluation_end_date,
+            comparison_start_date,
+            comparison_end_date,
+            dimensions,
+            metric_column,
+            date_column,
+            aggregation_option=aggregation_option,
+            aggregation_method=aggregation_method,
+            target_metric_direction=target_metric_direction,
+        )
+        return result
