@@ -154,9 +154,8 @@ class StoryBuilderBase(ABC):
         :return: A dictionary containing the story details
         """
         logger.debug(f"Preparing story dictionary for story type '{story_type}'")
-        grain_durations = self.get_time_durations(grain)
-        series_length = grain_durations["output"]
-        series = self.format_series(df, series_length)
+
+        series = self.get_story_series(df, grain)
         story_texts = self._render_story_texts(story_type, grain=grain, metric=metric, **extra_context)
 
         return {
@@ -173,15 +172,18 @@ class StoryBuilderBase(ABC):
             "variables": story_texts["variables"],
         }
 
-    def format_series(self, df: pd.DataFrame, series_length: int) -> list[dict[Hashable, Any]]:
+    def get_story_series(self, df: pd.DataFrame, grain: Granularity) -> list[dict[Hashable, Any]]:
         """
         Format the time series data in the DataFrame by converting the 'date' column to a string format specified
         by 'date_text_format' attribute and replacing NaN values with the string 'None'.
 
-        :param series_length: the length of the time series data
+        :param grain: Grain for which the story is generated.
         :param df: The DataFrame containing the time series data.
         :return: series: The DataFrame with formatted time series data.
         """
+        grain_durations = self.get_time_durations(grain)
+        series_length = grain_durations["output"]
+
         if "date" in df.columns:
             df["date"] = df["date"].dt.strftime(self.date_text_format) if hasattr(df["date"], "dt") else df["date"]
         df.replace(float("inf"), "None", inplace=True)
@@ -226,18 +228,18 @@ class StoryBuilderBase(ABC):
 
         :param stories: The list of generated stories
         """
-        # perform the necessary data transformations
-        # persist the stories in the database
+
+        if not stories:
+            return
+
         logger.info(f"Persisting {len(stories)} stories in the database")
         logger.info(f"stories: {stories}")
 
-        if stories:
-            for story_dict in stories:
-                logger.warning(f"story dict: {story_dict}")
-            stories = [Story.parse_obj(story_dict) for story_dict in stories]
-            self.db_session.add_all(stories)
-            await self.db_session.commit()
-            logger.info("Stories persisted successfully")
+        # perform the necessary data transformations
+        stories = [Story.parse_obj(story_dict) for story_dict in stories]
+        self.db_session.add_all(stories)
+        await self.db_session.commit()
+        logger.info("Stories persisted successfully")
 
     @classmethod
     def _get_current_period_range(cls, grain: Granularity, curr_date: date | None = None) -> tuple[date, date]:
