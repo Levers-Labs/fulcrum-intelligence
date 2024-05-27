@@ -35,11 +35,12 @@ async def test_story_builder_run_unsupported_grain(story_builder):
 
 
 @pytest.mark.asyncio
-async def test_story_builder_run_success(story_builder, mock_db_session):
-    with patch.object(story_builder, "generate_stories", return_value=[{"id": 1}, {"id": 2}]):
-        await story_builder.run("metric1", Granularity.DAY)
-        mock_db_session.add_all.assert_called_once_with([{"id": 1}, {"id": 2}])
-        mock_db_session.commit.assert_called_once()
+async def test_story_builder_run_success(story_builder, mock_db_session, mock_stories):
+    with patch.object(story_builder, "generate_stories", return_value=mock_stories):
+        await story_builder.run("metric1", "day")
+        assert mock_db_session.add_all.called
+        assert len(mock_db_session.add_all.call_args[0][0]) == 2  # Two stories should be added
+        assert mock_db_session.commit.called
 
 
 @pytest.mark.asyncio
@@ -62,11 +63,21 @@ async def test_story_builder_get_time_series_data(story_builder, mock_query_serv
 
 
 @pytest.mark.asyncio
-async def test_story_builder_persist_stories(story_builder, mock_db_session):
-    stories = [{"id": 1}, {"id": 2}]
-    await story_builder.persist_stories(stories)
-    mock_db_session.add_all.assert_called_once_with(stories)
-    mock_db_session.commit.assert_called_once()
+async def test_persist_stories(
+    story_builder, mock_query_service, mock_analysis_service, mock_analysis_manager, mock_db_session, mock_stories
+):
+    await story_builder.persist_stories(mock_stories)
+
+    assert mock_db_session.add_all.called
+    assert len(mock_db_session.add_all.call_args[0][0]) == 2  # Two stories should be added
+    assert mock_db_session.commit.called
+
+    added_stories = mock_db_session.add_all.call_args[0][0]
+    for story_dict, story_obj in zip(mock_stories, added_stories):
+        assert story_obj.metric_id == story_dict["metric_id"]
+        assert story_obj.genre == story_dict["genre"]
+        assert story_obj.story_group == story_dict["story_group"]
+        assert story_obj.story_type == story_dict["story_type"]
 
 
 def test_get_current_period_range_day(story_builder):
