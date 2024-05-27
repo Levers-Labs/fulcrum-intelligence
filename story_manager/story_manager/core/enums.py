@@ -159,20 +159,22 @@ STORY_TYPES_META: dict[str, dict[str, str]] = {
         "growth and has fallen {{overall_growth}}% overall since {{start_date}}.",
     },
     StoryType.RECORD_HIGH: {
-        "title": "{% if not rank %}Second{% endif %}highest {{grain}} value over the past {{duration}} {{grain}}s",
+        "title": "{% if is_second_rank %}Second Highest{% else %}Highest{% endif %} value over the past {{duration}} "
+        "{{grain}}s",
         # e.g.,  On Mar 15, 2024, the 20 days value for NewBizDeals hit 90 -- the second highest across the past 20
         # days.
         "detail": "On {{record_date}}, the {{duration}} {{grain}}s value for {{metric.label}} hit {{value}} -- the {% "
-        "if not rank %}Second{% endif %} highest across the past {{duration}} {{grain}}s.{% if rank %} "
-        "This represents a {{current_growth}}% increase over the prior high of {{prior_value}} on {{"
-        "prior_date}}. {% endif %}",
+        "if is_second_rank %}Second Highest{% else %}Highest{% endif %} across the past {{duration}} {{"
+        "grain}}s.{% if not is_second_rank %} This represents a {{current_growth}}% increase over the prior "
+        "high of {{prior_value}} on {{prior_date}}. {% endif %}",
     },
     StoryType.RECORD_LOW: {
-        "title": "{% if not rank %}Second{% endif %}lowest {{grain}} value over the past {{duration}} {{grain}}s",
+        "title": "{% if is_second_rank %}Second lowest{% else %}Lowest{% endif %} {{grain}} value over the past {{"
+        "duration}} {{grain}}s",
         # e.g.,  On Mar 15, 2024, the 20 days value for NewBizDeals hit -10 -- the lowest across the past quarter.
         "detail": "On {{record_date}}, the {{duration}} {{grain}}s value for {{metric.label}} hit {{value}} -- the {% "
-        "if not rank %}Second{% endif %} lowest across the past {{duration}} {{grain}}s.{% if rank %} This "
-        "represents a {{current_growth}}% decrease over the prior low of {{prior_value}} on {{prior_date}}. "
-        "{% endif %}",
+        "if is_second_rank %}Second lowest{% else %}Lowest{% endif %} across the past {{duration}} {{"
+        "grain}}s.{% if not is_second_rank  %} This represents a {{current_growth}}% decrease over the "
+        "prior low of {{prior_value}} on {{prior_date}}. {% endif %}",
     },
 }
