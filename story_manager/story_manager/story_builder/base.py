@@ -4,6 +4,7 @@ from collections.abc import Hashable
 from datetime import date, timedelta
 from typing import Any
 
+import numpy as np
 import pandas as pd
 from jinja2 import Template
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -186,8 +187,7 @@ class StoryBuilderBase(ABC):
 
         if "date" in df.columns:
             df["date"] = df["date"].dt.strftime(self.date_text_format) if hasattr(df["date"], "dt") else df["date"]
-        df.replace(float("inf"), "None", inplace=True)
-        df.fillna(value="None", inplace=True)
+        df.replace([float("inf"), float("-inf"), np.NaN], [None, None, None], inplace=True)
         series = df.tail(series_length).to_dict(orient="records")
         return series
 
