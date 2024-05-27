@@ -13,11 +13,11 @@ from fulcrum_core.enums import (
 )
 from fulcrum_core.modules import (
     ComponentDriftEvaluator,
+    CorrelationAnalyzer,
+    DescribeAnalyzer,
     ProcessControlAnalyzer,
     SegmentDriftEvaluator,
     SimpleForecast,
-    CorrelationAnalyzer,
-    DescribeAnalyzer
 )
 
 logger = logging.getLogger(__name__)
