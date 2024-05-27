@@ -6,40 +6,34 @@ import pmdarima as pm
 
 from fulcrum_core.enums import Granularity
 from fulcrum_core.execptions import AnalysisError, InsufficientDataError
+from fulcrum_core.modules import BaseAnalyzer
 
 logger = logging.getLogger(__name__)
 
 
-class SimpleForecast:
+class SimpleForecast(BaseAnalyzer):
     DEFAULT_CONFIDENCE_INTERVAL: float = 95
-    DECIMAL_PRECISION = 3
 
     # todo: fix negative confidence_intervals
     # todo: fix issues for month even with min values
     # todo: fix issues where day grain takes too long to train
 
-    def __init__(self, df: pd.DataFrame, grain: Granularity):
+    def __init__(self, grain: Granularity, **kwargs):
         """
         Initialize the SimpleForcasting class
-        :param df: Input dataframe with date and value time series data
         :param grain: Granularity of the data
         """
         self.grain = grain
         self.min_values = self._get_min_data_points()
         self.grain_type, self.interval_gap = self._get_grain_type_interval_gap()
         self.freq = self._get_frequency()
+        super().__init__(**kwargs)
 
-        # Preprocess data
-        self.df = self._preprocess_data(df)
-
-        # Validate data
-        self._validate_data()
-
-    def _get_forecast_start_date(self) -> pd.Timestamp:
+    def _get_forecast_start_date(self, df: pd.DataFrame) -> pd.Timestamp:
         """
         Get the start date for the forecasting
         """
-        return self.df.index[-1] if isinstance(self.df.index, pd.DatetimeIndex) else self.df["date"].iloc[-1]
+        return df.index[-1] if isinstance(df.index, pd.DatetimeIndex) else df["date"].iloc[-1]
 
     def _get_min_data_points(self) -> int:
         """
@@ -87,7 +81,7 @@ class SimpleForecast:
         else:
             return "D"
 
-    def _preprocess_data(self, df: pd.DataFrame) -> pd.DataFrame:
+    def preprocess_data(self, df: pd.DataFrame, **kwargs) -> pd.DataFrame:
         """
         Preprocess the data according to the grain
         Convert date to datetime
@@ -121,21 +115,21 @@ class SimpleForecast:
             logger.warning("Data proportion less than 80%")
         return df
 
-    def _validate_data(self):
+    def validate_input(self, df: pd.DataFrame, **kwargs):
         """
         Validate the data according to the grain
         Validate the data points are greater than m value
         """
-        if len(self.df) < self.min_values:
+        if len(df) < self.min_values:
             raise InsufficientDataError(f"Data points should be greater than {self.min_values}")
 
-    def train(self) -> pm.arima.ARIMA:
+    def train(self, df: pd.DataFrame) -> pm.arima.ARIMA:
         """
         Train the ARIMA model with the training data
         :return: ARIMA model
         """
         # Training data
-        train_values = self.df["value"]
+        train_values = df["value"]
         model = pm.auto_arima(
             train_values,
             start_p=1,
@@ -154,12 +148,16 @@ class SimpleForecast:
         )
         return model
 
-    def _predict(
-        self, future_dates: pd.DatetimeIndex, conf_interval: float = DEFAULT_CONFIDENCE_INTERVAL
+    def analyze(  # type: ignore  # noqa
+        self,
+        df: pd.DataFrame,
+        future_dates: pd.DatetimeIndex,
+        conf_interval: float = DEFAULT_CONFIDENCE_INTERVAL,
     ) -> list[dict]:
         """
         Train the model on preprocessed dataframe.
         Predict the forecast values for future dates.
+        :param df: Preprocessed dataframe
         :param future_dates: Future dates to predict
         :param conf_interval: a confidence interval
         :return: list of dict with date, value, confidence_interval
@@ -168,7 +166,7 @@ class SimpleForecast:
         alpha = conf_interval / 100.0
 
         # train the model
-        model = self.train()
+        model = self.train(df)
 
         # Forecast length
         n_periods = len(future_dates)
@@ -185,44 +183,50 @@ class SimpleForecast:
             res.append(
                 {
                     "date": future_dates[i].date(),  # noqa
-                    "value": round(forecast_values[i], self.DECIMAL_PRECISION),
-                    "confidence_interval": list(map(lambda x: round(x, self.DECIMAL_PRECISION), conf_int[i])),
+                    "value": forecast_values[i],
+                    "confidence_interval": conf_int[i],
                 }
             )
 
         return res
 
-    def predict_n(self, n: int, conf_interval: float = DEFAULT_CONFIDENCE_INTERVAL) -> list[dict]:
+    def predict_n(self, df: pd.DataFrame, n: int, conf_interval: float = DEFAULT_CONFIDENCE_INTERVAL) -> list[dict]:
         """
-        Predict n future dates
+        predict n future dates
         Validate n > 1, if not raise ValueError
         Calculate future dates according to the granularity
         Getting the latest start date, and predicting future dates
+
+        :param df: dataframe
         :param n: number of future dates to predict
         :param conf_interval: a confidence interval
         :return: list of dict with date, value, confidence_interval
         """
-        start_date = self._get_forecast_start_date()
+        start_date = self._get_forecast_start_date(df)
 
         # validate n > 1
         if n < 1:
             raise AnalysisError("n should be greater than 1")
         # Finding future dates forecasted according to the granularity
-        future_dates = pd.date_range(start=start_date, periods=n, freq=self.freq, inclusive="neither")
+        future_dates = pd.date_range(start=start_date, periods=n + 1, freq=self.freq, inclusive="neither")
 
-        return self._predict(future_dates, conf_interval=conf_interval)
+        return self.run(df, future_dates=future_dates, conf_interval=conf_interval)
 
-    def predict_till_date(self, end_date: date, conf_interval: float = DEFAULT_CONFIDENCE_INTERVAL) -> list[dict]:
+    def predict_till_date(
+        self, df: pd.DataFrame, end_date: date, conf_interval: float = DEFAULT_CONFIDENCE_INTERVAL
+    ) -> list[dict]:
         """
         Predict future dates till end_date
         Validate end_date > start_date, if not raise ValueError
         Calculate future dates according to the granularity
         Getting the latest start date, and predicting future dates
+
+        :param df: Dataframe
         :param end_date: end date to predict
         :param conf_interval: a confidence interval
         :return: list of dict with date, value, confidence_interval
         """
-        start_date = self._get_forecast_start_date()
+        start_date = self._get_forecast_start_date(df)
 
         # validate end_date > start_date
         if pd.Timestamp(end_date) <= start_date:
@@ -238,4 +242,5 @@ class SimpleForecast:
         if future_dates.empty:
             raise AnalysisError("No future dates to predict")
 
-        return self._predict(future_dates, conf_interval=conf_interval)
+        result = self.run(df, future_dates=future_dates, conf_interval=conf_interval)
+        return list(result)

@@ -15,16 +15,19 @@ def test_health(client):
 
 
 @pytest.mark.asyncio
-async def test_describe(client, mocker, metric_values):
+async def test_describe(client, mocker, metric_values, metric_sms):
     # Mock the QueryClient's list_metrics method
     values = AsyncMock(return_value=metric_values)
-    mocker.patch.object(QueryManagerClient, "get_metric_values", values)
+    metric_mock = AsyncMock(return_value=metric_sms)
+    mocker.patch.object(QueryManagerClient, "get_metric", metric_mock)
+    mocker.patch.object(QueryManagerClient, "get_metric_time_series", values)
     response = client.post(
         "/v1/analyze/describe",
         json={
             "metric_id": "CAC",
             "start_date": "2024-01-01",
             "end_date": "2024-04-30",
+            "grain": "day",
             "dimensions": [
                 {"dimension": "customer_segment", "members": ["Enterprise", "SMB"]},
                 {"dimension": "channel", "members": []},
@@ -122,9 +125,7 @@ async def test_correlate(client, mocker, metric_values_correlate):
         "/v1/analyze/correlate",
         json={"metric_ids": ["NewMRR", "CAC"], "start_date": "2024-01-01", "end_date": "2024-04-30", "grain": "day"},
     )
-    expected_response_dict = [
-        {"correlation_coefficient": 0.5155347459793249, "metric_id_1": "CAC", "metric_id_2": "NewMRR"}
-    ]
+    expected_response_dict = [{"correlation_coefficient": 0.516, "metric_id_1": "CAC", "metric_id_2": "NewMRR"}]
 
     assert response.status_code == 200
     assert DeepDiff(response.json(), expected_response_dict, ignore_order=True) == {}

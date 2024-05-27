@@ -1,6 +1,6 @@
 import os
 import tempfile
-import urllib
+import urllib.parse
 import uuid
 from datetime import date, datetime
 from typing import Any

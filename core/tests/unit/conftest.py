@@ -29,8 +29,6 @@ def metric_values():
 def correlate_df(metric_values):
     df = pd.DataFrame(metric_values)
     df["date"] = pd.to_datetime(df["date"])
-    # rename columns
-    df = df.rename(columns={"date": "DAY", "value": "METRIC_VALUE", "metric_id": "METRIC_ID"})
     return df
 
 
