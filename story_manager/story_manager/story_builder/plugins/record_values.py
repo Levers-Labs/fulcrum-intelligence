@@ -67,7 +67,7 @@ class RecordValuesStoryBuilder(StoryBuilderBase):
         # Set 'Rank' as the index
         sorted_df.set_index("Rank", inplace=True)
 
-        rank = self.rank_recent_value(sorted_df, ref_value)
+        rank = self.rank_reference_value(sorted_df, ref_value)
         df_len = len(df)
 
         if rank in [1, 2]:
@@ -133,7 +133,7 @@ class RecordValuesStoryBuilder(StoryBuilderBase):
         return prior_date, prior_value
 
     @staticmethod
-    def rank_recent_value(sorted_df: pd.DataFrame, ref_value: float) -> int:
+    def rank_reference_value(sorted_df: pd.DataFrame, ref_value: float) -> int:
         """
         Determines the rank of the reference value in a DataFrame sorted in descending order.
 
