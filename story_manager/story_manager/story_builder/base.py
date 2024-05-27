@@ -222,22 +222,18 @@ class StoryBuilderBase(ABC):
         logger.info("Generated %s stories for metric '%s' with grain '%s'", len(stories), metric_id, grain)
         await self.persist_stories(stories)
 
-    async def persist_stories(self, stories: list[dict]) -> None:
+    async def persist_stories(self, stories: list[dict]):
         """
         Persist the generated stories in the database
 
         :param stories: The list of generated stories
         """
-
-        if not stories:
-            return
-
         logger.info(f"Persisting {len(stories)} stories in the database")
         logger.info(f"stories: {stories}")
 
         # perform the necessary data transformations
-        stories = [Story.parse_obj(story_dict) for story_dict in stories]
-        self.db_session.add_all(stories)
+        story_objs: list[Story] = [Story.parse_obj(story_dict) for story_dict in stories]
+        self.db_session.add_all(story_objs)
         await self.db_session.commit()
         logger.info("Stories persisted successfully")
 
