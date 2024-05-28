@@ -1,4 +1,5 @@
 import logging
+from datetime import date
 from typing import Annotated, Any
 
 import pandas as pd
@@ -9,6 +10,7 @@ from fastapi import (
     HTTPException,
 )
 
+from analysis_manager.config import settings
 from analysis_manager.core.dependencies import (
     AnalysisManagerDep,
     ComponentDriftServiceDep,
@@ -30,6 +32,8 @@ from analysis_manager.core.schema import (
     ForecastResponse,
     ProcessControlRequest,
     ProcessControlResponse,
+    SegmentDriftRequest,
+    SegmentDriftResponse,
     UserList,
 )
 from commons.utilities.pagination import PaginationParams
@@ -262,3 +266,49 @@ async def simple_forecast(
         raise HTTPException(status_code=400, detail=e.message) from e
 
     return res
+
+
+@router.post("/drift/segment", response_model=SegmentDriftResponse)
+async def segment_drift(
+    analysis_manager: AnalysisManagerDep,
+    query_manager: QueryManagerClientDep,
+    drift_req: Annotated[
+        SegmentDriftRequest,
+        Body(
+            examples=[
+                {
+                    "metric_id": "NewBizDeals",
+                    "evaluation_start_date": date(2025, 3, 1),
+                    "evaluation_end_date": date(2025, 3, 30),
+                    "comparison_start_date": date(2024, 3, 1),
+                    "comparison_end_date": date(2024, 3, 30),
+                    "dimensions": ["region", "stage_name"],
+                }
+            ]
+        ),
+    ],
+):
+    logger.debug(f"Segment drift request: {drift_req}")
+    evaluation_data = await query_manager.get_metric_time_series(
+        metric_id=drift_req.metric_id,
+        start_date=drift_req.evaluation_start_date,
+        end_date=drift_req.evaluation_end_date,
+        dimensions=drift_req.dimensions,
+    )
+
+    comparison_data = await query_manager.get_metric_time_series(
+        metric_id=drift_req.metric_id,
+        start_date=drift_req.comparison_start_date,
+        end_date=drift_req.comparison_end_date,
+        dimensions=drift_req.dimensions,
+    )
+
+    return await analysis_manager.segment_drift(
+        dsensei_base_url=settings.DSENSEI_BASE_URL,
+        df=pd.json_normalize(evaluation_data + comparison_data),
+        evaluation_start_date=drift_req.evaluation_start_date,
+        evaluation_end_date=drift_req.evaluation_end_date,
+        comparison_start_date=drift_req.comparison_start_date,
+        comparison_end_date=drift_req.comparison_end_date,
+        dimensions=drift_req.dimensions,
+    )
