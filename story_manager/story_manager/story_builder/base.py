@@ -3,6 +3,7 @@ from abc import ABC, abstractmethod
 from datetime import date, timedelta
 from typing import Any
 
+import numpy as np
 import pandas as pd
 from jinja2 import Template
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -32,7 +33,7 @@ class StoryBuilderBase(ABC):
     supported_grains: list[Granularity] = []
     # decimal precision
     precision = 3
-    # date format
+    # date text format
     date_text_format = "%B %d, %Y"
 
     def __init__(
@@ -286,3 +287,41 @@ class StoryBuilderBase(ABC):
         start_date = (latest_start_date - period_count * delta).date()
 
         return start_date, latest_end_date
+
+    async def _get_time_series_data_with_targets(
+        self, metric_id: str, grain: Granularity, start_date: date, end_date: date
+    ) -> pd.DataFrame:
+        """
+        Retrieve time series data for the given metric, grain, and date range with target values.
+
+        :param metric_id: The metric ID for which time series data is retrieved
+        :param grain: The grain for which time series data is retrieved
+        :param start_date: The start date of the time series data
+        :param end_date: The end date of the time series data
+        :return: A pandas DataFrame containing the time series data with target values.
+        """
+
+        logger.debug(
+            f"Retrieving time series data with targets for metric '{metric_id}' with grain '{grain}' "
+            f"from {start_date} to {end_date}"
+        )
+
+        series_df = await self._get_time_series_data(metric_id, grain, start_date, end_date, set_index=False)
+
+        targets_df = await self.query_service.get_metric_targets(metric_id, grain, start_date, end_date)
+        targets_df = pd.DataFrame(targets_df)
+
+        # Converting date columns to datetime
+        series_df["date"] = pd.to_datetime(series_df["date"])
+        targets_df["target_date"] = pd.to_datetime(targets_df["target_date"])
+
+        # Merging df with target_df on the date columns
+        merged_df = pd.merge(series_df, targets_df, left_on="date", right_on="target_date", how="left")
+
+        # Selecting only the required columns
+        final_df = merged_df[["date", "value", "target_value"]]
+
+        # Renaming the target_value column to target
+        final_df = final_df.rename(columns={"target_value": "target"})
+        final_df.replace(np.NaN, None, inplace=True)
+        return final_df

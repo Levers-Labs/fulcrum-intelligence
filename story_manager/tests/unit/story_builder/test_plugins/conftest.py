@@ -34,3 +34,27 @@ def process_control_df(values_df):
     df["slope_change"] = 0
     df["trend_signal_detected"] = False
     return df
+
+
+@pytest.fixture
+def targets_df():
+    data = {
+        "date": [
+            "2024-01-01",
+            "2024-01-08",
+            "2024-01-15",
+            "2024-01-22",
+            "2024-01-29",
+            "2024-02-05",
+            "2024-02-12",
+            "2024-02-19",
+            "2024-02-26",
+            "2024-03-04",
+            "2024-03-11",
+            "2024-03-18",
+        ],
+        "value": [6, 15, 16, 25, 65, 9, 14, 7, 18, 12, 14, 22],
+        "target": [10, 15, 20, 10, 15, 20, 10, 15, 20, 10, 20, 40],
+    }
+    df = pd.DataFrame(data)
+    return df
