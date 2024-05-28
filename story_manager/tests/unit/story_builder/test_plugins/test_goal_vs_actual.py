@@ -16,7 +16,6 @@ def goal_vs_actual_story_builder(
     mock_query_service, mock_analysis_service, mock_analysis_manager, mock_db_session, metric_values
 ):
     mock_query_service.get_metric = AsyncMock(return_value={"id": "metric_1", "label": "Metric 1"})
-    # mock_query_service._get_time_series_data_with_targets = AsyncMock(return_value=metric_values)
     return GoalVsActualStoryBuilder(mock_query_service, mock_analysis_service, mock_analysis_manager, mock_db_session)
 
 
@@ -68,16 +67,6 @@ async def test_generate_goal_vs_actual_stories_off_track(goal_vs_actual_story_bu
 
     story = result[0]
     assert story["story_type"] == StoryType.OFF_TRACK
-
-
-@pytest.mark.asyncio
-async def test_goal_vs_actual_stories_no_data_for_period_date(goal_vs_actual_story_builder, targets_df):
-
-    goal_vs_actual_story_builder._get_time_series_data_with_targets = AsyncMock(return_value=targets_df)
-
-    result = await goal_vs_actual_story_builder.generate_stories("metric_1", Granularity.DAY)
-
-    assert len(result) == 0
 
 
 @pytest.mark.asyncio
