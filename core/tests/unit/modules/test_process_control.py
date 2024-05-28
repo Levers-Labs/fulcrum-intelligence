@@ -198,7 +198,7 @@ def test_analyze(input_df):
     analyzer = ProcessControlAnalyzer()
 
     # Act
-    res_df = analyzer.analyze(input_df)
+    res_df = analyzer.run(input_df)
 
     # Assert
     trend_detected_indices = res_df[res_df["trend_signal_detected"]].index.tolist()
@@ -223,7 +223,7 @@ def test_analyze_insufficient_data():
 
     # Act & Assert
     with pytest.raises(InsufficientDataError):
-        analyzer.analyze(input_df)
+        analyzer.validate_input(input_df)
 
 
 def test_analyze_insufficient_data_after_signal(input_df):
@@ -233,7 +233,7 @@ def test_analyze_insufficient_data_after_signal(input_df):
     input_df = input_df.iloc[:27]
 
     # Act
-    res_df = analyzer.analyze(input_df)
+    res_df = analyzer.run(input_df)
 
     # Assert
     # assert slope not changes at trend signal detected index

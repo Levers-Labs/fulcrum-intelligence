@@ -1,22 +1,21 @@
 import logging
 import math
+from typing import Any
 
 import numpy as np
 import pandas as pd
 
 from fulcrum_core.execptions import InsufficientDataError
+from fulcrum_core.modules import BaseAnalyzer
 
 logger = logging.getLogger(__name__)
 
 
-class ProcessControlAnalyzer:
+class ProcessControlAnalyzer(BaseAnalyzer):
     """
     A class for analyzing time series data using process control techniques,
     incorporating dynamic trend line and control limit calculations.
     """
-
-    # constants for process control analysis
-    DECIMAL_PRECISION = 3
 
     HALF_AVERAGE_POINT = 9
     CONSECUTIVE_SIGNAL_PERIODS = 5
@@ -197,7 +196,37 @@ class ProcessControlAnalyzer:
 
         return first_consecutive_index
 
-    def analyze(self, df: pd.DataFrame) -> pd.DataFrame:
+    def preprocess_data(self, df: pd.DataFrame, **kwargs) -> Any:
+        """
+        Perform common data preprocessing steps.
+
+        Args:
+            df (pd.DataFrame): The input DataFrame to preprocess.
+            **kwargs: Additional keyword arguments for preprocessing.
+
+        Returns:
+            pd.DataFrame: The preprocessed DataFrame.
+        """
+        # Convert 'date' column to datetime
+        df["date"] = pd.to_datetime(df["date"], errors="coerce")
+        # Convert 'value' column to numeric and drop duplicate 'date' rows
+        df["value"] = pd.to_numeric(df["value"], errors="coerce")
+        # Drop duplicate 'date' rows
+        df = df.drop_duplicates(subset=["date"]).reset_index(drop=True)
+        # todo: should we drop 0 values?
+        return df
+
+    def validate_input(self, df: pd.DataFrame, **kwargs):
+        """
+        Validate the input DataFrame for the Process Control Analyzer.
+
+        :param df: The input DataFrame to validate.
+        """
+        # check if the minimum of 10 data points is available for analysis
+        if len(df) < 10:
+            raise InsufficientDataError()
+
+    def analyze(self, df: pd.DataFrame, **kwargs) -> pd.DataFrame:
         """
         Perform time series analysis using process control techniques.
 
@@ -207,16 +236,6 @@ class ProcessControlAnalyzer:
         Returns:
             pd.DataFrame: The analyzed time series data with additional calculated columns.
         """
-        # Convert 'value' column to numeric and drop duplicate 'date' rows
-        df["value"] = pd.to_numeric(df["value"], errors="coerce")
-        df = df.drop_duplicates(subset=["date"]).reset_index(drop=True)
-
-        # todo: should we drop 0 values?
-
-        # check if the minimum of 10 data points is available for analysis
-        if len(df) < 10:
-            raise InsufficientDataError()
-
         start_index = 0
         central_line = []
         ucl = []
@@ -269,14 +288,25 @@ class ProcessControlAnalyzer:
         df["slope"] = slopes + [None] * (len(df) - len(slopes))
         # percentage change in a slope
         df["slope_change"] = df["slope"].pct_change() * 100
+        # set slope change column to float
+        df["slope_change"] = df["slope_change"].astype("float64")
         df["ucl"] = ucl + [None] * (len(df) - len(ucl))
         df["lcl"] = lcl + [None] * (len(df) - len(lcl))
         df["trend_signal_detected"] = df.index.isin(signal_indices)
 
-        # round the values to the specified decimal precision
-        df = df.round(self.DECIMAL_PRECISION)
+        return df
 
+    def post_process_result(self, result: Any) -> Any:
+        """
+        Perform common postprocessing steps on the analysis result.
+
+        Args:
+            result (pd.DataFrame): The analysis result to postprocess.
+
+        Returns:
+            Any: The postprocessed analysis results.
+        """
+        df = result
         # replace np.nan with None
         df.replace(np.nan, None, inplace=True)
-
         return df

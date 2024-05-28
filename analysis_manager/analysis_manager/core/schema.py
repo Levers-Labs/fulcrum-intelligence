@@ -43,6 +43,7 @@ class DescribeRequest(BaseModel):
     start_date: date
     end_date: date
     dimensions: list[DimensionRequest] | None = None
+    grain: Granularity
 
 
 class CorrelateRequest(BaseModel):

@@ -1,8 +1,8 @@
 """Initial
 
-Revision ID: 04e72644d1db
+Revision ID: 1497a9b90eb0
 Revises:
-Create Date: 2024-05-13 15:24:21.297313
+Create Date: 2024-05-27 11:46:02.121757
 
 """
 
@@ -14,7 +14,7 @@ from alembic import op
 from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
-revision: str = "04e72644d1db"
+revision: str = "1497a9b90eb0"
 down_revision: str | None = None
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
@@ -34,7 +34,15 @@ def upgrade() -> None:
         ),
         sa.Column(
             "story_group",
-            sa.Enum("GROWTH_RATES", "TREND_CHANGES", name="storygroup", schema="story_store", inherit_schema=True),
+            sa.Enum(
+                "GROWTH_RATES",
+                "TREND_CHANGES",
+                "TREND_EXCEPTIONS",
+                "LONG_RANGE",
+                name="storygroup",
+                schema="story_store",
+                inherit_schema=True,
+            ),
             nullable=True,
         ),
         sa.Column(
@@ -46,6 +54,10 @@ def upgrade() -> None:
                 "NEW_UPWARD_TREND",
                 "NEW_DOWNWARD_TREND",
                 "PERFORMANCE_PLATEAU",
+                "SPIKE",
+                "DROP",
+                "IMPROVING_PERFORMANCE",
+                "WORSENING_PERFORMANCE",
                 name="storytype",
                 schema="story_store",
                 inherit_schema=True,

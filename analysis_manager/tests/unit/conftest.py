@@ -280,7 +280,7 @@ def metric_sms():
                 ],
             },
         },
-        "grain_aggregation": "aggregation",
+        "grain_aggregation": "sum",
         "components": ["component1", "component2"],
         "terms": ["term1", "term2"],
         "output_of": "output",

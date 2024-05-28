@@ -5,10 +5,20 @@ from typing import Any
 import pandas as pd
 from scipy.stats import linregress
 
-from fulcrum_core.correlate import correlate
-from fulcrum_core.describe import describe
-from fulcrum_core.enums import Granularity
-from fulcrum_core.modules import ComponentDriftEvaluator, ProcessControlAnalyzer, SimpleForecast
+from fulcrum_core.enums import (
+    AggregationMethod,
+    AggregationOption,
+    Granularity,
+    MetricAim,
+)
+from fulcrum_core.modules import (
+    ComponentDriftEvaluator,
+    CorrelationAnalyzer,
+    DescribeAnalyzer,
+    ProcessControlAnalyzer,
+    SegmentDriftEvaluator,
+    SimpleForecast,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -22,36 +32,112 @@ class AnalysisManager:
     def cal_average_growth(series: pd.Series, precision: int | None = None) -> float:
         """
         Calculate the average growth rate for the given time series data.
-        The average growth rate is mean of the growth rate (pct_change) of the time series data.
-        Avoid inf average growth, if present in the data.
+        The average growth rate is the mean of the growth rate (pct_change) of the time series data.
+        Avoid inf average growth and handle NaN values.
 
         :param series: The input time series data.
         :param precision: The number of decimal places to round the result.
         :return: The average growth rate for the time series data.
         """
+        # Drop NaN values from the series
+        series = series.dropna()
+
+        # Calculate growth rate
         growth_rate = series.pct_change()
+
+        # Check if all growth rates are NaN
+        if growth_rate.isnull().all():
+            return 0.0  # If all growth rates are NaN, return 0.0 or any default value you prefer
+
+        # Calculate average growth rate
         avg_growth = growth_rate.mean()
+
         # Avoid inf average growth
         if avg_growth == float("inf"):
             avg_growth = growth_rate[growth_rate != float("inf")].mean()
-        # convert to percentage
+
+        # Convert to percentage
         avg_growth = avg_growth * 100
+
+        # Round the result to the specified precision
         return round(avg_growth, precision) if precision else round(avg_growth)
 
     def describe(
         self,
-        data: list[dict],
+        df: pd.DataFrame,
         dimensions: list[str],
         metric_id: str,
-        start_date: pd.Timestamp,
-        end_date: pd.Timestamp,
+        start_date: date,
+        end_date: date,
         aggregation_function: str,
-    ) -> list[dict]:
-        result = describe(data, dimensions, metric_id, start_date, end_date, aggregation_function)
-        return result
+    ) -> pd.DataFrame:
+        """
+        Describe the data
+        param:
+            df: pd.Dataframe containing metric values
+            dimensions: List['str']. For example, ["region", "stage_name"]
+            metric_id: str. Example: "ToMRR"
+            start_date: pd.Timestamp
+            end_date: pd.Timestamp
 
-    def correlate(self, data: pd.DataFrame, start_date: date, end_date: date) -> list[dict]:
-        result = correlate(data, start_date, end_date)
+        return:
+            pd.Dataframe : Statistics of metric values for each (dimension, slice) for a given metric ID within
+             the given start and end date ranges.
+
+        sample response:
+            [
+              {
+                "metric_id": "ToMRR",
+                "dimension": "region",
+                "slice": "Asia",
+                "mean": 1050.0,
+                "median": 1050.0,
+                "percentile_25": 775.0,
+                "percentile_50": 1050.0,
+                "percentile_75": 1325.0,
+                "percentile_90": 1490.0,
+                "percentile_95": 1545.0,
+                "percentile_99": 1589.0,
+                "min": 500,
+                "max": 1600,
+                "variance": 605000.0,
+                "count": 2,
+                "sum": 2100,
+                "unique": 2
+              }...
+            ]
+        """
+        analyzer = DescribeAnalyzer()
+        result_df = analyzer.run(
+            df,
+            dimensions=dimensions,
+            metric_id=metric_id,
+            start_date=start_date,
+            end_date=end_date,
+            aggregation_function=aggregation_function,
+        )
+        return result_df
+
+    @classmethod
+    def correlate(cls, df: pd.DataFrame) -> list[dict]:
+        """
+        compute the correlation between all the nC2 pairs generated from the given list metric_ids.
+        Args:
+            df (pd.DataFrame): The input time series data with 'date', 'metric_id', and 'value' columns.
+            e.g. df = pd.DataFrame({
+                "date": ["2021-01-01", "2021-01-02", "2021-01-03"],
+                "metric_id": ["1", "1", "2"],
+                "value": [100, 200, 300],
+            })
+
+        Returns:
+            list[dict]: The correlation analysis result with the following columns:
+                - 'metric_id_1': The first metric id in the pair.
+                - 'metric_id_2': The second metric id in the pair.
+                - 'correlation_coefficient': The correlation coefficient between the two metrics.
+        """
+        analyzer = CorrelationAnalyzer()
+        result = analyzer.run(df)
         return result
 
     @staticmethod
@@ -81,7 +167,7 @@ class AnalysisManager:
                 - 'trend_signal_detected': The signal detection result for the time period.
         """
         analyzer = ProcessControlAnalyzer()
-        res_df = analyzer.analyze(df)
+        res_df = analyzer.run(df)
         return res_df
 
     @staticmethod
@@ -263,12 +349,12 @@ class AnalysisManager:
         kwargs = {}
         if conf_interval:
             kwargs["conf_interval"] = conf_interval
-        forecast = SimpleForecast(df, grain=grain)
+        forecast = SimpleForecast(grain=grain)
         results = []
         if forecast_horizon:
-            results = forecast.predict_n(forecast_horizon, **kwargs)
+            results = forecast.predict_n(df, forecast_horizon, **kwargs)
         elif forecast_till_date:
-            results = forecast.predict_till_date(forecast_till_date, **kwargs)
+            results = forecast.predict_till_date(df, forecast_till_date, **kwargs)
         return results
 
     @staticmethod
@@ -328,3 +414,34 @@ class AnalysisManager:
         slope, _, _, _, _ = linregress(x_values, df["value"])
 
         return round(slope, precision)
+
+    async def segment_drift(
+        self,
+        dsensei_base_url: str,
+        df: pd.DataFrame,
+        evaluation_start_date: date,
+        evaluation_end_date: date,
+        comparison_start_date: date,
+        comparison_end_date: date,
+        dimensions: list[str],
+        metric_column: str = "value",
+        date_column: str = "date",
+        aggregation_option: AggregationOption = AggregationOption.SUM,
+        aggregation_method: AggregationMethod = AggregationMethod.SUM,
+        target_metric_direction: MetricAim = MetricAim.INCREASING,
+    ) -> dict:
+
+        result = await SegmentDriftEvaluator(dsensei_base_url).calculate_segment_drift(
+            df,
+            evaluation_start_date,
+            evaluation_end_date,
+            comparison_start_date,
+            comparison_end_date,
+            dimensions,
+            metric_column,
+            date_column,
+            aggregation_option=aggregation_option,
+            aggregation_method=aggregation_method,
+            target_metric_direction=target_metric_direction,
+        )
+        return result
