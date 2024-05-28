@@ -173,7 +173,7 @@ STORY_TYPES_META: dict[str, dict[str, str]] = {
         # days.
         "detail": "On {{record_date}}, the {{duration}} {{grain}}s value for {{metric.label}} hit {{value}} -- the {% "
         "if is_second_rank %}Second Highest{% else %}Highest{% endif %} across the past {{duration}} {{"
-        "grain}}s.{% if not is_second_rank %} This represents a {{current_growth}}% increase over the prior "
+        "grain}}s.{% if not is_second_rank %} This represents a {{deviation}}% increase over the prior "
         "high of {{prior_value}} on {{prior_date}}. {% endif %}",
     },
     StoryType.RECORD_LOW: {
@@ -182,7 +182,7 @@ STORY_TYPES_META: dict[str, dict[str, str]] = {
         # e.g.,  On Mar 15, 2024, the 20 days value for NewBizDeals hit -10 -- the lowest across the past quarter.
         "detail": "On {{record_date}}, the {{duration}} {{grain}}s value for {{metric.label}} hit {{value}} -- the {% "
         "if is_second_rank %}Second lowest{% else %}Lowest{% endif %} across the past {{duration}} {{"
-        "grain}}s.{% if not is_second_rank  %} This represents a {{current_growth}}% decrease over the "
+        "grain}}s.{% if not is_second_rank  %} This represents a {{deviation}}% decrease over the "
         "prior low of {{prior_value}} on {{prior_date}}. {% endif %}",
     },
 }

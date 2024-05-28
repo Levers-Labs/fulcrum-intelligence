@@ -58,5 +58,5 @@ def sorted_df():
     df = pd.DataFrame(data)
     sorted_df = df.sort_values(by="value", ascending=False).reset_index(drop=True)
     sorted_df.index += 1
-    sorted_df.index.name = "Rank"
+    sorted_df.index.name = "rank"
     return sorted_df

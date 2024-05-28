@@ -64,28 +64,28 @@ async def test_generate_stories_no_min_data_points(mocker, record_values_story_b
     assert len(result) == 0
 
 
-def test_rank_reference_value(record_values_story_builder, sorted_df):
+def test_get_rank_for_date(record_values_story_builder, sorted_df):
     # Highest value
-    ref_value = 65
-    rank = record_values_story_builder.rank_reference_value(sorted_df, ref_value)
+    ref_value = "2024-01-29"
+    rank = record_values_story_builder.get_rank_for_date(sorted_df, ref_value)
     assert rank == 1
 
     # second highest
-    ref_value = 25
-    rank = record_values_story_builder.rank_reference_value(sorted_df, ref_value)
+    ref_value = "2024-01-22"
+    rank = record_values_story_builder.get_rank_for_date(sorted_df, ref_value)
     assert rank == 2
 
     # Lowest
-    ref_value = 6
-    rank = record_values_story_builder.rank_reference_value(sorted_df, ref_value)
+    ref_value = "2024-01-01"
+    rank = record_values_story_builder.get_rank_for_date(sorted_df, ref_value)
     assert rank == len(sorted_df)
 
     # Second lowest
-    ref_value = 7
-    rank = record_values_story_builder.rank_reference_value(sorted_df, ref_value)
+    ref_value = "2024-02-19"
+    rank = record_values_story_builder.get_rank_for_date(sorted_df, ref_value)
     assert rank == len(sorted_df) - 1
 
     # random
-    ref_value = 9
-    rank = record_values_story_builder.rank_reference_value(sorted_df, ref_value)
+    ref_value = "2024-02-05"
+    rank = record_values_story_builder.get_rank_for_date(sorted_df, ref_value)
     assert rank == len(sorted_df) - 2

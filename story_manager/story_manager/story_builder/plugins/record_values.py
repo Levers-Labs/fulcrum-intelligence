@@ -13,6 +13,7 @@ class RecordValuesStoryBuilder(StoryBuilderBase):
     genre = StoryGenre.BIG_MOVES
     group = StoryGroup.RECORD_VALUES
     supported_grains = [Granularity.DAY, Granularity.WEEK, Granularity.MONTH]
+    date_format = "%Y-%m-%d"
 
     async def generate_stories(self, metric_id: str, grain: Granularity) -> list[dict]:
         """
@@ -36,7 +37,6 @@ class RecordValuesStoryBuilder(StoryBuilderBase):
 
         # Initialize variables
         stories: list[dict] = []
-        is_second_rank = False
 
         # get metric details
         metric = await self.query_service.get_metric(metric_id)
@@ -46,6 +46,7 @@ class RecordValuesStoryBuilder(StoryBuilderBase):
 
         # get time series data
         df = await self._get_time_series_data(metric_id, grain, start_date, end_date, set_index=False)
+        df_len = len(df)
 
         # validate time series data has minimum required data points
         time_durations = self.get_time_durations(grain)
@@ -56,68 +57,75 @@ class RecordValuesStoryBuilder(StoryBuilderBase):
             return []
 
         # Get the reference value
-        ref_data = df.iloc[-1]
-        ref_value = ref_data["value"].item()
+        ref_value = df.at[df.index[-1], "value"]
+        ref_date = df.at[df.index[-1], "date"].strftime(self.date_format)
 
-        record_date = ref_data["date"].strftime(self.date_text_format)
+        # Sort the DataFrame basis value and date in descending and ascending order resp.
+        sorted_df = df.sort_values(by=["value", "date"], ascending=[False, True]).reset_index(drop=True)
+        sorted_df["rank"] = sorted_df.index + 1
+        sorted_df.set_index("rank", inplace=True)
 
-        # Sort the DataFrame in descending order based on value
-        sorted_df = df.sort_values(by="value", ascending=False).reset_index(drop=True)
-        sorted_df["Rank"] = sorted_df.index + 1
-        # Set 'Rank' as the index
-        sorted_df.set_index("Rank", inplace=True)
+        # Get the rank for the reference date
+        rank = self.get_rank_for_date(sorted_df, ref_date)
 
-        rank = self.rank_reference_value(sorted_df, ref_value)
-        df_len = len(df)
-
-        if rank in [1, 2]:
-            if rank == 1:
-                prior_rank = rank + 1
-            else:
-                prior_rank = rank
-                is_second_rank = True
-            prior_date, prior_value = self.get_prior_values(prior_rank, sorted_df)
-            growth = self.analysis_manager.calculate_percentage_difference(ref_value, prior_value)
-            story_type = StoryType.RECORD_HIGH
-            story_details = self.prepare_story_dict(
-                story_type,
-                grain=grain,
-                metric=metric,
-                df=df,
-                value=ref_value,
-                current_growth=growth,
-                prior_value=prior_value,
-                prior_date=prior_date,
-                duration=len(df),
-                is_second_rank=is_second_rank,
-                record_date=record_date,
+        # Get prior rank, story type and if its second rank
+        prior_rank, story_type, is_second_rank = self.get_prior_rank_and_story_type(df_len, rank)
+        if story_type is None:
+            logging.warning(
+                "Discarding story generation for metric '%s' with grain '%s' as most recent measurement isn't "
+                "in top 2 or bottom 2 rank",
+                metric_id,
+                grain,
             )
-            stories.append(story_details)
-        elif rank in [df_len - 1, df_len]:
-            if rank == df_len:
-                prior_rank = rank - 1
-            else:
-                prior_rank = rank
-                is_second_rank = True
-            prior_date, prior_value = self.get_prior_values(prior_rank, sorted_df)
-            growth = self.analysis_manager.calculate_percentage_difference(prior_value, ref_value)
-            story_type = StoryType.RECORD_LOW
-            story_details = self.prepare_story_dict(
-                story_type,
-                grain=grain,
-                metric=metric,
-                df=df,
-                value=ref_data["value"],
-                current_growth=growth,
-                prior_value=prior_value,
-                prior_date=prior_date,
-                duration=len(df),
-                is_second_rank=is_second_rank,
-                record_date=record_date,
-            )
-            stories.append(story_details)
+            return []
+
+        # Get prior values
+        prior_date, prior_value = self.get_prior_values(prior_rank, sorted_df)
+
+        # Calculate deviation % between reference value and prior value
+        deviation = self.analysis_manager.calculate_percentage_difference(ref_value, prior_value)
+
+        story_details = self.prepare_story_dict(
+            story_type,
+            grain=grain,
+            metric=metric,
+            df=df,
+            value=ref_value,
+            deviation=abs(deviation),
+            prior_value=prior_value,
+            prior_date=prior_date,
+            duration=df_len,
+            is_second_rank=is_second_rank,
+            record_date=ref_date,
+            rank=rank,
+        )
+        stories.append(story_details)
         logger.info(f"Record values stories for metric '{metric_id}': {stories}")
         return stories
+
+    @staticmethod
+    def get_prior_rank_and_story_type(df_len: int, rank: int) -> tuple[int, StoryType | None, bool]:
+        """
+        Get the prior rank and story type based on the current rank.
+
+        :param df_len: The length of dataFrame containing the data.
+        :param rank: The current rank.
+
+        :return tuple[int, StoryType | None, bool]: A tuple containing the prior rank, story type, and a flag
+        indicating if it's the second rank.
+        """
+
+        # mapping of ranks with (prior_rank, story_type, is_second_rank flag)
+        rank_mappings = {
+            1: (2, StoryType.RECORD_HIGH, False),  # For rank 1
+            2: (1, StoryType.RECORD_HIGH, True),  # For rank 2
+            df_len: (df_len - 1, StoryType.RECORD_LOW, False),  # For last rank
+            df_len - 1: (df_len, StoryType.RECORD_LOW, True),  # For second last rank
+        }
+
+        prior_rank, story_type, is_second_rank = rank_mappings.get(rank, (rank, None, False))
+
+        return prior_rank, story_type, is_second_rank
 
     def get_prior_values(self, prior_rank: int, sorted_df: pd.DataFrame) -> tuple[str, float]:
         """
@@ -128,37 +136,19 @@ class RecordValuesStoryBuilder(StoryBuilderBase):
 
         :return tuple[str, float]: A tuple containing the prior date, and prior value.
         """
-        prior_value = sorted_df.loc[prior_rank]["value"].item()
-        prior_date = sorted_df.loc[prior_rank]["date"].strftime(self.date_text_format)
+        prior_value = sorted_df.at[prior_rank, "value"]
+        prior_date = sorted_df.at[prior_rank, "date"].strftime(self.date_text_format)
         return prior_date, prior_value
 
     @staticmethod
-    def rank_reference_value(sorted_df: pd.DataFrame, ref_value: float) -> int:
+    def get_rank_for_date(sorted_df: pd.DataFrame, date: str) -> int:
         """
         Determines the rank of the reference value in a DataFrame sorted in descending order.
 
-        If the reference value is in the top two values, the rank of the first occurrence is returned.
-        If the reference value is in the bottom two values, the rank of the last occurrence is returned.
-        If the reference value is not in the top two or bottom two values, rank of the first occurrence is returned.
-
         :param sorted_df: The Sorted DataFrame containing the data.
-        :param ref_value: The reference value to check the rank of.
+        :param date: The reference date to check the rank of.
 
-        :return Optional[int]: The rank of the reference value, or None if not in the top or bottom range.
+        :return The rank of the reference date
         """
-
-        # Determine if the reference value is in the top range or bottom range
-        is_in_top_range = ref_value in sorted_df.iloc[:2]["value"].values
-        is_in_bottom_range = ref_value in sorted_df.iloc[-2:]["value"].values
-
-        if is_in_top_range:
-            # Get the rank of the first occurrence
-            rank = sorted_df[sorted_df["value"] == ref_value].index[0]
-        elif is_in_bottom_range:
-            # Get the rank of the last occurrence
-            rank = sorted_df[sorted_df["value"] == ref_value].index[-1]
-        else:
-            # If not in top or bottom range, just return the rank
-            rank = sorted_df[sorted_df["value"] == ref_value].index[0]
-
+        rank = sorted_df[sorted_df["date"] == date].index[0]
         return rank
