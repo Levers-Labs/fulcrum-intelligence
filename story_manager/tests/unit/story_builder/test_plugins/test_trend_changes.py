@@ -58,9 +58,7 @@ async def test_generate_stories_upward_trend(mocker, trends_story_builder, proce
     assert len(result) == 1
     story = result[0]
     assert story["story_type"] == StoryType.NEW_UPWARD_TREND
-    assert story["variables"]["trend_start_date"] == process_control_df["date"].iloc[-10].strftime(
-        trends_story_builder.date_text_format
-    )
+    assert story["variables"]["trend_start_date"] == process_control_df["date"].iloc[-10]
     assert story["variables"]["previous_trend_duration"] == 20
 
 
@@ -85,9 +83,7 @@ async def test_generate_stories_downward_trend(mocker, trends_story_builder, pro
     assert len(result) == 1
     story = result[0]
     assert story["story_type"] == StoryType.NEW_DOWNWARD_TREND
-    assert story["variables"]["trend_start_date"] == process_control_df["date"].iloc[-10].strftime(
-        trends_story_builder.date_text_format
-    )
+    assert story["variables"]["trend_start_date"] == process_control_df["date"].iloc[-10]
     assert story["variables"]["previous_trend_duration"] == 20
 
 
