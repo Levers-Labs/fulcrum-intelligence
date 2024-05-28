@@ -331,8 +331,8 @@ class StoryBuilderBase(ABC):
 
         series_df = await self._get_time_series_data(metric_id, grain, start_date, end_date, set_index=False)
 
-        targets_df = await self.query_service.get_metric_targets(metric_id, grain, start_date, end_date)
-        targets_df = pd.DataFrame(targets_df)
+        targets_list = await self.query_service.get_metric_targets(metric_id, grain, start_date, end_date)
+        targets_df = pd.DataFrame(targets_list)
 
         # Converting date columns to datetime
         series_df["date"] = pd.to_datetime(series_df["date"])
