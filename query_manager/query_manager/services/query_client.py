@@ -6,7 +6,7 @@ import aiofiles
 
 from commons.models.enums import Granularity
 from query_manager.config import get_settings
-from query_manager.core.schemas import MetricDetail
+from query_manager.core.schemas import Dimension, MetricDetail
 from query_manager.exceptions import MetricNotFoundError
 from query_manager.services.cube import CubeClient
 
@@ -89,7 +89,7 @@ class QueryClient:
         dimensions_data = await self.load_data(self.dimension_file_path)
         return next((dimension for dimension in dimensions_data if dimension["id"] == dimension_id), None)
 
-    async def get_dimension_members(self, dimension_id: str) -> list[str]:
+    async def get_dimension_members(self, dimension_id: str) -> list[Any]:
         """
         Fetches members for a specific dimension by its ID.
 
@@ -97,7 +97,10 @@ class QueryClient:
         :return: A list of members for the dimension, or an empty list if not found.
         """
         dimension_detail = await self.get_dimension_details(dimension_id)
-        return dimension_detail.get("members", []) if dimension_detail else []
+        if not dimension_detail:
+            return []
+        dimension = Dimension.parse_obj(dimension_detail)
+        return await self.cube_client.load_dimension_members_from_cube(dimension)
 
     # Value apis
     async def get_metric_values(
