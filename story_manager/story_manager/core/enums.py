@@ -80,6 +80,14 @@ GROUP_TO_STORY_TYPE_MAPPING = {
         StoryType.RECORD_HIGH,
         StoryType.RECORD_LOW,
     ],
+    StoryGroup.TREND_EXCEPTIONS: [
+        StoryType.SPIKE,
+        StoryType.DROP,
+    ],
+    StoryGroup.LONG_RANGE: [
+        StoryType.IMPROVING_PERFORMANCE,
+        StoryType.WORSENING_PERFORMANCE,
+    ],
 }
 
 # Story type meta-information

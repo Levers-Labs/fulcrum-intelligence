@@ -1,8 +1,10 @@
 import logging
 from abc import ABC, abstractmethod
+from collections.abc import Hashable
 from datetime import date, timedelta
 from typing import Any
 
+import numpy as np
 import pandas as pd
 from jinja2 import Template
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -17,6 +19,7 @@ from story_manager.core.enums import (
     StoryGroup,
     StoryType,
 )
+from story_manager.core.models import Story
 from story_manager.story_builder.constants import GRAIN_META, STORY_GROUP_TIME_DURATIONS
 
 logger = logging.getLogger(__name__)
@@ -152,22 +155,41 @@ class StoryBuilderBase(ABC):
         :return: A dictionary containing the story details
         """
         logger.debug(f"Preparing story dictionary for story type '{story_type}'")
-        grain_durations = self.get_time_durations(grain)
-        series_length = grain_durations["output"]
+
+        series = self.get_story_series(df, grain)
         story_texts = self._render_story_texts(story_type, grain=grain, metric=metric, **extra_context)
+
         return {
             "metric_id": metric["id"],
             "genre": self.genre,
             "story_group": self.group,
             "story_type": story_type,
             "grain": grain,
-            "series": df.tail(series_length).to_dict(orient="records"),
+            "series": series,
             "title": story_texts["title"],
             "detail": story_texts["detail"],
             "title_template": story_texts["title_template"],
             "detail_template": story_texts["detail_template"],
             "variables": story_texts["variables"],
         }
+
+    def get_story_series(self, df: pd.DataFrame, grain: Granularity) -> list[dict[Hashable, Any]]:
+        """
+        Format the time series data in the DataFrame by converting the 'date' column to a string format specified
+        by 'date_text_format' attribute and replacing NaN values with the string 'None'.
+
+        :param grain: Grain for which the story is generated.
+        :param df: The DataFrame containing the time series data.
+        :return: series: The DataFrame with formatted time series data.
+        """
+        grain_durations = self.get_time_durations(grain)
+        series_length = grain_durations["output"]
+
+        if "date" in df.columns:
+            df["date"] = df["date"].dt.strftime(self.date_text_format) if hasattr(df["date"], "dt") else df["date"]
+        df.replace([float("inf"), float("-inf"), np.NaN], [None, None, None], inplace=True)
+        series = df.tail(series_length).to_dict(orient="records")
+        return series
 
     @abstractmethod
     async def generate_stories(self, metric_id: str, grain: Granularity) -> list[dict]:
@@ -200,16 +222,18 @@ class StoryBuilderBase(ABC):
         logger.info("Generated %s stories for metric '%s' with grain '%s'", len(stories), metric_id, grain)
         await self.persist_stories(stories)
 
-    async def persist_stories(self, stories: list[dict]) -> None:
+    async def persist_stories(self, stories: list[dict]):
         """
         Persist the generated stories in the database
 
         :param stories: The list of generated stories
         """
-        # perform the necessary data transformations
-        # persist the stories in the database
         logger.info(f"Persisting {len(stories)} stories in the database")
-        self.db_session.add_all(stories)
+        logger.info(f"stories: {stories}")
+
+        # perform the necessary data transformations
+        story_objs: list[Story] = [Story.parse_obj(story_dict) for story_dict in stories]
+        self.db_session.add_all(story_objs)
         await self.db_session.commit()
         logger.info("Stories persisted successfully")
 
