@@ -37,7 +37,7 @@ class Story(StorySchemaBaseModel, table=True):  # type: ignore
     detail: str = Field(sa_type=Text)
     detail_template: str = Field(sa_type=Text)
     variables: dict = Field(default_factory=dict, sa_type=JSONB)
-    series: dict = Field(default_factory=dict, sa_type=JSONB)
+    series: list = Field(default_factory=list, sa_type=JSONB)
 
     @model_validator(mode="before")
     @classmethod
