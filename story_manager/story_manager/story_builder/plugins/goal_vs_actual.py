@@ -63,6 +63,7 @@ class GoalVsActualStoryBuilder(StoryBuilderBase):
 
         # get growth rate for the series
         df["growth_rate"] = self.analysis_manager.calculate_growth_rates_of_series(df["value"])
+        df["growth_rate"].fillna(value=0, inplace=True)
 
         # get the most recent date for the period
         latest_start_date, _ = self._get_current_period_range(grain)

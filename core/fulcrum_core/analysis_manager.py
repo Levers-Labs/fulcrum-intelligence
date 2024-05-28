@@ -370,7 +370,6 @@ class AnalysisManager:
         """
         # Calculate the growth rates using the pct_change method
         growth_rates = values.pct_change() * 100
-        growth_rates.fillna(value=0, inplace=True)
 
         return round(growth_rates, precision) if precision else round(growth_rates)
 
