@@ -82,7 +82,8 @@ class GoalVsActualStoryBuilder(StoryBuilderBase):
             return []
 
         # Retrieve value, growth and target from ref data and convert to float
-        value, growth, target = ref_data.loc[ref_data.index[0], ["value", "growth_rate", "target"]].apply(float)
+        value, growth = ref_data.loc[ref_data.index[0], ["value", "growth_rate"]].apply(float)
+        target = ref_data.at[ref_data.index[0], "target"]
 
         # validate if target exist, exit if no target
         if not target:

@@ -78,3 +78,21 @@ async def test_goal_vs_actual_stories_no_data_for_period_date(goal_vs_actual_sto
     result = await goal_vs_actual_story_builder.generate_stories("metric_1", Granularity.DAY)
 
     assert len(result) == 0
+
+
+@pytest.mark.asyncio
+async def test_generate_goal_vs_actual_stories_no_target(goal_vs_actual_story_builder, targets_df):
+    latest_date, _ = goal_vs_actual_story_builder._get_current_period_range(Granularity.DAY)
+    latest_date = latest_date.strftime("%Y-%m-%d")
+    targets_df = targets_df.copy()
+    on_track_data = {
+        "value": 0,
+        "target": None,
+        "date": latest_date,
+    }
+    targets_df.loc[len(targets_df)] = on_track_data
+    goal_vs_actual_story_builder._get_time_series_data_with_targets = AsyncMock(return_value=targets_df)
+
+    result = await goal_vs_actual_story_builder.generate_stories("metric_1", Granularity.DAY)
+
+    assert len(result) == 0
