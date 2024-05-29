@@ -40,13 +40,12 @@ class DimensionMetadata(BaseModel):
 class Dimension(BaseModel):
     id: str
     label: str
-    reference: str
     metadata: DimensionMetadata
 
 
 class DimensionDetail(Dimension):
+    reference: str
     definition: str
-    members: list[str] | None = None
 
 
 class MetricBase(BaseModel):

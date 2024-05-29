@@ -72,13 +72,14 @@ async def test_get_dimension(client, mocker, dimension):
 @pytest.mark.asyncio
 async def test_get_dimension_members(client, mocker, dimension):
     # Mock the QueryClient's get_dimension_members method
-    mock_get_dimension_members = AsyncMock(return_value=dimension["members"])
+    members_list = ["Enterprise", "Basic"]
+    mock_get_dimension_members = AsyncMock(return_value=members_list)
     mocker.patch.object(QueryClient, "get_dimension_members", mock_get_dimension_members)
 
     dimension_id = dimension["id"]
     response = client.get(f"/v1/dimensions/{dimension_id}/members")
     assert response.status_code == 200
-    assert response.json() == dimension["members"]
+    assert response.json() == members_list
 
 
 @pytest.mark.asyncio
