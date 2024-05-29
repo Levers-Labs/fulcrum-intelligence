@@ -1,5 +1,7 @@
 import logging
 
+import pandas as pd
+
 from commons.models.enums import Granularity
 from story_manager.core.enums import (
     Direction,
@@ -63,14 +65,13 @@ class GoalVsActualStoryBuilder(StoryBuilderBase):
 
         # get growth rate for the series
         df["growth_rate"] = self.analysis_manager.calculate_growth_rates_of_series(df["value"])
-        df["growth_rate"].fillna(value=0, inplace=True)
+        df["growth_rate"] = df["growth_rate"].fillna(value=0)
 
         # get the most recent date for the period
-        latest_start_date, _ = self._get_current_period_range(grain)
-        latest_date = latest_start_date.strftime(self.date_format)
+        latest_date, _ = self._get_current_period_range(grain)
 
         # data for the most recent date
-        ref_data = df.loc[df["date"] == latest_date]
+        ref_data = df[df["date"] == pd.to_datetime(latest_date)]
         # validate if data exists for the date
         if ref_data.empty:
             logging.warning(
@@ -82,12 +83,12 @@ class GoalVsActualStoryBuilder(StoryBuilderBase):
             )
             return []
 
-        # Retrieve value, growth and target from ref data and convert to float
-        value, growth = ref_data.loc[ref_data.index[0], ["value", "growth_rate"]].apply(float)
-        target = ref_data.at[ref_data.index[0], "target"]
+        value = ref_data.iloc[-1]["value"].item()
+        growth = ref_data.iloc[-1]["growth_rate"].item()
+        target = ref_data.iloc[-1]["target"]
 
         # validate if target exist, exit if no target
-        if not target:
+        if pd.isna(target):
             logging.warning(
                 "Discarding story generation for metric '%s' with grain '%s' due to no target for the most "
                 "recent period date '%s'",
@@ -97,6 +98,7 @@ class GoalVsActualStoryBuilder(StoryBuilderBase):
             )
             return []
 
+        target = target.item()
         if value >= target:
             story_type = StoryType.ON_TRACK
             direction = Direction.UP.value

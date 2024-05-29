@@ -346,5 +346,4 @@ class StoryBuilderBase(ABC):
 
         # Renaming the target_value column to target
         final_df = final_df.rename(columns={"target_value": "target"})
-        final_df.replace(np.NaN, None, inplace=True)
         return final_df
