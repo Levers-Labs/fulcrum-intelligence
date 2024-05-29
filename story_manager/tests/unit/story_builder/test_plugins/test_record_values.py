@@ -1,3 +1,4 @@
+from datetime import datetime
 from unittest.mock import AsyncMock
 
 import pandas as pd
@@ -66,26 +67,27 @@ async def test_generate_stories_no_min_data_points(mocker, record_values_story_b
 
 def test_get_rank_for_date(record_values_story_builder, sorted_df):
     # Highest value
-    ref_value = "2024-01-29"
+    # ref_value = "2024-01-29"
+    ref_value = pd.Timestamp(datetime(2024, 1, 29))
     rank = record_values_story_builder.get_rank_for_date(sorted_df, ref_value)
     assert rank == 1
 
     # second highest
-    ref_value = "2024-01-22"
+    ref_value = pd.Timestamp(datetime(2024, 1, 22))
     rank = record_values_story_builder.get_rank_for_date(sorted_df, ref_value)
     assert rank == 2
 
     # Lowest
-    ref_value = "2024-01-01"
+    ref_value = pd.Timestamp(datetime(2024, 1, 1))
     rank = record_values_story_builder.get_rank_for_date(sorted_df, ref_value)
     assert rank == len(sorted_df)
 
     # Second lowest
-    ref_value = "2024-02-19"
+    ref_value = pd.Timestamp(datetime(2024, 2, 19))
     rank = record_values_story_builder.get_rank_for_date(sorted_df, ref_value)
     assert rank == len(sorted_df) - 1
 
     # random
-    ref_value = "2024-02-05"
+    ref_value = pd.Timestamp(datetime(2024, 2, 5))
     rank = record_values_story_builder.get_rank_for_date(sorted_df, ref_value)
     assert rank == len(sorted_df) - 2

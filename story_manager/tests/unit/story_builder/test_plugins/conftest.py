@@ -56,6 +56,7 @@ def sorted_df():
         "value": [6, 15, 16, 25, 65, 9, 14, 7, 18, 12, 14, 22],
     }
     df = pd.DataFrame(data)
+    df["date"] = pd.to_datetime(df["date"])
     sorted_df = df.sort_values(by="value", ascending=False).reset_index(drop=True)
     sorted_df.index += 1
     sorted_df.index.name = "rank"

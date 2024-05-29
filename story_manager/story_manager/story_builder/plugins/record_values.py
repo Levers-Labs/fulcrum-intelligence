@@ -13,7 +13,6 @@ class RecordValuesStoryBuilder(StoryBuilderBase):
     genre = StoryGenre.BIG_MOVES
     group = StoryGroup.RECORD_VALUES
     supported_grains = [Granularity.DAY, Granularity.WEEK, Granularity.MONTH]
-    date_format = "%Y-%m-%d"
 
     async def generate_stories(self, metric_id: str, grain: Granularity) -> list[dict]:
         """
@@ -58,7 +57,7 @@ class RecordValuesStoryBuilder(StoryBuilderBase):
 
         # Get the reference value
         ref_value = df.at[df.index[-1], "value"]
-        ref_date = df.at[df.index[-1], "date"].strftime(self.date_format)
+        ref_date = df.at[df.index[-1], "date"]
 
         # Sort the DataFrame basis value and date in descending and ascending order resp.
         sorted_df = df.sort_values(by=["value", "date"], ascending=[False, True]).reset_index(drop=True)
@@ -96,7 +95,7 @@ class RecordValuesStoryBuilder(StoryBuilderBase):
             prior_date=prior_date,
             duration=df_len,
             is_second_rank=is_second_rank,
-            record_date=ref_date,
+            record_date=ref_date.strftime(self.date_text_format),
             rank=rank,
         )
         stories.append(story_details)
@@ -141,14 +140,14 @@ class RecordValuesStoryBuilder(StoryBuilderBase):
         return prior_date, prior_value
 
     @staticmethod
-    def get_rank_for_date(sorted_df: pd.DataFrame, date: str) -> int:
+    def get_rank_for_date(sorted_df: pd.DataFrame, ref_date: pd.Timestamp) -> int:
         """
         Determines the rank of the reference value in a DataFrame sorted in descending order.
 
         :param sorted_df: The Sorted DataFrame containing the data.
-        :param date: The reference date to check the rank of.
+        :param ref_date: The reference date to check the rank of.
 
         :return The rank of the reference date
         """
-        rank = sorted_df[sorted_df["date"] == date].index[0]
+        rank = sorted_df[sorted_df["date"] == pd.to_datetime(ref_date)].index[0]
         return rank
