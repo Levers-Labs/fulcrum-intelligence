@@ -8,6 +8,7 @@ class StoryGenre(str, Enum):
 
     GROWTH = "GROWTH"
     TRENDS = "TRENDS"
+    PERFORMANCE = "PERFORMANCE"
     BIG_MOVES = "BIG_MOVES"
 
 
@@ -28,6 +29,9 @@ class StoryType(str, Enum):
     DROP = "DROP"
     IMPROVING_PERFORMANCE = "IMPROVING_PERFORMANCE"
     WORSENING_PERFORMANCE = "WORSENING_PERFORMANCE"
+    # Performance Stories
+    ON_TRACK = "ON_TRACK"
+    OFF_TRACK = "OFF_TRACK"
     # Big Moves Stories
     RECORD_HIGH = "RECORD_HIGH"
     RECORD_LOW = "RECORD_LOW"
@@ -43,6 +47,7 @@ class StoryGroup(str, Enum):
     TREND_CHANGES = "TREND_CHANGES"
     TREND_EXCEPTIONS = "TREND_EXCEPTIONS"
     LONG_RANGE = "LONG_RANGE"
+    GOAL_VS_ACTUAL = "GOAL_VS_ACTUAL"
 
     RECORD_VALUES = "RECORD_VALUES"
 
@@ -65,6 +70,15 @@ class Movement(str, Enum):
     DECREASE = "decrease"
 
 
+class Direction(str, Enum):
+    """
+    Defines the direction of the value
+    """
+
+    UP = "up"
+    DOWN = "down"
+
+
 GROUP_TO_STORY_TYPE_MAPPING = {
     StoryGroup.GROWTH_RATES: [
         StoryType.SLOWING_GROWTH,
@@ -75,6 +89,10 @@ GROUP_TO_STORY_TYPE_MAPPING = {
         StoryType.NEW_UPWARD_TREND,
         StoryType.NEW_DOWNWARD_TREND,
         StoryType.PERFORMANCE_PLATEAU,
+    ],
+    StoryGroup.GOAL_VS_ACTUAL: [
+        StoryType.ON_TRACK,
+        StoryType.OFF_TRACK,
     ],
     StoryGroup.RECORD_VALUES: [
         StoryType.RECORD_HIGH,
@@ -165,6 +183,18 @@ STORY_TYPES_META: dict[str, dict[str, str]] = {
         # since Mar 15, 2024.
         "detail": "Over the past {{duration}} {{grain}}s, {{metric.label}} has been declining {{avg_growth}}% {{pop}} "
         "growth and has fallen {{overall_growth}}% overall since {{start_date}}.",
+    },
+    StoryType.ON_TRACK: {
+        "title": "Beats {{duration}} {{grain}}s target",
+        # e.g.,  As of EOD, NewBizDeals was at 85, up 5% d/d and beating its target of 80 by 6.25%.
+        "detail": "As of {{eoi}}, {{metric.label}} was at {{current_value}}, {{direction}} {{current_growth}}% {{"
+        "pop}} and beating its target of {{target}} by {{deviation}}%.",
+    },
+    StoryType.OFF_TRACK: {
+        "title": "Missed {{duration}} {{grain}}s target",
+        # e.g.,  As of EOD, NewBizDeals was at 75, down 2% d/d and missing its target 80 by 6.25%.
+        "detail": "As of {{eoi}}, {{metric.label}} was at {{current_value}}, {{direction}} {{current_growth}}% {{"
+        "pop}} and missing its target of {{target}} by {{deviation}}%.",
     },
     StoryType.RECORD_HIGH: {
         "title": "{% if is_second_rank %}Second Highest{% else %}Highest{% endif %} value over the past {{duration}} "
