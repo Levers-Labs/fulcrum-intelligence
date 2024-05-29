@@ -344,7 +344,7 @@ class SegmentDriftEvaluator:
         processed_response = self.dict_keys_replace_baseline_with_evaluation(dict(), processed_response)
         processed_response["dimensions"] = list(processed_response["dimensions"].values())
         processed_response["dimension_slices"] = list(processed_response["dimension_slice_info"].values())
-        processed_response["dimension_slices_permutation_Keys"] = processed_response["top_driver_slice_keys"]
+        processed_response["dimension_slices_permutation_keys"] = processed_response["top_driver_slice_keys"]
         del processed_response["top_driver_slice_keys"]
         del processed_response["dimension_slice_info"]
         return processed_response

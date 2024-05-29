@@ -1,5 +1,6 @@
 import logging
 import os
+from datetime import date
 
 import pytest
 from _pytest.monkeypatch import MonkeyPatch
@@ -307,3 +308,594 @@ def metric_list(metric_cac, metric_sms):
     metric_old_cust = metric_new_cust.copy()
     metric_old_cust["id"] = "OldCust"
     return [metric_cac, metric_sms, metric_ss, metric_ms, metric_new_cust, metric_old_cust]
+
+
+@pytest.fixture(scope="session")
+def segment_drift_evaluation_data():
+    return [
+        {"date": "2025-03-01", "metric_id": "ToMRR", "value": 100, "region": "Asia", "stage_name": "Won"},
+        {"date": "2025-03-02", "metric_id": "ToMRR", "value": 200, "region": "Asia", "stage_name": "Won"},
+        {"date": "2025-03-02", "metric_id": "ToMRR", "value": 300, "region": "Asia", "stage_name": "Won"},
+        {"date": "2025-03-02", "metric_id": "ToMRR", "value": 400, "region": "Asia", "stage_name": "Procurement"},
+        {"date": "2025-03-03", "metric_id": "ToMRR", "value": 500, "region": "EMEA", "stage_name": "Lost"},
+        {"date": "2025-03-04", "metric_id": "ToMRR", "value": 600, "region": "EMEA", "stage_name": "Sale"},
+        {"date": "2025-03-05", "metric_id": "ToMRR", "value": 700, "region": "EMEA", "stage_name": "Sale"},
+    ]
+
+
+@pytest.fixture(scope="session")
+def segment_drift_comparison_data():
+    return [
+        {"date": "2024-03-01", "metric_id": "ToMRR", "value": 500, "region": "Asia", "stage_name": "Won"},
+        {"date": "2024-03-02", "metric_id": "ToMRR", "value": 600, "region": "Asia", "stage_name": "Won"},
+        {"date": "2024-03-02", "metric_id": "ToMRR", "value": 600, "region": "Asia", "stage_name": "Won"},
+        {"date": "2024-03-02", "metric_id": "ToMRR", "value": 400, "region": "Asia", "stage_name": "Procurement"},
+        {"date": "2024-03-03", "metric_id": "ToMRR", "value": 300, "region": "EMEA", "stage_name": "Lost"},
+        {"date": "2024-03-04", "metric_id": "ToMRR", "value": 200, "region": "EMEA", "stage_name": "Sale"},
+        {"date": "2024-03-05", "metric_id": "ToMRR", "value": 800, "region": "EMEA", "stage_name": "Sale"},
+    ]
+
+
+@pytest.fixture
+def get_insight_response():
+    return {
+        "name": "SUM value",
+        "total_segments": 10,
+        "expected_change_percentage": 0,
+        "aggregation_method": "SUM",
+        "evaluation_num_rows": 7,
+        "comparison_num_rows": 7,
+        "evaluation_value": 2800,
+        "comparison_value": 3400,
+        "evaluation_value_by_date": [
+            {"date": "2025-03-01", "value": 100},
+            {"date": "2025-03-02", "value": 900},
+            {"date": "2025-03-03", "value": 500},
+            {"date": "2025-03-04", "value": 600},
+            {"date": "2025-03-05", "value": 700},
+        ],
+        "comparison_value_by_date": [
+            {"date": "2024-03-01", "value": 500},
+            {"date": "2024-03-02", "value": 1600},
+            {"date": "2024-03-03", "value": 300},
+            {"date": "2024-03-04", "value": 200},
+            {"date": "2024-03-05", "value": 800},
+        ],
+        "evaluation_date_range": ["2025-03-01", "2025-03-30"],
+        "comparison_date_range": ["2024-03-01", "2024-03-30"],
+        "dimensions": [
+            {"name": "region", "score": 0.6888888888888889, "is_key_dimension": True},
+            {"name": "stage_name", "score": 0.9962623591866414, "is_key_dimension": True},
+        ],
+        "key_dimensions": ["region", "stage_name"],
+        "filters": [],
+        "id": "value_SUM",
+        "dimension_slices": [
+            {
+                "key": [{"dimension": "region", "value": "Asia"}],
+                "serialized_key": "region:Asia",
+                "evaluation_value": {
+                    "slice_count": 4,
+                    "slice_size": 0.5714285714285714,
+                    "slice_value": 1000,
+                },
+                "comparison_value": {
+                    "slice_count": 4,
+                    "slice_size": 0.5714285714285714,
+                    "slice_value": 2100,
+                },
+                "impact": 1100,
+                "change_percentage": 1.1,
+                "change_dev": 0.8570032134790982,
+                "absolute_contribution": 0.4920634920634921,
+                "confidence": 0.49999999999999956,
+                "sort_value": 1100,
+            },
+            {
+                "key": [{"dimension": "stage_name", "value": "Won"}],
+                "serialized_key": "stage_name:Won",
+                "evaluation_value": {
+                    "slice_count": 3,
+                    "slice_size": 0.42857142857142855,
+                    "slice_value": 600,
+                },
+                "comparison_value": {
+                    "slice_count": 3,
+                    "slice_size": 0.42857142857142855,
+                    "slice_value": 1700,
+                },
+                "impact": 1100,
+                "change_percentage": 1.8333333333333333,
+                "change_dev": 1.2303091986141086,
+                "absolute_contribution": 0.44155844155844154,
+                "confidence": None,
+                "sort_value": 1100,
+            },
+            {
+                "key": [
+                    {"dimension": "region", "value": "Asia"},
+                    {"dimension": "stage_name", "value": "Won"},
+                ],
+                "serialized_key": "region:Asia|stage_name:Won",
+                "evaluation_value": {
+                    "slice_count": 3,
+                    "slice_size": 0.42857142857142855,
+                    "slice_value": 600,
+                },
+                "comparison_value": {
+                    "slice_count": 3,
+                    "slice_size": 0.42857142857142855,
+                    "slice_value": 1700,
+                },
+                "impact": 1100,
+                "change_percentage": 1.8333333333333333,
+                "change_dev": 1.2303091986141086,
+                "absolute_contribution": 0.44155844155844154,
+                "confidence": None,
+                "sort_value": 1100,
+            },
+            {
+                "key": [{"dimension": "region", "value": "EMEA"}],
+                "serialized_key": "region:EMEA",
+                "evaluation_value": {
+                    "slice_count": 3,
+                    "slice_size": 0.42857142857142855,
+                    "slice_value": 1800,
+                },
+                "comparison_value": {
+                    "slice_count": 3,
+                    "slice_size": 0.42857142857142855,
+                    "slice_value": 1300,
+                },
+                "impact": -500,
+                "change_percentage": -0.2777777777777778,
+                "change_dev": 0.21641495289876214,
+                "absolute_contribution": -0.8857142857142858,
+                "confidence": 0.16687067367945163,
+                "sort_value": 500,
+            },
+            {
+                "key": [{"dimension": "stage_name", "value": "Sale"}],
+                "serialized_key": "stage_name:Sale",
+                "evaluation_value": {
+                    "slice_count": 2,
+                    "slice_size": 0.2857142857142857,
+                    "slice_value": 1300,
+                },
+                "comparison_value": {
+                    "slice_count": 2,
+                    "slice_size": 0.2857142857142857,
+                    "slice_value": 1000,
+                },
+                "impact": -300,
+                "change_percentage": -0.23076923076923078,
+                "change_dev": 0.15486409493044723,
+                "absolute_contribution": -0.3857142857142857,
+                "confidence": None,
+                "sort_value": 300,
+            },
+            {
+                "key": [
+                    {"dimension": "region", "value": "EMEA"},
+                    {"dimension": "stage_name", "value": "Sale"},
+                ],
+                "serialized_key": "region:EMEA|stage_name:Sale",
+                "evaluation_value": {
+                    "slice_count": 2,
+                    "slice_size": 0.2857142857142857,
+                    "slice_value": 1300,
+                },
+                "comparison_value": {
+                    "slice_count": 2,
+                    "slice_size": 0.2857142857142857,
+                    "slice_value": 1000,
+                },
+                "impact": -300,
+                "change_percentage": -0.23076923076923078,
+                "change_dev": 0.15486409493044723,
+                "absolute_contribution": -0.3857142857142857,
+                "confidence": None,
+                "sort_value": 300,
+            },
+            {
+                "key": [{"dimension": "stage_name", "value": "Lost"}],
+                "serialized_key": "stage_name:Lost",
+                "evaluation_value": {
+                    "slice_count": 1,
+                    "slice_size": 0.14285714285714285,
+                    "slice_value": 500,
+                },
+                "comparison_value": {
+                    "slice_count": 1,
+                    "slice_size": 0.14285714285714285,
+                    "slice_value": 300,
+                },
+                "impact": -200,
+                "change_percentage": -0.4,
+                "change_dev": 0.15831202465660632,
+                "absolute_contribution": -0.13354037267080746,
+                "confidence": None,
+                "sort_value": 200,
+            },
+            {
+                "key": [
+                    {"dimension": "region", "value": "EMEA"},
+                    {"dimension": "stage_name", "value": "Lost"},
+                ],
+                "serialized_key": "region:EMEA|stage_name:Lost",
+                "evaluation_value": {
+                    "slice_count": 1,
+                    "slice_size": 0.14285714285714285,
+                    "slice_value": 500,
+                },
+                "comparison_value": {
+                    "slice_count": 1,
+                    "slice_size": 0.14285714285714285,
+                    "slice_value": 300,
+                },
+                "impact": -200,
+                "change_percentage": -0.4,
+                "change_dev": 0.15831202465660632,
+                "absolute_contribution": -0.13354037267080746,
+                "confidence": None,
+                "sort_value": 200,
+            },
+            {
+                "key": [{"dimension": "stage_name", "value": "Procurement"}],
+                "serialized_key": "stage_name:Procurement",
+                "evaluation_value": {
+                    "slice_count": 1,
+                    "slice_size": 0.14285714285714285,
+                    "slice_value": 400,
+                },
+                "comparison_value": {
+                    "slice_count": 1,
+                    "slice_size": 0.14285714285714285,
+                    "slice_value": 400,
+                },
+                "impact": 0,
+                "change_percentage": 0.0,
+                "change_dev": 0.0,
+                "absolute_contribution": -0.035714285714285726,
+                "confidence": None,
+                "sort_value": 0,
+            },
+            {
+                "key": [
+                    {"dimension": "region", "value": "Asia"},
+                    {"dimension": "stage_name", "value": "Procurement"},
+                ],
+                "serialized_key": "region:Asia|stage_name:Procurement",
+                "evaluation_value": {
+                    "slice_count": 1,
+                    "slice_size": 0.14285714285714285,
+                    "slice_value": 400,
+                },
+                "comparison_value": {
+                    "slice_count": 1,
+                    "slice_size": 0.14285714285714285,
+                    "slice_value": 400,
+                },
+                "impact": 0,
+                "change_percentage": 0.0,
+                "change_dev": 0.0,
+                "absolute_contribution": -0.035714285714285726,
+                "confidence": None,
+                "sort_value": 0,
+            },
+        ],
+        "dimension_slices_permutation_keys": [
+            "region:Asia",
+            "stage_name:Won",
+            "region:Asia|stage_name:Won",
+            "region:EMEA",
+            "stage_name:Sale",
+            "region:EMEA|stage_name:Sale",
+            "stage_name:Lost",
+            "region:EMEA|stage_name:Lost",
+            "stage_name:Procurement",
+            "region:Asia|stage_name:Procurement",
+        ],
+    }
+
+
+@pytest.fixture
+def segment_drift_output():
+    return {
+        "id": "value_SUM",
+        "name": "SUM value",
+        "total_segments": 10,
+        "expected_change_percentage": 0,
+        "aggregation_method": "SUM",
+        "evaluation_num_rows": 7,
+        "comparison_num_rows": 7,
+        "evaluation_value": 2800,
+        "comparison_value": 3400,
+        "evaluation_value_by_date": [
+            {"date": "2025-03-01", "value": 100},
+            {"date": "2025-03-02", "value": 900},
+            {"date": "2025-03-03", "value": 500},
+            {"date": "2025-03-04", "value": 600},
+            {"date": "2025-03-05", "value": 700},
+        ],
+        "comparison_value_by_date": [
+            {"date": "2024-03-01", "value": 500},
+            {"date": "2024-03-02", "value": 1600},
+            {"date": "2024-03-03", "value": 300},
+            {"date": "2024-03-04", "value": 200},
+            {"date": "2024-03-05", "value": 800},
+        ],
+        "evaluation_date_range": ["2025-03-01", "2025-03-30"],
+        "comparison_date_range": ["2024-03-01", "2024-03-30"],
+        "dimensions": [
+            {"name": "region", "score": 0.6888888888888889, "is_key_dimension": True},
+            {"name": "stage_name", "score": 0.9962623591866413, "is_key_dimension": True},
+        ],
+        "key_dimensions": ["region", "stage_name"],
+        "filters": [],
+        "dimension_slices": [
+            {
+                "key": [{"dimension": "region", "value": "Asia"}],
+                "serialized_key": "region:Asia",
+                "evaluation_value": {
+                    "slice_count": 4,
+                    "slice_size": 0.5714285714285714,
+                    "slice_value": 1000,
+                },
+                "comparison_value": {
+                    "slice_count": 4,
+                    "slice_size": 0.5714285714285714,
+                    "slice_value": 2100,
+                },
+                "impact": 1100,
+                "change_percentage": 1.1,
+                "change_dev": 0.8570032134790982,
+                "absolute_contribution": 0.4920634920634921,
+                "confidence": 0.49999999999999956,
+                "sort_value": 1100,
+                "relative_change": 88.57142857142858,
+                "pressure": "UPWARD",
+            },
+            {
+                "key": [{"dimension": "stage_name", "value": "Won"}],
+                "serialized_key": "stage_name:Won",
+                "evaluation_value": {
+                    "slice_count": 3,
+                    "slice_size": 0.42857142857142855,
+                    "slice_value": 600,
+                },
+                "comparison_value": {
+                    "slice_count": 3,
+                    "slice_size": 0.42857142857142855,
+                    "slice_value": 1700,
+                },
+                "impact": 1100,
+                "change_percentage": 1.8333333333333333,
+                "change_dev": 1.2303091986141086,
+                "absolute_contribution": 0.44155844155844154,
+                "confidence": None,
+                "sort_value": 1100,
+                "relative_change": 161.9047619047619,
+                "pressure": "UPWARD",
+            },
+            {
+                "key": [
+                    {"dimension": "region", "value": "Asia"},
+                    {"dimension": "stage_name", "value": "Won"},
+                ],
+                "serialized_key": "region:Asia|stage_name:Won",
+                "evaluation_value": {
+                    "slice_count": 3,
+                    "slice_size": 0.42857142857142855,
+                    "slice_value": 600,
+                },
+                "comparison_value": {
+                    "slice_count": 3,
+                    "slice_size": 0.42857142857142855,
+                    "slice_value": 1700,
+                },
+                "impact": 1100,
+                "change_percentage": 1.8333333333333333,
+                "change_dev": 1.2303091986141086,
+                "absolute_contribution": 0.44155844155844154,
+                "confidence": None,
+                "sort_value": 1100,
+                "relative_change": 161.9047619047619,
+                "pressure": "UPWARD",
+            },
+            {
+                "key": [{"dimension": "region", "value": "EMEA"}],
+                "serialized_key": "region:EMEA",
+                "evaluation_value": {
+                    "slice_count": 3,
+                    "slice_size": 0.42857142857142855,
+                    "slice_value": 1800,
+                },
+                "comparison_value": {
+                    "slice_count": 3,
+                    "slice_size": 0.42857142857142855,
+                    "slice_value": 1300,
+                },
+                "impact": -500,
+                "change_percentage": -0.2777777777777778,
+                "change_dev": 0.21641495289876214,
+                "absolute_contribution": -0.8857142857142858,
+                "confidence": 0.16687067367945163,
+                "sort_value": 500,
+                "relative_change": -49.20634920634921,
+                "pressure": "DOWNWARD",
+            },
+            {
+                "key": [{"dimension": "stage_name", "value": "Sale"}],
+                "serialized_key": "stage_name:Sale",
+                "evaluation_value": {
+                    "slice_count": 2,
+                    "slice_size": 0.2857142857142857,
+                    "slice_value": 1300,
+                },
+                "comparison_value": {
+                    "slice_count": 2,
+                    "slice_size": 0.2857142857142857,
+                    "slice_value": 1000,
+                },
+                "impact": -300,
+                "change_percentage": -0.23076923076923078,
+                "change_dev": 0.15486409493044723,
+                "absolute_contribution": -0.3857142857142857,
+                "confidence": None,
+                "sort_value": 300,
+                "relative_change": -44.505494505494504,
+                "pressure": "DOWNWARD",
+            },
+            {
+                "key": [
+                    {"dimension": "region", "value": "EMEA"},
+                    {"dimension": "stage_name", "value": "Sale"},
+                ],
+                "serialized_key": "region:EMEA|stage_name:Sale",
+                "evaluation_value": {
+                    "slice_count": 2,
+                    "slice_size": 0.2857142857142857,
+                    "slice_value": 1300,
+                },
+                "comparison_value": {
+                    "slice_count": 2,
+                    "slice_size": 0.2857142857142857,
+                    "slice_value": 1000,
+                },
+                "impact": -300,
+                "change_percentage": -0.23076923076923078,
+                "change_dev": 0.15486409493044723,
+                "absolute_contribution": -0.3857142857142857,
+                "confidence": None,
+                "sort_value": 300,
+                "relative_change": -44.505494505494504,
+                "pressure": "DOWNWARD",
+            },
+            {
+                "key": [{"dimension": "stage_name", "value": "Lost"}],
+                "serialized_key": "stage_name:Lost",
+                "evaluation_value": {
+                    "slice_count": 1,
+                    "slice_size": 0.14285714285714285,
+                    "slice_value": 500,
+                },
+                "comparison_value": {
+                    "slice_count": 1,
+                    "slice_size": 0.14285714285714285,
+                    "slice_value": 300,
+                },
+                "impact": -200,
+                "change_percentage": -0.4,
+                "change_dev": 0.15831202465660632,
+                "absolute_contribution": -0.13354037267080746,
+                "confidence": None,
+                "sort_value": 200,
+                "relative_change": -61.42857142857143,
+                "pressure": "DOWNWARD",
+            },
+            {
+                "key": [
+                    {"dimension": "region", "value": "EMEA"},
+                    {"dimension": "stage_name", "value": "Lost"},
+                ],
+                "serialized_key": "region:EMEA|stage_name:Lost",
+                "evaluation_value": {
+                    "slice_count": 1,
+                    "slice_size": 0.14285714285714285,
+                    "slice_value": 500,
+                },
+                "comparison_value": {
+                    "slice_count": 1,
+                    "slice_size": 0.14285714285714285,
+                    "slice_value": 300,
+                },
+                "impact": -200,
+                "change_percentage": -0.4,
+                "change_dev": 0.15831202465660632,
+                "absolute_contribution": -0.13354037267080746,
+                "confidence": None,
+                "sort_value": 200,
+                "relative_change": -61.42857142857143,
+                "pressure": "DOWNWARD",
+            },
+            {
+                "key": [{"dimension": "stage_name", "value": "Procurement"}],
+                "serialized_key": "stage_name:Procurement",
+                "evaluation_value": {
+                    "slice_count": 1,
+                    "slice_size": 0.14285714285714285,
+                    "slice_value": 400,
+                },
+                "comparison_value": {
+                    "slice_count": 1,
+                    "slice_size": 0.14285714285714285,
+                    "slice_value": 400,
+                },
+                "impact": 0,
+                "change_percentage": 0.0,
+                "change_dev": 0.0,
+                "absolute_contribution": -0.035714285714285726,
+                "confidence": None,
+                "sort_value": 0,
+                "relative_change": -21.428571428571427,
+                "pressure": "DOWNWARD",
+            },
+            {
+                "key": [
+                    {"dimension": "region", "value": "Asia"},
+                    {"dimension": "stage_name", "value": "Procurement"},
+                ],
+                "serialized_key": "region:Asia|stage_name:Procurement",
+                "evaluation_value": {
+                    "slice_count": 1,
+                    "slice_size": 0.14285714285714285,
+                    "slice_value": 400,
+                },
+                "comparison_value": {
+                    "slice_count": 1,
+                    "slice_size": 0.14285714285714285,
+                    "slice_value": 400,
+                },
+                "impact": 0,
+                "change_percentage": 0.0,
+                "change_dev": 0.0,
+                "absolute_contribution": -0.035714285714285726,
+                "confidence": None,
+                "sort_value": 0,
+                "relative_change": -21.428571428571427,
+                "pressure": "DOWNWARD",
+            },
+        ],
+        "dimension_slices_permutation_keys": [
+            "region:Asia",
+            "stage_name:Won",
+            "region:Asia|stage_name:Won",
+            "region:EMEA",
+            "stage_name:Sale",
+            "region:EMEA|stage_name:Sale",
+            "stage_name:Lost",
+            "region:EMEA|stage_name:Lost",
+            "stage_name:Procurement",
+            "region:Asia|stage_name:Procurement",
+        ],
+    }
+
+
+@pytest.fixture
+def dsensei_csv_file_id():
+    return "ac60684ce86261be1227a43f75ecef96"
+
+
+@pytest.fixture
+def mock_get_metric_time_series(mocker, segment_drift_evaluation_data, segment_drift_comparison_data):
+    def _mock_get_metric_time_series(metric_id: str, start_date: date, end_date: date, dimensions: list[str]):
+        if start_date == date(2025, 3, 1):
+            return segment_drift_evaluation_data
+        else:
+            return segment_drift_comparison_data
+
+    mocker.patch(
+        "commons.clients.query_manager.QueryManagerClient.get_metric_time_series",
+        side_effect=_mock_get_metric_time_series,
+    )

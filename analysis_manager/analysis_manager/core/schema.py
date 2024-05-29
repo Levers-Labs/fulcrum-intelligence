@@ -1,5 +1,5 @@
 from datetime import date
-from typing import Annotated
+from typing import Annotated, Any
 
 from pydantic import Field
 
@@ -90,3 +90,48 @@ class ForecastResponse(BaseModel):
     value: float
     # lower and upper bounds of the confidence interval
     confidence_interval: tuple[float, float] | None = None
+
+
+class SegmentDriftRequest(BaseModel):
+    metric_id: str
+    evaluation_start_date: date
+    evaluation_end_date: date
+    comparison_start_date: date
+    comparison_end_date: date
+    dimensions: list[str]
+
+
+class DimensionSlices(BaseModel):
+    key: list[dict[str, Any]]
+    serialized_key: str
+    evaluation_value: dict[str, Any]
+    comparison_value: dict[str, Any]
+    impact: int
+    change_percentage: float
+    change_dev: float
+    absolute_contribution: float
+    confidence: Any
+    sort_value: int
+    relative_change: float
+    pressure: str
+
+
+class SegmentDriftResponse(BaseModel):
+    id: str
+    name: str
+    total_segments: int
+    expected_change_percentage: float
+    aggregation_method: str
+    evaluation_num_rows: int
+    comparison_num_rows: int
+    evaluation_value: int
+    comparison_value: int
+    evaluation_value_by_date: list[dict[str, Any]]
+    comparison_value_by_date: list[dict[str, Any]]
+    evaluation_date_range: list[str]
+    comparison_date_range: list[str]
+    dimensions: list[dict[str, Any]]
+    key_dimensions: list[str]
+    filters: list
+    dimension_slices: list[DimensionSlices]
+    dimension_slices_permutation_keys: list[str]

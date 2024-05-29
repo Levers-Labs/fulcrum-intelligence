@@ -6,6 +6,7 @@ import pytest
 from deepdiff import DeepDiff
 
 from commons.clients.query_manager import QueryManagerClient
+from fulcrum_core.modules import SegmentDriftEvaluator
 
 
 @pytest.mark.skip
@@ -511,3 +512,28 @@ async def test_simple_forecast_route_bad_request(client, mocker):
 
     # Assert
     assert response.status_code == 400
+
+
+@pytest.mark.asyncio
+async def test_segment_drift(
+    mock_get_metric_time_series, client, dsensei_csv_file_id, get_insight_response, mocker, segment_drift_output
+):
+    mock_file_id = AsyncMock(return_value=dsensei_csv_file_id)
+    mocker.patch.object(SegmentDriftEvaluator, "send_file_to_dsensei", mock_file_id)
+
+    mock_insight_response = AsyncMock(return_value=get_insight_response)
+    mocker.patch.object(SegmentDriftEvaluator, "get_insights", mock_insight_response)
+
+    response = client.post(
+        "/v1/analyze/drift/segment",
+        json={
+            "metric_id": "NewBizDeals",
+            "evaluation_start_date": "2025-03-01",
+            "evaluation_end_date": "2025-03-30",
+            "comparison_start_date": "2024-03-01",
+            "comparison_end_date": "2024-03-30",
+            "dimensions": ["region", "stage_name"],
+        },
+    )
+    assert response.status_code == 200
+    assert sorted(response.json()) == sorted(segment_drift_output)
