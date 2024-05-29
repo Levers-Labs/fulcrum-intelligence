@@ -299,6 +299,10 @@ async def segment_drift(
     ],
 ):
     logger.debug(f"Segment drift request: {drift_req}")
+
+    if len(drift_req.dimensions) == 0:
+        raise HTTPException(status_code=400, detail="at least one dimension is required")
+
     evaluation_data = await query_manager.get_metric_time_series(
         metric_id=drift_req.metric_id,
         start_date=drift_req.evaluation_start_date,
@@ -313,9 +317,19 @@ async def segment_drift(
         dimensions=drift_req.dimensions,
     )
 
+    data_frame = pd.json_normalize(evaluation_data + comparison_data)
+
+    invalid_dimensions = [col for col in drift_req.dimensions if col not in data_frame.columns]
+
+    if invalid_dimensions:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid dimensions : {', '.join(invalid_dimensions)}, for given metric {drift_req.metric_id}",
+        )
+
     return await analysis_manager.segment_drift(
         dsensei_base_url=settings.DSENSEI_BASE_URL,
-        df=pd.json_normalize(evaluation_data + comparison_data),
+        df=data_frame,
         evaluation_start_date=drift_req.evaluation_start_date,
         evaluation_end_date=drift_req.evaluation_end_date,
         comparison_start_date=drift_req.comparison_start_date,

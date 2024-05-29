@@ -47,6 +47,7 @@ SECRET_KEY=<secret>
 BACKEND_CORS_ORIGINS=["http://localhost"]
 DATABASE_URL=postgresql+asyncpg://<user>:<password>@localhost/fulcrum
 QUERY_MANAGER_SERVER_HOST=http://localhost:8001/v1/
+DSENSEI_BASE_URL=http://localhost:5001/
 ```
 
 #### Query Manager `.env` File
