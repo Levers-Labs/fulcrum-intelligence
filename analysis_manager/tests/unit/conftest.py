@@ -584,7 +584,7 @@ def get_insight_response():
                 "sort_value": 0,
             },
         ],
-        "dimension_slices_permutation_Keys": [
+        "dimension_slices_permutation_keys": [
             "region:Asia",
             "stage_name:Won",
             "region:Asia|stage_name:Won",
@@ -867,7 +867,7 @@ def segment_drift_output():
                 "pressure": "DOWNWARD",
             },
         ],
-        "dimension_slices_permutation_Keys": [
+        "dimension_slices_permutation_keys": [
             "region:Asia",
             "stage_name:Won",
             "region:Asia|stage_name:Won",
