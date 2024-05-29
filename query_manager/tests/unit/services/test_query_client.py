@@ -101,11 +101,21 @@ async def test_get_dimension_details(mocker, dimension, query_client):
 @pytest.mark.asyncio
 async def test_get_dimension_members(mocker, dimension, query_client):
     query_client = await query_client
+    # Mock response from cube for dimension members
+    mock_load_dimension_members_from_cube = AsyncMock(return_value=["Enterprise", "Basic"])
+    mocker.patch.object(
+        query_client.cube_client, "load_dimension_members_from_cube", mock_load_dimension_members_from_cube
+    )
+
     mock_load_data = AsyncMock(return_value=[dimension])
     mocker.patch.object(query_client, "load_data", mock_load_data)
 
     result = await query_client.get_dimension_members(dimension["id"])
-    assert result == dimension["members"]
+    assert result == ["Enterprise", "Basic"]
+
+    # no dimension match
+    result = await query_client.get_dimension_members("non_existent_dimension_id")
+    assert result == []
 
 
 @pytest.mark.asyncio
@@ -177,16 +187,16 @@ async def test_get_metric_values_with_dimensions(mocker, metric, query_client):
     query_client = await query_client
     # Mock response from cube for values with dimensions
     mock_load_metric_values_from_cube = AsyncMock(
-        return_value=[{"date": "2022-01-01", "value": 100, "dimensions": {"name": "X", "member": "Y"}}]
+        return_value=[{"date": "2022-01-01", "value": 100, "billing_plan": "Enterprise"}]
     )
     mocker.patch.object(query_client.cube_client, "load_metric_values_from_cube", mock_load_metric_values_from_cube)
     mocker.patch.object(query_client, "get_metric_details", AsyncMock(return_value=metric))
-    result = await query_client.get_metric_values("metric_id", date(2022, 1, 1), date(2022, 1, 31), ["dimension1"])
+    result = await query_client.get_metric_values("metric_id", date(2022, 1, 1), date(2022, 1, 31), ["billing_plan"])
 
     assert len(result) == 1
-    assert result[0] == {"date": "2022-01-01", "value": 100, "dimensions": {"name": "X", "member": "Y"}}
+    assert result[0] == {"date": "2022-01-01", "value": 100, "billing_plan": "Enterprise"}
     mock_load_metric_values_from_cube.assert_awaited_with(
-        MetricDetail.parse_obj(metric), None, date(2022, 1, 1), date(2022, 1, 31), ["dimension1"]
+        MetricDetail.parse_obj(metric), None, date(2022, 1, 1), date(2022, 1, 31), ["billing_plan"]
     )
 
 

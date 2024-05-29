@@ -1,6 +1,6 @@
 import logging
 from datetime import date
-from typing import Annotated
+from typing import Annotated, Any
 
 from fastapi import (
     APIRouter,
@@ -62,7 +62,7 @@ async def get_dimension(dimension_id: str, client: QueryClientDep):
     return await client.get_dimension_details(dimension_id)
 
 
-@router.get("/dimensions/{dimension_id}/members", response_model=list[str], tags=["dimensions"])
+@router.get("/dimensions/{dimension_id}/members", response_model=list[Any], tags=["dimensions"])
 async def get_dimension_members(dimension_id: str, client: QueryClientDep):
     """
     Retrieve members of a dimension by ID.
