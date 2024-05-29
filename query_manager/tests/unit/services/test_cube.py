@@ -7,7 +7,12 @@ from commons.clients.auth import JWTAuth, JWTSecretKeyAuth
 from commons.clients.base import HttpClientError
 from commons.models.enums import Granularity
 from query_manager.core.dependencies import get_cube_client
-from query_manager.core.schemas import MetricDetail, SemanticMetaDimension, SemanticMetaMetric
+from query_manager.core.schemas import (
+    Dimension,
+    MetricDetail,
+    SemanticMetaDimension,
+    SemanticMetaMetric,
+)
 from query_manager.exceptions import MalformedMetricMetadataError, MetricValueNotFoundError, QueryManagerError
 from query_manager.services.cube import CubeClient, CubeJWTAuthType
 
@@ -413,3 +418,39 @@ async def test_load_metric_targets_from_cube_error(mocker, metric, cube_client):
     # Execute
     with pytest.raises(QueryManagerError):
         await cube_client.load_metric_targets_from_cube(metric, grain=grain, start_date=start_date, end_date=end_date)
+
+
+@pytest.mark.asyncio
+async def test_load_dimension_members_from_cube(mocker, dimension, cube_client):
+    # Prepare
+    cube_client = await cube_client
+    dimension = Dimension.parse_obj(dimension)
+    query = {"dimensions": ["cube1.billing_plan"]}
+    cube_response = [{"cube1.billing_plan": "Enterprise"}, {"cube1.billing_plan": "Partnership"}]
+    # mock the load_query_data method
+    load_query_data_mock = AsyncMock(return_value=cube_response)
+    mocker.patch.object(cube_client, "load_query_data", load_query_data_mock)
+
+    # Execute
+    dimension_members = await cube_client.load_dimension_members_from_cube(dimension)
+
+    # Assert
+    assert dimension_members == ["Enterprise", "Partnership"]
+    load_query_data_mock.assert_called_once_with(query)
+
+
+@pytest.mark.asyncio
+async def test_load_dimension_members_from_cube_error(mocker, dimension, cube_client):
+    # Prepare
+    cube_client = await cube_client
+    dimension = Dimension.parse_obj(dimension)
+    # mock the load_query_data method
+    load_query_data_mock = AsyncMock(side_effect=HttpClientError("Error"))
+    mocker.patch.object(cube_client, "load_query_data", load_query_data_mock)
+
+    # Execute
+    members = await cube_client.load_dimension_members_from_cube(dimension)
+
+    # Assert
+    assert members == []
+    load_query_data_mock.assert_called_once()

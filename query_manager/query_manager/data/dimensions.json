@@ -1,46 +1,184 @@
 [
-    {
-        "id": "region",
-        "label": "Region",
-        "reference": "region",
-        "definition": "Geographical area or division, especially part of a country or the world having definable characteristics but not always fixed boundaries.",
-        "members": [
-            "Asia",
-            "Europe",
-            "America"
-        ]
+  {
+    "id": "owner_id",
+    "label": "Owner ID",
+    "reference": "owner_id",
+    "metadata": {
+      "semantic_meta": {
+        "cube": "dim_contact",
+        "member": "owner_id",
+        "member_type": "dimension"
+      }
     },
-    {
-        "id": "customer_segment",
-        "label": "Customer Segment",
-        "reference": "customer_segment",
-        "definition": "Group of customers with similar needs, behaviors, or characteristics that a company divides its customers into, for marketing and sales purposes.",
-        "members": [
-            "Enterprise",
-            "SMB",
-            "Startup"
-        ]
+    "definition": "The unique identifier of the owner responsible for managing the contact. This dimension allows for analyzing contacts based on the assigned owner."
+  },
+  {
+    "id": "region",
+    "label": "Region",
+    "reference": "region",
+    "metadata": {
+      "semantic_meta": {
+        "cube": "dim_contact",
+        "member": "region",
+        "member_type": "dimension"
+      }
     },
-    {
-        "id": "product",
-        "label": "Product",
-        "reference": "product",
-        "definition": "An item or service offered for sale. Products can be physical objects, services, or digital offerings.",
-        "members": [
-            "Product A",
-            "Product B",
-            "Product C"
-        ]
+    "definition": "The geographic region associated with the contact. This dimension enables segmenting contacts based on their location, such as North America, Europe, or Asia-Pacific."
+  },
+  {
+    "id": "segment",
+    "label": "Segment",
+    "reference": "segment",
+    "metadata": {
+      "semantic_meta": {
+        "cube": "dim_contact",
+        "member": "segment",
+        "member_type": "dimension"
+      }
     },
-    {
-        "id": "channel",
-        "label": "Channel",
-        "reference": "channel",
-        "definition": "A medium through which a company communicates or distributes its products or services, such as direct, indirect, online, or offline channels.",
-        "members": [
-            "Online",
-            "Retail",
-            "Wholesale"
-        ]
-    }
+    "definition": "The market segment or industry vertical to which the contact belongs. This dimension allows for categorizing contacts based on their business domain or target market."
+  },
+  {
+    "id": "account_region",
+    "label": "Account Region",
+    "reference": "account_region",
+    "metadata": {
+      "semantic_meta": {
+        "cube": "dim_opportunity",
+        "member": "account_region",
+        "member_type": "dimension"
+      }
+    },
+    "definition": "The geographic region associated with the account related to the opportunity. This dimension enables analyzing opportunities based on the account's location."
+  },
+  {
+    "id": "account_segment",
+    "label": "Account Segment",
+    "reference": "account_segment",
+    "metadata": {
+      "semantic_meta": {
+        "cube": "dim_opportunity",
+        "member": "account_segment",
+        "member_type": "dimension"
+      }
+    },
+    "definition": "The market segment or industry vertical to which the account associated with the opportunity belongs. This dimension allows for categorizing opportunities based on the account's business domain."
+  },
+  {
+    "id": "account_territory",
+    "label": "Account Territory",
+    "reference": "account_territory",
+    "metadata": {
+      "semantic_meta": {
+        "cube": "dim_opportunity",
+        "member": "account_territory",
+        "member_type": "dimension"
+      }
+    },
+    "definition": "The sales territory assigned to the account associated with the opportunity. This dimension enables analyzing opportunities based on the account's designated sales coverage."
+  },
+  {
+    "id": "billing_plan",
+    "label": "Billing Plan",
+    "reference": "billing_plan",
+    "metadata": {
+      "semantic_meta": {
+        "cube": "dim_opportunity",
+        "member": "billing_plan",
+        "member_type": "dimension"
+      }
+    },
+    "definition": "The billing arrangement or pricing model associated with the opportunity. This dimension allows for distinguishing opportunities based on different billing plans, such as monthly, annual, or usage-based."
+  },
+  {
+    "id": "billing_term",
+    "label": "Billing Term",
+    "reference": "billing_term",
+    "metadata": {
+      "semantic_meta": {
+        "cube": "dim_opportunity",
+        "member": "billing_term",
+        "member_type": "dimension"
+      }
+    },
+    "definition": "The duration or length of the billing cycle associated with the opportunity. This dimension enables analyzing opportunities based on the billing frequency, such as monthly, quarterly, or yearly terms."
+  },
+  {
+    "id": "contract_duration_months",
+    "label": "Contract Duration Months",
+    "reference": "contract_duration_months",
+    "metadata": {
+      "semantic_meta": {
+        "cube": "dim_opportunity",
+        "member": "contract_duration_months",
+        "member_type": "dimension"
+      }
+    },
+    "definition": "The length of the contract associated with the opportunity, measured in months. This dimension allows for categorizing opportunities based on the commitment duration, such as 12 months, 24 months, or 36 months."
+  },
+  {
+    "id": "customer_success_manager_name",
+    "label": "Customer Success Manager Name",
+    "reference": "customer_success_manager_name",
+    "metadata": {
+      "semantic_meta": {
+        "cube": "dim_opportunity",
+        "member": "customer_success_manager_name",
+        "member_type": "dimension"
+      }
+    },
+    "definition": "The name of the customer success manager assigned to the opportunity. This dimension enables analyzing opportunities based on the responsible customer success representative."
+  },
+  {
+    "id": "forecast_category",
+    "label": "Forecast Category",
+    "reference": "forecast_category",
+    "metadata": {
+      "semantic_meta": {
+        "cube": "dim_opportunity",
+        "member": "forecast_category",
+        "member_type": "dimension"
+      }
+    },
+    "definition": "The forecasted likelihood of the opportunity closing, typically categorized as Pipeline, Best Case, Commit, or Closed. This dimension allows for assessing the quality and probability of opportunities."
+  },
+  {
+    "id": "lead_source",
+    "label": "Lead Source",
+    "reference": "lead_source",
+    "metadata": {
+      "semantic_meta": {
+        "cube": "dim_opportunity",
+        "member": "lead_source",
+        "member_type": "dimension"
+      }
+    },
+    "definition": "The originating source or channel of the lead associated with the opportunity. This dimension enables tracking the effectiveness of different lead generation methods, such as web, referral, or events."
+  },
+  {
+    "id": "loss_reason",
+    "label": "Loss Reason",
+    "reference": "loss_reason",
+    "metadata": {
+      "semantic_meta": {
+        "cube": "dim_opportunity",
+        "member": "loss_reason",
+        "member_type": "dimension"
+      }
+    },
+    "definition": "The primary reason for losing the opportunity, such as price, competition, or timing. This dimension provides insights into the factors contributing to lost deals and helps identify areas for improvement."
+  },
+  {
+    "id": "opportunity_source",
+    "label": "Opportunity Source",
+    "reference": "opportunity_source",
+    "metadata": {
+      "semantic_meta": {
+        "cube": "dim_opportunity",
+        "member": "opportunity_source",
+        "member_type": "dimension"
+      }
+    },
+    "definition": "The source or origin of the opportunity, indicating how it was generated, such as inbound, outbound, or partner. This dimension allows for analyzing the effectiveness of different opportunity generation strategies."
+  }
 ]

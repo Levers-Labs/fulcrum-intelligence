@@ -18,7 +18,6 @@ class GoalVsActualStoryBuilder(StoryBuilderBase):
     genre = StoryGenre.PERFORMANCE
     group = StoryGroup.GOAL_VS_ACTUAL
     supported_grains = [Granularity.DAY, Granularity.WEEK, Granularity.MONTH]
-    date_format = "%Y-%m-%d"
 
     async def generate_stories(self, metric_id: str, grain: Granularity) -> list[dict]:
         """

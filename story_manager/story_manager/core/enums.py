@@ -9,6 +9,7 @@ class StoryGenre(str, Enum):
     GROWTH = "GROWTH"
     TRENDS = "TRENDS"
     PERFORMANCE = "PERFORMANCE"
+    BIG_MOVES = "BIG_MOVES"
 
 
 class StoryType(str, Enum):
@@ -16,10 +17,10 @@ class StoryType(str, Enum):
     Defines the type of the story for each genre
     """
 
-    # growth stories
+    # Growth Stories
     SLOWING_GROWTH = "SLOWING_GROWTH"
     ACCELERATING_GROWTH = "ACCELERATING_GROWTH"
-    # trend stories
+    # Trend Stories
     STABLE_TREND = "STABLE_TREND"
     NEW_UPWARD_TREND = "NEW_UPWARD_TREND"
     NEW_DOWNWARD_TREND = "NEW_DOWNWARD_TREND"
@@ -31,6 +32,9 @@ class StoryType(str, Enum):
     # Performance Stories
     ON_TRACK = "ON_TRACK"
     OFF_TRACK = "OFF_TRACK"
+    # Big Moves Stories
+    RECORD_HIGH = "RECORD_HIGH"
+    RECORD_LOW = "RECORD_LOW"
 
 
 class StoryGroup(str, Enum):
@@ -39,10 +43,13 @@ class StoryGroup(str, Enum):
     """
 
     GROWTH_RATES = "GROWTH_RATES"
+
     TREND_CHANGES = "TREND_CHANGES"
     TREND_EXCEPTIONS = "TREND_EXCEPTIONS"
     LONG_RANGE = "LONG_RANGE"
     GOAL_VS_ACTUAL = "GOAL_VS_ACTUAL"
+
+    RECORD_VALUES = "RECORD_VALUES"
 
 
 class Position(str, Enum):
@@ -86,6 +93,10 @@ GROUP_TO_STORY_TYPE_MAPPING = {
     StoryGroup.GOAL_VS_ACTUAL: [
         StoryType.ON_TRACK,
         StoryType.OFF_TRACK,
+    ],
+    StoryGroup.RECORD_VALUES: [
+        StoryType.RECORD_HIGH,
+        StoryType.RECORD_LOW,
     ],
     StoryGroup.TREND_EXCEPTIONS: [
         StoryType.SPIKE,
@@ -184,5 +195,24 @@ STORY_TYPES_META: dict[str, dict[str, str]] = {
         # e.g.,  As of EOD, NewBizDeals was at 75, down 2% d/d and missing its target 80 by 6.25%.
         "detail": "As of {{eoi}}, {{metric.label}} was at {{current_value}}, {{direction}} {{current_growth}}% {{"
         "pop}} and missing its target of {{target}} by {{deviation}}%.",
+    },
+    StoryType.RECORD_HIGH: {
+        "title": "{% if is_second_rank %}Second Highest{% else %}Highest{% endif %} value over the past {{duration}} "
+        "{{grain}}s",
+        # e.g.,  On Mar 15, 2024, the 20 days value for NewBizDeals hit 90 -- the second highest across the past 20
+        # days.
+        "detail": "On {{record_date}}, the {{duration}} {{grain}}s value for {{metric.label}} hit {{value}} -- the {% "
+        "if is_second_rank %}Second Highest{% else %}Highest{% endif %} across the past {{duration}} {{"
+        "grain}}s.{% if not is_second_rank %} This represents a {{deviation}}% increase over the prior "
+        "high of {{prior_value}} on {{prior_date}}. {% endif %}",
+    },
+    StoryType.RECORD_LOW: {
+        "title": "{% if is_second_rank %}Second lowest{% else %}Lowest{% endif %} {{grain}} value over the past {{"
+        "duration}} {{grain}}s",
+        # e.g.,  On Mar 15, 2024, the 20 days value for NewBizDeals hit -10 -- the lowest across the past quarter.
+        "detail": "On {{record_date}}, the {{duration}} {{grain}}s value for {{metric.label}} hit {{value}} -- the {% "
+        "if is_second_rank %}Second lowest{% else %}Lowest{% endif %} across the past {{duration}} {{"
+        "grain}}s.{% if not is_second_rank  %} This represents a {{deviation}}% decrease over the "
+        "prior low of {{prior_value}} on {{prior_date}}. {% endif %}",
     },
 }

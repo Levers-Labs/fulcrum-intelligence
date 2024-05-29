@@ -43,13 +43,12 @@ def client(setup_env):
 @pytest.fixture(scope="session")
 def dimension():
     return {
-        "id": "dimension1",
-        "label": "Dimension 1",
-        "reference": "Reference 1",
-        "definition": "Definition 1",
-        "members": ["member1", "member2"],
+        "id": "billing_plan",
+        "label": "Billing Plan",
+        "reference": "billing_plan",
+        "definition": "Billing Plan Definition",
         "metadata": {
-            "semantic_meta": {"cube": "cube1", "member": "member1", "member_type": "dimension"},
+            "semantic_meta": {"cube": "cube1", "member": "billing_plan", "member_type": "dimension"},
         },
     }
 
