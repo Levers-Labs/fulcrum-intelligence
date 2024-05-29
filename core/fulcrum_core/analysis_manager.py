@@ -374,7 +374,7 @@ class AnalysisManager:
         return round(growth_rates, precision) if precision else round(growth_rates)
 
     @staticmethod
-    def calculate_percentage_difference(value: float, ref_value: float) -> float:
+    def calculate_percentage_difference(value: float, ref_value: float, precision: int | None = None) -> float:
         """
         Calculate the percentage difference between two values.
 
@@ -386,10 +386,10 @@ class AnalysisManager:
 
         # Check if the reference value is zero to avoid division by zero
         if ref_value == 0:
-            return 0.0
+            return 0
 
-        diff_percentage = round(((value - ref_value) / ref_value) * 100)
-        return float(diff_percentage)
+        diff_percentage = round(((value - ref_value) / ref_value) * 100, precision)
+        return diff_percentage
 
     @staticmethod
     def calculate_slope_of_time_series(df: pd.DataFrame, precision: int | None = None) -> float:
