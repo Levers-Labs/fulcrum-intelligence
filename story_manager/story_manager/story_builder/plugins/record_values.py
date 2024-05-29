@@ -118,9 +118,9 @@ class RecordValuesStoryBuilder(StoryBuilderBase):
         # mapping of ranks with (prior_rank, story_type, is_second_rank flag)
         rank_mappings = {
             1: (2, StoryType.RECORD_HIGH, False),  # For rank 1
-            2: (1, StoryType.RECORD_HIGH, True),  # For rank 2
+            2: (3, StoryType.RECORD_HIGH, True),  # For rank 2
             df_len: (df_len - 1, StoryType.RECORD_LOW, False),  # For last rank
-            df_len - 1: (df_len, StoryType.RECORD_LOW, True),  # For second last rank
+            df_len - 1: (df_len - 2, StoryType.RECORD_LOW, True),  # For second last rank
         }
 
         prior_rank, story_type, is_second_rank = rank_mappings.get(rank, (rank, None, False))
