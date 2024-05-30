@@ -29,7 +29,7 @@ router = APIRouter(prefix="")
 
 @router.get("/metrics", response_model=MetricListResponse, tags=["metrics"])
 async def list_metrics(
-    client: QueryClientDep, metric_ids: Annotated[list[str] | None, Query(description="List of metric IDs")] = None
+    client: QueryClientDep, metric_ids: Annotated[list[str], Query(description="List of metric ids")] = None  # type: ignore
 ):
     """
     Retrieve a list of metrics.
