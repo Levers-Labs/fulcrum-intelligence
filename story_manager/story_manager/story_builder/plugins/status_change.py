@@ -1,4 +1,5 @@
 import logging
+from datetime import datetime
 from itertools import takewhile
 
 import pandas as pd
@@ -6,6 +7,7 @@ import pandas as pd
 from commons.models.enums import Granularity
 from story_manager.core.enums import StoryGenre, StoryGroup, StoryType
 from story_manager.story_builder import StoryBuilderBase
+from story_manager.story_builder.utils import get_story_type_for_df
 
 logger = logging.getLogger(__name__)
 
@@ -14,6 +16,10 @@ class StatusChangeStoryBuilder(StoryBuilderBase):
     genre = StoryGenre.PERFORMANCE
     group = StoryGroup.STATUS_CHANGE
     supported_grains = [Granularity.DAY, Granularity.WEEK, Granularity.MONTH]
+    story_mapping = {
+        (StoryType.ON_TRACK, StoryType.OFF_TRACK): StoryType.IMPROVING_STATUS,
+        (StoryType.OFF_TRACK, StoryType.ON_TRACK): StoryType.WORSENING_STATUS,
+    }
 
     async def generate_stories(self, metric_id: str, grain: Granularity) -> list[dict]:
         """
@@ -43,8 +49,10 @@ class StatusChangeStoryBuilder(StoryBuilderBase):
         # get metric details
         metric = await self.query_service.get_metric(metric_id)
 
+        curr_date = datetime(2024, 4, 17)
+
         # find the start and end date for the input time series data
-        start_date, end_date = self._get_input_time_range(grain)
+        start_date, end_date = self._get_input_time_range(grain, curr_date=curr_date)
 
         # get time series data with targets
         df = await self._get_time_series_data_with_targets(metric_id, grain, start_date, end_date)
@@ -57,23 +65,12 @@ class StatusChangeStoryBuilder(StoryBuilderBase):
             )
             return []
 
-        df["status"] = df.apply(self.determine_status, axis=1)
+        df["status"] = get_story_type_for_df(df)
 
-        # get the most recent date for the current and previous period
-        latest_date, _ = self._get_current_period_range(grain)
-        prev_latest_date, _ = self._get_current_period_range(grain, curr_date=latest_date)
+        current_period = df.iloc[-1]
+        prev_period = df.iloc[-2]
 
-        current_period = df[df["date"] == pd.to_datetime(latest_date)]
-        prev_period = df[df["date"] == pd.to_datetime(prev_latest_date)]
-        if current_period.empty or prev_period.empty:
-            logging.warning(
-                "Discarding story generation for metric '%s' with grain '%s' due to no data for the dates",
-                metric_id,
-                grain,
-            )
-            return []
-
-        if current_period.isnull().values.any() or prev_period.isnull().values.any():
+        if pd.isnull(current_period["status"]) or pd.isnull(prev_period["status"]):
             logging.warning(
                 "Discarding story generation for metric '%s' with grain '%s' due to no target / actual value",
                 metric_id,
@@ -81,8 +78,8 @@ class StatusChangeStoryBuilder(StoryBuilderBase):
             )
             return []
 
-        current_status = current_period["status"].item()
-        prev_status = prev_period["status"].item()
+        current_status = current_period["status"]
+        prev_status = prev_period["status"]
         if current_status == prev_status:
             logging.warning(
                 "Discarding story generation for metric '%s' with grain '%s' due to no status change",
@@ -91,7 +88,7 @@ class StatusChangeStoryBuilder(StoryBuilderBase):
             )
             return []
 
-        story_type = StoryType.WORSENING_STATUS if prev_status == StoryType.ON_TRACK else StoryType.IMPROVING_STATUS
+        story_type = self.story_mapping.get((current_status, prev_status))  # type: ignore
 
         value = current_period["value"].item()
         target = current_period["target"].item()
@@ -99,7 +96,7 @@ class StatusChangeStoryBuilder(StoryBuilderBase):
 
         prev_duration = self.get_previous_duration(df, prev_status)
         story_details = self.prepare_story_dict(
-            story_type,
+            story_type,  # type: ignore
             grain=grain,
             metric=metric,
             df=df,
@@ -108,22 +105,6 @@ class StatusChangeStoryBuilder(StoryBuilderBase):
         )
         stories.append(story_details)
         return stories
-
-    @staticmethod
-    def determine_status(df_row: pd.Series) -> StoryType | None:
-        """
-        Determine the status of the story.
-        :param df_row: each row of the dataframe.
-        :return: string indicating the status of the story and None if the target is not available.
-        """
-        value = df_row["value"]
-        target = df_row["target"]
-        if pd.isnull(target):
-            return None
-        elif value >= target:
-            return StoryType.ON_TRACK
-        else:
-            return StoryType.OFF_TRACK
 
     @staticmethod
     def get_previous_duration(df: pd.DataFrame, target_status: StoryType) -> int:
