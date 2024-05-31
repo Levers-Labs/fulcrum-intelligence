@@ -10,6 +10,7 @@ from story_manager.core.enums import (
     StoryType,
 )
 from story_manager.story_builder import StoryBuilderBase
+from story_manager.story_builder.utils import get_story_type_for_df
 
 logger = logging.getLogger(__name__)
 
@@ -18,6 +19,10 @@ class GoalVsActualStoryBuilder(StoryBuilderBase):
     genre = StoryGenre.PERFORMANCE
     group = StoryGroup.GOAL_VS_ACTUAL
     supported_grains = [Granularity.DAY, Granularity.WEEK, Granularity.MONTH]
+    story_direction_map = {
+        StoryType.ON_TRACK: Direction.UP.value,
+        StoryType.OFF_TRACK: Direction.DOWN.value,
+    }
 
     async def generate_stories(self, metric_id: str, grain: Granularity) -> list[dict]:
         """
@@ -66,54 +71,33 @@ class GoalVsActualStoryBuilder(StoryBuilderBase):
         df["growth_rate"] = self.analysis_manager.calculate_growth_rates_of_series(df["value"])
         df["growth_rate"] = df["growth_rate"].fillna(value=0)
 
-        # get the most recent date for the period
-        latest_date, _ = self._get_current_period_range(grain)
+        # Get story type for the df
+        df["story_type"] = get_story_type_for_df(df)
 
         # data for the most recent date
-        ref_data = df[df["date"] == pd.to_datetime(latest_date)]
-        # validate if data exists for the date
-        if ref_data.empty:
+        ref_data = df.iloc[-1]
+        if pd.isnull(ref_data["story_type"]):
             logging.warning(
-                "Discarding story generation for metric '%s' with grain '%s' due to no data for the most "
-                "recent period date '%s'",
+                "Discarding story generation for metric '%s' with grain '%s' due to no story",
                 metric_id,
                 grain,
-                latest_date,
             )
             return []
-
-        value = ref_data.iloc[-1]["value"].item()
-        growth = ref_data.iloc[-1]["growth_rate"].item()
-        target = ref_data.iloc[-1]["target"]
-
-        # validate if target exist, exit if no target
-        if pd.isna(target):
-            logging.warning(
-                "Discarding story generation for metric '%s' with grain '%s' due to no target for the most "
-                "recent period date '%s'",
-                metric_id,
-                grain,
-                latest_date,
-            )
-            return []
-
-        target = target.item()
-        if value >= target:
-            story_type = StoryType.ON_TRACK
-            direction = Direction.UP.value
-        else:
-            story_type = StoryType.OFF_TRACK
-            direction = Direction.DOWN.value
 
         # calculate deviation % of value from the target
+        value = ref_data["value"].item()
+        target = ref_data["target"].item()
         deviation = self.analysis_manager.calculate_percentage_difference(value, target)
+
+        story_type = ref_data["story_type"]
+        growth = ref_data["growth_rate"].item()
         story_details = self.prepare_story_dict(
-            story_type,
+            story_type,  # type: ignore
             grain=grain,
             metric=metric,
             df=df,
             current_value=value,
-            direction=direction,
+            direction=self.story_direction_map.get(story_type),
             current_growth=growth,
             target=target,
             deviation=abs(deviation),

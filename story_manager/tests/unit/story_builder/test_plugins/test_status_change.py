@@ -20,8 +20,9 @@ def status_change_story_builder(mock_query_service, mock_analysis_service, mock_
 
 @pytest.mark.asyncio
 async def test_generate_status_change_stories_no_min_data_points(status_change_story_builder, targets_df):
+    short_data = targets_df.iloc[:1]
     # Prepare
-    status_change_story_builder._get_time_series_data_with_targets = AsyncMock(return_value=targets_df)
+    status_change_story_builder._get_time_series_data_with_targets = AsyncMock(return_value=short_data)
 
     # Act
     result = await status_change_story_builder.generate_stories("metric_1", Granularity.DAY)
