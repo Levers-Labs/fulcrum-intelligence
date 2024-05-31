@@ -49,6 +49,11 @@ STORY_GROUP_TIME_DURATIONS: dict[str, Any] = {
         Granularity.WEEK: {"min": 1, "input": 5, "output": 5},
         Granularity.MONTH: {"min": 1, "input": 4, "output": 4},
     },
+    StoryGroup.LIKELY_STATUS: {
+        Granularity.DAY: {"min": 30, "input": 1825, "output": None},
+        Granularity.WEEK: {"min": 104, "input": 260, "output": None},
+        Granularity.MONTH: {"min": 24, "input": 60, "output": None},
+    },
     StoryGroup.STATUS_CHANGE: {
         Granularity.DAY: {"min": 2, "input": 7, "output": 7},
         Granularity.WEEK: {"min": 2, "input": 5, "output": 5},
