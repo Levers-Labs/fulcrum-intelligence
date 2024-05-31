@@ -1,5 +1,4 @@
 import logging
-from datetime import datetime
 from itertools import takewhile
 
 import pandas as pd
@@ -49,10 +48,8 @@ class StatusChangeStoryBuilder(StoryBuilderBase):
         # get metric details
         metric = await self.query_service.get_metric(metric_id)
 
-        curr_date = datetime(2024, 4, 17)
-
         # find the start and end date for the input time series data
-        start_date, end_date = self._get_input_time_range(grain, curr_date=curr_date)
+        start_date, end_date = self._get_input_time_range(grain)
 
         # get time series data with targets
         df = await self._get_time_series_data_with_targets(metric_id, grain, start_date, end_date)
@@ -72,7 +69,7 @@ class StatusChangeStoryBuilder(StoryBuilderBase):
 
         if pd.isnull(current_period["status"]) or pd.isnull(prev_period["status"]):
             logging.warning(
-                "Discarding story generation for metric '%s' with grain '%s' due to no target / actual value",
+                "Discarding story generation for metric '%s' with grain '%s' due to no story status",
                 metric_id,
                 grain,
             )
