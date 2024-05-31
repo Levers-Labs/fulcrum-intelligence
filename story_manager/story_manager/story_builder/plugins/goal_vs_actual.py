@@ -10,7 +10,7 @@ from story_manager.core.enums import (
     StoryType,
 )
 from story_manager.story_builder import StoryBuilderBase
-from story_manager.story_builder.utils import get_story_type_for_df
+from story_manager.story_builder.utils import determine_status_for_value_and_target
 
 logger = logging.getLogger(__name__)
 
@@ -71,12 +71,12 @@ class GoalVsActualStoryBuilder(StoryBuilderBase):
         df["growth_rate"] = self.analysis_manager.calculate_growth_rates_of_series(df["value"])
         df["growth_rate"] = df["growth_rate"].fillna(value=0)
 
-        # Get story type for the df
-        df["story_type"] = get_story_type_for_df(df)
+        # Get story status for the df
+        df["status"] = df.apply(determine_status_for_value_and_target, axis=1)
 
         # data for the most recent date
         ref_data = df.iloc[-1]
-        if pd.isnull(ref_data["story_type"]):
+        if pd.isnull(ref_data["status"]):
             logging.warning(
                 "Discarding story generation for metric '%s' with grain '%s' due to no story",
                 metric_id,
@@ -89,7 +89,7 @@ class GoalVsActualStoryBuilder(StoryBuilderBase):
         target = ref_data["target"].item()
         deviation = self.analysis_manager.calculate_percentage_difference(value, target)
 
-        story_type = ref_data["story_type"]
+        story_type = ref_data["status"]
         growth = ref_data["growth_rate"].item()
         story_details = self.prepare_story_dict(
             story_type,  # type: ignore

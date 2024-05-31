@@ -124,5 +124,5 @@ async def test_generate_status_change_stories_nan_target(status_change_story_bui
 )
 def test_get_previous_duration(statuses, target_status, expected_duration):
     df = pd.DataFrame({"status": statuses})
-    duration = StatusChangeStoryBuilder.get_previous_duration(df, target_status)
+    duration = StatusChangeStoryBuilder.get_previous_status_duration(df, target_status)
     assert duration == expected_duration

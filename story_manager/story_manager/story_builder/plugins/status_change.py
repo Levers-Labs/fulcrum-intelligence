@@ -6,7 +6,7 @@ import pandas as pd
 from commons.models.enums import Granularity
 from story_manager.core.enums import StoryGenre, StoryGroup, StoryType
 from story_manager.story_builder import StoryBuilderBase
-from story_manager.story_builder.utils import get_story_type_for_df
+from story_manager.story_builder.utils import determine_status_for_value_and_target
 
 logger = logging.getLogger(__name__)
 
@@ -62,7 +62,7 @@ class StatusChangeStoryBuilder(StoryBuilderBase):
             )
             return []
 
-        df["status"] = get_story_type_for_df(df)
+        df["status"] = df.apply(determine_status_for_value_and_target, axis=1)
 
         current_period = df.iloc[-1]
         prev_period = df.iloc[-2]
@@ -91,7 +91,7 @@ class StatusChangeStoryBuilder(StoryBuilderBase):
         target = current_period["target"].item()
         deviation = self.analysis_manager.calculate_percentage_difference(value, target)
 
-        prev_duration = self.get_previous_duration(df, prev_status)
+        prev_duration = self.get_previous_status_duration(df, prev_status)
         story_details = self.prepare_story_dict(
             story_type,  # type: ignore
             grain=grain,
@@ -104,7 +104,7 @@ class StatusChangeStoryBuilder(StoryBuilderBase):
         return stories
 
     @staticmethod
-    def get_previous_duration(df: pd.DataFrame, target_status: StoryType) -> int:
+    def get_previous_status_duration(df: pd.DataFrame, target_status: StoryType) -> int:
         """
         Determine the duration of the previous story.
         :param df: the time series data.
