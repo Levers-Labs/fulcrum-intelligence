@@ -7,10 +7,10 @@ from story_manager.core.models import Story
 
 
 class StoryFilter(BaseFilter[Story]):
-    metric_id: str | None = FilterField(Story.metric_id, operator="eq", default=None)  # type: ignore
+    metric_ids: list[str] | None = FilterField(Story.metric_id, operator="in", default=None)  # type: ignore
     created_at_start: datetime | None = FilterField(Story.created_at, operator="ge", default=None)  # type: ignore
     created_at_end: datetime | None = FilterField(Story.created_at, operator="le", default=None)  # type: ignore
-    genre: StoryGenre | None = FilterField(Story.genre, operator="eq", default=None)  # type: ignore
-    story_type: StoryType | None = FilterField(Story.story_type, operator="eq", default=None)  # type: ignore
-    story_group: StoryGroup | None = FilterField(Story.story_group, operator="eq", default=None)  # type: ignore
-    grain: Granularity | None = FilterField(Story.grain, operator="eq", default=None)  # type: ignore
+    genres: list[StoryGenre] | None = FilterField(Story.genre, operator="in", default=None)  # type: ignore
+    story_types: list[StoryType] | None = FilterField(Story.story_type, operator="in", default=None)  # type: ignore
+    story_groups: list[StoryGroup] | None = FilterField(Story.story_group, operator="in", default=None)  # type: ignore
+    grains: list[Granularity] | None = FilterField(Story.grain, operator="in", default=None)  # type: ignore
