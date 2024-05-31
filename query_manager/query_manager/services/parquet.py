@@ -11,7 +11,7 @@ class ParquetService:
     def __init__(self, s3_client: S3Client):
         self.s3_client = s3_client
 
-    async def convert_and_upload(self, data, metric_id, request_id) -> str:
+    async def convert_and_upload(self, data, metric_id, request_id, folder="values") -> str:
         """
         Convert the data to Parquet format and upload it to S3.
 
@@ -29,7 +29,7 @@ class ParquetService:
             df.to_parquet(file_path)
 
             # Upload to S3
-            s3_file_key = f"values/metrics/{metric_id}/{os.path.basename(file_path)}"
+            s3_file_key = f"{folder}/metrics/{metric_id}/{os.path.basename(file_path)}"
             await self.s3_client.upload_to_s3(file_path, s3_file_key)
 
             # Generate and return the S3 URL

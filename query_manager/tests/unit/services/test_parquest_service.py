@@ -10,9 +10,10 @@ async def test_convert_and_upload(parquet_service):
     test_data = [{"column1": "value1", "column2": "value2"}]
     metric_id = "test_metric"
     request_id = "test_request"
+    folder = "values"
 
     # Execute the method under test
-    result_url = await parquet_service_instance.convert_and_upload(test_data, metric_id, request_id)
+    result_url = await parquet_service_instance.convert_and_upload(test_data, metric_id, request_id, folder)
 
     # Assertions
     parquet_service_instance.s3_client.upload_to_s3.assert_called_once()
