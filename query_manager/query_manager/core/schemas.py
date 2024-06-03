@@ -137,4 +137,20 @@ class Target(BaseModel):
 
 
 class TargetListResponse(BaseModel):
-    results: list[Target]
+    results: list[Target] | None = Field(
+        default=None,
+        examples=[
+            {
+                "metric_id": "NewBizDeals",
+                "grain": "day",
+                "aim": "Maximize",
+                "target_date": "2024-03-10",
+                "target_value": 3,
+                "target_upper_bound": 3,
+                "target_lower_bound": 2,
+                "yellow_buffer": 0,
+                "red_buffer": 0.2,
+            }
+        ],
+    )
+    url: str | None = Field(None, description="URL to the Parquet file")

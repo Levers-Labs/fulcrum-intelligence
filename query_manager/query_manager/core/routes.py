@@ -97,21 +97,29 @@ async def get_metric_values(
         raise MetricNotFoundError(metric_id) from e
 
     if output_format == OutputFormat.PARQUET:
-        parquet_url = await parquet_service.convert_and_upload(res, metric_id, request_id)
+        parquet_url = await parquet_service.convert_and_upload(res, metric_id, request_id, folder="values")
         return {"url": parquet_url}
     return {"data": res}
 
 
 @router.get("/metrics/{metric_id}/targets", response_model=TargetListResponse, tags=["metrics"])
 async def get_metric_targets(
+    request: Request,
     client: QueryClientDep,
+    parquet_service: ParquetServiceDep,
     metric_id: str,
     start_date: date | None = None,
     end_date: date | None = None,
     grain: Granularity | None = None,
+    output_format: Annotated[OutputFormat, Query(...)] = OutputFormat.JSON,
 ):
     """
     Retrieve targets for a metric within a date range.
     """
+    request_id = request.state.request_id
     res = await client.get_metric_targets(metric_id, start_date=start_date, end_date=end_date, grain=grain)
+    if output_format == OutputFormat.PARQUET:
+        parquet_url = await parquet_service.convert_and_upload(res, metric_id, request_id, folder="targets")
+        return {"url": parquet_url}
+
     return {"results": res}
