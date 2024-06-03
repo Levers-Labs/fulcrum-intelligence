@@ -10,6 +10,7 @@ class StoryGenre(str, Enum):
     TRENDS = "TRENDS"
     PERFORMANCE = "PERFORMANCE"
     BIG_MOVES = "BIG_MOVES"
+    ROOT_CAUSE = "ROOT_CAUSE"
 
 
 class StoryType(str, Enum):
@@ -34,6 +35,8 @@ class StoryType(str, Enum):
     OFF_TRACK = "OFF_TRACK"
     IMPROVING_STATUS = "IMPROVING_STATUS"
     WORSENING_STATUS = "WORSENING_STATUS"
+    REQUIRED_PERFORMANCE = "REQUIRED_PERFORMANCE"
+    HOLD_STEADY = "HOLD_STEADY"
     # Big Moves Stories
     RECORD_HIGH = "RECORD_HIGH"
     RECORD_LOW = "RECORD_LOW"
@@ -56,6 +59,8 @@ class StoryGroup(str, Enum):
     LIKELY_STATUS = "LIKELY_STATUS"
     RECORD_VALUES = "RECORD_VALUES"
     STATUS_CHANGE = "STATUS_CHANGE"
+
+    REQUIRED_PERFORMANCE = "REQUIRED_PERFORMANCE"
 
 
 class Position(str, Enum):
@@ -120,6 +125,7 @@ GROUP_TO_STORY_TYPE_MAPPING = {
         StoryType.LIKELY_ON_TRACK,
         StoryType.LIKELY_OFF_TRACK,
     ],
+    StoryGroup.REQUIRED_PERFORMANCE: [StoryType.REQUIRED_PERFORMANCE, StoryType.HOLD_STEADY],
 }
 
 # Story type meta-information
@@ -252,5 +258,16 @@ STORY_TYPES_META: dict[str, dict[str, str]] = {
         # e.g., SQORate is forecasted to end the day at 70 and miss its target of 80 by 12.5%.
         "detail": "{{metric.label}} is forecasted to end the {{interval}} at {{forecasted_value}} and miss its target "
         "of {{target}} by {{deviation}}%.",
+    },
+    StoryType.REQUIRED_PERFORMANCE: {
+        "title": "Must grow {{required_growth}}% {{pop}} to meet end of {{interval}} target",
+        "detail": "{{metric.label}} must average a {{required_growth}}% {{d/d}} growth rate over the next [y] {{"
+        "grain}}s to meet its end of {{interval}} target of {{target}}. {% if not min %} This is a [d]% "
+        "{{movement}} over the [q]% {{pop}} growth over the past {{duration}} {{grain}}s.{% endif %}",
+    },
+    StoryType.HOLD_STEADY: {
+        "title": "Metric must maintain its performance",
+        "detail": "{{metric.label}} is already performing at its target level for the end of [period] and needs to "
+        "maintain this lead for the next [y] {{grain}}s to stay On Track.",
     },
 }
