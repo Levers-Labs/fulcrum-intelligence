@@ -32,6 +32,8 @@ class StoryType(str, Enum):
     # Performance Stories
     ON_TRACK = "ON_TRACK"
     OFF_TRACK = "OFF_TRACK"
+    IMPROVING_STATUS = "IMPROVING_STATUS"
+    WORSENING_STATUS = "WORSENING_STATUS"
     # Big Moves Stories
     RECORD_HIGH = "RECORD_HIGH"
     RECORD_LOW = "RECORD_LOW"
@@ -50,6 +52,7 @@ class StoryGroup(str, Enum):
     GOAL_VS_ACTUAL = "GOAL_VS_ACTUAL"
 
     RECORD_VALUES = "RECORD_VALUES"
+    STATUS_CHANGE = "STATUS_CHANGE"
 
 
 class Position(str, Enum):
@@ -105,6 +108,10 @@ GROUP_TO_STORY_TYPE_MAPPING = {
     StoryGroup.LONG_RANGE: [
         StoryType.IMPROVING_PERFORMANCE,
         StoryType.WORSENING_PERFORMANCE,
+    ],
+    StoryGroup.STATUS_CHANGE: [
+        StoryType.IMPROVING_STATUS,
+        StoryType.WORSENING_STATUS,
     ],
 }
 
@@ -214,5 +221,17 @@ STORY_TYPES_META: dict[str, dict[str, str]] = {
         "if is_second_rank %}Second lowest{% else %}Lowest{% endif %} across the past {{duration}} {{"
         "grain}}s.{% if not is_second_rank  %} This represents a {{deviation}}% decrease over the "
         "prior low of {{prior_value}} on {{prior_date}}. {% endif %}",
+    },
+    StoryType.IMPROVING_STATUS: {
+        "title": "Newly beating target",
+        # e.g., NewBizDeals is now On-Track and beating target by 100% after previously being Off-Track for 2 weeks.
+        "detail": "{{metric.label}} is now On-Track and beating target by {{deviation}}% after previously being "
+        "Off-Track for {{prev_duration}} {{grain}}s.",
+    },
+    StoryType.WORSENING_STATUS: {
+        "title": "Newly missing target",
+        # e.g., NewBizDeals is now Off-Track and missing target by 10% after previously being On-Track for 2 weeks.
+        "detail": "{{metric.label}} is now Off-Track and missing target by {{deviation}}% after previously being "
+        "On-Track for {{prev_duration}} {{grain}}s.",
     },
 }

@@ -9,7 +9,7 @@ from commons.models.enums import Granularity
 from story_manager.core.enums import StoryType
 from story_manager.story_builder.plugins.goal_vs_actual import GoalVsActualStoryBuilder
 
-start_date = date(2023, 4, 7)
+start_date = date(2024, 3, 19)
 number_of_data_points = 90
 
 
@@ -24,7 +24,7 @@ def goal_vs_actual_story_builder(
 @pytest.mark.asyncio
 async def test_generate_goal_vs_actual_stories_no_min_data_points(goal_vs_actual_story_builder, targets_df):
     # Prepare
-    goal_vs_actual_story_builder._get_time_series_data_with_targets = AsyncMock(return_value=targets_df)
+    goal_vs_actual_story_builder._get_time_series_data_with_targets = AsyncMock(return_value=pd.DataFrame())
 
     # Act
     result = await goal_vs_actual_story_builder.generate_stories("metric_1", Granularity.DAY)
@@ -35,13 +35,11 @@ async def test_generate_goal_vs_actual_stories_no_min_data_points(goal_vs_actual
 
 @pytest.mark.asyncio
 async def test_generate_goal_vs_actual_stories_on_track(goal_vs_actual_story_builder, targets_df):
-    latest_date, _ = goal_vs_actual_story_builder._get_current_period_range(Granularity.DAY)
-
     targets_df = targets_df.copy()
     on_track_data = {
         "value": 100,
         "target": 50,
-        "date": pd.to_datetime(latest_date),
+        "date": pd.to_datetime(start_date),
     }
     targets_df.loc[len(targets_df)] = on_track_data
     goal_vs_actual_story_builder._get_time_series_data_with_targets = AsyncMock(return_value=targets_df)
@@ -54,13 +52,11 @@ async def test_generate_goal_vs_actual_stories_on_track(goal_vs_actual_story_bui
 
 @pytest.mark.asyncio
 async def test_generate_goal_vs_actual_stories_off_track(goal_vs_actual_story_builder, targets_df):
-    latest_date, _ = goal_vs_actual_story_builder._get_current_period_range(Granularity.DAY)
-
     targets_df = targets_df.copy()
     on_track_data = {
         "value": 0,
         "target": 50,
-        "date": pd.to_datetime(latest_date),
+        "date": pd.to_datetime(start_date),
     }
     targets_df.loc[len(targets_df)] = on_track_data
     goal_vs_actual_story_builder._get_time_series_data_with_targets = AsyncMock(return_value=targets_df)
@@ -73,13 +69,11 @@ async def test_generate_goal_vs_actual_stories_off_track(goal_vs_actual_story_bu
 
 @pytest.mark.asyncio
 async def test_generate_goal_vs_actual_stories_none_target(goal_vs_actual_story_builder, targets_df):
-    latest_date, _ = goal_vs_actual_story_builder._get_current_period_range(Granularity.DAY)
-    latest_date = latest_date.strftime("%Y-%m-%d")
     targets_df = targets_df.copy()
     on_track_data = {
         "value": 0,
         "target": None,
-        "date": latest_date,
+        "date": start_date,
     }
     targets_df.loc[len(targets_df)] = on_track_data
     goal_vs_actual_story_builder._get_time_series_data_with_targets = AsyncMock(return_value=targets_df)
@@ -91,13 +85,11 @@ async def test_generate_goal_vs_actual_stories_none_target(goal_vs_actual_story_
 
 @pytest.mark.asyncio
 async def test_generate_goal_vs_actual_stories_nan_target(goal_vs_actual_story_builder, targets_df):
-    latest_date, _ = goal_vs_actual_story_builder._get_current_period_range(Granularity.DAY)
-
     targets_df = targets_df.copy()
     on_track_data = {
         "value": 0,
         "target": np.NaN,
-        "date": pd.to_datetime(latest_date),
+        "date": pd.to_datetime(start_date),
     }
     targets_df.loc[len(targets_df)] = on_track_data
     goal_vs_actual_story_builder._get_time_series_data_with_targets = AsyncMock(return_value=targets_df)
