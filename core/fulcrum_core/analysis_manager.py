@@ -380,6 +380,7 @@ class AnalysisManager:
 
         :param value: The value for which deviation is calculated.
         :param ref_value: The reference value.
+        :param precision: The number of decimal places to round the result.
 
         :return: The deviation percentage.
         """

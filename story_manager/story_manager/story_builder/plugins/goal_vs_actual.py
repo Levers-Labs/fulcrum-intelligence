@@ -62,7 +62,7 @@ class GoalVsActualStoryBuilder(StoryBuilderBase):
         # validate time series data has minimum required data points
         time_durations = self.get_time_durations(grain)
         if len(df) < time_durations["min"]:
-            logging.warning(
+            logger.warning(
                 "Discarding story generation for metric '%s' with grain '%s' due to insufficient data", metric_id, grain
             )
             return []

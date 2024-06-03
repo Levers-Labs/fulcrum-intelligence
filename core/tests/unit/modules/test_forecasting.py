@@ -102,7 +102,7 @@ def test_get_min_data_points():
     month_expected = 12
     week_expected = 52
     quarter_expected = 4
-    day_expected = 30
+    day_expected = 7
     forcast = SimpleForecast(Granularity.MONTH)
 
     # Act

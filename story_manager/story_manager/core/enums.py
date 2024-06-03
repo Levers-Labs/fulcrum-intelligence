@@ -37,6 +37,9 @@ class StoryType(str, Enum):
     # Big Moves Stories
     RECORD_HIGH = "RECORD_HIGH"
     RECORD_LOW = "RECORD_LOW"
+    # Likely status
+    LIKELY_ON_TRACK = "LIKELY_ON_TRACK"
+    LIKELY_OFF_TRACK = "LIKELY_OFF_TRACK"
 
 
 class StoryGroup(str, Enum):
@@ -50,7 +53,7 @@ class StoryGroup(str, Enum):
     TREND_EXCEPTIONS = "TREND_EXCEPTIONS"
     LONG_RANGE = "LONG_RANGE"
     GOAL_VS_ACTUAL = "GOAL_VS_ACTUAL"
-
+    LIKELY_STATUS = "LIKELY_STATUS"
     RECORD_VALUES = "RECORD_VALUES"
     STATUS_CHANGE = "STATUS_CHANGE"
 
@@ -112,6 +115,10 @@ GROUP_TO_STORY_TYPE_MAPPING = {
     StoryGroup.STATUS_CHANGE: [
         StoryType.IMPROVING_STATUS,
         StoryType.WORSENING_STATUS,
+    ],
+    StoryGroup.LIKELY_STATUS: [
+        StoryType.LIKELY_ON_TRACK,
+        StoryType.LIKELY_OFF_TRACK,
     ],
 }
 
@@ -216,7 +223,7 @@ STORY_TYPES_META: dict[str, dict[str, str]] = {
     StoryType.RECORD_LOW: {
         "title": "{% if is_second_rank %}Second lowest{% else %}Lowest{% endif %} {{grain}} value over the past {{"
         "duration}} {{grain}}s",
-        # e.g.,  On Mar 15, 2024, the 20 days value for NewBizDeals hit -10 -- the lowest across the past quarter.
+        # e.g., On Mar 15, 2024, the 20-day value for NewBizDeals hit -10 -- the lowest across the past quarter.
         "detail": "On {{record_date}}, the {{duration}} {{grain}}s value for {{metric.label}} hit {{value}} -- the {% "
         "if is_second_rank %}Second lowest{% else %}Lowest{% endif %} across the past {{duration}} {{"
         "grain}}s.{% if not is_second_rank  %} This represents a {{deviation}}% decrease over the "
@@ -233,5 +240,17 @@ STORY_TYPES_META: dict[str, dict[str, str]] = {
         # e.g., NewBizDeals is now Off-Track and missing target by 10% after previously being On-Track for 2 weeks.
         "detail": "{{metric.label}} is now Off-Track and missing target by {{deviation}}% after previously being "
         "On-Track for {{prev_duration}} {{grain}}s.",
+    },
+    StoryType.LIKELY_ON_TRACK: {
+        "title": "Pacing to beat end of {{interval}} target by {{deviation}}%",
+        # e.g., SQORate is forecasted to end the day at 90 and beat its target of 80 by 12.5%.
+        "detail": "{{metric.label}} is forecasted to end the {{interval}} at {{forecasted_value}} and beat its target "
+        "of {{target}} by {{deviation}}%.",
+    },
+    StoryType.LIKELY_OFF_TRACK: {
+        "title": "Pacing to miss end of {{interval}} target by {{deviation}}%",
+        # e.g., SQORate is forecasted to end the day at 70 and miss its target of 80 by 12.5%.
+        "detail": "{{metric.label}} is forecasted to end the {{interval}} at {{forecasted_value}} and miss its target "
+        "of {{target}} by {{deviation}}%.",
     },
 }

@@ -14,10 +14,6 @@ logger = logging.getLogger(__name__)
 class SimpleForecast(BaseAnalyzer):
     DEFAULT_CONFIDENCE_INTERVAL: float = 95
 
-    # todo: fix negative confidence_intervals
-    # todo: fix issues for month even with min values
-    # todo: fix issues where day grain takes too long to train
-
     def __init__(self, grain: Granularity, **kwargs):
         """
         Initialize the SimpleForcasting class
@@ -46,7 +42,7 @@ class SimpleForecast(BaseAnalyzer):
         elif self.grain == Granularity.QUARTER:
             return 4
         elif self.grain == Granularity.DAY:
-            return 30
+            return 7
         else:
             return 1
 
@@ -130,22 +126,27 @@ class SimpleForecast(BaseAnalyzer):
         """
         # Training data
         train_values = df["value"]
-        model = pm.auto_arima(
-            train_values,
-            start_p=1,
-            start_q=1,
-            max_p=5,
-            max_q=5,
-            m=self.min_values,
-            seasonal=True,
-            max_P=4,
-            max_D=4,
-            max_Q=4,
-            trace=True,
-            error_action="ignore",
-            suppress_warnings=True,
-            stepwise=True,
-        )
+        model_kwargs = {
+            "start_p": 1,
+            "start_q": 1,
+            "max_p": 5,
+            "max_q": 5,
+            "m": self.min_values,
+            "seasonal": True,
+            "max_P": 4,
+            "max_D": 4,
+            "max_Q": 4,
+            "trace": True,
+            "error_action": "ignore",
+            "suppress_warnings": True,
+            "stepwise": True,
+        }
+        try:
+            model = pm.auto_arima(train_values, **model_kwargs)
+        except Exception as e:
+            logger.error("Error in training model: %s", e)
+            model_kwargs["seasonal"] = False
+            model = pm.auto_arima(train_values, **model_kwargs)
         return model
 
     def analyze(  # type: ignore  # noqa
