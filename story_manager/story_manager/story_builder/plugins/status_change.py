@@ -1,27 +1,23 @@
 import logging
+from itertools import takewhile
 
 import pandas as pd
 
 from commons.models.enums import Granularity
-from story_manager.core.enums import (
-    Direction,
-    StoryGenre,
-    StoryGroup,
-    StoryType,
-)
+from story_manager.core.enums import StoryGenre, StoryGroup, StoryType
 from story_manager.story_builder import StoryBuilderBase
 from story_manager.story_builder.utils import determine_status_for_value_and_target
 
 logger = logging.getLogger(__name__)
 
 
-class GoalVsActualStoryBuilder(StoryBuilderBase):
+class StatusChangeStoryBuilder(StoryBuilderBase):
     genre = StoryGenre.PERFORMANCE
-    group = StoryGroup.GOAL_VS_ACTUAL
+    group = StoryGroup.STATUS_CHANGE
     supported_grains = [Granularity.DAY, Granularity.WEEK, Granularity.MONTH]
-    story_direction_map = {
-        StoryType.ON_TRACK: Direction.UP.value,
-        StoryType.OFF_TRACK: Direction.DOWN.value,
+    story_mapping = {
+        (StoryType.ON_TRACK, StoryType.OFF_TRACK): StoryType.IMPROVING_STATUS,
+        (StoryType.OFF_TRACK, StoryType.ON_TRACK): StoryType.WORSENING_STATUS,
     }
 
     async def generate_stories(self, metric_id: str, grain: Granularity) -> list[dict]:
@@ -37,9 +33,7 @@ class GoalVsActualStoryBuilder(StoryBuilderBase):
 
         Logic:
         - A time series of metric and target values is constructed for the grain and span relevant to the digest.
-        - The most recent period’s actual is compared to the corresponding target.
-        - If a target is not available for the current period, no story is created.
-        - If the actual is at or above the target, an On Track story is created. Else an Off Track story.
+
 
         Output:
         A list of stories containing metadata for each identified trend.
@@ -48,6 +42,7 @@ class GoalVsActualStoryBuilder(StoryBuilderBase):
         :param grain: The grain of the time series data.
         :return: A list containing a goal_vs_actual story dictionary.
         """
+
         stories: list[dict] = []
 
         # get metric details
@@ -67,42 +62,56 @@ class GoalVsActualStoryBuilder(StoryBuilderBase):
             )
             return []
 
-        # get growth rate for the series
-        df["growth_rate"] = self.analysis_manager.calculate_growth_rates_of_series(df["value"])
-        df["growth_rate"] = df["growth_rate"].fillna(value=0)
-
-        # Get story status for the df
         df["status"] = df.apply(determine_status_for_value_and_target, axis=1)
 
-        # data for the most recent date
-        ref_data = df.iloc[-1]
-        if pd.isnull(ref_data["status"]):
+        current_period = df.iloc[-1]
+        prev_period = df.iloc[-2]
+
+        if pd.isnull(current_period["status"]) or pd.isnull(prev_period["status"]):
             logging.warning(
-                "Discarding story generation for metric '%s' with grain '%s' due to no story",
+                "Discarding story generation for metric '%s' with grain '%s' due to no story status",
                 metric_id,
                 grain,
             )
             return []
 
-        # calculate deviation % of value from the target
-        value = ref_data["value"].item()
-        target = ref_data["target"].item()
+        current_status = current_period["status"]
+        prev_status = prev_period["status"]
+        if current_status == prev_status:
+            logging.warning(
+                "Discarding story generation for metric '%s' with grain '%s' due to no status change",
+                metric_id,
+                grain,
+            )
+            return []
+
+        story_type = self.story_mapping.get((current_status, prev_status))  # noqa
+
+        value = current_period["value"].item()
+        target = current_period["target"].item()
         deviation = self.analysis_manager.calculate_percentage_difference(value, target)
 
-        story_type = ref_data["status"]
-        growth = ref_data["growth_rate"].item()
+        prev_duration = self.get_previous_status_duration(df, prev_status)  # noqa
         story_details = self.prepare_story_dict(
             story_type,  # type: ignore
             grain=grain,
             metric=metric,
             df=df,
-            current_value=value,
-            direction=self.story_direction_map.get(story_type),  # noqa
-            current_growth=growth,
-            target=target,
-            deviation=abs(deviation),
-            duration=len(df),
+            deviation=deviation,
+            prev_duration=prev_duration,
         )
         stories.append(story_details)
-        logger.info(f"Stories generated for metric '{metric_id}', story details: {story_details}")
         return stories
+
+    @staticmethod
+    def get_previous_status_duration(df: pd.DataFrame, target_status: StoryType) -> int:
+        """
+        Determine the duration of the previous story.
+        :param df: the time series data.
+        :param target_status: the previous story status.
+        :return: the consecutive count of the previous story.
+        """
+        df_reversed = df.iloc[:-1][::-1]
+        # Count consecutive occurrences of the target status
+        count = sum(1 for _ in takewhile(lambda status: status == target_status, df_reversed["status"]))
+        return count
