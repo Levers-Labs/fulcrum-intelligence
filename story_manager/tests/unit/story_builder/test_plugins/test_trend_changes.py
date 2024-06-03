@@ -43,11 +43,11 @@ async def test_generate_stories_upward_trend(mocker, trends_story_builder, proce
     process_control_df = process_control_df.copy()
     # set 10th from last as signal detected
     process_control_df.loc[process_control_df.index[-30], "trend_signal_detected"] = True
-    process_control_df.loc[process_control_df.index[-10], "trend_signal_detected"] = True
+    process_control_df.loc[process_control_df.index[-5], "trend_signal_detected"] = True
     # set slope for them to be greater than those before
     process_control_df["slope"] = 1.8
-    process_control_df.loc[process_control_df.index[-30:-10], "slope"] = 1.2
-    process_control_df.loc[process_control_df.index[-10:], "slope"] = 1.5
+    process_control_df.loc[process_control_df.index[-30:-5], "slope"] = 1.2
+    process_control_df.loc[process_control_df.index[-5:], "slope"] = 1.5
 
     mocker.patch.object(trends_story_builder.analysis_manager, "process_control", return_value=process_control_df)
 
@@ -58,8 +58,8 @@ async def test_generate_stories_upward_trend(mocker, trends_story_builder, proce
     assert len(result) == 1
     story = result[0]
     assert story["story_type"] == StoryType.NEW_UPWARD_TREND
-    assert story["variables"]["trend_start_date"] == process_control_df["date"].iloc[-10]
-    assert story["variables"]["previous_trend_duration"] == 20
+    assert story["variables"]["trend_start_date"] == process_control_df["date"].iloc[-5]
+    assert story["variables"]["previous_trend_duration"] == 25
 
 
 @pytest.mark.asyncio
@@ -68,11 +68,11 @@ async def test_generate_stories_downward_trend(mocker, trends_story_builder, pro
     process_control_df = process_control_df.copy()
     # set 10th from last as signal detected
     process_control_df.loc[process_control_df.index[-30], "trend_signal_detected"] = True
-    process_control_df.loc[process_control_df.index[-10], "trend_signal_detected"] = True
+    process_control_df.loc[process_control_df.index[-5], "trend_signal_detected"] = True
     # set slope for them to be less than those before
     process_control_df["slope"] = 1.2
-    process_control_df.loc[process_control_df.index[-30:-10], "slope"] = 1.8
-    process_control_df.loc[process_control_df.index[-10:], "slope"] = 1.5
+    process_control_df.loc[process_control_df.index[-30:-5], "slope"] = 1.8
+    process_control_df.loc[process_control_df.index[-5:], "slope"] = 1.5
 
     mocker.patch.object(trends_story_builder.analysis_manager, "process_control", return_value=process_control_df)
 
@@ -83,8 +83,8 @@ async def test_generate_stories_downward_trend(mocker, trends_story_builder, pro
     assert len(result) == 1
     story = result[0]
     assert story["story_type"] == StoryType.NEW_DOWNWARD_TREND
-    assert story["variables"]["trend_start_date"] == process_control_df["date"].iloc[-10]
-    assert story["variables"]["previous_trend_duration"] == 20
+    assert story["variables"]["trend_start_date"] == process_control_df["date"].iloc[-5]
+    assert story["variables"]["previous_trend_duration"] == 25
 
 
 @pytest.mark.asyncio
@@ -93,11 +93,11 @@ async def test_generate_stories_performance_plateau(mocker, trends_story_builder
     process_control_df = process_control_df.copy()
     # set 10th from last as signal detected
     process_control_df.loc[process_control_df.index[-30], "trend_signal_detected"] = True
-    process_control_df.loc[process_control_df.index[-10], "trend_signal_detected"] = True
+    process_control_df.loc[process_control_df.index[-5], "trend_signal_detected"] = True
     # set slope for them to be less than those before
     process_control_df["slope"] = 1.2
-    process_control_df.loc[process_control_df.index[-30:-10], "slope"] = 1.8
-    process_control_df.loc[process_control_df.index[-10:], "slope"] = 0.9
+    process_control_df.loc[process_control_df.index[-30:-5], "slope"] = 1.8
+    process_control_df.loc[process_control_df.index[-5:], "slope"] = 0.9
 
     mocker.patch.object(trends_story_builder.analysis_manager, "process_control", return_value=process_control_df)
 
