@@ -85,13 +85,13 @@ class StatusChangeStoryBuilder(StoryBuilderBase):
             )
             return []
 
-        story_type = self.story_mapping.get((current_status, prev_status))  # type: ignore
+        story_type = self.story_mapping.get((current_status, prev_status))  # noqa
 
         value = current_period["value"].item()
         target = current_period["target"].item()
         deviation = self.analysis_manager.calculate_percentage_difference(value, target)
 
-        prev_duration = self.get_previous_status_duration(df, prev_status)
+        prev_duration = self.get_previous_status_duration(df, prev_status)  # noqa
         story_details = self.prepare_story_dict(
             story_type,  # type: ignore
             grain=grain,

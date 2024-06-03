@@ -97,7 +97,7 @@ class GoalVsActualStoryBuilder(StoryBuilderBase):
             metric=metric,
             df=df,
             current_value=value,
-            direction=self.story_direction_map.get(story_type),
+            direction=self.story_direction_map.get(story_type),  # noqa
             current_growth=growth,
             target=target,
             deviation=abs(deviation),
