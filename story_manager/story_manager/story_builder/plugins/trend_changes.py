@@ -163,6 +163,7 @@ class TrendChangesStoryBuilder(StoryBuilderBase):
                     metric=metric,
                     df=pc_df,
                     avg_value=avg_value,
+                    current_avg_growth=current_avg_growth,
                     trend_start_date=trend_start_date_str,
                 )
                 stories.append(story_details)
