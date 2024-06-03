@@ -64,7 +64,7 @@ class LikelyStatusStoryBuilder(StoryBuilderBase):
         target_df = await self._get_time_series_for_targets(metric_id, grain, end_date, story_end_date)
         # Get the target value for the end of the period
         target_value = self.get_target_value_for_date(target_df, story_end_date)
-        if target_value is None:
+        if pd.isnull(target_value) or target_value is None:
             logger.warning(
                 "Discarding story generation for metric '%s' with grain '%s' due to missing target value",
                 metric_id,
