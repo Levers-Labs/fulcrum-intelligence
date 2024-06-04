@@ -261,13 +261,14 @@ STORY_TYPES_META: dict[str, dict[str, str]] = {
     },
     StoryType.REQUIRED_PERFORMANCE: {
         "title": "Must grow {{required_growth}}% {{pop}} to meet end of {{interval}} target",
-        "detail": "{{metric.label}} must average a {{required_growth}}% {{d/d}} growth rate over the next [y] {{"
-        "grain}}s to meet its end of {{interval}} target of {{target}}. {% if not min %} This is a [d]% "
-        "{{movement}} over the [q]% {{pop}} growth over the past {{duration}} {{grain}}s.{% endif %}",
+        "detail": "{{metric.label}} must average a {{required_growth}}% {{pop}} growth rate over the next {{"
+        "req_duration}} {{grain}}s to meet its end of {{interval}} target of {{target}}. {% if not is_min "
+        "%} This is a {{growth_deviation}}% {{movement}} over the {{current_growth}}% {{pop}} growth over the"
+        " past {{duration}} {{grain}}s.{% endif %}",
     },
     StoryType.HOLD_STEADY: {
         "title": "Metric must maintain its performance",
-        "detail": "{{metric.label}} is already performing at its target level for the end of [period] and needs to "
-        "maintain this lead for the next [y] {{grain}}s to stay On Track.",
+        "detail": "{{metric.label}} is already performing at its target level for the end of {{duration}} {{grain}}s "
+        "and needs to maintain this lead for the next {{req_duration}} {{grain}}s to stay On Track.",
     },
 }
