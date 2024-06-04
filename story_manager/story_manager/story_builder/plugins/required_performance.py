@@ -13,6 +13,7 @@ from story_manager.core.enums import (
 )
 from story_manager.story_builder import StoryBuilderBase
 from story_manager.story_builder.constants import GRAIN_META
+from story_manager.story_builder.utils import get_target_value_for_date
 
 logger = logging.getLogger(__name__)
 
@@ -50,7 +51,7 @@ class RequiredPerformanceStoryBuilder(StoryBuilderBase):
         """
 
         stories: list[dict] = []
-        is_min = False
+        is_min_data = False
 
         # get metric details
         metric = await self.query_service.get_metric(metric_id)
@@ -75,11 +76,10 @@ class RequiredPerformanceStoryBuilder(StoryBuilderBase):
 
         # get the target value for the end of the period
         target_df = await self._get_time_series_for_targets(metric_id, grain, end_date, period_end_date)
-        end_of_interval_target = target_df[target_df["date"] == pd.to_datetime(period_end_date)]
-        target = end_of_interval_target["target"]
-        if target.empty:
-            logging.warning(
-                "Discarding story generation for metric '%s' with grain '%s' due to no target",
+        target = get_target_value_for_date(target_df, period_end_date)
+        if pd.isnull(target) or target is None:
+            logger.warning(
+                "Discarding story generation for metric '%s' with grain '%s' due to no target for end of interval",
                 metric_id,
                 grain,
             )
@@ -88,7 +88,6 @@ class RequiredPerformanceStoryBuilder(StoryBuilderBase):
         current_period = df.iloc[-1]
         value = current_period["value"].item()
 
-        target = target.item()
         if value >= target:
             story_type = StoryType.HOLD_STEADY
         else:
@@ -97,7 +96,7 @@ class RequiredPerformanceStoryBuilder(StoryBuilderBase):
         # update min_data flag if the data is less then min required
         time_durations = self.get_time_durations(grain)
         if len(df) < time_durations["min"]:
-            is_min = True
+            is_min_data = True
 
         req_duration = self.calculate_periods_count(end_date, period_end_date, grain)
         required_growth = self.analysis_manager.calculate_required_growth(value, target, req_duration, 2)
@@ -114,7 +113,7 @@ class RequiredPerformanceStoryBuilder(StoryBuilderBase):
             duration=len(df),
             interval=interval,
             target=target,
-            is_min=is_min,
+            is_min_data=is_min_data,
             required_growth=required_growth,
             current_growth=current_growth,
             growth_deviation=abs(growth_deviation),

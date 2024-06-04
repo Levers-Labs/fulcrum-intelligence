@@ -8,6 +8,7 @@ import pytest
 from commons.models.enums import Granularity
 from story_manager.core.enums import StoryType
 from story_manager.story_builder.plugins.likely_status import LikelyStatusStoryBuilder
+from story_manager.story_builder.utils import get_target_value_for_date
 
 
 @pytest.fixture
@@ -225,7 +226,7 @@ def test_get_target_value_for_date():
     ref_date = datetime.date(2022, 1, 12)
 
     # Act
-    target_value = LikelyStatusStoryBuilder.get_target_value_for_date(target_df, ref_date)
+    target_value = get_target_value_for_date(target_df, ref_date)
 
     # Assert
     assert target_value == 300
@@ -234,7 +235,7 @@ def test_get_target_value_for_date():
     ref_date = datetime.date(2022, 1, 9)
 
     # Act
-    target_value = LikelyStatusStoryBuilder.get_target_value_for_date(target_df, ref_date)
+    target_value = get_target_value_for_date(target_df, ref_date)
 
     # Assert
     assert target_value is None
