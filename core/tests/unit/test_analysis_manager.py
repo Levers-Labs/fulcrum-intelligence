@@ -281,7 +281,7 @@ def test_calculate_segment_relative_change():
     segment = {"comparison_value": {"slice_value": 2100}, "evaluation_value": {"slice_value": 1000}}
 
     # for valid values
-    assert SegmentDriftEvaluator("").calculate_segment_relative_change(segment, 0) == 110.00000000000001
+    assert SegmentDriftEvaluator("").calculate_segment_relative_change(segment, 0) == -110.00000000000001
 
 
 @pytest.mark.asyncio

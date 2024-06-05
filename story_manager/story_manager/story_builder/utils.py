@@ -23,3 +23,14 @@ def determine_status_for_value_and_target(df_row: pd.Series) -> StoryType | None
         return StoryType.ON_TRACK
     else:
         return StoryType.OFF_TRACK
+
+
+def convert_snake_case_to_label(snake_case_str: str) -> str:
+    words = snake_case_str.split("_")
+    label_string = " ".join(word.capitalize() for word in words)
+    return label_string
+
+
+def fetch_dimensions_from_metric(metric_details: dict) -> list[str]:
+    dimensions = [dimension["id"] for dimension in metric_details["dimensions"]]
+    return dimensions

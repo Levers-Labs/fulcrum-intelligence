@@ -10,6 +10,7 @@ class StoryGenre(str, Enum):
     TRENDS = "TRENDS"
     PERFORMANCE = "PERFORMANCE"
     BIG_MOVES = "BIG_MOVES"
+    ROOT_CAUSES = "ROOT_CAUSES"
 
 
 class StoryType(str, Enum):
@@ -37,6 +38,11 @@ class StoryType(str, Enum):
     # Big Moves Stories
     RECORD_HIGH = "RECORD_HIGH"
     RECORD_LOW = "RECORD_LOW"
+    # Segment Drift Stories
+    GROWING_SEGMENT = "GROWING_SEGMENT"
+    SHRINKING_SEGMENT = "SHRINKING_SEGMENT"
+    IMPROVING_SEGMENT = "IMPROVING_SEGMENT"
+    WORSENING_SEGMENT = "WORSENING_SEGMENT"
 
 
 class StoryGroup(str, Enum):
@@ -53,6 +59,7 @@ class StoryGroup(str, Enum):
 
     RECORD_VALUES = "RECORD_VALUES"
     STATUS_CHANGE = "STATUS_CHANGE"
+    SEGMENT_DRIFT = "SEGMENT_DRIFT"
 
 
 class Position(str, Enum):
@@ -80,6 +87,16 @@ class Direction(str, Enum):
 
     UP = "up"
     DOWN = "down"
+
+
+class Pressure(str, Enum):
+    """
+    Defines the pressure of a slice
+    """
+
+    UPWARD = "upward"
+    DOWNWARD = "downward"
+    UNCHANGED = "unchanged"
 
 
 GROUP_TO_STORY_TYPE_MAPPING = {
@@ -112,6 +129,12 @@ GROUP_TO_STORY_TYPE_MAPPING = {
     StoryGroup.STATUS_CHANGE: [
         StoryType.IMPROVING_STATUS,
         StoryType.WORSENING_STATUS,
+    ],
+    StoryGroup.SEGMENT_DRIFT: [
+        StoryType.GROWING_SEGMENT,
+        StoryType.SHRINKING_SEGMENT,
+        StoryType.IMPROVING_SEGMENT,
+        StoryType.WORSENING_SEGMENT,
     ],
 }
 
@@ -233,5 +256,29 @@ STORY_TYPES_META: dict[str, dict[str, str]] = {
         # e.g., NewBizDeals is now Off-Track and missing target by 10% after previously being On-Track for 2 weeks.
         "detail": "{{metric.label}} is now Off-Track and missing target by {{deviation}}% after previously being "
         "On-Track for {{prev_duration}} {{grain}}s.",
+    },
+    StoryType.GROWING_SEGMENT: {
+        "title": "Key Driver: Growing {{slice}} share of {{dimension}}",
+        "detail": "The share of {{dimension}} that is {{slice}} increased from {{past_val}}% to {{current_val}}% over "
+        "the past {{grain}}. This increase contributed {{pressure_change}}% {{pressure_direction}} pressure on "
+        "{{metric.label}}.",
+    },
+    StoryType.SHRINKING_SEGMENT: {
+        "title": "Key Driver: Falling {{slice}} share of {{dimension}}",
+        "detail": "For {{metric.label}}, the share of {{dimension}} that is {{slice}} has decreased from {{past_val}}% "
+        "to {{current_val}}% over the past {{grain}}. This decrease contributed {{pressure_change}}% "
+        "{{pressure_direction}} pressure on {{metric.label}}. ",
+    },
+    StoryType.IMPROVING_SEGMENT: {
+        "title": "Key Driver: Stronger {{slice}} segment",
+        "detail": "Over the past {{grain}}, when {{dimension}} is {{slice}}, {{metric.label}} is {{current_val}}. "
+        "This is an increase of {{percentage_difference}}% relative to the prior {{grain}}, "
+        "and this increase contributed {{pressure_change}}% {{pressure_direction}} pressure on {{metric.label}}.",
+    },
+    StoryType.WORSENING_SEGMENT: {
+        "title": "Key Driver: Weaker {{slice}} segment",
+        "detail": "Over the past {{grain}}, when {{dimension}} is {{slice}}, {{metric.label}} is {{current_val}}. "
+        "This is an decrease of {{percentage_difference}}% relative to the prior {{grain}}, "
+        "and this decrease contributed {{pressure_change}}% {{pressure_direction}} pressure on {{metric.label}}.",
     },
 }
