@@ -83,6 +83,38 @@ class StoryBuilderBase(ABC):
             time_series_df.set_index("date", inplace=True)
         return time_series_df
 
+    async def _get_time_series_for_targets(
+        self, metric_id: str, grain: Granularity, start_date: date, end_date: date, set_index: bool = False
+    ) -> pd.DataFrame:
+        """
+        Retrieve time series data for the given metric, grain, and date range
+
+        :param metric_id: The metric ID for which time series data is retrieved
+        :param grain: The grain for which time series data is retrieved
+        :param start_date: The start date of the time series data
+        :param end_date: The end date of the time series data
+        :param set_index: Whether to set the date column as the index of the DataFrame
+
+        :return: A pandas DataFrame containing the target time series data
+        """
+        logger.debug(
+            f"Retrieving targets for metric '{metric_id}' with grain '{grain}' from {start_date} to {end_date}"
+        )
+        metric_targets = await self.query_service.get_metric_targets(
+            metric_id, start_date=start_date, end_date=end_date, grain=grain
+        )
+        # convert the list of dictionaries to a DataFrame
+        targets_df = pd.DataFrame(
+            metric_targets, columns=["target_date", "target_value", "aim", "target_upper_bound", "target_lower_bound"]
+        )
+        # rename the columns
+        targets_df.rename(columns={"target_date": "date", "target_value": "target"}, inplace=True)
+        # convert the date column to datetime
+        targets_df["date"] = pd.to_datetime(targets_df["date"])
+        if set_index:
+            targets_df.set_index("date", inplace=True)
+        return targets_df
+
     def get_story_context(self, grain: Granularity, metric: dict, **context) -> dict[str, Any]:
         """
         Get the context variables required for rendering the story detail and title
@@ -179,7 +211,7 @@ class StoryBuilderBase(ABC):
         by 'date_text_format' attribute and replacing NaN values with the string 'None'.
 
         :param grain: Grain for which the story is generated.
-        :param df: The DataFrame containing the time series data.
+        :param df: The DataFrame that contains the time series data.
         :return: series: The DataFrame with formatted time series data.
         """
         grain_durations = self.get_time_durations(grain)
@@ -188,8 +220,8 @@ class StoryBuilderBase(ABC):
         if "date" in df.columns:
             df["date"] = df["date"].dt.strftime(self.date_text_format) if hasattr(df["date"], "dt") else df["date"]
         df.replace([float("inf"), float("-inf"), np.NaN], [None, None, None], inplace=True)
-        series = df.tail(series_length).to_dict(orient="records")
-        return series
+        series = df.tail(series_length) if series_length else df
+        return series.to_dict(orient="records")
 
     @abstractmethod
     async def generate_stories(self, metric_id: str, grain: Granularity) -> list[dict]:
@@ -321,6 +353,7 @@ class StoryBuilderBase(ABC):
         :param grain: The grain for which time series data is retrieved
         :param start_date: The start date of the time series data
         :param end_date: The end date of the time series data
+
         :return: A pandas DataFrame containing the time series data with target values.
         """
 
@@ -328,22 +361,14 @@ class StoryBuilderBase(ABC):
             f"Retrieving time series data with targets for metric '{metric_id}' with grain '{grain}' "
             f"from {start_date} to {end_date}"
         )
-
+        # Get the time series data for the metric
         series_df = await self._get_time_series_data(metric_id, grain, start_date, end_date, set_index=False)
-
-        targets_list = await self.query_service.get_metric_targets(metric_id, grain, start_date, end_date)
-        targets_df = pd.DataFrame(targets_list)
-
-        # Converting date columns to datetime
-        series_df["date"] = pd.to_datetime(series_df["date"])
-        targets_df["target_date"] = pd.to_datetime(targets_df["target_date"])
+        # Get the target values for the metric
+        targets_df = await self._get_time_series_for_targets(metric_id, grain, start_date, end_date, set_index=False)
 
         # Merging df with target_df on the date columns
-        merged_df = pd.merge(series_df, targets_df, left_on="date", right_on="target_date", how="left")
+        merged_df = pd.merge(series_df, targets_df, how="left", on="date")
 
         # Selecting only the required columns
-        final_df = merged_df[["date", "value", "target_value"]]
-
-        # Renaming the target_value column to target
-        final_df = final_df.rename(columns={"target_value": "target"})
+        final_df = merged_df[["date", "value", "target"]]
         return final_df

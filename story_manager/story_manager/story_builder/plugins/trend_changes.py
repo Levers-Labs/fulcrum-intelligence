@@ -79,7 +79,11 @@ class TrendChangesStoryBuilder(StoryBuilderBase):
         grain_durations = self.get_time_durations(grain)
         output_period = grain_durations["output"]
         stories_df = pc_df.tail(output_period)
-        if not stories_df["trend_signal_detected"].any():
+        # only check if the most recent measurement triggers a Wheeler rule
+        # check if trend signal detected in 7 latest data points
+        latest_trend_signal_detected = stories_df["trend_signal_detected"].tail(7).any()
+
+        if not latest_trend_signal_detected:
             # Calculate average growth for the stable trend
             avg_growth = self.analysis_manager.cal_average_growth(stories_df["value"])
 
@@ -159,6 +163,7 @@ class TrendChangesStoryBuilder(StoryBuilderBase):
                     metric=metric,
                     df=pc_df,
                     avg_value=avg_value,
+                    current_avg_growth=current_avg_growth,
                     trend_start_date=trend_start_date_str,
                 )
                 stories.append(story_details)
