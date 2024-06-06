@@ -271,7 +271,7 @@ def test_get_metric_change_direction():
 
 
 def test_get_overall_change():
-    assert SegmentDriftEvaluator("").get_overall_change(10, 0) == 0.0
+    assert SegmentDriftEvaluator("").get_overall_change(10, 0) == -1.0
 
 
 def test_calculate_segment_relative_change():
@@ -281,7 +281,7 @@ def test_calculate_segment_relative_change():
     segment = {"comparison_value": {"slice_value": 2100}, "evaluation_value": {"slice_value": 1000}}
 
     # for valid values
-    assert SegmentDriftEvaluator("").calculate_segment_relative_change(segment, 0) == -110.00000000000001
+    assert SegmentDriftEvaluator("").calculate_segment_relative_change(segment, 0) == -52.38095238095239
 
 
 @pytest.mark.asyncio

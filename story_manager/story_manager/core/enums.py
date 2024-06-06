@@ -277,27 +277,30 @@ STORY_TYPES_META: dict[str, dict[str, str]] = {
         "of {{target}} by {{deviation}}%.",
     },
     StoryType.GROWING_SEGMENT: {
-        "title": "Key Driver: Growing {{slice}} share of {{dimension}}",
-        "detail": "The share of {{dimension}} that is {{slice}} increased from {{past_val}}% to {{current_val}}% over "
-        "the past {{grain}}. This increase contributed {{pressure_change}}% {{pressure_direction}} pressure on "
-        "{{metric.label}}.",
+        "title": "Key Driver: Growing {{slice | default('null')}} share of {{dimension}}",
+        "detail": "The share of {{dimension}} that is {{slice | default('null')}} increased from "
+        "{{comparison_slice_share}}% to {{evaluation_slice_share}}% over the past {{grain}}. This increase "
+        "contributed {{slice_share_change_percentage}}% {{pressure_direction}} pressure on {{metric.label}}.",
     },
     StoryType.SHRINKING_SEGMENT: {
-        "title": "Key Driver: Falling {{slice}} share of {{dimension}}",
-        "detail": "For {{metric.label}}, the share of {{dimension}} that is {{slice}} has decreased from {{past_val}}% "
-        "to {{current_val}}% over the past {{grain}}. This decrease contributed {{pressure_change}}% "
-        "{{pressure_direction}} pressure on {{metric.label}}. ",
+        "title": "Key Driver: Falling {{slice | default('null')}} share of {{dimension}}",
+        "detail": "For {{metric.label}}, the share of {{dimension}} that is {{slice | default('null')}} has decreased "
+        "from {{comparison_slice_share}}% to {{evaluation_slice_share}}% over the past {{grain}}. This "
+        "decrease contributed {{slice_share_change_percentage}}% {{pressure_direction}} pressure on "
+        "{{metric.label}}.",
     },
     StoryType.IMPROVING_SEGMENT: {
-        "title": "Key Driver: Stronger {{slice}} segment",
-        "detail": "Over the past {{grain}}, when {{dimension}} is {{slice}}, {{metric.label}} is {{current_val}}. "
-        "This is an increase of {{percentage_difference}}% relative to the prior {{grain}}, "
-        "and this increase contributed {{pressure_change}}% {{pressure_direction}} pressure on {{metric.label}}.",
+        "title": "Key Driver: Stronger {{slice | default('null')}} segment",
+        "detail": "Over the past {{grain}}, when {{dimension}} is {{slice | default('null')}}, {{metric.label}} is "
+        "{{evaluation_slice_value}}. This is an increase of {{slice_value_change_percentage}}% relative to "
+        "the prior {{grain}}, and this increase contributed {{pressure_change}}% {{pressure_direction}} "
+        "pressure on {{metric.label}}.",
     },
     StoryType.WORSENING_SEGMENT: {
         "title": "Key Driver: Weaker {{slice}} segment",
-        "detail": "Over the past {{grain}}, when {{dimension}} is {{slice}}, {{metric.label}} is {{current_val}}. "
-        "This is an decrease of {{percentage_difference}}% relative to the prior {{grain}}, "
-        "and this decrease contributed {{pressure_change}}% {{pressure_direction}} pressure on {{metric.label}}.",
+        "detail": "Over the past {{grain}}, when {{dimension}} is {{slice | default('null')}}, {{metric.label}} is "
+        "{{evaluation_slice_value}}. This is an decrease of {{slice_value_change_percentage}}% relative to "
+        "the prior {{grain}}, and this decrease contributed {{pressure_change}}% {{pressure_direction}} "
+        "pressure on {{metric.label}}.",
     },
 }

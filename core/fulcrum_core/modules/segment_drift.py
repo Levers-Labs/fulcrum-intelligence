@@ -92,12 +92,11 @@ class SegmentDriftEvaluator:
                 impact=segment["impact"],
                 target_metric_direction=target_metric_direction,
             )
-
         return result
 
     def get_overall_change(self, comparison_value: float, evaluation_value: float) -> float:
         try:
-            overall_change = (evaluation_value - comparison_value) / evaluation_value
+            overall_change = (evaluation_value - comparison_value) / comparison_value
         except ZeroDivisionError:
             overall_change = 0.0
         return overall_change
@@ -114,7 +113,7 @@ class SegmentDriftEvaluator:
             slice_evaluation_value = 0
 
         try:
-            change = (slice_evaluation_value - slice_comparison_value) / slice_evaluation_value
+            change = (slice_evaluation_value - slice_comparison_value) / slice_comparison_value
 
         except ZeroDivisionError:
             return 0.0
@@ -274,20 +273,18 @@ class SegmentDriftEvaluator:
         """
         request_payload: dict[str, Any] = dict()
 
-        # Evaluation Start Date
+        # Comparison Start Date
         request_payload["baseDateRange"] = dict()
-        request_payload["baseDateRange"]["from"] = self.update_dateformat(evaluation_start_date)
-
+        request_payload["baseDateRange"]["from"] = self.update_dateformat(comparison_start_date)
         # Evaluation End Date
-        request_payload["baseDateRange"]["to"] = self.update_dateformat(evaluation_end_date)
+        request_payload["baseDateRange"]["to"] = self.update_dateformat(comparison_end_date)
 
         # Comparison Start Date
         request_payload["comparisonDateRange"] = dict()
-        request_payload["comparisonDateRange"]["from"] = self.update_dateformat(comparison_start_date)
+        request_payload["comparisonDateRange"]["from"] = self.update_dateformat(evaluation_start_date)
 
         # Comparison End Date
-        request_payload["comparisonDateRange"]["to"] = self.update_dateformat(comparison_end_date)
-
+        request_payload["comparisonDateRange"]["to"] = self.update_dateformat(evaluation_end_date)
         # file_id of the generated CSV, change it later
         request_payload["fileId"] = csv_file_id
 
@@ -360,9 +357,13 @@ class SegmentDriftEvaluator:
         """
         for key, value in snake_case_converted_response.items():
 
-            # replacing baseline with evaluation in key
+            # replacing baseline with comparison in key
             if key.startswith("baseline"):
-                key = "evaluation" + key[len("baseline") :]
+                key = "comparison" + key[len("baseline") :]
+
+            # replacing comparison with evaluation in key
+            elif key.startswith("comparison"):
+                key = "evaluation" + key[len("comparison") :]
 
             # if the value is of type dict we will call the function recursively to convert the nested dict keys as well
             if isinstance(value, dict):
