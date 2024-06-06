@@ -182,34 +182,49 @@ def segment_drift_stories():
             "grain": "week",
             "series": [
                 {
-                    "past_val": 100.0,
-                    "current_val": 96.67,
+                    "comparison_slice_share": 100.0,
+                    "evaluation_slice_share": 96.67,
                     "dimension": "Billing Plan",
-                    "slice": "Enterprise",
-                    "pressure_change": -3.33,
+                    "slice_name": "Enterprise",
+                    "slice_share_change_percentage": -3.33,
                     "pressure_direction": "upward",
+                    "comparison_slice_value": 106,
+                    "evaluation_slice_value": 29,
+                    "slice_value_change_percentage": -72.64,
+                    "pressure_change": 2.66,
+                    "impact": 77,
+                    "sort_value": 77,
+                    "serialized_key": "billing_plan:Enterprise",
                 }
             ],
-            "title": "Key Driver: Falling Enterprise share of Billing Plan",
-            "detail": "For New Business Deals, the share of Billing Plan that is Enterprise has decreased from 100.0% "
-            "to 96.67% over the past week. This decrease contributed -3.33% upward pressure on "
-            "New Business Deals. ",
-            "title_template": "Key Driver: Falling {{slice}} share of {{dimension}}",
-            "detail_template": "For {{metric.label}}, the share of {{dimension}} that is {{slice}} has decreased from "
-            "{{past_val}}% to {{current_val}}% over the past {{grain}}. This decrease contributed "
-            "{{pressure_change}}% {{pressure_direction}} pressure on {{metric.label}}. ",
+            "title": "Key Driver: Falling null share of Billing Plan",
+            "detail": "For New Business Deals, the share of Billing Plan that is null has decreased from 100.0% to "
+            "96.67% over the past week. This decrease contributed -3.33% upward pressure on New Business "
+            "Deals.",
+            "title_template": "Key Driver: Falling {{slice | default('null')}} share of {{dimension}}",
+            "detail_template": "For {{metric.label}}, the share of {{dimension}} that is {{slice | default('null')}} "
+            "has decreased from {{comparison_slice_share}}% to {{evaluation_slice_share}}% over "
+            "the past {{grain}}. This decrease contributed {{slice_share_change_percentage}}% "
+            "{{pressure_direction}} pressure on {{metric.label}}.",
             "variables": {
                 "grain": "week",
                 "eoi": "EOW",
                 "metric": {"id": "NewBizDeals", "label": "New Business Deals"},
                 "pop": "w/w",
                 "interval": "weekly",
-                "past_val": 100.0,
-                "current_val": 96.67,
+                "comparison_slice_share": 100.0,
+                "evaluation_slice_share": 96.67,
                 "dimension": "Billing Plan",
-                "slice": "Enterprise",
-                "pressure_change": -3.33,
+                "slice_name": "Enterprise",
+                "slice_share_change_percentage": -3.33,
                 "pressure_direction": "upward",
+                "comparison_slice_value": 106,
+                "evaluation_slice_value": 29,
+                "slice_value_change_percentage": -72.64,
+                "pressure_change": 2.66,
+                "impact": 77,
+                "sort_value": 77,
+                "serialized_key": "billing_plan:Enterprise",
             },
         },
         {
@@ -220,37 +235,50 @@ def segment_drift_stories():
             "grain": "week",
             "series": [
                 {
-                    "past_val": 106,
-                    "current_val": 29,
+                    "comparison_slice_share": 100.0,
+                    "evaluation_slice_share": 96.67,
                     "dimension": "Billing Plan",
-                    "slice": "Enterprise",
-                    "percentage_difference": -72.64,
-                    "pressure_change": 2.66,
+                    "slice_name": "Enterprise",
+                    "slice_share_change_percentage": -3.33,
                     "pressure_direction": "upward",
+                    "comparison_slice_value": 106,
+                    "evaluation_slice_value": 29,
+                    "slice_value_change_percentage": -72.64,
+                    "pressure_change": 2.66,
+                    "impact": 77,
+                    "sort_value": 77,
+                    "serialized_key": "billing_plan:Enterprise",
                 }
             ],
-            "title": "Key Driver: Stronger Enterprise segment",
-            "detail": "Over the past week, when Billing Plan is Enterprise, New Business Deals is 29. This is an "
-            "increase of -72.64% relative to the prior week, and this increase contributed 2.66% upward "
-            "pressure on New Business Deals.",
-            "title_template": "Key Driver: Stronger {{slice}} segment",
-            "detail_template": "Over the past {{grain}}, when {{dimension}} is {{slice}}, {{metric.label}} is "
-            "{{current_val}}. This is an increase of {{percentage_difference}}% relative to the "
-            "prior {{grain}}, and this increase contributed {{pressure_change}}% "
-            "{{pressure_direction}} pressure on {{metric.label}}.",
+            "title": "Key Driver: Stronger null segment",
+            "detail": "Over the past week, when Billing Plan is null, New Business Deals is 29. This is an increase of "
+            "-72.64% relative to the prior week, and this increase contributed 2.66% upward pressure on New "
+            "Business Deals.",
+            "title_template": "Key Driver: Stronger {{slice | default('null')}} segment",
+            "detail_template": "Over the past {{grain}}, when {{dimension}} is {{slice | default('null')}}, "
+            "{{metric.label}} is {{evaluation_slice_value}}. This is an increase of "
+            "{{slice_value_change_percentage}}% relative to the prior {{grain}}, and "
+            "this increase contributed {{pressure_change}}% {{pressure_direction}} pressure "
+            "on {{metric.label}}.",
             "variables": {
                 "grain": "week",
                 "eoi": "EOW",
                 "metric": {"id": "NewBizDeals", "label": "New Business Deals"},
                 "pop": "w/w",
                 "interval": "weekly",
-                "past_val": 106,
-                "current_val": 29,
+                "comparison_slice_share": 100.0,
+                "evaluation_slice_share": 96.67,
                 "dimension": "Billing Plan",
-                "slice": "Enterprise",
-                "percentage_difference": -72.64,
-                "pressure_change": 2.66,
+                "slice_name": "Enterprise",
+                "slice_share_change_percentage": -3.33,
                 "pressure_direction": "upward",
+                "comparison_slice_value": 106,
+                "evaluation_slice_value": 29,
+                "slice_value_change_percentage": -72.64,
+                "pressure_change": 2.66,
+                "impact": 77,
+                "sort_value": 77,
+                "serialized_key": "billing_plan:Enterprise",
             },
         },
         {
@@ -261,33 +289,48 @@ def segment_drift_stories():
             "grain": "week",
             "series": [
                 {
-                    "past_val": 0.0,
-                    "current_val": 3.33,
+                    "comparison_slice_share": 0.0,
+                    "evaluation_slice_share": 3.33,
                     "dimension": "Billing Plan",
-                    "slice": "Partnership",
-                    "pressure_change": 3.33,
+                    "slice_name": "Partnership",
+                    "slice_share_change_percentage": 3.33,
                     "pressure_direction": "downward",
+                    "comparison_slice_value": 0,
+                    "evaluation_slice_value": 1,
+                    "slice_value_change_percentage": 0.0,
+                    "pressure_change": -1.0,
+                    "impact": -1,
+                    "sort_value": 1,
+                    "serialized_key": "billing_plan:Partnership",
                 }
             ],
-            "title": "Key Driver: Growing Partnership share of Billing Plan",
-            "detail": "The share of Billing Plan that is Partnership increased from 0.0% to 3.33% over the past week. "
-            "This increase contributed 3.33% downward pressure on New Business Deals.",
-            "title_template": "Key Driver: Growing {{slice}} share of {{dimension}}",
-            "detail_template": "The share of {{dimension}} that is {{slice}} increased from {{past_val}}% to "
-            "{{current_val}}% over the past {{grain}}. This increase contributed "
-            "{{pressure_change}}% {{pressure_direction}} pressure on {{metric.label}}.",
+            "title": "Key Driver: Growing null share of Billing Plan",
+            "detail": "The share of Billing Plan that is null increased from 0.0% to 3.33% over the past week. This "
+            "increase contributed 3.33% downward pressure on New Business Deals.",
+            "title_template": "Key Driver: Growing {{slice | default('null')}} share of {{dimension}}",
+            "detail_template": "The share of {{dimension}} that is {{slice | default('null')}} increased from "
+            "{{comparison_slice_share}}% to {{evaluation_slice_share}}% over the past {{grain}}. "
+            "This increase contributed {{slice_share_change_percentage}}% {{pressure_direction}} "
+            "pressure on {{metric.label}}.",
             "variables": {
                 "grain": "week",
                 "eoi": "EOW",
                 "metric": {"id": "NewBizDeals", "label": "New Business Deals"},
                 "pop": "w/w",
                 "interval": "weekly",
-                "past_val": 0.0,
-                "current_val": 3.33,
+                "comparison_slice_share": 0.0,
+                "evaluation_slice_share": 3.33,
                 "dimension": "Billing Plan",
-                "slice": "Partnership",
-                "pressure_change": 3.33,
+                "slice_name": "Partnership",
+                "slice_share_change_percentage": 3.33,
                 "pressure_direction": "downward",
+                "comparison_slice_value": 0,
+                "evaluation_slice_value": 1,
+                "slice_value_change_percentage": 0.0,
+                "pressure_change": -1.0,
+                "impact": -1,
+                "sort_value": 1,
+                "serialized_key": "billing_plan:Partnership",
             },
         },
         {
@@ -298,37 +341,160 @@ def segment_drift_stories():
             "grain": "week",
             "series": [
                 {
-                    "past_val": 0,
-                    "current_val": 1,
+                    "comparison_slice_share": 0.0,
+                    "evaluation_slice_share": 3.33,
                     "dimension": "Billing Plan",
-                    "slice": "Partnership",
-                    "percentage_difference": 0,
-                    "pressure_change": -1.0,
+                    "slice_name": "Partnership",
+                    "slice_share_change_percentage": 3.33,
                     "pressure_direction": "downward",
+                    "comparison_slice_value": 0,
+                    "evaluation_slice_value": 1,
+                    "slice_value_change_percentage": 0.0,
+                    "pressure_change": -1.0,
+                    "impact": -1,
+                    "sort_value": 1,
+                    "serialized_key": "billing_plan:Partnership",
                 }
             ],
-            "title": "Key Driver: Weaker Partnership segment",
-            "detail": "Over the past week, when Billing Plan is Partnership, New Business Deals is 1. This is an "
-            "decrease of 0% relative to the prior week, and this decrease contributed -1.0% downward "
-            "pressure on New Business Deals.",
+            "title": "Key Driver: Weaker  segment",
+            "detail": "Over the past week, when Billing Plan is null, New Business Deals is 1. This is an decrease of "
+            "0.0% relative to the prior week, and this decrease contributed -1.0% downward pressure on New "
+            "Business Deals.",
             "title_template": "Key Driver: Weaker {{slice}} segment",
-            "detail_template": "Over the past {{grain}}, when {{dimension}} is {{slice}}, {{metric.label}} is {"
-            "{current_val}}. This is an decrease of {{percentage_difference}}% relative to "
-            "the prior {{grain}}, and this decrease contributed {{pressure_change}}% "
-            "{{pressure_direction}} pressure on {{metric.label}}.",
+            "detail_template": "Over the past {{grain}}, when {{dimension}} is {{slice | default('null')}}, "
+            "{{metric.label}} is {{evaluation_slice_value}}. This is an decrease of "
+            "{{slice_value_change_percentage}}% relative to the prior {{grain}}, and this "
+            "decrease contributed {{pressure_change}}% {{pressure_direction}} pressure on "
+            "{{metric.label}}.",
             "variables": {
                 "grain": "week",
                 "eoi": "EOW",
                 "metric": {"id": "NewBizDeals", "label": "New Business Deals"},
                 "pop": "w/w",
                 "interval": "weekly",
-                "past_val": 0,
-                "current_val": 1,
+                "comparison_slice_share": 0.0,
+                "evaluation_slice_share": 3.33,
                 "dimension": "Billing Plan",
-                "slice": "Partnership",
-                "percentage_difference": 0,
-                "pressure_change": -1.0,
+                "slice_name": "Partnership",
+                "slice_share_change_percentage": 3.33,
                 "pressure_direction": "downward",
+                "comparison_slice_value": 0,
+                "evaluation_slice_value": 1,
+                "slice_value_change_percentage": 0.0,
+                "pressure_change": -1.0,
+                "impact": -1,
+                "sort_value": 1,
+                "serialized_key": "billing_plan:Partnership",
             },
         },
     ]
+
+
+data = [
+    {
+        "metric_id": "NewBizDeals",
+        "genre": "ROOT_CAUSES",
+        "story_group": "SEGMENT_DRIFT",
+        "story_type": "GROWING_SEGMENT",
+        "grain": "week",
+        "series": [
+            {
+                "comparison_slice_share": 0.0,
+                "evaluation_slice_share": 3.33,
+                "dimension": "Billing Plan",
+                "slice_name": "Partnership",
+                "slice_share_change_percentage": 3.33,
+                "pressure_direction": "downward",
+                "comparison_slice_value": 0,
+                "evaluation_slice_value": 1,
+                "slice_value_change_percentage": 0,
+                "pressure_change": -1.0,
+                "impact": -1,
+                "sort_value": 1,
+                "serialized_key": "billing_plan:Partnership",
+            }
+        ],
+        "title": "Key Driver: Growing null share of Billing Plan",
+        "detail": "The share of Billing Plan that is null increased from 0.0% to 3.33% over the past week. This "
+        "increase contributed 3.33% downward pressure on New Business Deals.",
+        "title_template": "Key Driver: Growing {{slice | default('null')}} share of {{dimension}}",
+        "detail_template": "The share of {{dimension}} that is {{slice | default('null')}} increased from "
+        "{{comparison_slice_share}}% to {{evaluation_slice_share}}% over the past {{grain}}. "
+        "This increase contributed {{slice_share_change_percentage}}% {{pressure_direction}} "
+        "pressure on {{metric.label}}.",
+        "variables": {
+            "grain": "week",
+            "eoi": "EOW",
+            "metric": {"id": "NewBizDeals", "label": "New Business Deals"},
+            "pop": "w/w",
+            "interval": "weekly",
+            "comparison_slice_share": 0.0,
+            "evaluation_slice_share": 3.33,
+            "dimension": "Billing Plan",
+            "slice_name": "Partnership",
+            "slice_share_change_percentage": 3.33,
+            "pressure_direction": "downward",
+            "comparison_slice_value": 0,
+            "evaluation_slice_value": 1,
+            "slice_value_change_percentage": 0,
+            "pressure_change": -1.0,
+            "impact": -1,
+            "sort_value": 1,
+            "serialized_key": "billing_plan:Partnership",
+        },
+    },
+    {
+        "metric_id": "NewBizDeals",
+        "genre": "ROOT_CAUSES",
+        "story_group": "SEGMENT_DRIFT",
+        "story_type": "WORSENING_SEGMENT",
+        "grain": "week",
+        "series": [
+            {
+                "comparison_slice_share": 0.0,
+                "evaluation_slice_share": 3.33,
+                "dimension": "Billing Plan",
+                "slice_name": "Partnership",
+                "slice_share_change_percentage": 3.33,
+                "pressure_direction": "downward",
+                "comparison_slice_value": 0,
+                "evaluation_slice_value": 1,
+                "slice_value_change_percentage": 0,
+                "pressure_change": -1.0,
+                "impact": -1,
+                "sort_value": 1,
+                "serialized_key": "billing_plan:Partnership",
+            }
+        ],
+        "title": "Key Driver: Weaker  segment",
+        "detail": "Over the past week, when Billing Plan is null, New Business Deals is 1. This is an decrease of 0% "
+        "relative to the prior week, and this decrease contributed -1.0% downward pressure on New Business "
+        "Deals.",
+        "title_template": "Key Driver: Weaker {{slice}} segment",
+        "detail_template": "Over the past {{grain}}, when {{dimension}} is {{slice | default('null')}}, "
+        "{{metric.label}} is {{evaluation_slice_value}}. This is an decrease of "
+        "{{slice_value_change_percentage}}% relative to the prior {{grain}}, "
+        "and this decrease contributed {{pressure_change}}% {{pressure_direction}} pressure on "
+        "{{metric.label}}.",
+        "variables": {
+            "grain": "week",
+            "eoi": "EOW",
+            "metric": {"id": "NewBizDeals", "label": "New Business Deals"},
+            "pop": "w/w",
+            "interval": "weekly",
+            "comparison_slice_share": 0.0,
+            "evaluation_slice_share": 3.33,
+            "dimension": "Billing Plan",
+            "slice_name": "Partnership",
+            "slice_share_change_percentage": 3.33,
+            "pressure_direction": "downward",
+            "comparison_slice_value": 0,
+            "evaluation_slice_value": 1,
+            "slice_value_change_percentage": 0,
+            "pressure_change": -1.0,
+            "impact": -1,
+            "sort_value": 1,
+            "serialized_key": "billing_plan:Partnership",
+        },
+    },
+]
