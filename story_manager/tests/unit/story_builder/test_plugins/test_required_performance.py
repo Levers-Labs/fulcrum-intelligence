@@ -93,7 +93,6 @@ async def test_generate_req_performance_story_req_performance(required_performan
 
 @pytest.mark.asyncio
 async def test_generate_req_performance_story_for_min_data(required_performance_story_builder, targets_df):
-
     targets_df = targets_df[:5]
 
     required_performance_story_builder._get_time_series_data_with_targets = AsyncMock(return_value=targets_df)
@@ -115,3 +114,27 @@ async def test_generate_req_performance_story_for_min_data(required_performance_
     story = result[0]
     assert story["story_type"] == StoryType.REQUIRED_PERFORMANCE
     assert story["variables"]["is_min_data"] is True
+
+
+# Test for day grain with last day of month
+def test_day_grain_last_day_of_month(required_performance_story_builder):
+    today = date(2024, 2, 2)  # Leap year
+    interval, end_date = required_performance_story_builder._get_end_date_of_period(Granularity.DAY, today)
+    assert interval == Granularity.MONTH
+    assert end_date == date(2024, 2, 29)
+
+
+# Test for week grain with last day of month
+def test_week_grain_last_day_of_month(required_performance_story_builder):
+    today = date(2024, 2, 27)  # Leap year
+    interval, end_date = required_performance_story_builder._get_end_date_of_period(Granularity.WEEK, today)
+    assert interval == Granularity.MONTH
+    assert end_date == date(2024, 2, 29)
+
+
+# Test for month grain with last day of quarter
+def test_month_grain_last_day_of_quarter(required_performance_story_builder):
+    today = date(2024, 3, 3)  # End of a quarter
+    interval, end_date = required_performance_story_builder._get_end_date_of_period(Granularity.MONTH, today)
+    assert interval == Granularity.QUARTER
+    assert end_date == date(2024, 3, 31)

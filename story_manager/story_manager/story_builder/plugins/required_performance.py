@@ -1,8 +1,8 @@
-import calendar
 import logging
-from datetime import date
+from datetime import date, timedelta
 
 import pandas as pd
+from dateutil.relativedelta import relativedelta
 
 from commons.models.enums import Granularity
 from story_manager.core.enums import (
@@ -12,8 +12,7 @@ from story_manager.core.enums import (
     StoryType,
 )
 from story_manager.story_builder import StoryBuilderBase
-from story_manager.story_builder.constants import GRAIN_META
-from story_manager.story_builder.utils import get_target_value_for_date
+from story_manager.story_builder.utils import calculate_periods_count, get_target_value_for_date
 
 logger = logging.getLogger(__name__)
 
@@ -98,7 +97,7 @@ class RequiredPerformanceStoryBuilder(StoryBuilderBase):
         if len(df) < time_durations["min"]:
             is_min_data = True
 
-        req_duration = self.calculate_periods_count(end_date, period_end_date, grain)
+        req_duration = calculate_periods_count(end_date, period_end_date, grain)
         required_growth = self.analysis_manager.calculate_required_growth(value, target, req_duration, 2)
         current_growth = current_period["growth_rate"].item()
         growth_deviation = self.analysis_manager.calculate_percentage_difference(current_growth, required_growth)
@@ -142,37 +141,15 @@ class RequiredPerformanceStoryBuilder(StoryBuilderBase):
 
         today = curr_date or date.today()
         if grain == Granularity.DAY or grain == Granularity.WEEK:
-            interval = GRAIN_META[Granularity.MONTH]["interval"]
+            interval = Granularity.MONTH
             # End of the month
-            end_date = today.replace(day=calendar.monthrange(today.year, today.month)[1])
+            end_date = (today + relativedelta(months=1)).replace(day=1) - timedelta(days=1)
         elif grain == Granularity.MONTH:
-            interval = GRAIN_META[Granularity.QUARTER]["interval"]
+            interval = Granularity.QUARTER
             # Determine the end of the current quarter
-            quarter_start_month = (today.month - 1) // 3 * 3 + 1
-            quarter_end_month = quarter_start_month + 2
-            end_date = today.replace(month=quarter_end_month, day=calendar.monthrange(today.year, quarter_end_month)[1])
+            quarter_end_month = (today.month - 1) // 3 * 3 + 3
+            end_date = today.replace(month=quarter_end_month) + relativedelta(day=1, months=1, days=-1)
         else:
             raise ValueError(f"Unsupported grain: {grain}")
 
         return interval, end_date
-
-    @staticmethod
-    def calculate_periods_count(start_date: date, end_date: date, grain: Granularity) -> int:
-        """
-        Calculate the difference between two dates based on the specified granularity.
-        """
-        if grain == Granularity.DAY:
-            count = abs((start_date - end_date).days)
-        elif grain == Granularity.WEEK:
-            weeks_difference = (start_date - end_date).days // 7
-            # Adjust the weeks difference if the remainder of the days is not zero
-            if (start_date - end_date).days % 7 != 0:
-                weeks_difference += 1
-            count = abs(weeks_difference)
-        elif grain == Granularity.MONTH:
-            # Calculate the difference in months
-            months_difference = (start_date.year - end_date.year) * 12 + (start_date.month - end_date.month)
-            count = abs(months_difference)
-        else:
-            raise ValueError(f"Unsupported grain: {grain}")
-        return count
