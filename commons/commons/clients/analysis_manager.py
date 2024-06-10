@@ -28,3 +28,23 @@ class AnalysisManagerClient(AsyncHttpClient):
         }
         response = await self.post(endpoint="analyze/process-control", data=params)
         return response  # type: ignore
+
+    async def get_significant_segment(
+        self,
+        metric_id: str,
+        evaluation_start_date: date,
+        evaluation_end_date: date,
+        comparison_start_date: date,
+        comparison_end_date: date,
+        dimensions: list[str],
+    ):
+        params = {
+            "metric_id": metric_id,
+            "evaluation_start_date": evaluation_start_date,
+            "evaluation_end_date": evaluation_end_date,
+            "comparison_start_date": comparison_start_date,
+            "comparison_end_date": comparison_end_date,
+            "dimensions": dimensions,
+        }
+        response = await self.post(endpoint="analyze/significant/segment", data=params)
+        return response  # type: ignore

@@ -10,11 +10,11 @@ from fastapi import (
     HTTPException,
 )
 
-from analysis_manager.config import settings
 from analysis_manager.core.dependencies import (
     AnalysisManagerDep,
     ComponentDriftServiceDep,
     QueryManagerClientDep,
+    SegmentDriftServiceDep,
     UsersCRUDDep,
 )
 from analysis_manager.core.models import (
@@ -34,6 +34,7 @@ from analysis_manager.core.schema import (
     ProcessControlResponse,
     SegmentDriftRequest,
     SegmentDriftResponse,
+    SignificantSegmentResponse,
     UserList,
 )
 from commons.utilities.pagination import PaginationParams
@@ -280,8 +281,7 @@ async def simple_forecast(
 
 @router.post("/drift/segment", response_model=SegmentDriftResponse)
 async def segment_drift(
-    analysis_manager: AnalysisManagerDep,
-    query_manager: QueryManagerClientDep,
+    segment_drift_service: SegmentDriftServiceDep,
     drift_req: Annotated[
         SegmentDriftRequest,
         Body(
@@ -303,36 +303,60 @@ async def segment_drift(
     if len(drift_req.dimensions) == 0:
         raise HTTPException(status_code=400, detail="at least one dimension is required")
 
-    evaluation_data = await query_manager.get_metric_time_series(
+    return await segment_drift_service.get_segment_drift_data(
         metric_id=drift_req.metric_id,
-        start_date=drift_req.evaluation_start_date,
-        end_date=drift_req.evaluation_end_date,
         dimensions=drift_req.dimensions,
-    )
-
-    comparison_data = await query_manager.get_metric_time_series(
-        metric_id=drift_req.metric_id,
-        start_date=drift_req.comparison_start_date,
-        end_date=drift_req.comparison_end_date,
-        dimensions=drift_req.dimensions,
-    )
-
-    data_frame = pd.json_normalize(evaluation_data + comparison_data)
-
-    invalid_dimensions = [col for col in drift_req.dimensions if col not in data_frame.columns]
-
-    if invalid_dimensions:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Invalid dimensions : {', '.join(invalid_dimensions)}, for given metric {drift_req.metric_id}",
-        )
-
-    return await analysis_manager.segment_drift(
-        dsensei_base_url=settings.DSENSEI_BASE_URL,
-        df=data_frame,
         evaluation_start_date=drift_req.evaluation_start_date,
         evaluation_end_date=drift_req.evaluation_end_date,
         comparison_start_date=drift_req.comparison_start_date,
         comparison_end_date=drift_req.comparison_end_date,
-        dimensions=drift_req.dimensions,
     )
+
+
+@router.post("/significant/segment", response_model=SignificantSegmentResponse)
+async def significant_segment(
+    segment_drift_service: SegmentDriftServiceDep,
+    drift_req: Annotated[
+        SegmentDriftRequest,
+        Body(
+            examples=[
+                {
+                    "metric_id": "NewBizDeals",
+                    "evaluation_start_date": date(2024, 3, 1),
+                    "evaluation_end_date": date(2024, 3, 30),
+                    "comparison_start_date": date(2024, 2, 1),
+                    "comparison_end_date": date(2024, 2, 29),
+                    "dimensions": ["account_region", "billing_plan"],
+                }
+            ]
+        ),
+    ],
+):
+    logger.debug(f"Significant Segment request: {drift_req}")
+
+    if len(drift_req.dimensions) == 0:
+        raise HTTPException(status_code=400, detail="at least one dimension is required")
+
+    segment_drift_data = await segment_drift_service.get_segment_drift_data(
+        metric_id=drift_req.metric_id,
+        dimensions=drift_req.dimensions,
+        evaluation_start_date=drift_req.evaluation_start_date,
+        evaluation_end_date=drift_req.evaluation_end_date,
+        comparison_start_date=drift_req.comparison_start_date,
+        comparison_end_date=drift_req.comparison_end_date,
+    )
+
+    dimension_slice_values_df = segment_drift_service.get_dimension_slice_values_df(
+        segment_drift_data,
+    )
+    dimension_slice_values_df = dimension_slice_values_df.sort_values(by="evaluation_value", ascending=False)
+
+    top_4_segments = segment_drift_service.get_top_or_bottom_n_segments(dimension_slice_values_df, top=True).to_dict(
+        orient="records"
+    )
+
+    bottom_4_segments = segment_drift_service.get_top_or_bottom_n_segments(
+        dimension_slice_values_df, top=False
+    ).to_dict(orient="records")
+
+    return {"top_4_segments": top_4_segments, "bottom_4_segments": bottom_4_segments}

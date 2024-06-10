@@ -43,6 +43,8 @@ class StoryType(str, Enum):
     # Likely status
     LIKELY_ON_TRACK = "LIKELY_ON_TRACK"
     LIKELY_OFF_TRACK = "LIKELY_OFF_TRACK"
+    TOP_4_SEGMENTS = "TOP_4_SEGMENTS"
+    BOTTOM_4_SEGMENTS = "BOTTOM_4_SEGMENTS"
 
 
 class StoryGroup(str, Enum):
@@ -61,6 +63,7 @@ class StoryGroup(str, Enum):
     STATUS_CHANGE = "STATUS_CHANGE"
 
     REQUIRED_PERFORMANCE = "REQUIRED_PERFORMANCE"
+    SIGNIFICANT_SEGMENTS = "SIGNIFICANT_SEGMENTS"
 
 
 class Position(str, Enum):
@@ -126,6 +129,10 @@ GROUP_TO_STORY_TYPE_MAPPING = {
         StoryType.LIKELY_OFF_TRACK,
     ],
     StoryGroup.REQUIRED_PERFORMANCE: [StoryType.REQUIRED_PERFORMANCE, StoryType.HOLD_STEADY],
+    StoryGroup.SIGNIFICANT_SEGMENTS: [
+        StoryType.TOP_4_SEGMENTS,
+        StoryType.BOTTOM_4_SEGMENTS,
+    ],
 }
 
 # Story type meta-information
@@ -270,5 +277,13 @@ STORY_TYPES_META: dict[str, dict[str, str]] = {
         "title": "Metric must maintain its performance",
         "detail": "{{metric.label}} is already performing at its target level for the end of {{duration}} {{grain}}s "
         "and needs to maintain this lead for the next {{req_duration}} {{grain}}s to stay On Track.",
+    },
+    StoryType.TOP_4_SEGMENTS: {
+        "title": "Prior {{grain}} best performing segments",
+        "detail": "The segments below had the highest average values for {{metric.label}} over the past {{grain}}",
+    },
+    StoryType.BOTTOM_4_SEGMENTS: {
+        "title": "Prior {{grain}} worst performing segments",
+        "detail": "The segments below had the lowest average values for {{metric.label}} over the past {{grain}}",
     },
 }
