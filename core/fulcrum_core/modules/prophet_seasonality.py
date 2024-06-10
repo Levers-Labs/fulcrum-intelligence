@@ -93,7 +93,6 @@ class ProphetSeasonality:
 def process():
     # Load data
     df = pd.read_csv(r"C:\Users\anubhav\Desktop\leverslabs\data_model\sqls_weekly_latest.csv")
-    # df = pd.read_csv(r"C:\Users\anubhav\Desktop\leverslabs\data_24_04\Electric_Production.csv")
 
     # Initialize the forecasting model
     ps = ProphetSeasonality()
@@ -117,5 +116,5 @@ def process():
     return seasonal_component
 
 
-if __name__ == "__main__":
-    seasonal_components = process()
+# if __name__ == "__main__":
+#     seasonal_components = process()
