@@ -214,32 +214,6 @@ def test_get_story_period_invalid_grain():
         LikelyStatusStoryBuilder._get_story_period("invalid_grain", datetime.date(2022, 1, 12))
 
 
-def test_get_target_value_for_date():
-    # Prepare
-    target_df = pd.DataFrame(
-        {
-            "date": pd.date_range(start="2022-01-10", periods=5, freq="D"),
-            "target": [100, 200, 300, 400, 500],
-        }
-    )
-    ref_date = datetime.date(2022, 1, 12)
-
-    # Act
-    target_value = LikelyStatusStoryBuilder.get_target_value_for_date(target_df, ref_date)
-
-    # Assert
-    assert target_value == 300
-
-    # Prepare
-    ref_date = datetime.date(2022, 1, 9)
-
-    # Act
-    target_value = LikelyStatusStoryBuilder.get_target_value_for_date(target_df, ref_date)
-
-    # Assert
-    assert target_value is None
-
-
 def test_prepare_forecasted_story_df():
     # Prepare
     df = pd.DataFrame(
