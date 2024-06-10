@@ -357,12 +357,12 @@ def segment_drift_stories():
                 }
             ],
             "title": "Key Driver: Weaker  segment",
-            "detail": "Over the past week, when Billing Plan is null, New Business Deals is 1. This is an decrease of "
+            "detail": "Over the past week, when Billing Plan is null, New Business Deals is 1. This is a decrease of "
             "0.0% relative to the prior week, and this decrease contributed -1.0% downward pressure on New "
             "Business Deals.",
             "title_template": "Key Driver: Weaker {{slice}} segment",
             "detail_template": "Over the past {{grain}}, when {{dimension}} is {{slice | default('null')}}, "
-            "{{metric.label}} is {{evaluation_slice_value}}. This is an decrease of "
+            "{{metric.label}} is {{evaluation_slice_value}}. This is a decrease of "
             "{{slice_value_change_percentage}}% relative to the prior {{grain}}, and this "
             "decrease contributed {{pressure_change}}% {{pressure_direction}} pressure on "
             "{{metric.label}}.",
@@ -467,12 +467,12 @@ data = [
             }
         ],
         "title": "Key Driver: Weaker  segment",
-        "detail": "Over the past week, when Billing Plan is null, New Business Deals is 1. This is an decrease of 0% "
+        "detail": "Over the past week, when Billing Plan is null, New Business Deals is 1. This is a decrease of 0% "
         "relative to the prior week, and this decrease contributed -1.0% downward pressure on New Business "
         "Deals.",
         "title_template": "Key Driver: Weaker {{slice}} segment",
         "detail_template": "Over the past {{grain}}, when {{dimension}} is {{slice | default('null')}}, "
-        "{{metric.label}} is {{evaluation_slice_value}}. This is an decrease of "
+        "{{metric.label}} is {{evaluation_slice_value}}. This is a decrease of "
         "{{slice_value_change_percentage}}% relative to the prior {{grain}}, "
         "and this decrease contributed {{pressure_change}}% {{pressure_direction}} pressure on "
         "{{metric.label}}.",

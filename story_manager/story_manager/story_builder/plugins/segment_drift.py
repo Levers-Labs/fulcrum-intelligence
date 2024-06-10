@@ -70,9 +70,10 @@ class SegmentDriftStoryBuilder(StoryBuilderBase):
         df = self.convert_dict_to_dataframe(segment_drift["dimension_slices"])
         sorted_segment_drift_df = df.sort_values(by="sort_value", ascending=False)
 
-        top_4_slice_df = self.get_top_single_dimension_slices_df(
+        top_4_slice_df = self.get_top_dimension_slices_df(
             df=sorted_segment_drift_df,
             no_of_slices=4,
+            single_dimension=True,
         )
 
         for _, row in top_4_slice_df.iterrows():
@@ -118,19 +119,48 @@ class SegmentDriftStoryBuilder(StoryBuilderBase):
         else:
             return StoryType.SHRINKING_SEGMENT
 
-    def get_top_single_dimension_slices_df(
+    def get_top_dimension_slices_df(
         self,
         df: pd.DataFrame,
         no_of_slices: int = 1,
         single_dimension: bool = True,
     ):
-
+        """
+        To fetch top n segments
+        Input:
+            - dimension slice dataframe
+            - no_of_slices: top n slices to fetch
+            - single_dimension: whether to fetch a single dimension slice
+        """
         if not single_dimension:
             return df.iloc[:no_of_slices]
 
         return df[~df["serialized_key"].str.contains(r"\|")].iloc[:no_of_slices]
 
     def convert_dict_to_dataframe(self, dimension_slices: dict):
+        """
+        Converting Segement Drift data to a pandas dataframe
+        It would help in simplifying the overall analysis part.
+
+        Input:
+            Dimension Slices: list of dimension slices permutations we received from dsensei
+        Output:
+            Pandas Dataframe consist of:
+                - comparison slice share
+                - evalutaion slice share
+                - dimension
+                - slice name i.e region = Asia then slice name would be Asia
+                - slice share change percentage: diff of evalutaion slice share and comparison slice share
+                - pressure direction: derived from impact attribute of each dimension slice
+                - comparison slice value
+                - evalutaion slice value
+                - slice value change percentage: change in evaluation value wrt comparison value
+                - pressure change: derived from change percentage attribute of each dimension slice
+                - impact
+                - sort value : absolute impact value
+                - serialized key: dimension slice Region = Asia then key would be Region:Asia
+
+        """
         df = pd.DataFrame([])
         for dimension_slice in dimension_slices:
             row = {

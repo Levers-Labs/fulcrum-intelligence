@@ -299,7 +299,7 @@ STORY_TYPES_META: dict[str, dict[str, str]] = {
     StoryType.WORSENING_SEGMENT: {
         "title": "Key Driver: Weaker {{slice}} segment",
         "detail": "Over the past {{grain}}, when {{dimension}} is {{slice | default('null')}}, {{metric.label}} is "
-        "{{evaluation_slice_value}}. This is an decrease of {{slice_value_change_percentage}}% relative to "
+        "{{evaluation_slice_value}}. This is a decrease of {{slice_value_change_percentage}}% relative to "
         "the prior {{grain}}, and this decrease contributed {{pressure_change}}% {{pressure_direction}} "
         "pressure on {{metric.label}}.",
     },
