@@ -15,11 +15,11 @@ from fulcrum_core.modules import (
     ComponentDriftEvaluator,
     CorrelationAnalyzer,
     DescribeAnalyzer,
+    ModelAnalyzer,
     ProcessControlAnalyzer,
     SegmentDriftEvaluator,
     SimpleForecast,
 )
-from fulcrum_core.modules.model import ModelAnalyzer
 
 logger = logging.getLogger(__name__)
 

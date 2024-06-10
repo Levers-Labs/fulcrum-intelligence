@@ -4,7 +4,7 @@ import pytest
 from sklearn.linear_model import LinearRegression
 from sklearn.pipeline import Pipeline
 
-from fulcrum_core.modules.model import ModelAnalyzer
+from fulcrum_core.modules import ModelAnalyzer
 
 periods = 50
 
