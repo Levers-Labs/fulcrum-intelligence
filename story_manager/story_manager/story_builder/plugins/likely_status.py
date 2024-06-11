@@ -7,6 +7,7 @@ from dateutil.relativedelta import relativedelta
 from commons.models.enums import Granularity
 from story_manager.core.enums import StoryGenre, StoryGroup, StoryType
 from story_manager.story_builder import StoryBuilderBase
+from story_manager.story_builder.utils import get_target_value_for_date
 
 logger = logging.getLogger(__name__)
 
@@ -63,7 +64,7 @@ class LikelyStatusStoryBuilder(StoryBuilderBase):
         # get the target value for the end of the period
         target_df = await self._get_time_series_for_targets(metric_id, grain, end_date, story_end_date)
         # Get the target value for the end of the period
-        target_value = self.get_target_value_for_date(target_df, story_end_date)
+        target_value = get_target_value_for_date(target_df, story_end_date)
         if pd.isnull(target_value) or target_value is None:
             logger.warning(
                 "Discarding story generation for metric '%s' with grain '%s' due to missing target value",
@@ -143,21 +144,6 @@ class LikelyStatusStoryBuilder(StoryBuilderBase):
         # prepare out df for rows greater than story_start_date
         final_df = final_df.loc[final_df["date"] >= pd.to_datetime(story_start_date)]
         return final_df
-
-    @staticmethod
-    def get_target_value_for_date(target_df: pd.DataFrame, ref_date: date) -> float | None:
-        """
-        Get the target value for the given date.
-
-        :param target_df: DataFrame containing target values.
-        :param ref_date: Date for which the target value is required.
-
-        :return: Target value for the given date.
-        """
-        target_value_series = target_df.loc[target_df["date"] == pd.to_datetime(ref_date), "target"]
-        if target_value_series.empty:
-            return None
-        return target_value_series.item()
 
     @staticmethod
     def get_forecasted_value_for_date(forecast_values: list[dict], ref_date: date) -> float | None:
