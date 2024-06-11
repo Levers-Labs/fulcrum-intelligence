@@ -1,3 +1,5 @@
+from datetime import datetime
+
 import pytest
 from starlette import status
 
@@ -13,6 +15,7 @@ async def test_get_stories(db_session, client):
         Story(
             genre=StoryGenre.GROWTH,
             story_group=StoryGroup.GROWTH_RATES,
+            story_date=datetime(2020, 1, 1),
             grain=Granularity.DAY,
             story_type=StoryType.SLOWING_GROWTH,
             metric_id="CAC",
@@ -28,6 +31,7 @@ async def test_get_stories(db_session, client):
             genre=StoryGenre.GROWTH,
             story_group=StoryGroup.GROWTH_RATES,
             grain=Granularity.DAY,
+            story_date=datetime(2020, 1, 1),
             story_type=StoryType.ACCELERATING_GROWTH,
             metric_id="NewMRR",
             title="d/d growth is speeding up",
@@ -43,6 +47,7 @@ async def test_get_stories(db_session, client):
             genre=StoryGenre.PERFORMANCE,
             story_group=StoryGroup.TREND_CHANGES,
             grain=Granularity.WEEK,
+            story_date=datetime(2020, 1, 1),
             story_type=StoryType.ACCELERATING_GROWTH,
             metric_id="NewBizDeals",
             title="d/d growth is slowing down",
@@ -57,6 +62,7 @@ async def test_get_stories(db_session, client):
             genre=StoryGenre.TRENDS,
             story_group=StoryGroup.TREND_CHANGES,
             grain=Granularity.WEEK,
+            story_date=datetime(2020, 1, 1),
             story_type=StoryType.ON_TRACK,
             metric_id="NewBizDeals",
             title="d/d growth is slowing down",

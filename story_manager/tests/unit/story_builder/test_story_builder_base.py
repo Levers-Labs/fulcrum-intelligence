@@ -254,7 +254,14 @@ def test_prepare_story_dict(story_builder):
 
     # Act
     story_dict = story_builder.prepare_story_dict(
-        story_type, grain, metric, df, avg_growth=avg_growth, trend_duration=trend_duration, movement=movement
+        story_type,
+        grain,
+        metric,
+        df,
+        story_date=datetime(2023, 1, 1),
+        avg_growth=avg_growth,
+        trend_duration=trend_duration,
+        movement=movement,
     )
 
     # Assert
@@ -262,6 +269,7 @@ def test_prepare_story_dict(story_builder):
         "genre": StoryGenre.TRENDS,
         "story_group": StoryGroup.TREND_CHANGES,
         "story_type": story_type,
+        "story_date": datetime(2023, 1, 1),
         "grain": grain,
         "metric_id": "metric1",
         "series": df.to_dict(orient="records"),

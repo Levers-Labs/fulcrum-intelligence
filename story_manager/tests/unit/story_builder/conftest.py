@@ -1,3 +1,4 @@
+from datetime import datetime
 from unittest.mock import AsyncMock
 
 import pytest
@@ -58,6 +59,7 @@ def mock_stories():
             "title_template": "Title Template 1",
             "detail_template": "Detail Template 1",
             "variables": {"key": "value"},
+            "story_date": datetime(2023, 1, 1),
         },
         {
             "metric_id": "metric_2",
@@ -71,6 +73,7 @@ def mock_stories():
             "title_template": "Title Template 2",
             "detail_template": "Detail Template 2",
             "variables": {"key": "value"},
+            "story_date": datetime(2023, 1, 2),
         },
     ]
     return stories
