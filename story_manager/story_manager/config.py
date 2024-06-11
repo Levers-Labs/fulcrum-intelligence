@@ -41,7 +41,7 @@ class Settings(BaseSettings):
     QUERY_MANAGER_SERVER_HOST: str | AnyHttpUrl
     ANALYSIS_MANAGER_SERVER_HOST: str | AnyHttpUrl
 
-    BACKEND_CORS_ORIGINS: list[AnyHttpUrl] = []
+    BACKEND_CORS_ORIGINS: list[AnyHttpUrl | str] = []
 
     @field_validator("BACKEND_CORS_ORIGINS", mode="before")
     @classmethod
