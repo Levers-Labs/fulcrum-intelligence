@@ -4,6 +4,7 @@ from typing import Any
 from commons.models.enums import Granularity
 from story_manager.core.enums import StoryGenre, StoryGroup, StoryType
 from story_manager.story_builder import StoryBuilderBase
+from story_manager.story_builder.utils import get_story_date
 
 logger = logging.getLogger(__name__)
 
@@ -62,6 +63,8 @@ class GrowthStoryBuilder(StoryBuilderBase):
         :param grain: The grain for which growth stories are generated
         :return: A list of generated growth stories
         """
+        stories: list[dict] = []
+
         # get metric details
         metric = await self.query_service.get_metric(metric_id)
 
@@ -70,16 +73,15 @@ class GrowthStoryBuilder(StoryBuilderBase):
 
         # get time series data
         df = await self._get_time_series_data(metric_id, grain, start_date, end_date, set_index=False)
+        df_len = len(df)
 
         # validate time series data has minimum required data points
         time_durations = self.get_time_durations(grain)
-        if len(df) < time_durations["min"]:
+        if df_len < time_durations["min"]:
             logging.warning(
                 "Discarding story generation for metric '%s' with grain '%s' due to insufficient data", metric_id, grain
             )
             return []
-
-        stories: list[dict] = []
 
         # Compute once-differenced series (growth rates)
         df["growth_rate"] = self.analysis_manager.calculate_growth_rates_of_series(df["value"])
@@ -121,15 +123,16 @@ class GrowthStoryBuilder(StoryBuilderBase):
         )
         current_growth = df["growth_rate"].iloc[-1]
         avg_growth = self.analysis_manager.cal_average_growth(df["value"])
-        duration = len(df)
+        story_date = get_story_date(df)
         story_details = self.prepare_story_dict(
             story_type,
             grain=grain,
             metric=metric,
             df=df,
+            story_date=story_date,
             current_growth=round(current_growth),
             avg_growth=avg_growth,
-            duration=duration,
+            duration=df_len,
         )
         stories.append(story_details)
         return stories

@@ -173,7 +173,13 @@ class StoryBuilderBase(ABC):
         }
 
     def prepare_story_dict(
-        self, story_type: StoryType, grain: Granularity, metric: dict, df: pd.DataFrame, **extra_context
+        self,
+        story_type: StoryType,
+        grain: Granularity,
+        metric: dict,
+        df: pd.DataFrame,
+        story_date: date,
+        **extra_context,
     ) -> dict[str, Any]:
         """
         Prepare the story dictionary with the required fields
@@ -196,6 +202,7 @@ class StoryBuilderBase(ABC):
             "genre": self.genre,
             "story_group": self.group,
             "story_type": story_type,
+            "story_date": story_date,
             "grain": grain,
             "series": series,
             "title": story_texts["title"],

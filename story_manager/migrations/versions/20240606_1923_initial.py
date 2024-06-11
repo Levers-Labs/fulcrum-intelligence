@@ -1,8 +1,8 @@
 """Initial
 
-Revision ID: 1497a9b90eb0
+Revision ID: 2311a83a852c
 Revises:
-Create Date: 2024-05-27 11:46:02.121757
+Create Date: 2024-06-06 19:23:59.462090
 
 """
 
@@ -14,7 +14,7 @@ from alembic import op
 from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
-revision: str = "1497a9b90eb0"
+revision: str = "2311a83a852c"
 down_revision: str | None = None
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
@@ -29,7 +29,15 @@ def upgrade() -> None:
         sa.Column("updated_at", sa.DateTime(), server_default=sa.text("current_timestamp(0)"), nullable=False),
         sa.Column(
             "genre",
-            sa.Enum("GROWTH", "TRENDS", name="storygenre", schema="story_store", inherit_schema=True),
+            sa.Enum(
+                "GROWTH",
+                "TRENDS",
+                "PERFORMANCE",
+                "BIG_MOVES",
+                name="storygenre",
+                schema="story_store",
+                inherit_schema=True,
+            ),
             nullable=True,
         ),
         sa.Column(
@@ -39,6 +47,10 @@ def upgrade() -> None:
                 "TREND_CHANGES",
                 "TREND_EXCEPTIONS",
                 "LONG_RANGE",
+                "GOAL_VS_ACTUAL",
+                "LIKELY_STATUS",
+                "RECORD_VALUES",
+                "STATUS_CHANGE",
                 name="storygroup",
                 schema="story_store",
                 inherit_schema=True,
@@ -58,6 +70,14 @@ def upgrade() -> None:
                 "DROP",
                 "IMPROVING_PERFORMANCE",
                 "WORSENING_PERFORMANCE",
+                "ON_TRACK",
+                "OFF_TRACK",
+                "IMPROVING_STATUS",
+                "WORSENING_STATUS",
+                "RECORD_HIGH",
+                "RECORD_LOW",
+                "LIKELY_ON_TRACK",
+                "LIKELY_OFF_TRACK",
                 name="storytype",
                 schema="story_store",
                 inherit_schema=True,
@@ -76,6 +96,7 @@ def upgrade() -> None:
         sa.Column("detail_template", sa.Text(), nullable=False),
         sa.Column("variables", postgresql.JSONB(astext_type=sa.Text()), nullable=False),
         sa.Column("series", postgresql.JSONB(astext_type=sa.Text()), nullable=False),
+        sa.Column("story_date", sa.DateTime(), nullable=False),
         sa.PrimaryKeyConstraint("id"),
         schema="story_store",
     )

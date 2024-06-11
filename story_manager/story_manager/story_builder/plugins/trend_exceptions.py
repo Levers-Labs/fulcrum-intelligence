@@ -8,6 +8,7 @@ from story_manager.core.enums import (
     StoryType,
 )
 from story_manager.story_builder import StoryBuilderBase
+from story_manager.story_builder.utils import get_story_date
 
 logger = logging.getLogger(__name__)
 
@@ -58,7 +59,7 @@ class TrendExceptionsStoryBuilder(StoryBuilderBase):
         stories: list[dict] = []
 
         # find the start and end date for the input time series data
-        start_date, end_date = self._get_input_time_range(grain)  # type: ignore
+        start_date, end_date = self._get_input_time_range(grain)
 
         # get time series data
         series_df = await self._get_time_series_data(
@@ -94,11 +95,13 @@ class TrendExceptionsStoryBuilder(StoryBuilderBase):
             position = Position.BELOW
 
         if story_type:
+            story_date = get_story_date(pc_df)
             story_details = self.prepare_story_dict(
                 story_type=story_type,
                 grain=grain,  # type: ignore
                 metric=metric,
                 df=pc_df,
+                story_date=story_date,
                 deviation=deviation,
                 position=position.value,
             )

@@ -49,7 +49,7 @@ class RecordValuesStoryBuilder(StoryBuilderBase):
 
         # validate time series data has minimum required data points
         time_durations = self.get_time_durations(grain)
-        if len(df) < time_durations["min"]:
+        if df_len < time_durations["min"]:
             logging.warning(
                 "Discarding story generation for metric '%s' with grain '%s' due to insufficient data", metric_id, grain
             )
@@ -89,7 +89,8 @@ class RecordValuesStoryBuilder(StoryBuilderBase):
             grain=grain,
             metric=metric,
             df=df,
-            value=ref_value,
+            story_date=ref_date,
+            value=float(ref_value),
             deviation=abs(deviation),
             prior_value=prior_value,
             prior_date=prior_date,
@@ -135,7 +136,7 @@ class RecordValuesStoryBuilder(StoryBuilderBase):
 
         :return tuple[str, float]: A tuple containing the prior date, and prior value.
         """
-        prior_value = sorted_df.at[prior_rank, "value"]
+        prior_value = float(sorted_df.at[prior_rank, "value"])
         prior_date = sorted_df.at[prior_rank, "date"].strftime(self.date_text_format)
         return prior_date, prior_value
 
@@ -150,4 +151,4 @@ class RecordValuesStoryBuilder(StoryBuilderBase):
         :return The rank of the reference date
         """
         rank = sorted_df[sorted_df["date"] == pd.to_datetime(ref_date)].index[0]
-        return rank
+        return int(rank)

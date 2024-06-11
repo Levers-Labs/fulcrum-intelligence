@@ -1,3 +1,5 @@
+from datetime import datetime
+
 import pandas as pd
 
 from story_manager.core.enums import StoryType
@@ -23,3 +25,13 @@ def determine_status_for_value_and_target(df_row: pd.Series) -> StoryType | None
         return StoryType.ON_TRACK
     else:
         return StoryType.OFF_TRACK
+
+
+def get_story_date(df: pd.DataFrame) -> datetime:
+    story_date = df["date"].iloc[-1]
+    return story_date
+
+
+# story_date = ref_data["date"]
+# df["date"].iloc[-1]
+# df["date"].iloc[-1]
