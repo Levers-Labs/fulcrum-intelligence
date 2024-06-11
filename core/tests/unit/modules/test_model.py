@@ -128,7 +128,7 @@ def test_fit_model_linear(sample_data, input_dfs):
     # Prepare
     analyzer = ModelAnalyzer(target_metric_id="metric1")
     # Manipulate data to favor linear model (e.g., ensure linear relationship)
-    sample_data["value"] = 2 * input_dfs[0]["value"] + 3 * input_dfs[1]["value"]
+    sample_data["value"] = input_dfs[0]["value"] + input_dfs[1]["value"]
 
     # Act
     result = analyzer.fit_model(sample_data, input_dfs)

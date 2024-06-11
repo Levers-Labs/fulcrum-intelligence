@@ -1,6 +1,7 @@
 import logging
 from typing import Any
 
+import numpy as np
 import pandas as pd
 from sklearn.linear_model import LinearRegression
 from sklearn.metrics import mean_squared_error
@@ -158,7 +159,6 @@ class ModelAnalyzer(BaseAnalyzer):
         model_intercept = best_model.named_steps["regressor"].intercept_
 
         # Construct the equation in a structured format
-        # todo: the columns will be repeated for each degree
         equation = {
             "terms": [
                 {"coefficient": float(model_coefficients[i]), "feature": col, "power": j}
@@ -183,8 +183,7 @@ class ModelAnalyzer(BaseAnalyzer):
             float: The calculated RMSE.
         """
         predictions = model.predict(features)
-        # todo: do we need to take square root of the error?
-        rmse = mean_squared_error(targets, predictions)
+        rmse = np.sqrt(mean_squared_error(targets, predictions))
         return rmse
 
     def _update_model_fit(self, model: Any, equation: dict[str, Any]):
