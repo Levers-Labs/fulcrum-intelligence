@@ -2,6 +2,7 @@ import logging
 from datetime import date
 from typing import Any
 
+import numpy as np
 import pandas as pd
 from scipy.stats import linregress
 
@@ -484,3 +485,27 @@ class AnalysisManager:
 
         # Return the model and equation
         return result
+
+
+if __name__ == "__main__":
+    value_length = 100
+    df = pd.DataFrame(
+        {
+            "date": pd.date_range(start="2021-01-01", periods=value_length),
+            "value": np.random.randint(30000, 50000, value_length),
+            "metric_id": ["MktTotalSpend"] * value_length,
+        }
+    )
+    _input_dfs = []
+    for metric_id in ["MktSpend", "SalesDevSpend"]:
+        _input_dfs.append(
+            pd.DataFrame(
+                {
+                    "date": pd.date_range(start="2021-01-01", periods=value_length),
+                    "value": np.random.randint(10000, 50000, value_length),
+                    "metric_id": [metric_id] * value_length,
+                }
+            )
+        )
+    df["value"] = _input_dfs[0]["value"] + _input_dfs[1]["value"]
+    result = AnalysisManager().model_analysis(df, _input_dfs)
