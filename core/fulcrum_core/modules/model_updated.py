@@ -80,14 +80,9 @@ class DataModelling(BaseAnalyzer):
         X = data.iloc[:, :-1]  
         y = data.iloc[:, -1]
         X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
-        scaler_X = StandardScaler()
-        X_train_scaled = scaler_X.fit_transform(X_train)
-
-        scaler_y = StandardScaler()
-        y_train_scaled = scaler_y.fit_transform(y_train.values.reshape(-1, 1))
 
         model = LinearRegression()
-        model.fit(X_train_scaled, y_train_scaled.ravel())
+        model.fit(X_train, y_train)
 
         # Equation coefficients
         coef = model.coef_
@@ -96,7 +91,7 @@ class DataModelling(BaseAnalyzer):
         equation = {col: coef[i] for i, col in enumerate(X_train.columns)}
         equation['constant'] = intercept
 
-        return model, equation
+        return model, equation, X_test, y_test
 
     def polynomial_regression_equation(self, data):
         """
@@ -114,7 +109,6 @@ class DataModelling(BaseAnalyzer):
 
         pipeline = Pipeline([
             ('poly', PolynomialFeatures()), 
-            ('scaler', StandardScaler()), 
             ('regressor', LinearRegression())
         ])
 
@@ -133,7 +127,7 @@ class DataModelling(BaseAnalyzer):
         equation = {f"{col}^{i}": coef[j] for i in range(1, best_degree+1) for j, col in enumerate(X.columns)}
         equation['constant'] = intercept
 
-        return best_model, equation
+        return best_model, equation, X_test, y_test
 
 
     def inference(self, X, y):
@@ -171,14 +165,14 @@ class DataModelling(BaseAnalyzer):
             y = data.iloc[:, -1]
 
             # Linear regression model and equation
-            linear_model, linear_equation = self.linear_regression_equation(data)
+            linear_model, linear_equation, linear_X_test, linear_y_test = self.linear_regression_equation(data)
 
             # Polynomial regression model and equation
-            polynomial_model, polynomial_equation = self.polynomial_regression_equation(data)
+            polynomial_model, polynomial_equation, polynomial_X_test, polynomial_y_test = self.polynomial_regression_equation(data)
 
             # Perform inference for both models
-            linear_rmse, linear_pred = self.linear_model_inference(linear_model, X, y)
-            poly_rmse, poly_pred = self.polynomial_model_inference(polynomial_model, X, y)
+            linear_rmse, linear_pred = self.linear_model_inference(linear_model, linear_X_test, linear_y_test)
+            poly_rmse, poly_pred = self.polynomial_model_inference(polynomial_model, polynomial_X_test, polynomial_y_test)
 
             # Data inference using Random Forest
             data_inference = self.inference(X, y)

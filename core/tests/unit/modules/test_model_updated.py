@@ -31,16 +31,26 @@ def test_read_data():
 def test_linear_regression_equation():
     data = pd.DataFrame({'date': [1, 2, 3, 4, 5], 'value': [10, 20, 30, 40, 50]})
     model = DataModelling()
-    linear_model, equation = model.linear_regression_equation(data)
+    linear_model, equation,linear_X_test,linear_y_test = model.linear_regression_equation(data)
     assert isinstance(linear_model, LinearRegression)
     assert isinstance(equation, dict)
+    assert isinstance(linear_X_test, pd.DataFrame)
+    assert isinstance(linear_y_test, pd.Series)
+    # Check that the test set size is 20% of the original data size (since test_size=0.2 in train_test_split)
+    assert len(linear_X_test) == int(0.2 * len(data))
+    assert len(linear_y_test) == int(0.2 * len(data))
 
 def test_polynomial_regression_equation():
     data = pd.DataFrame({'date': [1, 2, 3, 4, 5], 'value': [10, 20, 30, 40, 50]})
     model = DataModelling()
-    poly_model, equation = model.polynomial_regression_equation(data)
+    poly_model, equation,poly_X_test,poly_y_test = model.polynomial_regression_equation(data)
     assert isinstance(poly_model, Pipeline)
     assert isinstance(equation, dict)
+    assert isinstance(poly_X_test, pd.DataFrame)
+    assert isinstance(poly_y_test, pd.Series)
+    # Check that the test set size is 20% of the original data size (since test_size=0.2 in train_test_split)
+    assert len(poly_X_test) == int(0.2 * len(data))
+    assert len(poly_y_test) == int(0.2 * len(data))
 
 def test_inference():
     X = pd.DataFrame({'date': [1, 2, 3, 4, 5]})
@@ -80,7 +90,10 @@ def test_analyze_with_missing_date_column():
 def test_run_with_valid_data():
     file_paths = [
         r'C:\Users\anubhav\Desktop\leverslabs\data_model\accept_opps_weekly_latest.csv',
-        r'C:\Users\anubhav\Desktop\leverslabs\data_model\sqls_weekly_latest.csv'
+        r'C:\Users\anubhav\Desktop\leverslabs\data_model\new_prosps_weekly_latest.csv',
+        r'C:\Users\anubhav\Desktop\leverslabs\data_model\new_sales_accept_leads_weekly_latest.csv',
+        r'C:\Users\anubhav\Desktop\leverslabs\data_model\sqls_weekly_latest.csv',
+        r'C:\Users\anubhav\Desktop\leverslabs\data_model\new_biz_deals_weekly_latest.csv'
     ]
     model = DataModelling(file_paths=file_paths)
     analysis_result = model.run()
