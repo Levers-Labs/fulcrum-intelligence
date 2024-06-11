@@ -49,7 +49,7 @@ class LongRangeStoryBuilder(StoryBuilderBase):
         stories: list[dict] = []
 
         # find the start and end date for the input time series data
-        start_date, end_date = self._get_input_time_range(grain)
+        start_date, end_date = self._get_input_time_range(grain)  # type: ignore
 
         # get time series data
         df = await self._get_time_series_data(metric_id, grain, start_date, end_date, set_index=False)  # type: ignore
