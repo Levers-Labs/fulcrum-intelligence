@@ -12,7 +12,7 @@ from story_manager.core.enums import (
     StoryType,
 )
 from story_manager.story_builder import StoryBuilderBase
-from story_manager.story_builder.utils import calculate_periods_count, get_target_value_for_date
+from story_manager.story_builder.utils import calculate_periods_count, get_story_date, get_target_value_for_date
 
 logger = logging.getLogger(__name__)
 
@@ -108,6 +108,7 @@ class RequiredPerformanceStoryBuilder(StoryBuilderBase):
             grain=grain,
             metric=metric,
             df=df,
+            story_date=get_story_date(df),
             req_duration=req_duration,
             duration=len(df),
             interval=interval,
