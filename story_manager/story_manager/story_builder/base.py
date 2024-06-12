@@ -306,7 +306,7 @@ class StoryBuilderBase(ABC):
             raise ValueError(f"Unsupported grain: {grain}")
         return start_date, end_date
 
-    def get_time_durations(self, grain: Granularity) -> dict[str, Any]:
+    def get_time_durations(self, grain: Granularity, half_time_range: bool = False) -> dict[str, Any]:
         """
         Get the time durations for the given grain and group
 
@@ -315,21 +315,29 @@ class StoryBuilderBase(ABC):
         """
         if self.group not in STORY_GROUP_TIME_DURATIONS or grain not in STORY_GROUP_TIME_DURATIONS[self.group]:
             raise ValueError(f"Unsupported group '{self.group}' or grain '{grain}'")
+
+        if half_time_range:
+            STORY_GROUP_TIME_DURATIONS[self.group][grain]["input"] //= 2
+
         return STORY_GROUP_TIME_DURATIONS[self.group][grain]
 
-    def _get_input_time_range(self, grain: Granularity, curr_date: date | None = None) -> tuple[date, date]:
+    def _get_input_time_range(
+        self, grain: Granularity, curr_date: date | None = None, half_time_range: bool = False
+    ) -> tuple[date, date]:
         """
         Get the time range for the input data based on the grain.
 
         :param curr_date: The current date for which the time range is calculated.
         :param grain: The grain for which the time range is retrieved.
-
+        :param half_time_range: If the time period we are considering in input needs to be divided into two intervals
+            Like in case of Segment drift we set input as 2, but 1 unit grain is considered as evaluation period, while
+            second unit grain is considered as comparison period.
         :return: The start and end date of the time range.
         """
 
         latest_start_date, latest_end_date = self._get_current_period_range(grain, curr_date)
 
-        grain_durations = self.get_time_durations(grain)
+        grain_durations = self.get_time_durations(grain, half_time_range)
 
         # figure out the number of grain deltas to go back
         period_count = grain_durations["input"]

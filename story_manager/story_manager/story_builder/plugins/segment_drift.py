@@ -51,11 +51,17 @@ class SegmentDriftStoryBuilder(StoryBuilderBase):
 
         """
 
-        evaluation_start_date, evaluation_end_date = self._get_input_time_range(grain)  # type:ignore
+        evaluation_start_date, evaluation_end_date = self._get_input_time_range(
+            grain,  # type:ignore
+            half_time_range=True,
+        )
+
         comparison_start_date, comparison_end_date = self._get_input_time_range(
             grain,  # type:ignore
             curr_date=evaluation_start_date,
+            half_time_range=True,
         )
+
         metric = await self.query_service.get_metric(metric_id)
         metric_dimensions = fetch_dimensions_from_metric(metric_details=metric)
 
