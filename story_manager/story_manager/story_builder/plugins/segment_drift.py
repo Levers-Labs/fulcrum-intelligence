@@ -3,11 +3,13 @@ import logging
 import pandas as pd
 
 from commons.models.enums import Granularity
+from story_manager.config import get_settings
 from story_manager.core.enums import StoryGenre, StoryGroup, StoryType
 from story_manager.story_builder import StoryBuilderBase
 from story_manager.story_builder.utils import convert_snake_case_to_label, fetch_dimensions_from_metric
 
 logger = logging.getLogger(__name__)
+settings = get_settings()
 
 
 class SegmentDriftStoryBuilder(StoryBuilderBase):
@@ -57,8 +59,17 @@ class SegmentDriftStoryBuilder(StoryBuilderBase):
         metric = await self.query_service.get_metric(metric_id)
         metric_dimensions = fetch_dimensions_from_metric(metric_details=metric)
 
-        segment_drift = await self.analysis_service.get_segment_drift(
-            metric_id=metric_id,
+        data_df = await self.query_service.get_metric_time_series_df(
+            metric_id,
+            comparison_start_date,
+            evaluation_end_date,
+            grain=grain,  # type: ignore
+            dimensions=metric_dimensions,
+        )
+
+        segment_drift = await self.analysis_manager.segment_drift(
+            dsensei_base_url=settings.DSENSEI_BASE_URL,
+            df=data_df,
             evaluation_start_date=evaluation_start_date,
             evaluation_end_date=evaluation_end_date,
             comparison_start_date=comparison_start_date,
@@ -67,7 +78,7 @@ class SegmentDriftStoryBuilder(StoryBuilderBase):
         )
 
         stories = []
-        df = self.convert_dict_to_dataframe(segment_drift["dimension_slices"])
+        df = self.convert_segment_drift_res_to_dataframe(segment_drift["dimension_slices"])
         sorted_segment_drift_df = df.sort_values(by="sort_value", ascending=False)
 
         top_4_slice_df = self.get_top_dimension_slices_df(
@@ -90,6 +101,7 @@ class SegmentDriftStoryBuilder(StoryBuilderBase):
             logger.info(f"A new segment drift story created for metric {metric_id} with grain {grain}")
             logger.info(f"Story details: {story_details}")
 
+            # If there's no change in slice value, we are skipping the improving or worsening story creation
             if row["impact"] == 0:
                 continue
 
@@ -137,7 +149,7 @@ class SegmentDriftStoryBuilder(StoryBuilderBase):
 
         return df[~df["serialized_key"].str.contains(r"\|")].iloc[:no_of_slices]
 
-    def convert_dict_to_dataframe(self, dimension_slices: dict):
+    def convert_segment_drift_res_to_dataframe(self, dimension_slices: dict):
         """
         Converting Segement Drift data to a pandas dataframe
         It would help in simplifying the overall analysis part.
@@ -164,15 +176,15 @@ class SegmentDriftStoryBuilder(StoryBuilderBase):
         df = pd.DataFrame([])
         for dimension_slice in dimension_slices:
             row = {
-                "comparison_slice_share": round(dimension_slice["comparison_value"]["slice_share"], 2),
-                "evaluation_slice_share": round(dimension_slice["evaluation_value"]["slice_share"], 2),
+                "previous_share": round(dimension_slice["comparison_value"]["slice_share"], 2),
+                "current_share": round(dimension_slice["evaluation_value"]["slice_share"], 2),
                 "dimension": convert_snake_case_to_label(dimension_slice["key"][0]["dimension"]),
                 "slice_name": dimension_slice["key"][0]["value"],
                 "slice_share_change_percentage": round(dimension_slice["slice_share_change_percentage"], 2),
                 "pressure_direction": dimension_slice["pressure"].lower(),
-                "comparison_slice_value": round(dimension_slice["comparison_value"]["slice_value"], 2),
-                "evaluation_slice_value": round(dimension_slice["evaluation_value"]["slice_value"], 2),
-                "slice_value_change_percentage": self.analysis_manager.calculate_percentage_difference(
+                "previous_value": round(dimension_slice["comparison_value"]["slice_value"], 2),
+                "current_value": round(dimension_slice["evaluation_value"]["slice_value"], 2),
+                "deviation": self.analysis_manager.calculate_percentage_difference(
                     dimension_slice["evaluation_value"]["slice_value"],
                     dimension_slice["comparison_value"]["slice_value"],
                     precision=2,

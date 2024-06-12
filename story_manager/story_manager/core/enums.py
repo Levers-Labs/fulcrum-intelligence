@@ -279,27 +279,27 @@ STORY_TYPES_META: dict[str, dict[str, str]] = {
     StoryType.GROWING_SEGMENT: {
         "title": "Key Driver: Growing {{slice | default('null')}} share of {{dimension}}",
         "detail": "The share of {{dimension}} that is {{slice | default('null')}} increased from "
-        "{{comparison_slice_share}}% to {{evaluation_slice_share}}% over the past {{grain}}. This increase "
+        "{{previous_share}}% to {{current_share}}% over the past {{grain}}. This increase "
         "contributed {{slice_share_change_percentage}}% {{pressure_direction}} pressure on {{metric.label}}.",
     },
     StoryType.SHRINKING_SEGMENT: {
         "title": "Key Driver: Falling {{slice | default('null')}} share of {{dimension}}",
         "detail": "For {{metric.label}}, the share of {{dimension}} that is {{slice | default('null')}} has decreased "
-        "from {{comparison_slice_share}}% to {{evaluation_slice_share}}% over the past {{grain}}. This "
+        "from {{previous_share}}% to {{current_share}}% over the past {{grain}}. This "
         "decrease contributed {{slice_share_change_percentage}}% {{pressure_direction}} pressure on "
         "{{metric.label}}.",
     },
     StoryType.IMPROVING_SEGMENT: {
         "title": "Key Driver: Stronger {{slice | default('null')}} segment",
         "detail": "Over the past {{grain}}, when {{dimension}} is {{slice | default('null')}}, {{metric.label}} is "
-        "{{evaluation_slice_value}}. This is an increase of {{slice_value_change_percentage}}% relative to "
+        "{{current_value}}. This is an increase of {{deviation}}% relative to "
         "the prior {{grain}}, and this increase contributed {{pressure_change}}% {{pressure_direction}} "
         "pressure on {{metric.label}}.",
     },
     StoryType.WORSENING_SEGMENT: {
         "title": "Key Driver: Weaker {{slice}} segment",
         "detail": "Over the past {{grain}}, when {{dimension}} is {{slice | default('null')}}, {{metric.label}} is "
-        "{{evaluation_slice_value}}. This is a decrease of {{slice_value_change_percentage}}% relative to "
+        "{{current_value}}. This is a decrease of {{deviation}}% relative to "
         "the prior {{grain}}, and this decrease contributed {{pressure_change}}% {{pressure_direction}} "
         "pressure on {{metric.label}}.",
     },

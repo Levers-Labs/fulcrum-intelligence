@@ -95,11 +95,9 @@ class SegmentDriftEvaluator:
         return result
 
     def get_overall_change(self, comparison_value: float, evaluation_value: float) -> float:
-        try:
-            overall_change = (evaluation_value - comparison_value) / comparison_value
-        except ZeroDivisionError:
-            overall_change = 0.0
-        return overall_change
+        if comparison_value == 0:
+            return 0.0
+        return (evaluation_value - comparison_value) / comparison_value
 
     def calculate_segment_relative_change(self, segment: dict, overall_change: float) -> float:
         try:
@@ -112,12 +110,10 @@ class SegmentDriftEvaluator:
         except KeyError:
             slice_evaluation_value = 0
 
-        try:
-            change = (slice_evaluation_value - slice_comparison_value) / slice_comparison_value
-
-        except ZeroDivisionError:
+        if slice_comparison_value == 0:
             return 0.0
 
+        change = (slice_evaluation_value - slice_comparison_value) / slice_comparison_value
         return (change - overall_change) * 100
 
     def get_metric_change_direction(self, impact: float, target_metric_direction: str) -> MetricChangeDirection:
