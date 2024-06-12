@@ -8,7 +8,6 @@ from story_manager.core.enums import (
     StoryType,
 )
 from story_manager.story_builder import StoryBuilderBase
-from story_manager.story_builder.utils import get_story_date
 
 logger = logging.getLogger(__name__)
 
@@ -95,13 +94,13 @@ class TrendExceptionsStoryBuilder(StoryBuilderBase):
             position = Position.BELOW
 
         if story_type:
-            story_date = get_story_date(pc_df)
+            self.story_date = pc_df["date"].iloc[-1]
             story_details = self.prepare_story_dict(
                 story_type=story_type,
                 grain=grain,  # type: ignore
                 metric=metric,
                 df=pc_df,
-                story_date=story_date,
+                story_date=self.story_date,  # type: ignore
                 deviation=deviation,
                 position=position.value,
             )

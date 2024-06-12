@@ -15,7 +15,7 @@ from story_manager.story_builder import StoryBuilderBase
 
 
 @pytest.fixture
-def story_builder(mock_query_service, mock_analysis_service, mock_analysis_manager, mock_db_session):
+def story_builder(mock_query_service, mock_analysis_service, mock_analysis_manager, mock_db_session, mock_story_date):
     class ConcreteStoryBuilder(StoryBuilderBase):
         genre = StoryGenre.GROWTH
         group = StoryGroup.GROWTH_RATES
@@ -24,7 +24,9 @@ def story_builder(mock_query_service, mock_analysis_service, mock_analysis_manag
         async def generate_stories(self, metric_id: str, grain: Granularity) -> list:
             return []
 
-    return ConcreteStoryBuilder(mock_query_service, mock_analysis_service, mock_analysis_manager, mock_db_session)
+    return ConcreteStoryBuilder(
+        mock_query_service, mock_analysis_service, mock_analysis_manager, mock_db_session, mock_story_date
+    )
 
 
 @pytest.mark.asyncio
@@ -82,8 +84,8 @@ async def test_persist_stories(
 
 def test_get_current_period_range_day(story_builder):
     grain = Granularity.DAY
-    curr_date = date(2023, 4, 17)
-    start_date, end_date = story_builder._get_current_period_range(grain, curr_date)
+    story_date = date(2023, 4, 17)
+    start_date, end_date = story_builder._get_current_period_range(grain, story_date)
     assert start_date == date(2023, 4, 16)
     assert end_date == date(2023, 4, 16)
 
@@ -91,12 +93,12 @@ def test_get_current_period_range_day(story_builder):
 def test_get_current_period_range_week(story_builder):
     # prepare
     grain = Granularity.WEEK
-    curr_date = date(2024, 4, 17)
+    story_date = date(2024, 4, 17)
     expected_start_date = date(2024, 4, 8)
     expected_end_date = date(2024, 4, 14)
 
     # Act
-    start_date, end_date = story_builder._get_current_period_range(grain, curr_date)
+    start_date, end_date = story_builder._get_current_period_range(grain, story_date)
 
     # Assert
     assert start_date == expected_start_date
@@ -106,12 +108,12 @@ def test_get_current_period_range_week(story_builder):
 def test_get_current_period_range_month(story_builder):
     # prepare
     grain = Granularity.MONTH
-    curr_date = date(2024, 4, 17)
+    story_date = date(2024, 4, 17)
     expected_start_date = date(2024, 3, 1)
     expected_end_date = date(2024, 3, 31)
 
     # Act
-    start_date, end_date = story_builder._get_current_period_range(grain, curr_date)
+    start_date, end_date = story_builder._get_current_period_range(grain, story_date)
 
     # Assert
     assert start_date == expected_start_date
@@ -121,24 +123,24 @@ def test_get_current_period_range_month(story_builder):
 def test_get_current_period_range_quarter(story_builder):
     # prepare
     grain = Granularity.QUARTER
-    curr_date = date(2024, 4, 17)
+    story_date = date(2024, 4, 17)
     expected_start_date = date(2024, 1, 1)
     expected_end_date = date(2024, 3, 31)
 
     # Act
-    start_date, end_date = story_builder._get_current_period_range(grain, curr_date)
+    start_date, end_date = story_builder._get_current_period_range(grain, story_date)
 
     # Assert
     assert start_date == expected_start_date
     assert end_date == expected_end_date
 
     # Prepare
-    curr_date = date(2024, 1, 17)
+    story_date = date(2024, 1, 17)
     expected_start_date = date(2023, 10, 1)
     expected_end_date = date(2023, 12, 31)
 
     # Act
-    start_date, end_date = story_builder._get_current_period_range(grain, curr_date)
+    start_date, end_date = story_builder._get_current_period_range(grain, story_date)
 
     # Assert
     assert start_date == expected_start_date
@@ -148,12 +150,12 @@ def test_get_current_period_range_quarter(story_builder):
 def test_get_current_period_range_year(story_builder):
     # prepare
     grain = Granularity.YEAR
-    curr_date = date(2024, 4, 17)
+    story_date = date(2024, 4, 17)
     expected_start_date = date(2023, 1, 1)
     expected_end_date = date(2023, 12, 31)
 
     # Act
-    start_date, end_date = story_builder._get_current_period_range(grain, curr_date)
+    start_date, end_date = story_builder._get_current_period_range(grain, story_date)
 
     # Assert
     assert start_date == expected_start_date
@@ -163,11 +165,11 @@ def test_get_current_period_range_year(story_builder):
 def test_get_current_period_range_invalid_grain(story_builder):
     # prepare
     grain = "invalid"
-    curr_date = date(2024, 4, 17)
+    story_date = date(2024, 4, 17)
 
     # Act & Assert
     with pytest.raises(ValueError):
-        story_builder._get_current_period_range(grain, curr_date)  # type: ignore
+        story_builder._get_current_period_range(grain, story_date)  # type: ignore
 
 
 def test_get_current_period_range_from_today(story_builder):
@@ -310,13 +312,12 @@ def test_get_input_time_range(story_builder):
     story_builder.genre = StoryGenre.TRENDS
     story_builder.group = StoryGroup.TREND_CHANGES
     grain = Granularity.MONTH
-    curr_date = date(2023, 4, 17)
     expected_end_date = date(2023, 3, 31)
     durations = story_builder.get_time_durations(grain)
     expected_start_date = (expected_end_date.replace(day=1) - pd.DateOffset(months=durations["input"])).date()
 
     # Act
-    start_date, end_date = story_builder._get_input_time_range(grain, curr_date)
+    start_date, end_date = story_builder._get_input_time_range(grain)
 
     # Assert
     assert start_date == expected_start_date

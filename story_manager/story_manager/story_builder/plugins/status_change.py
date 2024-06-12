@@ -6,7 +6,7 @@ import pandas as pd
 from commons.models.enums import Granularity
 from story_manager.core.enums import StoryGenre, StoryGroup, StoryType
 from story_manager.story_builder import StoryBuilderBase
-from story_manager.story_builder.utils import determine_status_for_value_and_target, get_story_date
+from story_manager.story_builder.utils import determine_status_for_value_and_target
 
 logger = logging.getLogger(__name__)
 
@@ -93,13 +93,13 @@ class StatusChangeStoryBuilder(StoryBuilderBase):
 
         prev_duration = self.get_previous_status_duration(df, prev_status)  # noqa
 
-        story_date = get_story_date(df)
+        self.story_date = df["date"].iloc[-1]
         story_details = self.prepare_story_dict(
             story_type,  # type: ignore
             grain=grain,
             metric=metric,
             df=df,
-            story_date=story_date,
+            story_date=self.story_date,  # type: ignore
             deviation=deviation,
             prev_duration=prev_duration,
         )

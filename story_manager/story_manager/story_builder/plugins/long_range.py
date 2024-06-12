@@ -3,7 +3,6 @@ import logging
 from commons.models.enums import Granularity
 from story_manager.core.enums import StoryGenre, StoryGroup, StoryType
 from story_manager.story_builder import StoryBuilderBase
-from story_manager.story_builder.utils import get_story_date
 
 logger = logging.getLogger(__name__)
 
@@ -75,13 +74,13 @@ class LongRangeStoryBuilder(StoryBuilderBase):
         df["slope"] = slope
 
         story_type = StoryType.IMPROVING_PERFORMANCE if slope > 0 else StoryType.WORSENING_PERFORMANCE
-        story_date = get_story_date(df)
+        self.story_date = df["date"].iloc[-1]
         story_details = self.prepare_story_dict(
             story_type=story_type,
             grain=grain,  # type: ignore
             metric=metric,
             df=df,
-            story_date=story_date,
+            story_date=self.story_date,  # type: ignore
             avg_growth=avg_growth,
             overall_growth=overall_growth,
             duration=df_len,

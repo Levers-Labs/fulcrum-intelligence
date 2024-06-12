@@ -44,6 +44,7 @@ class StoryBuilderBase(ABC):
         analysis_service: AnalysisManagerClient,
         analysis_manager: AnalysisManager,
         db_session: AsyncSession,
+        story_date: date | None = None,
     ):
         """
         Initialize the StoryBuilderBase instance
@@ -57,6 +58,7 @@ class StoryBuilderBase(ABC):
         self.analysis_service = analysis_service
         self.analysis_manager = analysis_manager
         self.db_session = db_session
+        self.story_date = story_date
 
     async def _get_time_series_data(
         self, metric_id: str, grain: Granularity, start_date: date, end_date: date, set_index: bool = False
@@ -189,6 +191,7 @@ class StoryBuilderBase(ABC):
         :param metric: The metric for which the story is generated.
         :param df: The time series data for the story
         :param extra_context: Additional context variables for the story
+        :param story_date: The date of the story
 
         :return: A dictionary containing the story details
         """
@@ -277,7 +280,7 @@ class StoryBuilderBase(ABC):
         logger.info("Stories persisted successfully")
 
     @classmethod
-    def _get_current_period_range(cls, grain: Granularity, curr_date: date | None = None) -> tuple[date, date]:
+    def _get_current_period_range(cls, grain: Granularity, story_date: date | None = None) -> tuple[date, date]:
         """
         Get the end date of the last period based on the grain.
         Based on the current date, the end date is calculated as follows:
@@ -288,11 +291,11 @@ class StoryBuilderBase(ABC):
         - For year grain: December 31 of the previous year
         For each grain, the start date of the period is calculated based on the end date.
 
-        :param curr_date: The current date for which the period range is calculated.
+        :param story_date: The story date on which the period range is calculated.
         :param grain: The grain for which the end date is retrieved.
         :return: The start and end date of the period.
         """
-        today = curr_date or date.today()
+        today = story_date or date.today()
         if grain == Granularity.DAY:
             end_date = today - timedelta(days=1)
             start_date = end_date
@@ -324,17 +327,16 @@ class StoryBuilderBase(ABC):
             raise ValueError(f"Unsupported group '{self.group}' or grain '{grain}'")
         return STORY_GROUP_TIME_DURATIONS[self.group][grain]
 
-    def _get_input_time_range(self, grain: Granularity, curr_date: date | None = None) -> tuple[date, date]:
+    def _get_input_time_range(self, grain: Granularity) -> tuple[date, date]:
         """
         Get the time range for the input data based on the grain.
 
-        :param curr_date: The current date for which the time range is calculated.
         :param grain: The grain for which the time range is retrieved.
 
         :return: The start and end date of the time range.
         """
 
-        latest_start_date, latest_end_date = self._get_current_period_range(grain, curr_date)
+        latest_start_date, latest_end_date = self._get_current_period_range(grain, self.story_date)
 
         grain_durations = self.get_time_durations(grain)
 

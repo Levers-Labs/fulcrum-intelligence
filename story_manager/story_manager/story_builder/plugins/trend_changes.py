@@ -101,12 +101,13 @@ class TrendChangesStoryBuilder(StoryBuilderBase):
                 grain,
                 avg_growth,
             )
+            self.story_date = end_date
             story_details = self.prepare_story_dict(
                 StoryType.STABLE_TREND,
                 grain=grain,
                 metric=metric,
                 df=stories_df,
-                story_date=end_date,
+                story_date=self.story_date,  # type: ignore
                 avg_growth=abs(avg_growth),
                 trend_duration=trend_duration,
                 movement=movement.value,
@@ -144,6 +145,7 @@ class TrendChangesStoryBuilder(StoryBuilderBase):
             else:
                 story_type = StoryType.NEW_DOWNWARD_TREND
 
+            self.story_date = trend_start_date
             # Add an upward/downward trend story
             logger.info("New %s trend detected for metric '%s' with grain '%s'", story_type.value, metric_id, grain)
             story_details = self.prepare_story_dict(
@@ -151,7 +153,7 @@ class TrendChangesStoryBuilder(StoryBuilderBase):
                 grain=grain,
                 metric=metric,
                 df=pc_df,
-                story_date=trend_start_date,
+                story_date=self.story_date,  # type: ignore
                 current_avg_growth=current_avg_growth,
                 previous_avg_growth=previous_avg_growth,
                 previous_trend_duration=previous_trend_duration,
@@ -163,12 +165,13 @@ class TrendChangesStoryBuilder(StoryBuilderBase):
             if latest_slope < 1:
                 logging.info("Performance Plateau detected for metric '%s' with grain '%s'", metric_id, grain)
                 avg_value = round(current_trend["value"].mean())
+                self.story_date = trend_start_date
                 story_details = self.prepare_story_dict(
                     StoryType.PERFORMANCE_PLATEAU,
                     grain=grain,
                     metric=metric,
                     df=pc_df,
-                    story_date=trend_start_date,
+                    story_date=self.story_date,  # type: ignore
                     avg_value=avg_value,
                     current_avg_growth=current_avg_growth,
                     trend_start_date=trend_start_date_str,

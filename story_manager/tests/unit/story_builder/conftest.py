@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import date, datetime
 from unittest.mock import AsyncMock
 
 import pytest
@@ -42,6 +42,11 @@ def mock_analysis_manager():
 @pytest.fixture
 def mock_db_session():
     return AsyncMock()
+
+
+@pytest.fixture
+def mock_story_date():
+    return date(2023, 4, 17)
 
 
 @pytest.fixture

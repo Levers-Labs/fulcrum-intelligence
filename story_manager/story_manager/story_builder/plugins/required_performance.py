@@ -12,7 +12,7 @@ from story_manager.core.enums import (
     StoryType,
 )
 from story_manager.story_builder import StoryBuilderBase
-from story_manager.story_builder.utils import calculate_periods_count, get_story_date, get_target_value_for_date
+from story_manager.story_builder.utils import calculate_periods_count, get_target_value_for_date
 
 logger = logging.getLogger(__name__)
 
@@ -59,7 +59,7 @@ class RequiredPerformanceStoryBuilder(StoryBuilderBase):
         start_date, end_date = self._get_input_time_range(grain)
 
         # find the interval and end of current period
-        interval, period_end_date = self._get_end_date_of_period(grain)
+        interval, period_end_date = self.get_end_date_of_period(grain)
 
         # get time series data with targets
         df = await self._get_time_series_data_with_targets(metric_id, grain, start_date, end_date)
@@ -101,14 +101,14 @@ class RequiredPerformanceStoryBuilder(StoryBuilderBase):
         required_growth = self.analysis_manager.calculate_required_growth(value, target, req_duration, 2)
         current_growth = current_period["growth_rate"].item()
         growth_deviation = self.analysis_manager.calculate_percentage_difference(current_growth, required_growth)
-
+        self.story_date = df["date"].iloc[-1]
         # prepare story details
         story_details = self.prepare_story_dict(
             story_type,
             grain=grain,
             metric=metric,
             df=df,
-            story_date=get_story_date(df),
+            story_date=self.story_date,  # type: ignore
             req_duration=req_duration,
             duration=len(df),
             interval=interval,
@@ -124,8 +124,7 @@ class RequiredPerformanceStoryBuilder(StoryBuilderBase):
 
         return stories
 
-    @staticmethod
-    def _get_end_date_of_period(grain: Granularity, curr_date: date | None = None) -> tuple[Granularity, date]:
+    def get_end_date_of_period(self, grain: Granularity) -> tuple[Granularity, date]:
         """
         Get the end date of the period of the given grain.
 
@@ -136,11 +135,10 @@ class RequiredPerformanceStoryBuilder(StoryBuilderBase):
           End date will be the end of current quarter with interval quarter.
 
         :param grain: Granularity of the time series data.
-        :param curr_date: Date of the grain, default current date.
         :return: interval and end date of the period.
         """
 
-        today = curr_date or date.today()
+        today = self.story_date or date.today()
         if grain == Granularity.DAY or grain == Granularity.WEEK:
             interval = Granularity.MONTH
             # End of the month

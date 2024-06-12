@@ -4,7 +4,6 @@ from typing import Any
 from commons.models.enums import Granularity
 from story_manager.core.enums import StoryGenre, StoryGroup, StoryType
 from story_manager.story_builder import StoryBuilderBase
-from story_manager.story_builder.utils import get_story_date
 
 logger = logging.getLogger(__name__)
 
@@ -123,13 +122,13 @@ class GrowthStoryBuilder(StoryBuilderBase):
         )
         current_growth = df["growth_rate"].iloc[-1]
         avg_growth = self.analysis_manager.cal_average_growth(df["value"])
-        story_date = get_story_date(df)
+        self.story_date = df["date"].iloc[-1]
         story_details = self.prepare_story_dict(
             story_type,
             grain=grain,
             metric=metric,
             df=df,
-            story_date=story_date,
+            story_date=self.story_date,  # type: ignore
             current_growth=round(current_growth),
             avg_growth=avg_growth,
             duration=df_len,

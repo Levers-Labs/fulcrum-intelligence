@@ -10,7 +10,7 @@ from story_manager.core.enums import (
     StoryType,
 )
 from story_manager.story_builder import StoryBuilderBase
-from story_manager.story_builder.utils import determine_status_for_value_and_target, get_story_date
+from story_manager.story_builder.utils import determine_status_for_value_and_target
 
 logger = logging.getLogger(__name__)
 
@@ -92,13 +92,13 @@ class GoalVsActualStoryBuilder(StoryBuilderBase):
 
         story_type = ref_data["status"]
         growth = ref_data["growth_rate"].item()
-        story_date = get_story_date(df)
+        self.story_date = df["date"].iloc[-1]
         story_details = self.prepare_story_dict(
             story_type,  # type: ignore
             grain=grain,
             metric=metric,
             df=df,
-            story_date=story_date,
+            story_date=self.story_date,  # type: ignore
             current_value=value,
             direction=self.story_direction_map.get(story_type),  # noqa
             current_growth=growth,
