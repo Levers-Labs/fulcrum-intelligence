@@ -35,6 +35,8 @@ class StoryType(str, Enum):
     OFF_TRACK = "OFF_TRACK"
     IMPROVING_STATUS = "IMPROVING_STATUS"
     WORSENING_STATUS = "WORSENING_STATUS"
+    REQUIRED_PERFORMANCE = "REQUIRED_PERFORMANCE"
+    HOLD_STEADY = "HOLD_STEADY"
     # Big Moves Stories
     RECORD_HIGH = "RECORD_HIGH"
     RECORD_LOW = "RECORD_LOW"
@@ -63,6 +65,8 @@ class StoryGroup(str, Enum):
     RECORD_VALUES = "RECORD_VALUES"
     STATUS_CHANGE = "STATUS_CHANGE"
     SEGMENT_DRIFT = "SEGMENT_DRIFT"
+
+    REQUIRED_PERFORMANCE = "REQUIRED_PERFORMANCE"
 
 
 class Position(str, Enum):
@@ -137,6 +141,7 @@ GROUP_TO_STORY_TYPE_MAPPING = {
         StoryType.LIKELY_ON_TRACK,
         StoryType.LIKELY_OFF_TRACK,
     ],
+    StoryGroup.REQUIRED_PERFORMANCE: [StoryType.REQUIRED_PERFORMANCE, StoryType.HOLD_STEADY],
     StoryGroup.SEGMENT_DRIFT: [
         StoryType.GROWING_SEGMENT,
         StoryType.SHRINKING_SEGMENT,
@@ -275,6 +280,18 @@ STORY_TYPES_META: dict[str, dict[str, str]] = {
         # e.g., SQORate is forecasted to end the day at 70 and miss its target of 80 by 12.5%.
         "detail": "{{metric.label}} is forecasted to end the {{interval}} at {{forecasted_value}} and miss its target "
         "of {{target}} by {{deviation}}%.",
+    },
+    StoryType.REQUIRED_PERFORMANCE: {
+        "title": "Must grow {{required_growth}}% {{pop}} to meet end of {{interval}} target",
+        "detail": "{{metric.label}} must average a {{required_growth}}% {{pop}} growth rate over the next {{"
+        "req_duration}} {{grain}}s to meet its end of {{interval}} target of {{target}}.{% if not is_min_data "
+        "%} This is a {{growth_deviation}}% {{movement}} over the {{current_growth}}% {{pop}} growth over the"
+        " past {{duration}} {{grain}}s.{% endif %}",
+    },
+    StoryType.HOLD_STEADY: {
+        "title": "Metric must maintain its performance",
+        "detail": "{{metric.label}} is already performing at its target level for the end of {{duration}} {{grain}}s "
+        "and needs to maintain this lead for the next {{req_duration}} {{grain}}s to stay On Track.",
     },
     StoryType.GROWING_SEGMENT: {
         "title": "Key Driver: Growing {{slice | default('null')}} share of {{dimension}}",

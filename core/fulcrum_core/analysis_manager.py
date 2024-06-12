@@ -446,3 +446,18 @@ class AnalysisManager:
             target_metric_direction=target_metric_direction,
         )
         return result
+
+    @staticmethod
+    def calculate_required_growth(
+        current_value: float, target_value: float, number_of_periods: int, precision: int | None = None
+    ) -> float:
+        """
+        Calculate the required growth rate to reach the target value over a given number of periods.
+        :param current_value: the current actual value
+        :param target_value: the target value
+        :param number_of_periods: total number of periods to calculate the required growth rate
+        :param precision: the number of decimal places to round the result.
+        :return:
+        """
+        required_growth = ((target_value - current_value) / number_of_periods) * 100
+        return round(required_growth, precision)
