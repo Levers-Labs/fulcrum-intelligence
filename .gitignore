@@ -137,3 +137,6 @@ dmypy.json
 
 /dump.rdb
 .DS_Store
+
+# VSCode launch configuration
+.vscode/launch.json
