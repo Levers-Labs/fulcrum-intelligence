@@ -152,3 +152,23 @@ def test_fit_model_polynomial(sample_data, input_dfs):
     assert "model" in result
     assert "equation" in result
     assert isinstance(result["model"], Pipeline)
+
+
+def test_construct_polynomial_equation(sample_data: pd.DataFrame, input_dfs: list[pd.DataFrame]):
+    # Prepare
+    analyzer = ModelAnalyzer(target_metric_id="metric1")
+    merged_df = analyzer.merge_dataframes(sample_data, input_dfs)
+    features = merged_df.drop(columns=["metric1"])
+
+    # Fit a polynomial regression model to get a model object
+    model, _ = analyzer.fit_polynomial_regression_equation(merged_df)
+
+    # Act
+    equation = analyzer._construct_polynomial_equation(model, features)
+
+    # Assert
+    assert "terms" in equation
+    assert "constant" in equation
+    assert isinstance(equation["terms"], list)
+    assert all("feature" in term and "coefficient" in term for term in equation["terms"])
+    assert isinstance(equation["constant"], float)

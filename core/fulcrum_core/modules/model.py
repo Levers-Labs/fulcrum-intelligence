@@ -7,7 +7,7 @@ from sklearn.linear_model import LinearRegression
 from sklearn.metrics import mean_squared_error
 from sklearn.model_selection import GridSearchCV, train_test_split
 from sklearn.pipeline import Pipeline
-from sklearn.preprocessing import PolynomialFeatures, StandardScaler
+from sklearn.preprocessing import PolynomialFeatures
 
 from fulcrum_core.modules import BaseAnalyzer
 
@@ -90,17 +90,9 @@ class ModelAnalyzer(BaseAnalyzer):
             features, target, test_size=0.2, random_state=42
         )
 
-        # Standardizing the features
-        features_scaler = StandardScaler()
-        features_train_scaled = features_scaler.fit_transform(features_train)
-
-        # Standardizing the target variable
-        target_scaler = StandardScaler()
-        target_train_scaled = target_scaler.fit_transform(target_train.values.reshape(-1, 1))
-
         # Initializing and fitting the Linear Regression model
         model = LinearRegression()
-        model.fit(features_train_scaled, target_train_scaled.ravel())
+        model.fit(features_train, target_train)
 
         # Extracting the coefficients and intercept to form the equation
         coef = model.coef_
@@ -113,6 +105,48 @@ class ModelAnalyzer(BaseAnalyzer):
         }
 
         return model, equation
+
+    def _construct_polynomial_equation(self, model: Any, features: pd.DataFrame) -> dict[str, Any]:
+        """
+        Construct the equation in a structured format from the model coefficients and intercept.
+
+        Parameters:
+            model (Any): The fitted model.
+            features (pd.DataFrame): The input features.
+
+        Returns:
+            dict: A dictionary representing the equation.
+        """
+        # Retrieve coefficients and intercept from the regression model
+        model_coefficients = model.named_steps["regressor"].coef_
+        model_intercept = model.named_steps["regressor"].intercept_
+
+        # Get the polynomial feature names
+        poly_features = model.named_steps["poly"].get_feature_names_out(features.columns)
+
+        equation: dict[str, Any] = {"terms": []}
+
+        for i, feature in enumerate(poly_features):
+            coefficient = round(float(model_coefficients[i]), self.precision)
+            if coefficient == 0:
+                continue
+            # Split the feature name by spaces to handle interaction terms
+            terms = feature.split(" ")
+            if len(terms) > 1:
+                # Handle interaction terms
+                interaction_term = "*".join(terms)
+                equation["terms"].append({"coefficient": coefficient, "feature": interaction_term, "power": 1})
+            else:
+                # Handle single terms
+                term = terms[0]
+                if "^" in term:
+                    feature_name, power = term.split("^")
+                    equation["terms"].append({"coefficient": coefficient, "feature": feature_name, "power": int(power)})
+                else:
+                    equation["terms"].append({"coefficient": coefficient, "feature": term, "power": 1})
+
+        equation["constant"] = float(model_intercept)
+        return equation
 
     def fit_polynomial_regression_equation(self, df: pd.DataFrame) -> tuple[Any, dict[str, Any]]:
         """
@@ -141,32 +175,22 @@ class ModelAnalyzer(BaseAnalyzer):
         pipeline = Pipeline(
             [
                 ("poly", PolynomialFeatures()),
-                ("scaler", StandardScaler()),
                 ("regressor", LinearRegression()),
             ]
         )
+        # Cross validation
+        n_samples = len(features_train)
+        cv_splits = min(n_samples, 4)
 
         # Perform grid search to find the best polynomial degree
-        grid_search = GridSearchCV(pipeline, param_grid, cv=5)
+        grid_search = GridSearchCV(pipeline, param_grid, cv=cv_splits)
         grid_search.fit(features_train, target_train)
 
         # Extract the best model and its parameters
-        optimal_degree = grid_search.best_params_["poly__degree"]
         best_model = grid_search.best_estimator_
 
-        # Retrieve coefficients and intercept from the regression model
-        model_coefficients = best_model.named_steps["regressor"].coef_
-        model_intercept = best_model.named_steps["regressor"].intercept_
-
-        # Construct the equation in a structured format
-        equation = {
-            "terms": [
-                {"coefficient": float(model_coefficients[i]), "feature": col, "power": j}
-                for j in range(1, optimal_degree + 1)
-                for i, col in enumerate(features.columns)
-            ],
-            "constant": model_intercept,
-        }
+        # Construct the equation using the new method
+        equation = self._construct_polynomial_equation(best_model, features)
 
         return best_model, equation
 
