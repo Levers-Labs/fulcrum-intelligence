@@ -1,3 +1,5 @@
+from datetime import datetime
+
 import pytest
 from pydantic import ValidationError
 
@@ -38,6 +40,7 @@ def test_valid_type_group_combination(group, story_type):
         "genre": StoryGenre.GROWTH,
         "story_group": group,
         "grain": Granularity.DAY,
+        "story_date": datetime(2020, 1, 1),
         "story_type": story_type,
         "metric_id": "test_metric",
         "title": "d/d growth is speeding up",
