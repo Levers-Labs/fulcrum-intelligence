@@ -44,7 +44,7 @@ class StoryBuilderBase(ABC):
         analysis_service: AnalysisManagerClient,
         analysis_manager: AnalysisManager,
         db_session: AsyncSession,
-        story_date: date | None,
+        story_date: date | None = None,
     ):
         """
         Initialize the StoryBuilderBase instance
