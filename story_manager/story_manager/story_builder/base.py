@@ -277,8 +277,7 @@ class StoryBuilderBase(ABC):
         await self.db_session.commit()
         logger.info("Stories persisted successfully")
 
-    @classmethod
-    def _get_current_period_range(cls, grain: Granularity, story_date: date) -> tuple[date, date]:
+    def _get_current_period_range(self, grain: Granularity) -> tuple[date, date]:
         """
         Get the end date of the last period based on the grain.
         Based on the current date, the end date is calculated as follows:
@@ -289,11 +288,10 @@ class StoryBuilderBase(ABC):
         - For year grain: December 31 of the previous year
         For each grain, the start date of the period is calculated based on the end date.
 
-        :param story_date: The story date on which the period range is calculated.
         :param grain: The grain for which the end date is retrieved.
         :return: The start and end date of the period.
         """
-        today = story_date
+        today = self.story_date
         if grain == Granularity.DAY:
             end_date = today - timedelta(days=1)
             start_date = end_date
@@ -334,7 +332,7 @@ class StoryBuilderBase(ABC):
         :return: The start and end date of the time range.
         """
 
-        latest_start_date, latest_end_date = self._get_current_period_range(grain, self.story_date)
+        latest_start_date, latest_end_date = self._get_current_period_range(grain)
 
         grain_durations = self.get_time_durations(grain)
 
