@@ -9,7 +9,6 @@ from story_manager.story_builder import StoryBuilderBase
 from story_manager.story_builder.utils import convert_snake_case_to_label, fetch_dimensions_from_metric
 
 logger = logging.getLogger(__name__)
-settings = get_settings()
 
 
 class SegmentDriftStoryBuilder(StoryBuilderBase):
@@ -51,6 +50,7 @@ class SegmentDriftStoryBuilder(StoryBuilderBase):
 
         """
 
+        settings = get_settings()
         evaluation_start_date, evaluation_end_date = self._get_input_time_range(
             grain,  # type:ignore
             half_time_range=True,
