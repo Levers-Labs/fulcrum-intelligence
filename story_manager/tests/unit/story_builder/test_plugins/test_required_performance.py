@@ -44,7 +44,7 @@ async def test_generate_req_performance_hold_steady(required_performance_story_b
     targets_df.loc[len(targets_df)] = steady_track_data
     required_performance_story_builder._get_time_series_data_with_targets = AsyncMock(return_value=targets_df)
 
-    interval, period_end_date = required_performance_story_builder.get_end_date_of_period(Granularity.DAY)
+    interval, period_end_date = required_performance_story_builder._get_end_date_of_period(Granularity.DAY)
 
     interval_target_df = pd.DataFrame(
         {
@@ -70,7 +70,7 @@ async def test_generate_req_performance_story_req_performance(required_performan
     targets_df.loc[len(targets_df)] = data
     required_performance_story_builder._get_time_series_data_with_targets = AsyncMock(return_value=targets_df)
 
-    interval, period_end_date = required_performance_story_builder.get_end_date_of_period(Granularity.DAY)
+    interval, period_end_date = required_performance_story_builder._get_end_date_of_period(Granularity.DAY)
 
     interval_target_df = pd.DataFrame(
         {
@@ -93,7 +93,7 @@ async def test_generate_req_performance_story_for_min_data(required_performance_
 
     required_performance_story_builder._get_time_series_data_with_targets = AsyncMock(return_value=targets_df)
 
-    interval, period_end_date = required_performance_story_builder.get_end_date_of_period(Granularity.DAY)
+    interval, period_end_date = required_performance_story_builder._get_end_date_of_period(Granularity.DAY)
 
     interval_target_df = pd.DataFrame(
         {
@@ -114,7 +114,7 @@ async def test_generate_req_performance_story_for_min_data(required_performance_
 def test_day_grain_last_day_of_month(required_performance_story_builder):
     today = date(2024, 2, 2)  # Leap year
     required_performance_story_builder.story_date = today
-    interval, end_date = required_performance_story_builder.get_end_date_of_period(Granularity.DAY)
+    interval, end_date = required_performance_story_builder._get_end_date_of_period(Granularity.DAY)
     assert interval == Granularity.MONTH
     assert end_date == date(2024, 2, 29)
 
@@ -123,7 +123,7 @@ def test_day_grain_last_day_of_month(required_performance_story_builder):
 def test_week_grain_last_day_of_month(required_performance_story_builder):
     today = date(2024, 2, 27)  # Leap year
     required_performance_story_builder.story_date = today
-    interval, end_date = required_performance_story_builder.get_end_date_of_period(Granularity.WEEK)
+    interval, end_date = required_performance_story_builder._get_end_date_of_period(Granularity.WEEK)
     assert interval == Granularity.MONTH
     assert end_date == date(2024, 2, 29)
 
@@ -132,6 +132,6 @@ def test_week_grain_last_day_of_month(required_performance_story_builder):
 def test_month_grain_last_day_of_quarter(required_performance_story_builder):
     today = date(2024, 3, 3)  # End of a quarter
     required_performance_story_builder.story_date = today
-    interval, end_date = required_performance_story_builder.get_end_date_of_period(Granularity.MONTH)
+    interval, end_date = required_performance_story_builder._get_end_date_of_period(Granularity.MONTH)
     assert interval == Granularity.QUARTER
     assert end_date == date(2024, 3, 31)

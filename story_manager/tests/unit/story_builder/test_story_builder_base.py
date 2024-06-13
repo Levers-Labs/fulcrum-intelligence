@@ -172,7 +172,7 @@ def test_get_current_period_range_invalid_grain(story_builder):
         story_builder._get_current_period_range(grain, story_date)  # type: ignore
 
 
-def test_get_current_period_range_from_today(story_builder):
+def test_get_current_period_range_from_today(story_builder, mock_story_date):
     # prepare
     grain = Granularity.DAY
     today = date.today()
@@ -180,7 +180,7 @@ def test_get_current_period_range_from_today(story_builder):
     expected_end_date = expected_start_date
 
     # Act
-    start_date, end_date = story_builder._get_current_period_range(grain)
+    start_date, end_date = story_builder._get_current_period_range(grain, today)
     # Assert
     assert start_date == expected_start_date
     assert end_date == expected_end_date

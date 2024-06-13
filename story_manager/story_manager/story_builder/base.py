@@ -190,7 +190,6 @@ class StoryBuilderBase(ABC):
         :param metric: The metric for which the story is generated.
         :param df: The time series data for the story
         :param extra_context: Additional context variables for the story
-        :param story_date: The date of the story
 
         :return: A dictionary containing the story details
         """
@@ -279,7 +278,7 @@ class StoryBuilderBase(ABC):
         logger.info("Stories persisted successfully")
 
     @classmethod
-    def _get_current_period_range(cls, grain: Granularity, story_date: date | None = None) -> tuple[date, date]:
+    def _get_current_period_range(cls, grain: Granularity, story_date: date) -> tuple[date, date]:
         """
         Get the end date of the last period based on the grain.
         Based on the current date, the end date is calculated as follows:
@@ -294,7 +293,7 @@ class StoryBuilderBase(ABC):
         :param grain: The grain for which the end date is retrieved.
         :return: The start and end date of the period.
         """
-        today = story_date or date.today()
+        today = story_date
         if grain == Granularity.DAY:
             end_date = today - timedelta(days=1)
             start_date = end_date

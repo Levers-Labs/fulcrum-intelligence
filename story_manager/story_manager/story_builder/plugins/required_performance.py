@@ -59,7 +59,7 @@ class RequiredPerformanceStoryBuilder(StoryBuilderBase):
         start_date, end_date = self._get_input_time_range(grain)
 
         # find the interval and end of current period
-        interval, period_end_date = self.get_end_date_of_period(grain)
+        interval, period_end_date = self._get_end_date_of_period(grain)
 
         # get time series data with targets
         df = await self._get_time_series_data_with_targets(metric_id, grain, start_date, end_date)
@@ -122,7 +122,7 @@ class RequiredPerformanceStoryBuilder(StoryBuilderBase):
 
         return stories
 
-    def get_end_date_of_period(self, grain: Granularity) -> tuple[Granularity, date]:
+    def _get_end_date_of_period(self, grain: Granularity) -> tuple[Granularity, date]:
         """
         Get the end date of the period of the given grain.
 
