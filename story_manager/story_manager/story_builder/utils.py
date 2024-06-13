@@ -1,4 +1,4 @@
-from datetime import date, datetime
+from datetime import date
 
 import pandas as pd
 
@@ -26,11 +26,6 @@ def determine_status_for_value_and_target(df_row: pd.Series) -> StoryType | None
         return StoryType.ON_TRACK
     else:
         return StoryType.OFF_TRACK
-
-
-def get_story_date(df: pd.DataFrame) -> datetime:
-    story_date = df["date"].iloc[-1]
-    return story_date
 
 
 def get_target_value_for_date(target_df: pd.DataFrame, ref_date: date) -> float | None:
