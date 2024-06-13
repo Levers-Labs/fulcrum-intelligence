@@ -92,13 +92,11 @@ class GoalVsActualStoryBuilder(StoryBuilderBase):
 
         story_type = ref_data["status"]
         growth = ref_data["growth_rate"].item()
-        self.story_date = df["date"].iloc[-1]
         story_details = self.prepare_story_dict(
             story_type,  # type: ignore
             grain=grain,
             metric=metric,
             df=df,
-            story_date=self.story_date,  # type: ignore
             current_value=value,
             direction=self.story_direction_map.get(story_type),  # noqa
             current_growth=growth,

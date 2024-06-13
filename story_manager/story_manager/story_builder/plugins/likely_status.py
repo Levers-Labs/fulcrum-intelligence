@@ -59,7 +59,7 @@ class LikelyStatusStoryBuilder(StoryBuilderBase):
             return []
 
         # get the start and end of the story period
-        interval, story_start_date, story_end_date = self.get_story_period(grain)
+        interval, story_start_date, story_end_date = self._get_story_period(grain)
 
         # get the target value for the end of the period
         target_df = await self._get_time_series_for_targets(metric_id, grain, end_date, story_end_date)
@@ -101,14 +101,12 @@ class LikelyStatusStoryBuilder(StoryBuilderBase):
 
         # calculate deviation % of value from the target
         deviation = self.analysis_manager.calculate_percentage_difference(forecasted_value, target_value)
-        self.story_date = story_end_date
         # prepare story details
         story_details = self.prepare_story_dict(
             story_type,
             grain=grain,
             metric=metric,
             df=story_df,
-            story_date=self.story_date,  # type: ignore
             deviation=abs(deviation),
             forecasted_value=forecasted_value,
             target=target_value,
@@ -118,12 +116,12 @@ class LikelyStatusStoryBuilder(StoryBuilderBase):
         logger.info(f"Stories generated for metric '{metric_id}', story details: {story_details}")
         return stories
 
-    def get_story_period(self, grain: Granularity) -> tuple[Granularity, date, date]:
+    def _get_story_period(self, grain: Granularity) -> tuple[Granularity, date, date]:
         """
         Get the interval, start date, and end date for the story period based
         on the grain and current date.
         """
-        today = self.story_date or date.today()
+        today = self.story_date
         if grain == Granularity.DAY:
             interval = Granularity.WEEK
             # end of the week

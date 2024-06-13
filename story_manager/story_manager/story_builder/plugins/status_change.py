@@ -93,13 +93,11 @@ class StatusChangeStoryBuilder(StoryBuilderBase):
 
         prev_duration = self.get_previous_status_duration(df, prev_status)  # noqa
 
-        self.story_date = df["date"].iloc[-1]
         story_details = self.prepare_story_dict(
             story_type,  # type: ignore
             grain=grain,
             metric=metric,
             df=df,
-            story_date=self.story_date,  # type: ignore
             deviation=deviation,
             prev_duration=prev_duration,
         )

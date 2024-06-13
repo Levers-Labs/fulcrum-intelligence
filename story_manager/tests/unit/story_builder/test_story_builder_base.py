@@ -237,7 +237,7 @@ def test_render_story_texts(story_builder):
     )
 
 
-def test_prepare_story_dict(story_builder):
+def test_prepare_story_dict(story_builder, mock_story_date):
     # prepare
     story_builder.group = StoryGroup.TREND_CHANGES
     story_builder.genre = StoryGenre.TRENDS
@@ -260,7 +260,6 @@ def test_prepare_story_dict(story_builder):
         grain,
         metric,
         df,
-        story_date=datetime(2023, 1, 1),
         avg_growth=avg_growth,
         trend_duration=trend_duration,
         movement=movement,
@@ -271,7 +270,7 @@ def test_prepare_story_dict(story_builder):
         "genre": StoryGenre.TRENDS,
         "story_group": StoryGroup.TREND_CHANGES,
         "story_type": story_type,
-        "story_date": datetime(2023, 1, 1),
+        "story_date": mock_story_date,
         "grain": grain,
         "metric_id": "metric1",
         "series": df.to_dict(orient="records"),

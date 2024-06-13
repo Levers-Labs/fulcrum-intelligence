@@ -122,13 +122,11 @@ class GrowthStoryBuilder(StoryBuilderBase):
         )
         current_growth = df["growth_rate"].iloc[-1]
         avg_growth = self.analysis_manager.cal_average_growth(df["value"])
-        self.story_date = df["date"].iloc[-1]
         story_details = self.prepare_story_dict(
             story_type,
             grain=grain,
             metric=metric,
             df=df,
-            story_date=self.story_date,  # type: ignore
             current_growth=round(current_growth),
             avg_growth=avg_growth,
             duration=df_len,

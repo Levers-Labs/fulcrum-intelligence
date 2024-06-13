@@ -101,14 +101,12 @@ class RequiredPerformanceStoryBuilder(StoryBuilderBase):
         required_growth = self.analysis_manager.calculate_required_growth(value, target, req_duration, 2)
         current_growth = current_period["growth_rate"].item()
         growth_deviation = self.analysis_manager.calculate_percentage_difference(current_growth, required_growth)
-        self.story_date = df["date"].iloc[-1]
         # prepare story details
         story_details = self.prepare_story_dict(
             story_type,
             grain=grain,
             metric=metric,
             df=df,
-            story_date=self.story_date,  # type: ignore
             req_duration=req_duration,
             duration=len(df),
             interval=interval,
@@ -138,7 +136,7 @@ class RequiredPerformanceStoryBuilder(StoryBuilderBase):
         :return: interval and end date of the period.
         """
 
-        today = self.story_date or date.today()
+        today = self.story_date
         if grain == Granularity.DAY or grain == Granularity.WEEK:
             interval = Granularity.MONTH
             # End of the month

@@ -94,13 +94,11 @@ class TrendExceptionsStoryBuilder(StoryBuilderBase):
             position = Position.BELOW
 
         if story_type:
-            self.story_date = pc_df["date"].iloc[-1]
             story_details = self.prepare_story_dict(
                 story_type=story_type,
                 grain=grain,  # type: ignore
                 metric=metric,
                 df=pc_df,
-                story_date=self.story_date,  # type: ignore
                 deviation=deviation,
                 position=position.value,
             )

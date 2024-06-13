@@ -44,7 +44,7 @@ class StoryBuilderBase(ABC):
         analysis_service: AnalysisManagerClient,
         analysis_manager: AnalysisManager,
         db_session: AsyncSession,
-        story_date: date | None = None,
+        story_date: date | None,
     ):
         """
         Initialize the StoryBuilderBase instance
@@ -58,7 +58,7 @@ class StoryBuilderBase(ABC):
         self.analysis_service = analysis_service
         self.analysis_manager = analysis_manager
         self.db_session = db_session
-        self.story_date = story_date
+        self.story_date = story_date or date.today()
 
     async def _get_time_series_data(
         self, metric_id: str, grain: Granularity, start_date: date, end_date: date, set_index: bool = False
@@ -180,7 +180,6 @@ class StoryBuilderBase(ABC):
         grain: Granularity,
         metric: dict,
         df: pd.DataFrame,
-        story_date: date,
         **extra_context,
     ) -> dict[str, Any]:
         """
@@ -205,7 +204,7 @@ class StoryBuilderBase(ABC):
             "genre": self.genre,
             "story_group": self.group,
             "story_type": story_type,
-            "story_date": story_date,
+            "story_date": self.story_date,
             "grain": grain,
             "series": series,
             "title": story_texts["title"],

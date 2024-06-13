@@ -56,7 +56,7 @@ async def test_likely_status_stories_likely_on_track_off_track(likely_status_sto
         {"date": datetime.date(2022, 1, 11), "value": 150},
     ]
 
-    likely_status_story_builder.get_story_period = MagicMock(return_value=(interval, story_start_date, story_end_date))
+    likely_status_story_builder._get_story_period = MagicMock(return_value=(interval, story_start_date, story_end_date))
     likely_status_story_builder._get_time_series_data_with_targets = AsyncMock(return_value=df)
     likely_status_story_builder._get_time_series_for_targets = AsyncMock(return_value=target_df)
     likely_status_story_builder.analysis_manager.simple_forecast = MagicMock(return_value=forecasted_values)
@@ -138,7 +138,7 @@ async def test_likely_status_stories_no_forecasted_value(likely_status_story_bui
         {"date": datetime.date(2022, 1, 11), "value": 150},
     ]
 
-    likely_status_story_builder.get_story_period = MagicMock(return_value=(interval, story_start_date, story_end_date))
+    likely_status_story_builder._get_story_period = MagicMock(return_value=(interval, story_start_date, story_end_date))
     likely_status_story_builder._get_time_series_data_with_targets = AsyncMock(return_value=df)
     likely_status_story_builder._get_time_series_for_targets = AsyncMock(return_value=target_df)
     likely_status_story_builder.analysis_manager.simple_forecast = MagicMock(return_value=forecasted_values)
@@ -187,19 +187,19 @@ def test_get_forecasted_value_for_date():
 
 def test_get_story_period(likely_status_story_builder):
     # Test case for Granularity.DAY
-    interval, start_date, end_date = likely_status_story_builder.get_story_period(grain=Granularity.DAY)
+    interval, start_date, end_date = likely_status_story_builder._get_story_period(grain=Granularity.DAY)
     assert interval == Granularity.WEEK
     assert start_date == datetime.date(2023, 4, 17)
     assert end_date == datetime.date(2023, 4, 23)
 
     # Test case for Granularity.WEEK
-    interval, start_date, end_date = likely_status_story_builder.get_story_period(grain=Granularity.WEEK)
+    interval, start_date, end_date = likely_status_story_builder._get_story_period(grain=Granularity.WEEK)
     assert interval == Granularity.MONTH
     assert start_date == datetime.date(2023, 4, 1)
     assert end_date == datetime.date(2023, 4, 24)
 
     # Test case for Granularity.MONTH
-    interval, start_date, end_date = likely_status_story_builder.get_story_period(grain=Granularity.MONTH)
+    interval, start_date, end_date = likely_status_story_builder._get_story_period(grain=Granularity.MONTH)
     assert interval == Granularity.QUARTER
     assert start_date == datetime.date(2023, 4, 1)
     assert end_date == datetime.date(2023, 6, 1)
@@ -207,7 +207,7 @@ def test_get_story_period(likely_status_story_builder):
 
 def test_get_story_period_invalid_grain(likely_status_story_builder):
     with pytest.raises(ValueError):
-        likely_status_story_builder.get_story_period(grain="invalid_grain")
+        likely_status_story_builder._get_story_period(grain="invalid_grain")
 
 
 def test_prepare_forecasted_story_df():
