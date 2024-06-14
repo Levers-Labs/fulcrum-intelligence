@@ -269,17 +269,21 @@ class SegmentDriftEvaluator:
         """
         request_payload: dict[str, Any] = dict()
 
-        # Comparison Start Date
+        # Meaning of BaseDateRange and Comparison Date in dsensei is opp. to our naming convention
+        # In Dsensei basedaterange is comparison date, that's why setting comparison date as basedaterange date
+        # Evaluation Start Date
         request_payload["baseDateRange"] = dict()
         request_payload["baseDateRange"]["from"] = self.update_dateformat(comparison_start_date)
         # Evaluation End Date
         request_payload["baseDateRange"]["to"] = self.update_dateformat(comparison_end_date)
 
-        # Comparison Start Date
+        # In Dsensei compairson date range is evaluation date, that's why adding evaluation start date as comparison
+        # date
+        # Evaluation Start Date
         request_payload["comparisonDateRange"] = dict()
         request_payload["comparisonDateRange"]["from"] = self.update_dateformat(evaluation_start_date)
 
-        # Comparison End Date
+        # Evaluation End Date
         request_payload["comparisonDateRange"]["to"] = self.update_dateformat(evaluation_end_date)
         # file_id of the generated CSV, change it later
         request_payload["fileId"] = csv_file_id
