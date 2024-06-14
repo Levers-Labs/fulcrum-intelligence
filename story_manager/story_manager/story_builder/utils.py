@@ -66,8 +66,3 @@ def calculate_periods_count(from_date: date, to_date: date, grain: Granularity) 
     else:
         raise ValueError(f"Unsupported grain: {grain}")
     return count
-
-
-def fetch_dimensions_from_metric(metric_details: dict) -> list[str]:
-    dimensions = [dimension["id"] for dimension in metric_details["dimensions"]]
-    return dimensions

@@ -135,8 +135,3 @@ class SegmentDriftResponse(BaseModel):
     filters: list
     dimension_slices: list[DimensionSlices]
     dimension_slices_permutation_keys: list[str]
-
-
-class SignificantSegmentResponse(BaseModel):
-    top_4_segments: list[dict[str, Any]]
-    bottom_4_segments: list[dict[str, Any]]

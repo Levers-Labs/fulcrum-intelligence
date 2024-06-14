@@ -487,29 +487,40 @@ class AnalysisManager:
 
     # separate dimension based slices,
     @staticmethod
-    def get_dimension_slices_values_df(
-        dimension_slice_data, dimension, ignore_null: bool = False, ignore_zero: bool = False
+    def get_dimension_slices_df(
+        dimensions_slices_df_map, ignore_null: bool = False, ignore_zero: bool = False
     ) -> pd.DataFrame:
+        """
+        We are creating dataframes from a dictionary with structure as
+        {'dimension_id': data_frame of the slices for the dimension}
+
+        "account_segment": [
+            {"metric_id": "NewBizDeals", "value": 4, "date": None, "account_segment": "Mid Market"},
+            {"metric_id": "NewBizDeals", "value": 3, "date": None, "account_segment": "Enterprise"},
+            {"metric_id": "NewBizDeals", "value": 0, "date": None, "account_segment": None},
+        ]
+
+        Params:
+            dimensions_slices_df_map: dimension_id and dataframe of slices map
+            ignore_null: whether to ignore slices with value as None
+
+        Output:
+            A dataframe of all the slices with the structure
+            |dimension   member  value|
+
+            member is the slice of that specific dimension
+        """
         df = pd.DataFrame()
-        for slice_info in dimension_slice_data:
-            if ignore_null and slice_info[dimension] is None:
-                continue
-            if ignore_zero and slice_info["value"] == 0:
-                continue
 
-            row = {"dimension": dimension, "member": slice_info[dimension], "value": slice_info["value"]}
+        for dimension, slices_df in dimensions_slices_df_map.items():
+            if ignore_null:
+                slices_df = slices_df[slices_df[dimension].notna()]
+            if ignore_zero:
+                slices_df = slices_df[slices_df["value"] != 0]
 
-            df = pd.concat([df, pd.DataFrame(row, index=[0])], ignore_index=True)
+            slices_df = slices_df[["value", dimension]]
+            slices_df["dimension"] = dimension
+            slices_df.rename(columns={dimension: "member"}, inplace=True)
+            df = pd.concat([df, slices_df], ignore_index=True)
 
         return df
-
-    @staticmethod
-    def get_top_or_bottom_n_segments(
-        slice_data_frame: pd.DataFrame,
-        top: bool = True,
-        no_of_slices=4,
-    ):
-        if top:
-            return slice_data_frame.head(no_of_slices)
-        else:
-            return slice_data_frame.tail(no_of_slices)

@@ -1,6 +1,7 @@
 from datetime import date, datetime
 from unittest.mock import AsyncMock
 
+import pandas as pd
 import pytest
 
 from commons.models.enums import Granularity
@@ -192,10 +193,10 @@ def significant_segment_stories():
             "story_date": date(2024, 6, 14),
             "grain": "week",
             "series": [
-                {"dimension": "lead_source", "member": None, "value": 7},
-                {"dimension": "forecast_category", "member": "Closed", "value": 7},
-                {"dimension": "loss_reason", "member": None, "value": 7},
-                {"dimension": "billing_plan", "member": "Enterprise", "value": 6},
+                {"value": 7, "member": None, "dimension": "lead_source"},
+                {"value": 7, "member": "Closed", "dimension": "forecast_category"},
+                {"value": 7, "member": None, "dimension": "loss_reason"},
+                {"value": 6, "member": "Enterprise", "dimension": "billing_plan"},
             ],
             "title": "Prior week best performing segments",
             "detail": "The segments below had the highest average values for New Business Deals over the past week",
@@ -219,10 +220,10 @@ def significant_segment_stories():
             "story_date": date(2024, 6, 14),
             "grain": "week",
             "series": [
-                {"dimension": "customer_success_manager_name", "member": "Nicolas Ishihara", "value": 0},
-                {"dimension": "customer_success_manager_name", "member": "Christine Durham", "value": 0},
-                {"dimension": "customer_success_manager_name", "member": "Nathan Kuhn", "value": 0},
-                {"dimension": "opportunity_source", "member": "CSM Identified", "value": 0},
+                {"value": 0, "member": "Nicolas Ishihara", "dimension": "customer_success_manager_name"},
+                {"value": 0, "member": "Christine Durham", "dimension": "customer_success_manager_name"},
+                {"value": 0, "member": "Nathan Kuhn", "dimension": "customer_success_manager_name"},
+                {"value": 0, "member": "CSM Identified", "dimension": "opportunity_source"},
             ],
             "title": "Prior week worst performing segments",
             "detail": "The segments below had the lowest average values for New Business Deals over the past week",
@@ -244,6 +245,8 @@ def significant_segment_stories():
 @pytest.fixture
 def mock_get_dimension_slice_data(significant_segment_story_builder, mocker, dimension_slice_data):
     async def get_dimension_slice_data(metric_id, start_date, end_date, dimensions):
-        return dimension_slice_data[dimensions[0]]
+        return pd.DataFrame(dimension_slice_data[dimensions[0]])
 
-    mocker.patch.object(significant_segment_story_builder.query_service, "get_metric_values", get_dimension_slice_data)
+    mocker.patch.object(
+        significant_segment_story_builder.query_service, "_get_metric_values_df", get_dimension_slice_data
+    )

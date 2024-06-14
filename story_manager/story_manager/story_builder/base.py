@@ -377,3 +377,13 @@ class StoryBuilderBase(ABC):
         # Selecting only the required columns
         final_df = merged_df[["date", "value", "target"]]
         return final_df
+
+    def get_metric_dimension_ids(self, metric_details: dict[str, Any]) -> list[str]:
+        """
+        We are fetch the dimension ids for the given metric.
+        :param metric_details: The metric details, complete metric object
+
+        Output: list of dimension ids
+        """
+        dimensions = [dimension["id"] for dimension in metric_details["dimensions"]]
+        return dimensions
