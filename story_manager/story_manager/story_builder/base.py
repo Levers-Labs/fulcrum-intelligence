@@ -380,3 +380,10 @@ class StoryBuilderBase(ABC):
         # Selecting only the required columns
         final_df = merged_df[["date", "value", "target"]]
         return final_df
+
+    def get_metric_dimension_id_label_map(self, metric_details):
+        dimension_id_label_map = dict()
+        for dimension in metric_details["dimensions"]:
+            dimension_id_label_map[dimension["id"]] = dimension["label"]
+
+        return dimension_id_label_map
