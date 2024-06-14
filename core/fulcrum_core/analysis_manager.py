@@ -416,8 +416,8 @@ class AnalysisManager:
 
         return round(slope, precision)
 
+    @staticmethod
     async def segment_drift(
-        self,
         dsensei_base_url: str,
         df: pd.DataFrame,
         evaluation_start_date: date,
@@ -461,3 +461,32 @@ class AnalysisManager:
         """
         required_growth = ((target_value - current_value) / number_of_periods) * 100
         return round(required_growth, precision)
+
+    # separate dimension based slices,
+    @staticmethod
+    def get_dimension_slices_values_df(
+        dimension_slice_data, dimension, ignore_null: bool = False, ignore_zero: bool = False
+    ) -> pd.DataFrame:
+        df = pd.DataFrame()
+        for slice_info in dimension_slice_data:
+            if ignore_null and slice_info[dimension] is None:
+                continue
+            if ignore_zero and slice_info["value"] == 0:
+                continue
+
+            row = {"dimension": dimension, "member": slice_info[dimension], "value": slice_info["value"]}
+
+            df = pd.concat([df, pd.DataFrame(row, index=[0])], ignore_index=True)
+
+        return df
+
+    @staticmethod
+    def get_top_or_bottom_n_segments(
+        slice_data_frame: pd.DataFrame,
+        top: bool = True,
+        no_of_slices=4,
+    ):
+        if top:
+            return slice_data_frame.head(no_of_slices)
+        else:
+            return slice_data_frame.tail(no_of_slices)

@@ -12,35 +12,54 @@ class SignificantSegmentStoryBuilder(StoryBuilderBase):
     supported_grains = [Granularity.DAY, Granularity.WEEK, Granularity.MONTH]
 
     async def generate_stories(self, metric_id: str, grain: str) -> list[dict]:
-        evaluation_start_date, evaluation_end_date = self._get_input_time_range(grain)  # type:ignore
-        comparison_start_date, comparison_end_date = self._get_input_time_range(
-            grain,  # type:ignore
-            curr_date=evaluation_start_date,
-        )
+        start_date, end_date = self._get_current_period_range(grain)  # type:ignore
+
         metric = await self.query_service.get_metric(metric_id)
         metric_dimensions = fetch_dimensions_from_metric(metric_details=metric)
 
-        significant_segments = await self.analysis_service.get_significant_segment(
-            metric_id=metric_id,
-            evaluation_start_date=evaluation_start_date,
-            evaluation_end_date=evaluation_end_date,
-            comparison_start_date=comparison_start_date,
-            comparison_end_date=comparison_end_date,
-            dimensions=metric_dimensions,
+        dimension_slices_dataframe = pd.DataFrame()
+
+        for dimension in metric_dimensions:
+            dimension_slice_values = await self.query_service.get_metric_values(
+                metric_id=metric_id,
+                dimensions=[dimension],
+                start_date=start_date,
+                end_date=end_date,
+            )
+
+            single_dimension_df = self.analysis_manager.get_dimension_slices_values_df(
+                dimension_slice_values, dimension
+            )
+
+            dimension_slices_dataframe = pd.concat([dimension_slices_dataframe, single_dimension_df], ignore_index=True)
+
+        dimension_slices_dataframe = dimension_slices_dataframe.sort_values(by="value", ascending=False)
+        values_sum = dimension_slices_dataframe["value"].sum()
+        no_of_slices = len(dimension_slices_dataframe)
+        values_average = round(values_sum / no_of_slices, 2) if no_of_slices > 0 else 0
+
+        top_4_dimensions_slices = self.analysis_manager.get_top_or_bottom_n_segments(
+            dimension_slices_dataframe, top=True, no_of_slices=4
+        )
+
+        bottom_4_dimensions_slices = self.analysis_manager.get_top_or_bottom_n_segments(
+            dimension_slices_dataframe, top=False, no_of_slices=4
         )
 
         top_4_segment_story = self.prepare_story_dict(
             story_type=StoryType.TOP_4_SEGMENTS,
             grain=grain,  # type: ignore
             metric=metric,
-            df=pd.DataFrame(significant_segments["top_4_segments"]),
+            df=top_4_dimensions_slices,
+            average=values_average,
         )
 
         bottom_4_segment_story = self.prepare_story_dict(
-            story_type=StoryType.TOP_4_SEGMENTS,
+            story_type=StoryType.BOTTOM_4_SEGMENTS,
             grain=grain,  # type: ignore
             metric=metric,
-            df=pd.DataFrame(significant_segments["bottom_4_segments"]),
+            df=bottom_4_dimensions_slices,
+            average=values_average,
         )
 
         return [top_4_segment_story, bottom_4_segment_story]
