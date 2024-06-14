@@ -189,6 +189,7 @@ def significant_segment_stories():
             "genre": "PERFORMANCE",
             "story_group": "SIGNIFICANT_SEGMENTS",
             "story_type": "TOP_4_SEGMENTS",
+            "story_date": date(2024, 6, 14),
             "grain": "week",
             "series": [
                 {"dimension": "lead_source", "member": None, "value": 7},
@@ -215,6 +216,7 @@ def significant_segment_stories():
             "genre": "PERFORMANCE",
             "story_group": "SIGNIFICANT_SEGMENTS",
             "story_type": "BOTTOM_4_SEGMENTS",
+            "story_date": date(2024, 6, 14),
             "grain": "week",
             "series": [
                 {"dimension": "customer_success_manager_name", "member": "Nicolas Ishihara", "value": 0},
