@@ -7,7 +7,6 @@ from typing import Any
 
 import httpx
 import pandas as pd
-from sqlalchemy.exc import InvalidRequestError
 
 from fulcrum_core.enums import (
     AggregationMethod,
@@ -326,7 +325,7 @@ class SegmentDriftEvaluator:
 
         # invalid metric column
         if kwargs.get("metric_column") not in df:
-            raise InvalidRequestError("Provided metric column name must exist in data")
+            raise ValueError("Provided metric column name must exist in data")
 
     def post_process_insight_response(self, response: dict[str, Any]) -> dict[str, Any]:
         """

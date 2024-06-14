@@ -58,10 +58,11 @@ class GoalVsActualStoryBuilder(StoryBuilderBase):
 
         # get time series data with targets
         df = await self._get_time_series_data_with_targets(metric_id, grain, start_date, end_date)
+        df_len = len(df)
 
         # validate time series data has minimum required data points
         time_durations = self.get_time_durations(grain)
-        if len(df) < time_durations["min"]:
+        if df_len < time_durations["min"]:
             logger.warning(
                 "Discarding story generation for metric '%s' with grain '%s' due to insufficient data", metric_id, grain
             )
@@ -101,7 +102,7 @@ class GoalVsActualStoryBuilder(StoryBuilderBase):
             current_growth=growth,
             target=target,
             deviation=abs(deviation),
-            duration=len(df),
+            duration=df_len,
         )
         stories.append(story_details)
         logger.info(f"Stories generated for metric '{metric_id}', story details: {story_details}")

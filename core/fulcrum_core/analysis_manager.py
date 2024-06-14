@@ -15,6 +15,7 @@ from fulcrum_core.modules import (
     ComponentDriftEvaluator,
     CorrelationAnalyzer,
     DescribeAnalyzer,
+    ModelAnalyzer,
     ProcessControlAnalyzer,
     SegmentDriftEvaluator,
     SimpleForecast,
@@ -416,8 +417,8 @@ class AnalysisManager:
 
         return round(slope, precision)
 
-    @staticmethod
     async def segment_drift(
+        self,
         dsensei_base_url: str,
         df: pd.DataFrame,
         evaluation_start_date: date,
@@ -461,6 +462,28 @@ class AnalysisManager:
         """
         required_growth = ((target_value - current_value) / number_of_periods) * 100
         return round(required_growth, precision)
+
+    def model_analysis(self, df: pd.DataFrame, input_dfs: list[pd.DataFrame]) -> dict:
+        """
+        for a given output metrics and list of input metrics,
+        perform model analysis to predict the output metric using the input metrics.
+
+        Args:
+            df (pd.DataFrame): The output metric data.
+            input_dfs (list[pd.DataFrame]): The input metric data.
+
+        Returns:
+            dict: The linear or polynomial regression model.
+        """
+        # Create an instance of ModelAnalyzer
+        target_metric_id = df["metric_id"].iloc[0]
+        model_analyzer = ModelAnalyzer(target_metric_id=target_metric_id)
+
+        # perform model analysis
+        result = model_analyzer.run(df, input_dfs=input_dfs)
+
+        # Return the model and equation
+        return result
 
     # separate dimension based slices,
     @staticmethod
