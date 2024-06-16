@@ -288,7 +288,6 @@ class StoryBuilderBase(ABC):
         - For year grain: December 31 of the previous year
         For each grain, the start date of the period is calculated based on the end date.
 
-        :param curr_date: The current date for which the period range is calculated.
         :param grain: The grain for which the end date is retrieved.
         :return: The start and end date of the period.
         """
