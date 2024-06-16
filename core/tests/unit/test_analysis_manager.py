@@ -4,7 +4,6 @@ from unittest.mock import ANY, AsyncMock
 
 import pandas as pd
 import pytest
-from sqlalchemy.exc import InvalidRequestError
 
 from fulcrum_core import AnalysisManager
 from fulcrum_core.enums import AggregationMethod, AggregationOption, MetricChangeDirection
@@ -326,7 +325,7 @@ async def test_get_insights(mocker, insight_api_response, get_insight_response):
 
 def test_validate_request_data():
     segment_drift_evaluator = SegmentDriftEvaluator("")
-    with pytest.raises(InvalidRequestError) as exc_info:
+    with pytest.raises(ValueError) as exc_info:
         segment_drift_evaluator.validate_request_data(pd.DataFrame())
 
     # Assert that the raised exception has the expected message

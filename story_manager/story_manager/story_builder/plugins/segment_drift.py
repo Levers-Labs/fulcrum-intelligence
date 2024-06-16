@@ -48,16 +48,15 @@ class SegmentDriftStoryBuilder(StoryBuilderBase):
             a list of story dictionaries.
 
         """
-
         settings = get_settings()
         evaluation_start_date, evaluation_end_date = self._get_input_time_range(
             grain,
             half_time_range=True,
         )
 
+        self.story_date = evaluation_start_date
         comparison_start_date, comparison_end_date = self._get_input_time_range(
-            grain,  # type:ignore
-            curr_date=evaluation_start_date,
+            grain,
             half_time_range=True,
         )
 

@@ -51,13 +51,12 @@ class LongRangeStoryBuilder(StoryBuilderBase):
         start_date, end_date = self._get_input_time_range(grain)  # type: ignore
 
         # get time series data
-        series_df = await self._get_time_series_data(
-            metric_id, grain, start_date, end_date, set_index=False  # type: ignore
-        )
+        df = await self._get_time_series_data(metric_id, grain, start_date, end_date, set_index=False)  # type: ignore
+        df_len = len(df)
 
         # validate time series data has minimum required data points
         time_durations = self.get_time_durations(grain)  # type: ignore
-        if len(series_df) < time_durations["min"]:
+        if len(df) < time_durations["min"]:
             logger.warning(
                 "Discarding story generation for metric '%s' with grain '%s'" "due to in insufficient data.",
                 metric_id,
@@ -65,25 +64,24 @@ class LongRangeStoryBuilder(StoryBuilderBase):
             )
             return []
 
-        avg_growth = self.analysis_manager.cal_average_growth(series_df["value"])
-        initial_value = series_df["value"].iloc[0]
-        final_value = series_df["value"].iloc[-1]
+        avg_growth = self.analysis_manager.cal_average_growth(df["value"])
+        initial_value = df["value"].iloc[0]
+        final_value = df["value"].iloc[-1]
         overall_growth = self.analysis_manager.calculate_percentage_difference(final_value, initial_value)
 
-        slope = self.analysis_manager.calculate_slope_of_time_series(df=series_df, precision=2)
+        slope = self.analysis_manager.calculate_slope_of_time_series(df=df, precision=2)
 
-        series_df["slope"] = slope
+        df["slope"] = slope
 
         story_type = StoryType.IMPROVING_PERFORMANCE if slope > 0 else StoryType.WORSENING_PERFORMANCE
-
         story_details = self.prepare_story_dict(
             story_type=story_type,
             grain=grain,  # type: ignore
             metric=metric,
-            df=series_df,
+            df=df,
             avg_growth=avg_growth,
             overall_growth=overall_growth,
-            duration=len(series_df),
+            duration=df_len,
             start_date=start_date.strftime(self.date_text_format),
         )
         stories.append(story_details)

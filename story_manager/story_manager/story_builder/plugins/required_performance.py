@@ -101,7 +101,6 @@ class RequiredPerformanceStoryBuilder(StoryBuilderBase):
         required_growth = self.analysis_manager.calculate_required_growth(value, target, req_duration, 2)
         current_growth = current_period["growth_rate"].item()
         growth_deviation = self.analysis_manager.calculate_percentage_difference(current_growth, required_growth)
-
         # prepare story details
         story_details = self.prepare_story_dict(
             story_type,
@@ -123,8 +122,7 @@ class RequiredPerformanceStoryBuilder(StoryBuilderBase):
 
         return stories
 
-    @staticmethod
-    def _get_end_date_of_period(grain: Granularity, curr_date: date | None = None) -> tuple[Granularity, date]:
+    def _get_end_date_of_period(self, grain: Granularity) -> tuple[Granularity, date]:
         """
         Get the end date of the period of the given grain.
 
@@ -135,11 +133,10 @@ class RequiredPerformanceStoryBuilder(StoryBuilderBase):
           End date will be the end of current quarter with interval quarter.
 
         :param grain: Granularity of the time series data.
-        :param curr_date: Date of the grain, default current date.
         :return: interval and end date of the period.
         """
 
-        today = curr_date or date.today()
+        today = self.story_date
         if grain == Granularity.DAY or grain == Granularity.WEEK:
             interval = Granularity.MONTH
             # End of the month

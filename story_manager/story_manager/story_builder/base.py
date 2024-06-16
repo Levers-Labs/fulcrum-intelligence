@@ -44,6 +44,7 @@ class StoryBuilderBase(ABC):
         analysis_service: AnalysisManagerClient,
         analysis_manager: AnalysisManager,
         db_session: AsyncSession,
+        story_date: date | None = None,
     ):
         """
         Initialize the StoryBuilderBase instance
@@ -57,6 +58,7 @@ class StoryBuilderBase(ABC):
         self.analysis_service = analysis_service
         self.analysis_manager = analysis_manager
         self.db_session = db_session
+        self.story_date = story_date or date.today()
 
     async def _get_time_series_data(
         self, metric_id: str, grain: Granularity, start_date: date, end_date: date, set_index: bool = False
@@ -173,7 +175,12 @@ class StoryBuilderBase(ABC):
         }
 
     def prepare_story_dict(
-        self, story_type: StoryType, grain: Granularity, metric: dict, df: pd.DataFrame, **extra_context
+        self,
+        story_type: StoryType,
+        grain: Granularity,
+        metric: dict,
+        df: pd.DataFrame,
+        **extra_context,
     ) -> dict[str, Any]:
         """
         Prepare the story dictionary with the required fields
@@ -196,6 +203,7 @@ class StoryBuilderBase(ABC):
             "genre": self.genre,
             "story_group": self.group,
             "story_type": story_type,
+            "story_date": self.story_date,
             "grain": grain,
             "series": series,
             "title": story_texts["title"],
@@ -269,8 +277,7 @@ class StoryBuilderBase(ABC):
         await self.db_session.commit()
         logger.info("Stories persisted successfully")
 
-    @classmethod
-    def _get_current_period_range(cls, grain: Granularity, curr_date: date | None = None) -> tuple[date, date]:
+    def _get_current_period_range(self, grain: Granularity) -> tuple[date, date]:
         """
         Get the end date of the last period based on the grain.
         Based on the current date, the end date is calculated as follows:
@@ -285,7 +292,7 @@ class StoryBuilderBase(ABC):
         :param grain: The grain for which the end date is retrieved.
         :return: The start and end date of the period.
         """
-        today = curr_date or date.today()
+        today = self.story_date
         if grain == Granularity.DAY:
             end_date = today - timedelta(days=1)
             start_date = end_date
@@ -321,13 +328,10 @@ class StoryBuilderBase(ABC):
 
         return STORY_GROUP_TIME_DURATIONS[self.group][grain]
 
-    def _get_input_time_range(
-        self, grain: Granularity, curr_date: date | None = None, half_time_range: bool = False
-    ) -> tuple[date, date]:
+    def _get_input_time_range(self, grain: Granularity, half_time_range: bool = False) -> tuple[date, date]:
         """
         Get the time range for the input data based on the grain.
 
-        :param curr_date: The current date for which the time range is calculated.
         :param grain: The grain for which the time range is retrieved.
         :param half_time_range: If the time period we are considering in input needs to be divided into two intervals
             Like in case of Segment drift we set input as 2, but 1 unit grain is considered as evaluation period, while
@@ -335,7 +339,7 @@ class StoryBuilderBase(ABC):
         :return: The start and end date of the time range.
         """
 
-        latest_start_date, latest_end_date = self._get_current_period_range(grain, curr_date)
+        latest_start_date, latest_end_date = self._get_current_period_range(grain)
 
         grain_durations = self.get_time_durations(grain, half_time_range)
 

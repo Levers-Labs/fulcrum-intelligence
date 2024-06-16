@@ -32,7 +32,7 @@ async def test_generate_stories_success(
 @pytest.mark.asyncio
 async def test_generate_stories_shrinking_segment(
     segment_drift_story_builder,
-    segment_drift_stories,
+    shrinking_and_improving_stories,
     segment_drift_data,
     metric_details,
 ):
@@ -40,23 +40,21 @@ async def test_generate_stories_shrinking_segment(
 
     # removing growing segment from dimension slices
     segment_drift_data["dimension_slices"] = segment_drift_data["dimension_slices"][:1]
-    shrinking_stories = segment_drift_stories[:2]
 
     SegmentDriftEvaluator.calculate_segment_drift = AsyncMock(return_value=segment_drift_data)
     stories = await segment_drift_story_builder.generate_stories(metric_id, grain)
-    assert stories == shrinking_stories
+    assert stories == shrinking_and_improving_stories
 
 
 @pytest.mark.asyncio
 async def test_generate_stories_improving_segment(
-    segment_drift_story_builder, segment_drift_stories, segment_drift_data, metric_details
+    segment_drift_story_builder, shrinking_and_improving_stories, segment_drift_data, metric_details
 ):
     segment_drift_story_builder.query_service.get_metric = AsyncMock(return_value=metric_details)
 
     # removing growing segment from dimension slices
     segment_drift_data["dimension_slices"] = segment_drift_data["dimension_slices"][:1]
-    improving_stories = segment_drift_stories[:2]
 
     SegmentDriftEvaluator.calculate_segment_drift = AsyncMock(return_value=segment_drift_data)
     stories = await segment_drift_story_builder.generate_stories(metric_id, grain)
-    assert stories == improving_stories
+    assert stories == shrinking_and_improving_stories
