@@ -73,11 +73,12 @@ class SegmentDriftEvaluator:
             aggregation_option=aggregation_option,
             aggregation_method=aggregation_method,
         )
+
         # dimension slice info consist of all calculations for all permutations of the provided dimensions
         dimension_slices = result["dimension_slices"]
         overall_change = self.get_overall_change(
             comparison_value=result["comparison_value"],
-            baseline_value=result["evaluation_value"],
+            evaluation_value=result["evaluation_value"],
         )
 
         # processing the result to calculate the direction of metric change, whether its UPWARD DOWNWARD or UNCHANGED
@@ -87,18 +88,15 @@ class SegmentDriftEvaluator:
             segment["relative_change"] = relative_change
 
             segment["pressure"] = self.get_metric_change_direction(
-                relative_change=relative_change,
+                impact=segment["impact"],
                 target_metric_direction=target_metric_direction,
             )
-
         return result
 
-    def get_overall_change(self, comparison_value: float, baseline_value: float) -> float:
-        try:
-            overall_change = (comparison_value - baseline_value) / baseline_value
-        except ZeroDivisionError:
-            overall_change = 0.0
-        return overall_change
+    def get_overall_change(self, comparison_value: float, evaluation_value: float) -> float:
+        if comparison_value == 0:
+            return 0.0
+        return (evaluation_value - comparison_value) / comparison_value
 
     def calculate_segment_relative_change(self, segment: dict, overall_change: float) -> float:
         try:
@@ -111,29 +109,25 @@ class SegmentDriftEvaluator:
         except KeyError:
             slice_evaluation_value = 0
 
-        try:
-            change = (slice_comparison_value - slice_evaluation_value) / slice_evaluation_value
-
-        except ZeroDivisionError:
+        if slice_comparison_value == 0:
             return 0.0
 
+        change = (slice_evaluation_value - slice_comparison_value) / slice_comparison_value
         return (change - overall_change) * 100
 
-    def get_metric_change_direction(
-        self, relative_change: float, target_metric_direction: str
-    ) -> MetricChangeDirection:
+    def get_metric_change_direction(self, impact: float, target_metric_direction: str) -> MetricChangeDirection:
         """
         Method to indentify the direction of metric change.
         Params:
-            relative_change: relative change we calculated in calculate_segment_relative_change.
+            impact: impact is the difference of slice's evaluation_value and comparison_value.
             target_metric_direction: It could be "increasing" or "decreasing".
         """
-        if (relative_change > 0 and target_metric_direction == MetricAim.INCREASING) or (
-            relative_change < 0 and target_metric_direction == MetricAim.DECREASING
+        if (impact > 0 and target_metric_direction == MetricAim.INCREASING) or (
+            impact < 0 and target_metric_direction == MetricAim.DECREASING
         ):
             return MetricChangeDirection.UPWARD
-        elif (relative_change > 0 and target_metric_direction == MetricAim.DECREASING) or (
-            relative_change < 0 and target_metric_direction == MetricAim.INCREASING
+        elif (impact > 0 and target_metric_direction == MetricAim.DECREASING) or (
+            impact < 0 and target_metric_direction == MetricAim.INCREASING
         ):
             return MetricChangeDirection.DOWNWARD
 
@@ -274,20 +268,22 @@ class SegmentDriftEvaluator:
         """
         request_payload: dict[str, Any] = dict()
 
+        # Meaning of BaseDateRange and Comparison Date in dsensei is opp. to our naming convention
+        # In Dsensei basedaterange is comparison date, that's why setting comparison date as basedaterange date
         # Evaluation Start Date
         request_payload["baseDateRange"] = dict()
-        request_payload["baseDateRange"]["from"] = self.update_dateformat(evaluation_start_date)
+        request_payload["baseDateRange"]["from"] = self.update_dateformat(comparison_start_date)
+        # Evaluation End Date
+        request_payload["baseDateRange"]["to"] = self.update_dateformat(comparison_end_date)
+
+        # In Dsensei compairson date range is evaluation date, that's why adding evaluation start date as comparison
+        # date
+        # Evaluation Start Date
+        request_payload["comparisonDateRange"] = dict()
+        request_payload["comparisonDateRange"]["from"] = self.update_dateformat(evaluation_start_date)
 
         # Evaluation End Date
-        request_payload["baseDateRange"]["to"] = self.update_dateformat(evaluation_end_date)
-
-        # Comparison Start Date
-        request_payload["comparisonDateRange"] = dict()
-        request_payload["comparisonDateRange"]["from"] = self.update_dateformat(comparison_start_date)
-
-        # Comparison End Date
-        request_payload["comparisonDateRange"]["to"] = self.update_dateformat(comparison_end_date)
-
+        request_payload["comparisonDateRange"]["to"] = self.update_dateformat(evaluation_end_date)
         # file_id of the generated CSV, change it later
         request_payload["fileId"] = csv_file_id
 
@@ -346,6 +342,7 @@ class SegmentDriftEvaluator:
         processed_response["dimension_slices_permutation_keys"] = processed_response["top_driver_slice_keys"]
         del processed_response["top_driver_slice_keys"]
         del processed_response["dimension_slice_info"]
+        self.add_slice_share_properties(processed_response)
         return processed_response
 
     def dict_keys_replace_baseline_with_evaluation(
@@ -359,9 +356,13 @@ class SegmentDriftEvaluator:
         """
         for key, value in snake_case_converted_response.items():
 
-            # replacing baseline with evaluation in key
+            # replacing baseline with comparison in key
             if key.startswith("baseline"):
-                key = "evaluation" + key[len("baseline") :]
+                key = "comparison" + key[len("baseline") :]
+
+            # replacing comparison with evaluation in key
+            elif key.startswith("comparison"):
+                key = "evaluation" + key[len("comparison") :]
 
             # if the value is of type dict we will call the function recursively to convert the nested dict keys as well
             if isinstance(value, dict):
@@ -379,5 +380,28 @@ class SegmentDriftEvaluator:
                         processed_response[key].append(item)
             else:
                 processed_response[key] = value
+
+        return processed_response
+
+    def add_slice_share_properties(self, processed_response: dict) -> dict[str, Any]:
+        evaluation_value = processed_response["evaluation_value"]
+        comparison_value = processed_response["comparison_value"]
+
+        for slice_info in processed_response["dimension_slices"]:
+            evaluation_slice_value = slice_info["evaluation_value"]["slice_value"]
+            if evaluation_value == 0:
+                evaluation_slice_share = 0.0
+            else:
+                evaluation_slice_share = (evaluation_slice_value / evaluation_value) * 100
+
+            comparison_slice_value = slice_info["comparison_value"]["slice_value"]
+            if comparison_value == 0:
+                comparison_slice_share = 0.0
+            else:
+                comparison_slice_share = (comparison_slice_value / comparison_value) * 100
+
+            slice_info["slice_share_change_percentage"] = evaluation_slice_share - comparison_slice_share
+            slice_info["evaluation_value"]["slice_share"] = evaluation_slice_share
+            slice_info["comparison_value"]["slice_share"] = comparison_slice_share
 
         return processed_response

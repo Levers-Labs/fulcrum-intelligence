@@ -11,11 +11,11 @@ class SignificantSegmentStoryBuilder(StoryBuilderBase):
     async def generate_stories(self, metric_id: str, grain: str) -> list[dict]:
         start_date, end_date = self._get_current_period_range(grain)  # type:ignore
         metric = await self.query_service.get_metric(metric_id)
-        metric_dimensions = self.get_metric_dimension_ids(metric_details=metric)
-
+        metric_dimensions = self.get_metric_dimension_id_label_map(metric_details=metric)
+        dimension_ids = list(metric_dimensions.keys())
         dimensions_slices_df_map = {}
 
-        for dimension in metric_dimensions:
+        for dimension in dimension_ids:
             dimension_slices_df = await self.query_service._get_metric_values_df(
                 metric_id=metric_id,
                 dimensions=[dimension],

@@ -312,7 +312,7 @@ class StoryBuilderBase(ABC):
             raise ValueError(f"Unsupported grain: {grain}")
         return start_date, end_date
 
-    def get_time_durations(self, grain: Granularity) -> dict[str, Any]:
+    def get_time_durations(self, grain: Granularity, half_time_range: bool = False) -> dict[str, Any]:
         """
         Get the time durations for the given grain and group
 
@@ -321,20 +321,26 @@ class StoryBuilderBase(ABC):
         """
         if self.group not in STORY_GROUP_TIME_DURATIONS or grain not in STORY_GROUP_TIME_DURATIONS[self.group]:
             raise ValueError(f"Unsupported group '{self.group}' or grain '{grain}'")
+
+        if half_time_range:
+            STORY_GROUP_TIME_DURATIONS[self.group][grain]["input"] //= 2
+
         return STORY_GROUP_TIME_DURATIONS[self.group][grain]
 
-    def _get_input_time_range(self, grain: Granularity) -> tuple[date, date]:
+    def _get_input_time_range(self, grain: Granularity, half_time_range: bool = False) -> tuple[date, date]:
         """
         Get the time range for the input data based on the grain.
 
         :param grain: The grain for which the time range is retrieved.
-
+        :param half_time_range: If the time period we are considering in input needs to be divided into two intervals
+            Like in case of Segment drift we set input as 2, but 1 unit grain is considered as evaluation period, while
+            second unit grain is considered as comparison period.
         :return: The start and end date of the time range.
         """
 
         latest_start_date, latest_end_date = self._get_current_period_range(grain)
 
-        grain_durations = self.get_time_durations(grain)
+        grain_durations = self.get_time_durations(grain, half_time_range)
 
         # figure out the number of grain deltas to go back
         period_count = grain_durations["input"]
@@ -378,12 +384,17 @@ class StoryBuilderBase(ABC):
         final_df = merged_df[["date", "value", "target"]]
         return final_df
 
-    def get_metric_dimension_ids(self, metric_details: dict[str, Any]) -> list[str]:
+    def get_metric_dimension_id_label_map(self, metric_details: dict[str, Any]) -> dict[str, str]:
         """
-        We are fetch the dimension ids for the given metric.
-        :param metric_details: The metric details, complete metric object
+        In this method we are trying to map, dimension_id with dimension label to ease up the conversion
+        in other methods and avoid an call to fetch dimension details if we already have the metric object.
+        Input:
+            metric_details: metric object consist of all the details related to metric
+        Output:
+            dictionary with structure : {'dimension_id': 'dimension_label'}
+        """
+        dimension_id_label_map = dict()
+        for dimension in metric_details["dimensions"]:
+            dimension_id_label_map[dimension["id"]] = dimension["label"]
 
-        Output: list of dimension ids
-        """
-        dimensions = [dimension["id"] for dimension in metric_details["dimensions"]]
-        return dimensions
+        return dimension_id_label_map

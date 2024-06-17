@@ -3,6 +3,7 @@ from .growth_rates import GrowthStoryBuilder
 from .long_range import LongRangeStoryBuilder
 from .record_values import RecordValuesStoryBuilder
 from .required_performance import RequiredPerformanceStoryBuilder
+from .segment_drift import SegmentDriftStoryBuilder
 from .significant_segment import SignificantSegmentStoryBuilder
 from .status_change import StatusChangeStoryBuilder
 from .trend_changes import TrendChangesStoryBuilder
@@ -17,5 +18,6 @@ __all__ = [
     "RecordValuesStoryBuilder",
     "StatusChangeStoryBuilder",
     "RequiredPerformanceStoryBuilder",
+    "SegmentDriftStoryBuilder",
     "SignificantSegmentStoryBuilder",
 ]

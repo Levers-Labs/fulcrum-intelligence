@@ -22,7 +22,6 @@ def significant_segment_story_builder(
 
 @pytest.mark.asyncio
 async def test_generate_stories_success(
-    mocker,
     significant_segment_story_builder,
     metric_details,
     significant_segment_stories,

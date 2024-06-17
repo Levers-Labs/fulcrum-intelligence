@@ -417,8 +417,8 @@ class AnalysisManager:
 
         return round(slope, precision)
 
+    @staticmethod
     async def segment_drift(
-        self,
         dsensei_base_url: str,
         df: pd.DataFrame,
         evaluation_start_date: date,
