@@ -319,7 +319,7 @@ def segment_drift_stories():
             "increase contributed 3.33% downward pressure on New Business Deals.",
             "title_template": "Key Driver: Growing {{slice | default('null')}} share of {{dimension}}",
             "detail_template": "The share of {{dimension}} that is {{slice | default('null')}} increased from "
-            "{previous_share}}% to {{current_share}}% over the past {{grain}}. This increase "
+            "{{previous_share}}% to {{current_share}}% over the past {{grain}}. This increase "
             "contributed {{slice_share_change_percentage}}% {{pressure_direction}} pressure on "
             "{{metric.label}}.",
             "variables": {
