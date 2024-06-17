@@ -384,7 +384,15 @@ class StoryBuilderBase(ABC):
         final_df = merged_df[["date", "value", "target"]]
         return final_df
 
-    def get_metric_dimension_id_label_map(self, metric_details):
+    def get_metric_dimension_id_label_map(self, metric_details: dict[str, Any]) -> dict[str, str]:
+        """
+        In this method we are trying to map, dimension_id with dimension label to ease up the conversion
+        in other methods and avoid an call to fetch dimension details if we already have the metric object.
+        Input:
+            metric_details: metric object consist of all the details related to metric
+        Output:
+            dictionary with structure : {'dimension_id': 'dimension_label'}
+        """
         dimension_id_label_map = dict()
         for dimension in metric_details["dimensions"]:
             dimension_id_label_map[dimension["id"]] = dimension["label"]

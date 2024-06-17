@@ -48,17 +48,22 @@ class SegmentDriftStoryBuilder(StoryBuilderBase):
             a list of story dictionaries.
 
         """
+        org_story_date = self.story_date
         settings = get_settings()
         evaluation_start_date, evaluation_end_date = self._get_input_time_range(
             grain,  # type: ignore
             half_time_range=True,
         )
 
+        # Need to calc comparison date w.r.t the evaluation date
         self.story_date = evaluation_start_date
         comparison_start_date, comparison_end_date = self._get_input_time_range(
             grain,  # type: ignore
             half_time_range=True,
         )
+
+        # setting the story_date back to the original story_date
+        self.story_date = org_story_date
 
         metric = await self.query_service.get_metric(metric_id)
         metric_dimensions = self.get_metric_dimension_id_label_map(metric_details=metric)
