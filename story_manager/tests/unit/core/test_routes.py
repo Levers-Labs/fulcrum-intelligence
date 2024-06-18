@@ -146,3 +146,9 @@ async def test_get_stories(db_session, client):
     assert response.status_code == status.HTTP_200_OK
     data = response.json()
     assert data["count"] == 3
+
+    # Testing with predefined filters for digest and portfolio
+    response = client.get("/v1/stories?grains=day&grains=week&digest=PORTFOLIO&section=PROMISING_TRENDS")
+    assert response.status_code == status.HTTP_200_OK
+    data = response.json()
+    assert data["count"] == 2
