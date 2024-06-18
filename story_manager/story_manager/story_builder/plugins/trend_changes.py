@@ -54,6 +54,8 @@ class TrendChangesStoryBuilder(StoryBuilderBase):
         :param grain: The grain of the time series data.
         :return: A list containing a trend story dictionary.
         """
+        stories: list[dict] = []
+
         # get metric details
         metric = await self.query_service.get_metric(metric_id)
 
@@ -62,16 +64,18 @@ class TrendChangesStoryBuilder(StoryBuilderBase):
 
         # get time series data
         df = await self._get_time_series_data(metric_id, grain, start_date, end_date, set_index=False)
+        df_len = len(df)
 
         # validate time series data has minimum required data points
         time_durations = self.get_time_durations(grain)
-        if len(df) < time_durations["min"]:
+        if df_len < time_durations["min"]:
             logging.warning(
-                "Discarding story generation for metric '%s' with grain '%s' due to insufficient data", metric_id, grain
+                "Discarding story generation for metric '%s' with grain '%s' due to insufficient data",
+                metric_id,
+                grain,
             )
             return []
 
-        stories: list[dict] = []
         # Run process control analysis over the time series data
         pc_df = self.analysis_manager.process_control(df=df)
 

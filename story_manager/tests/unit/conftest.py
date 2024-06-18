@@ -61,6 +61,7 @@ def setup_env(session_monkeypatch, postgres):  # noqa
     session_monkeypatch.setenv("QUERY_MANAGER_SERVER_HOST", "http://localhost:8001/v1/")
     session_monkeypatch.setenv("ANALYSIS_MANAGER_SERVER_HOST", "http://localhost:8000/v1/")
     session_monkeypatch.setenv("DATABASE_URL", db_async_uri)
+    session_monkeypatch.setenv("DSENSEI_BASE_URL", "localhost:5001")
     yield
 
 

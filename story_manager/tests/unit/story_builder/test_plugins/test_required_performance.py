@@ -14,11 +14,11 @@ number_of_data_points = 90
 
 @pytest.fixture
 def required_performance_story_builder(
-    mock_query_service, mock_analysis_service, mock_analysis_manager, mock_db_session, metric_values
+    mock_query_service, mock_analysis_service, mock_analysis_manager, mock_db_session, metric_values, mock_story_date
 ):
     mock_query_service.get_metric = AsyncMock(return_value={"id": "metric_1", "label": "Metric 1"})
     return RequiredPerformanceStoryBuilder(
-        mock_query_service, mock_analysis_service, mock_analysis_manager, mock_db_session
+        mock_query_service, mock_analysis_service, mock_analysis_manager, mock_db_session, mock_story_date
     )
 
 
@@ -44,9 +44,7 @@ async def test_generate_req_performance_hold_steady(required_performance_story_b
     targets_df.loc[len(targets_df)] = steady_track_data
     required_performance_story_builder._get_time_series_data_with_targets = AsyncMock(return_value=targets_df)
 
-    interval, period_end_date = required_performance_story_builder._get_end_date_of_period(
-        Granularity.DAY, curr_date=start_date
-    )
+    interval, period_end_date = required_performance_story_builder._get_end_date_of_period(Granularity.DAY)
 
     interval_target_df = pd.DataFrame(
         {
@@ -72,9 +70,7 @@ async def test_generate_req_performance_story_req_performance(required_performan
     targets_df.loc[len(targets_df)] = data
     required_performance_story_builder._get_time_series_data_with_targets = AsyncMock(return_value=targets_df)
 
-    interval, period_end_date = required_performance_story_builder._get_end_date_of_period(
-        Granularity.DAY, curr_date=start_date
-    )
+    interval, period_end_date = required_performance_story_builder._get_end_date_of_period(Granularity.DAY)
 
     interval_target_df = pd.DataFrame(
         {
@@ -97,9 +93,7 @@ async def test_generate_req_performance_story_for_min_data(required_performance_
 
     required_performance_story_builder._get_time_series_data_with_targets = AsyncMock(return_value=targets_df)
 
-    interval, period_end_date = required_performance_story_builder._get_end_date_of_period(
-        Granularity.DAY, curr_date=start_date
-    )
+    interval, period_end_date = required_performance_story_builder._get_end_date_of_period(Granularity.DAY)
 
     interval_target_df = pd.DataFrame(
         {
@@ -119,7 +113,8 @@ async def test_generate_req_performance_story_for_min_data(required_performance_
 # Test for day grain with last day of month
 def test_day_grain_last_day_of_month(required_performance_story_builder):
     today = date(2024, 2, 2)  # Leap year
-    interval, end_date = required_performance_story_builder._get_end_date_of_period(Granularity.DAY, today)
+    required_performance_story_builder.story_date = today
+    interval, end_date = required_performance_story_builder._get_end_date_of_period(Granularity.DAY)
     assert interval == Granularity.MONTH
     assert end_date == date(2024, 2, 29)
 
@@ -127,7 +122,8 @@ def test_day_grain_last_day_of_month(required_performance_story_builder):
 # Test for week grain with last day of month
 def test_week_grain_last_day_of_month(required_performance_story_builder):
     today = date(2024, 2, 27)  # Leap year
-    interval, end_date = required_performance_story_builder._get_end_date_of_period(Granularity.WEEK, today)
+    required_performance_story_builder.story_date = today
+    interval, end_date = required_performance_story_builder._get_end_date_of_period(Granularity.WEEK)
     assert interval == Granularity.MONTH
     assert end_date == date(2024, 2, 29)
 
@@ -135,6 +131,7 @@ def test_week_grain_last_day_of_month(required_performance_story_builder):
 # Test for month grain with last day of quarter
 def test_month_grain_last_day_of_quarter(required_performance_story_builder):
     today = date(2024, 3, 3)  # End of a quarter
-    interval, end_date = required_performance_story_builder._get_end_date_of_period(Granularity.MONTH, today)
+    required_performance_story_builder.story_date = today
+    interval, end_date = required_performance_story_builder._get_end_date_of_period(Granularity.MONTH)
     assert interval == Granularity.QUARTER
     assert end_date == date(2024, 3, 31)

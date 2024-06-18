@@ -1,7 +1,13 @@
+from datetime import datetime
 from typing import Any
 
 from pydantic import model_validator
-from sqlalchemy import Column, Enum, Text
+from sqlalchemy import (
+    Column,
+    DateTime,
+    Enum,
+    Text,
+)
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlmodel import Field
 
@@ -38,6 +44,7 @@ class Story(StorySchemaBaseModel, table=True):  # type: ignore
     detail_template: str = Field(sa_type=Text)
     variables: dict = Field(default_factory=dict, sa_type=JSONB)
     series: list = Field(default_factory=list, sa_type=JSONB)
+    story_date: datetime = Field(sa_column=Column(DateTime, nullable=False, index=True))
 
     @model_validator(mode="before")
     @classmethod

@@ -49,10 +49,10 @@ class LikelyStatusStoryBuilder(StoryBuilderBase):
 
         # get time series data with targets
         df = await self._get_time_series_data_with_targets(metric_id, grain, start_date, end_date)
-
+        df_len = len(df)
         # validate time series data has minimum required data points
         time_durations = self.get_time_durations(grain)
-        if len(df) < time_durations["min"]:
+        if df_len < time_durations["min"]:
             logger.warning(
                 "Discarding story generation for metric '%s' with grain '%s' due to insufficient data", metric_id, grain
             )
@@ -116,6 +116,37 @@ class LikelyStatusStoryBuilder(StoryBuilderBase):
         logger.info(f"Stories generated for metric '{metric_id}', story details: {story_details}")
         return stories
 
+    def _get_story_period(self, grain: Granularity) -> tuple[Granularity, date, date]:
+        """
+        Get the interval, start date, and end date for the story period based
+        on the grain and current date.
+        """
+        today = self.story_date
+        if grain == Granularity.DAY:
+            interval = Granularity.WEEK
+            # end of the week
+            end_date = today + timedelta(days=(6 - today.weekday()))
+            # start of the week
+            start_date = today - timedelta(days=today.weekday())
+        elif grain == Granularity.WEEK:
+            interval = Granularity.MONTH
+            # start of last week of the month
+            last_day_of_month = (today + relativedelta(months=1)).replace(day=1) - timedelta(days=1)
+            end_date = last_day_of_month - timedelta(days=last_day_of_month.weekday())
+            # start of the month
+            start_date = last_day_of_month.replace(day=1)
+        elif grain == Granularity.MONTH:
+            interval = Granularity.QUARTER
+            # start of quarter-end month
+            quarter_end_month = (today.month - 1) // 3 * 3 + 3
+            end_date = today.replace(month=quarter_end_month, day=1)
+            # start of the quarter
+            start_date = end_date - relativedelta(months=2)
+        else:
+            raise ValueError(f"Unsupported grain: {grain}")
+
+        return interval, start_date, end_date
+
     @staticmethod
     def prepare_forecasted_story_df(
         forecast_values: list[dict], df: pd.DataFrame, target_df: pd.DataFrame, story_start_date: date  # noqa
@@ -156,35 +187,3 @@ class LikelyStatusStoryBuilder(StoryBuilderBase):
         """
         forecasted_value = next((fv["value"] for fv in forecast_values if fv["date"] == ref_date), None)
         return forecasted_value
-
-    @staticmethod
-    def _get_story_period(grain: Granularity, curr_date: date | None = None) -> tuple[Granularity, date, date]:
-        """
-        Get the interval, start date, and end date for the story period based
-        on the grain and current date.
-        """
-        today = curr_date or date.today()
-        if grain == Granularity.DAY:
-            interval = Granularity.WEEK
-            # end of the week
-            end_date = today + timedelta(days=(6 - today.weekday()))
-            # start of the week
-            start_date = today - timedelta(days=today.weekday())
-        elif grain == Granularity.WEEK:
-            interval = Granularity.MONTH
-            # start of last week of the month
-            last_day_of_month = (today + relativedelta(months=1)).replace(day=1) - timedelta(days=1)
-            end_date = last_day_of_month - timedelta(days=last_day_of_month.weekday())
-            # start of the month
-            start_date = last_day_of_month.replace(day=1)
-        elif grain == Granularity.MONTH:
-            interval = Granularity.QUARTER
-            # start of quarter-end month
-            quarter_end_month = (today.month - 1) // 3 * 3 + 3
-            end_date = today.replace(month=quarter_end_month, day=1)
-            # start of the quarter
-            start_date = end_date - relativedelta(months=2)
-        else:
-            raise ValueError(f"Unsupported grain: {grain}")
-
-        return interval, start_date, end_date
