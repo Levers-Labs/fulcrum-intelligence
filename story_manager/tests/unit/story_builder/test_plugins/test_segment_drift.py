@@ -16,7 +16,11 @@ grain = Granularity.WEEK
 
 @pytest.fixture
 def segment_drift_story_builder(mock_query_service, mock_analysis_service, mock_analysis_manager, mock_db_session):
-    return SegmentDriftStoryBuilder(mock_query_service, mock_analysis_service, mock_analysis_manager, mock_db_session)
+    builder = SegmentDriftStoryBuilder(
+        mock_query_service, mock_analysis_service, mock_analysis_manager, mock_db_session
+    )
+    builder.story_date = start_date
+    return builder
 
 
 @pytest.mark.asyncio

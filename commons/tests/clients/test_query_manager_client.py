@@ -250,3 +250,33 @@ async def test_get_metric_targets(mocker):
             "grain": grain.value,
         },
     )
+
+
+@pytest.mark.asyncio
+async def test_get_metric_values_df(mocker):
+    client = QueryManagerClient(base_url="https://example.com")
+    get_metric_values_mock = AsyncMock(
+        return_value=[
+            {"date": "2023-01-01", "value": 100},
+            {"date": "2023-01-02", "value": 200},
+            {"date": "2023-01-03", "value": 300},
+        ]
+    )
+    mocker.patch.object(client, "get_metric_values", get_metric_values_mock)
+    metric_ids = "metric1"
+    start_date = date(2023, 1, 1)
+    end_date = date(2023, 1, 31)
+    dimensions = ["dimension1", "dimension2"]
+
+    # Act
+    results = await client.get_metric_values_df(metric_ids, start_date, end_date, dimensions)
+    # Assert
+    assert results.equals(
+        pd.DataFrame(
+            [
+                {"date": "2023-01-01", "value": 100},
+                {"date": "2023-01-02", "value": 200},
+                {"date": "2023-01-03", "value": 300},
+            ]
+        )
+    )
