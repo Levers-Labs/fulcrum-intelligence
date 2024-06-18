@@ -16,7 +16,7 @@ class SignificantSegmentStoryBuilder(StoryBuilderBase):
         dimensions_slices_df_map = {}
 
         for dimension in dimension_ids:
-            dimension_slices_df = await self.query_service._get_metric_values_df(
+            dimension_slices_df = await self.query_service.get_metric_values_df(
                 metric_id=metric_id,
                 dimensions=[dimension],
                 start_date=start_date,
@@ -26,6 +26,12 @@ class SignificantSegmentStoryBuilder(StoryBuilderBase):
             dimensions_slices_df_map[dimension] = dimension_slices_df
 
         dimensions_slices_df = self.analysis_manager.get_dimension_slices_df(dimensions_slices_df_map)
+
+        # if we are having less than 8 stories, we are skipping story creation to avoid having the same dimension slice
+        # in top and bottom 4.
+        if len(dimensions_slices_df) < 8:
+            return []
+
         dimensions_slices_df = dimensions_slices_df.sort_values(by="value", ascending=False)
 
         avg_value = round(dimensions_slices_df["value"].mean() or 0.0, 2)

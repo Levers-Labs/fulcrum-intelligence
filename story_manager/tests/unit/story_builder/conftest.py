@@ -188,7 +188,7 @@ def segment_drift_stories():
             "genre": "ROOT_CAUSES",
             "story_group": "SEGMENT_DRIFT",
             "story_type": "SHRINKING_SEGMENT",
-            "story_date": date(2024, 6, 17),
+            "story_date": date(2024, 3, 1),
             "grain": "week",
             "series": [
                 {
@@ -242,7 +242,7 @@ def segment_drift_stories():
             "genre": "ROOT_CAUSES",
             "story_group": "SEGMENT_DRIFT",
             "story_type": "IMPROVING_SEGMENT",
-            "story_date": date(2024, 6, 17),
+            "story_date": date(2024, 3, 1),
             "grain": "week",
             "series": [
                 {
@@ -296,7 +296,7 @@ def segment_drift_stories():
             "genre": "ROOT_CAUSES",
             "story_group": "SEGMENT_DRIFT",
             "story_type": "GROWING_SEGMENT",
-            "story_date": date(2024, 6, 17),
+            "story_date": date(2024, 3, 1),
             "grain": "week",
             "series": [
                 {
@@ -349,7 +349,7 @@ def segment_drift_stories():
             "genre": "ROOT_CAUSES",
             "story_group": "SEGMENT_DRIFT",
             "story_type": "WORSENING_SEGMENT",
-            "story_date": date(2024, 6, 17),
+            "story_date": date(2024, 3, 1),
             "grain": "week",
             "series": [
                 {
@@ -506,7 +506,7 @@ def significant_segment_stories():
             "genre": "PERFORMANCE",
             "story_group": "SIGNIFICANT_SEGMENTS",
             "story_type": "TOP_4_SEGMENTS",
-            "story_date": date(2024, 6, 17),
+            "story_date": date(2024, 3, 1),
             "grain": "week",
             "series": [
                 {"value": 7, "member": None, "dimension": "lead_source"},
@@ -533,7 +533,7 @@ def significant_segment_stories():
             "genre": "PERFORMANCE",
             "story_group": "SIGNIFICANT_SEGMENTS",
             "story_type": "BOTTOM_4_SEGMENTS",
-            "story_date": date(2024, 6, 17),
+            "story_date": date(2024, 3, 1),
             "grain": "week",
             "series": [
                 {"value": 0, "member": "Nicolas Ishihara", "dimension": "customer_success_manager_name"},
@@ -564,5 +564,5 @@ def mock_get_dimension_slice_data(significant_segment_story_builder, mocker, dim
         return pd.DataFrame(dimension_slice_data[dimensions[0]])
 
     mocker.patch.object(
-        significant_segment_story_builder.query_service, "_get_metric_values_df", get_dimension_slice_data
+        significant_segment_story_builder.query_service, "get_metric_values_df", get_dimension_slice_data
     )

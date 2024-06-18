@@ -189,7 +189,7 @@ class QueryManagerClient(AsyncHttpClient):
         res = await self.get(endpoint=f"metrics/{metric_id}/targets", params=params)
         return res["results"]
 
-    async def _get_metric_values_df(
+    async def get_metric_values_df(
         self,
         metric_id: str,
         start_date: date | None = None,

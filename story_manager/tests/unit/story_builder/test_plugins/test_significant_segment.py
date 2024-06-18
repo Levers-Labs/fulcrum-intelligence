@@ -15,9 +15,11 @@ grain = Granularity.WEEK
 def significant_segment_story_builder(
     mock_segment_drift_query_service, mock_analysis_service, mock_db_session, mock_analysis_manager
 ):
-    return SignificantSegmentStoryBuilder(
+    builder = SignificantSegmentStoryBuilder(
         mock_segment_drift_query_service, mock_analysis_service, mock_analysis_manager, mock_db_session
     )
+    builder.story_date = start_date
+    return builder
 
 
 @pytest.mark.asyncio
