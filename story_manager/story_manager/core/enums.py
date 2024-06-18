@@ -48,6 +48,8 @@ class StoryType(str, Enum):
     SHRINKING_SEGMENT = "SHRINKING_SEGMENT"
     IMPROVING_SEGMENT = "IMPROVING_SEGMENT"
     WORSENING_SEGMENT = "WORSENING_SEGMENT"
+    TOP_4_SEGMENTS = "TOP_4_SEGMENTS"
+    BOTTOM_4_SEGMENTS = "BOTTOM_4_SEGMENTS"
 
 
 class StoryGroup(str, Enum):
@@ -67,6 +69,7 @@ class StoryGroup(str, Enum):
     SEGMENT_DRIFT = "SEGMENT_DRIFT"
 
     REQUIRED_PERFORMANCE = "REQUIRED_PERFORMANCE"
+    SIGNIFICANT_SEGMENTS = "SIGNIFICANT_SEGMENTS"
 
 
 class Position(str, Enum):
@@ -147,6 +150,10 @@ GROUP_TO_STORY_TYPE_MAPPING = {
         StoryType.SHRINKING_SEGMENT,
         StoryType.IMPROVING_SEGMENT,
         StoryType.WORSENING_SEGMENT,
+    ],
+    StoryGroup.SIGNIFICANT_SEGMENTS: [
+        StoryType.TOP_4_SEGMENTS,
+        StoryType.BOTTOM_4_SEGMENTS,
     ],
 }
 
@@ -319,5 +326,13 @@ STORY_TYPES_META: dict[str, dict[str, str]] = {
         "{{current_value}}. This is a decrease of {{deviation}}% relative to "
         "the prior {{grain}}, and this decrease contributed {{pressure_change}}% {{pressure_direction}} "
         "pressure on {{metric.label}}.",
+    },
+    StoryType.TOP_4_SEGMENTS: {
+        "title": "Prior {{grain}} best performing segments",
+        "detail": "The segments below had the highest average values for {{metric.label}} over the past {{grain}}",
+    },
+    StoryType.BOTTOM_4_SEGMENTS: {
+        "title": "Prior {{grain}} worst performing segments",
+        "detail": "The segments below had the lowest average values for {{metric.label}} over the past {{grain}}",
     },
 }

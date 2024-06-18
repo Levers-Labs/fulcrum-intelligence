@@ -188,3 +188,23 @@ class QueryManagerClient(AsyncHttpClient):
             params["end_date"] = end_date.strftime(self.DATE_FORMAT)
         res = await self.get(endpoint=f"metrics/{metric_id}/targets", params=params)
         return res["results"]
+
+    async def get_metric_values_df(
+        self,
+        metric_id: str,
+        start_date: date | None = None,
+        end_date: date | None = None,
+        dimensions: list[str] | None = None,
+    ) -> pd.DataFrame:
+        """
+        Get metric values as a pandas DataFrame.
+        metric_id: id of the metric
+        start_date: start date
+        end_date: end date
+        grain: granularity of the data (default: day)
+        dimensions: list of dimensions (optional)
+
+        Returns: pandas DataFrame of metric values
+        """
+        data = await self.get_metric_values(metric_id, start_date, end_date, dimensions)
+        return pd.DataFrame(data)

@@ -1,6 +1,7 @@
 from datetime import date, datetime
 from unittest.mock import AsyncMock
 
+import pandas as pd
 import pytest
 
 from commons.models.enums import Granularity
@@ -398,3 +399,170 @@ def segment_drift_stories():
             },
         },
     ]
+
+
+@pytest.fixture
+def mock_segment_drift_query_service(metric_details):
+    query_service = AsyncMock()
+    query_service.get_metric.return_value = metric_details
+    return query_service
+
+
+@pytest.fixture
+def dimension_slice_data():
+    return {
+        "account_region": [
+            {"metric_id": "NewBizDeals", "value": 4, "date": None, "account_region": None},
+            {"metric_id": "NewBizDeals", "value": 1, "date": None, "account_region": "US-West"},
+            {"metric_id": "NewBizDeals", "value": 1, "date": None, "account_region": "US-East"},
+            {"metric_id": "NewBizDeals", "value": 1, "date": None, "account_region": "EMEA"},
+            {"metric_id": "NewBizDeals", "value": 0, "date": None, "account_region": "APAC"},
+        ],
+        "account_segment": [
+            {"metric_id": "NewBizDeals", "value": 4, "date": None, "account_segment": "Mid Market"},
+            {"metric_id": "NewBizDeals", "value": 3, "date": None, "account_segment": "Enterprise"},
+            {"metric_id": "NewBizDeals", "value": 0, "date": None, "account_segment": None},
+        ],
+        "account_territory": [
+            {"metric_id": "NewBizDeals", "value": 4, "date": None, "account_territory": "EMEA"},
+            {"metric_id": "NewBizDeals", "value": 3, "date": None, "account_territory": "AMER"},
+            {"metric_id": "NewBizDeals", "value": 0, "date": None, "account_territory": "APAC"},
+            {"metric_id": "NewBizDeals", "value": 0, "date": None, "account_territory": None},
+            {"metric_id": "NewBizDeals", "value": 0, "date": None, "account_territory": "LATAM"},
+        ],
+        "billing_plan": [
+            {"metric_id": "NewBizDeals", "value": 6, "date": None, "billing_plan": "Enterprise"},
+            {"metric_id": "NewBizDeals", "value": 1, "date": None, "billing_plan": "Partnership"},
+        ],
+        "billing_term": [
+            {"metric_id": "NewBizDeals", "value": 5, "date": None, "billing_term": "Annual"},
+            {"metric_id": "NewBizDeals", "value": 1, "date": None, "billing_term": "Semiannual"},
+            {"metric_id": "NewBizDeals", "value": 1, "date": None, "billing_term": "Monthly"},
+        ],
+        "contract_duration_months": [
+            {"metric_id": "NewBizDeals", "value": 3, "date": None, "contract_duration_months": "12"},
+            {"metric_id": "NewBizDeals", "value": 1, "date": None, "contract_duration_months": "24"},
+            {"metric_id": "NewBizDeals", "value": 1, "date": None, "contract_duration_months": None},
+            {"metric_id": "NewBizDeals", "value": 1, "date": None, "contract_duration_months": "36"},
+            {"metric_id": "NewBizDeals", "value": 1, "date": None, "contract_duration_months": "39"},
+            {"metric_id": "NewBizDeals", "value": 0, "date": None, "contract_duration_months": "29"},
+            {"metric_id": "NewBizDeals", "value": 0, "date": None, "contract_duration_months": "6"},
+        ],
+        "customer_success_manager_name": [
+            {"metric_id": "NewBizDeals", "value": 2, "date": None, "customer_success_manager_name": None},
+            {"metric_id": "NewBizDeals", "value": 1, "date": None, "customer_success_manager_name": "Jon Kay"},
+            {
+                "metric_id": "NewBizDeals",
+                "value": 1,
+                "date": None,
+                "customer_success_manager_name": "Christina Kopecky",
+            },
+            {"metric_id": "NewBizDeals", "value": 1, "date": None, "customer_success_manager_name": "Brian Shanley"},
+            {"metric_id": "NewBizDeals", "value": 1, "date": None, "customer_success_manager_name": "Matt Cleghorn"},
+            {"metric_id": "NewBizDeals", "value": 1, "date": None, "customer_success_manager_name": "Paul Staelin"},
+            {"metric_id": "NewBizDeals", "value": 0, "date": None, "customer_success_manager_name": "Nathan Kuhn"},
+            {"metric_id": "NewBizDeals", "value": 0, "date": None, "customer_success_manager_name": "Christine Durham"},
+            {"metric_id": "NewBizDeals", "value": 0, "date": None, "customer_success_manager_name": "Nicolas Ishihara"},
+            {"metric_id": "NewBizDeals", "value": 0, "date": None, "customer_success_manager_name": "Mathias Wetzel"},
+        ],
+        "forecast_category": [
+            {"metric_id": "NewBizDeals", "value": 7, "date": None, "forecast_category": "Closed"},
+            {"metric_id": "NewBizDeals", "value": 0, "date": None, "forecast_category": "Omitted"},
+            {"metric_id": "NewBizDeals", "value": 0, "date": None, "forecast_category": "Commit"},
+        ],
+        "lead_source": [
+            {"metric_id": "NewBizDeals", "value": 7, "date": None, "lead_source": None},
+            {"metric_id": "NewBizDeals", "value": 0, "date": None, "lead_source": "Inbound Request"},
+        ],
+        "loss_reason": [
+            {"metric_id": "NewBizDeals", "value": 7, "date": None, "loss_reason": None},
+            {"metric_id": "NewBizDeals", "value": 0, "date": None, "loss_reason": "No Decision / Non-Responsive"},
+            {"metric_id": "NewBizDeals", "value": 0, "date": None, "loss_reason": "Price"},
+            {"metric_id": "NewBizDeals", "value": 0, "date": None, "loss_reason": "No Budget / Lost Funding"},
+            {"metric_id": "NewBizDeals", "value": 0, "date": None, "loss_reason": "Churn"},
+            {"metric_id": "NewBizDeals", "value": 0, "date": None, "loss_reason": "Staying on Pro"},
+            {"metric_id": "NewBizDeals", "value": 0, "date": None, "loss_reason": "Needs Nurturing"},
+            {"metric_id": "NewBizDeals", "value": 0, "date": None, "loss_reason": "Lost to Competitor"},
+            {"metric_id": "NewBizDeals", "value": 0, "date": None, "loss_reason": "Contract terms"},
+            {"metric_id": "NewBizDeals", "value": 0, "date": None, "loss_reason": "Other"},
+        ],
+        "opportunity_source": [
+            {"metric_id": "NewBizDeals", "value": 3, "date": None, "opportunity_source": "Self-prospected"},
+            {"metric_id": "NewBizDeals", "value": 2, "date": None, "opportunity_source": None},
+            {"metric_id": "NewBizDeals", "value": 1, "date": None, "opportunity_source": "Renewal"},
+            {"metric_id": "NewBizDeals", "value": 1, "date": None, "opportunity_source": "Partner"},
+            {"metric_id": "NewBizDeals", "value": 0, "date": None, "opportunity_source": "Inbound Request"},
+            {"metric_id": "NewBizDeals", "value": 0, "date": None, "opportunity_source": "SDR"},
+            {"metric_id": "NewBizDeals", "value": 0, "date": None, "opportunity_source": "CSM Identified"},
+        ],
+    }
+
+
+@pytest.fixture
+def significant_segment_stories():
+    return [
+        {
+            "metric_id": "NewBizDeals",
+            "genre": "PERFORMANCE",
+            "story_group": "SIGNIFICANT_SEGMENTS",
+            "story_type": "TOP_4_SEGMENTS",
+            "story_date": date(2024, 3, 1),
+            "grain": "week",
+            "series": [
+                {"value": 7, "member": None, "dimension": "lead_source"},
+                {"value": 7, "member": "Closed", "dimension": "forecast_category"},
+                {"value": 7, "member": None, "dimension": "loss_reason"},
+                {"value": 6, "member": "Enterprise", "dimension": "billing_plan"},
+            ],
+            "title": "Prior week best performing segments",
+            "detail": "The segments below had the highest average values for New Business Deals over the past week",
+            "title_template": "Prior {{grain}} best performing segments",
+            "detail_template": "The segments below had the highest average values for {{metric.label}} over the past "
+            "{{grain}}",
+            "variables": {
+                "grain": "week",
+                "eoi": "EOW",
+                "metric": {"id": "NewBizDeals", "label": "New Business Deals"},
+                "pop": "w/w",
+                "interval": "weekly",
+                "average": 1.35,
+            },
+        },
+        {
+            "metric_id": "NewBizDeals",
+            "genre": "PERFORMANCE",
+            "story_group": "SIGNIFICANT_SEGMENTS",
+            "story_type": "BOTTOM_4_SEGMENTS",
+            "story_date": date(2024, 3, 1),
+            "grain": "week",
+            "series": [
+                {"value": 0, "member": "Nicolas Ishihara", "dimension": "customer_success_manager_name"},
+                {"value": 0, "member": "Christine Durham", "dimension": "customer_success_manager_name"},
+                {"value": 0, "member": "Nathan Kuhn", "dimension": "customer_success_manager_name"},
+                {"value": 0, "member": "CSM Identified", "dimension": "opportunity_source"},
+            ],
+            "title": "Prior week worst performing segments",
+            "detail": "The segments below had the lowest average values for New Business Deals over the past week",
+            "title_template": "Prior {{grain}} worst performing segments",
+            "detail_template": "The segments below had the lowest average values for {{metric.label}} over the past "
+            "{{grain}}",
+            "variables": {
+                "grain": "week",
+                "eoi": "EOW",
+                "metric": {"id": "NewBizDeals", "label": "New Business Deals"},
+                "pop": "w/w",
+                "interval": "weekly",
+                "average": 1.35,
+            },
+        },
+    ]
+
+
+@pytest.fixture
+def mock_get_dimension_slice_data(significant_segment_story_builder, mocker, dimension_slice_data):
+    async def get_dimension_slice_data(metric_id, start_date, end_date, dimensions):
+        return pd.DataFrame(dimension_slice_data[dimensions[0]])
+
+    mocker.patch.object(
+        significant_segment_story_builder.query_service, "get_metric_values_df", get_dimension_slice_data
+    )
