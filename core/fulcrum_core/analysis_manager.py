@@ -417,8 +417,8 @@ class AnalysisManager:
 
         return round(slope, precision)
 
+    @staticmethod
     async def segment_drift(
-        self,
         dsensei_base_url: str,
         df: pd.DataFrame,
         evaluation_start_date: date,
@@ -484,3 +484,43 @@ class AnalysisManager:
 
         # Return the model and equation
         return result
+
+    # separate dimension based slices,
+    @staticmethod
+    def get_dimension_slices_df(
+        dimensions_slices_df_map, ignore_null: bool = False, ignore_zero: bool = False
+    ) -> pd.DataFrame:
+        """
+        We are creating dataframes from a dictionary with structure as
+        {'dimension_id': data_frame of the slices for the dimension}
+
+        "account_segment": [
+            {"metric_id": "NewBizDeals", "value": 4, "date": None, "account_segment": "Mid Market"},
+            {"metric_id": "NewBizDeals", "value": 3, "date": None, "account_segment": "Enterprise"},
+            {"metric_id": "NewBizDeals", "value": 0, "date": None, "account_segment": None},
+        ]
+
+        Params:
+            dimensions_slices_df_map: dimension_id and dataframe of slices map
+            ignore_null: whether to ignore slices with value as None
+
+        Output:
+            A dataframe of all the slices with the structure
+            |dimension   member  value|
+
+            member is the slice of that specific dimension
+        """
+        df = pd.DataFrame()
+
+        for dimension, slices_df in dimensions_slices_df_map.items():
+            if ignore_null:
+                slices_df = slices_df[slices_df[dimension].notna()]
+            if ignore_zero:
+                slices_df = slices_df[slices_df["value"] != 0]
+
+            slices_df = slices_df[["value", dimension]]
+            slices_df["dimension"] = dimension
+            slices_df.rename(columns={dimension: "member"}, inplace=True)
+            df = pd.concat([df, slices_df], ignore_index=True)
+
+        return df

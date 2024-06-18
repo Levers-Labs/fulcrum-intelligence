@@ -33,10 +33,10 @@ async def get_stories(
     genres: Annotated[list[StoryGenre], Query(description="List of genres")] = None,  # type: ignore
     metric_ids: Annotated[list[str], Query(description="List of metric ids")] = None,  # type: ignore
     grains: Annotated[list[Granularity], Query(description="List of grains")] = None,  # type: ignore
-    created_at_start: datetime | None = None,
-    created_at_end: datetime | None = None,
     digest: Digest | None = None,
     section: Section | None = None,
+    story_date_start: datetime | None = None,
+    story_date_end: datetime | None = None,
 ) -> Any:
     """
     Retrieve stories.
@@ -64,8 +64,8 @@ async def get_stories(
         story_types=predefined_filters.get("story_types"),
         story_groups=predefined_filters.get("story_groups"),
         grains=grains,
-        created_at_start=created_at_start,
-        created_at_end=created_at_end,
+        story_date_start=story_date_start,
+        story_date_end=story_date_end,
         digest=digest,
         section=section,
     )

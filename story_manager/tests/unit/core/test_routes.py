@@ -1,3 +1,5 @@
+from datetime import datetime
+
 import pytest
 from starlette import status
 
@@ -13,6 +15,7 @@ async def test_get_stories(db_session, client):
         Story(
             genre=StoryGenre.GROWTH,
             story_group=StoryGroup.GROWTH_RATES,
+            story_date=datetime(2020, 1, 1),
             grain=Granularity.DAY,
             story_type=StoryType.SLOWING_GROWTH,
             metric_id="CAC",
@@ -28,6 +31,7 @@ async def test_get_stories(db_session, client):
             genre=StoryGenre.GROWTH,
             story_group=StoryGroup.GROWTH_RATES,
             grain=Granularity.DAY,
+            story_date=datetime(2020, 1, 1),
             story_type=StoryType.ACCELERATING_GROWTH,
             metric_id="NewMRR",
             title="d/d growth is speeding up",
@@ -43,6 +47,7 @@ async def test_get_stories(db_session, client):
             genre=StoryGenre.PERFORMANCE,
             story_group=StoryGroup.TREND_CHANGES,
             grain=Granularity.WEEK,
+            story_date=datetime(2020, 1, 1),
             story_type=StoryType.ACCELERATING_GROWTH,
             metric_id="NewBizDeals",
             title="d/d growth is slowing down",
@@ -57,6 +62,7 @@ async def test_get_stories(db_session, client):
             genre=StoryGenre.TRENDS,
             story_group=StoryGroup.TREND_CHANGES,
             grain=Granularity.WEEK,
+            story_date=datetime(2020, 1, 1),
             story_type=StoryType.ON_TRACK,
             metric_id="NewBizDeals",
             title="d/d growth is slowing down",
@@ -152,3 +158,10 @@ async def test_get_stories(db_session, client):
     assert response.status_code == status.HTTP_200_OK
     data = response.json()
     assert data["count"] == 2
+
+    # Test filtering by story_date
+    response = client.get("/v1/stories?story_date=2022-01-01")
+    assert response.status_code == status.HTTP_200_OK
+    data = response.json()
+    assert data["count"] == 4
+    assert data["results"][0]["story_date"] == "2020-01-01T00:00:00+0000"

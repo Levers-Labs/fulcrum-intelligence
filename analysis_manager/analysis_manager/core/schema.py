@@ -108,12 +108,13 @@ class DimensionSlices(BaseModel):
     comparison_value: dict[str, Any]
     impact: int
     change_percentage: float
-    change_dev: float
+    change_dev: float | None = None
     absolute_contribution: float
     confidence: Any
     sort_value: int
     relative_change: float
     pressure: str
+    slice_share_change_percentage: float
 
 
 class SegmentDriftResponse(BaseModel):
