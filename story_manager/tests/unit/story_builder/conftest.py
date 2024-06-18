@@ -187,7 +187,7 @@ def segment_drift_stories():
             "genre": "ROOT_CAUSES",
             "story_group": "SEGMENT_DRIFT",
             "story_type": "SHRINKING_SEGMENT",
-            "story_date": date(2024, 6, 17),
+            "story_date": date(2024, 3, 1),
             "grain": "week",
             "series": [
                 {
@@ -241,7 +241,7 @@ def segment_drift_stories():
             "genre": "ROOT_CAUSES",
             "story_group": "SEGMENT_DRIFT",
             "story_type": "IMPROVING_SEGMENT",
-            "story_date": date(2024, 6, 17),
+            "story_date": date(2024, 3, 1),
             "grain": "week",
             "series": [
                 {
@@ -295,7 +295,7 @@ def segment_drift_stories():
             "genre": "ROOT_CAUSES",
             "story_group": "SEGMENT_DRIFT",
             "story_type": "GROWING_SEGMENT",
-            "story_date": date(2024, 6, 17),
+            "story_date": date(2024, 3, 1),
             "grain": "week",
             "series": [
                 {
@@ -348,7 +348,7 @@ def segment_drift_stories():
             "genre": "ROOT_CAUSES",
             "story_group": "SEGMENT_DRIFT",
             "story_type": "WORSENING_SEGMENT",
-            "story_date": date(2024, 6, 17),
+            "story_date": date(2024, 3, 1),
             "grain": "week",
             "series": [
                 {
