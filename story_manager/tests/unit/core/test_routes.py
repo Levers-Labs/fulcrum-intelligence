@@ -153,15 +153,15 @@ async def test_get_stories(db_session, client):
     data = response.json()
     assert data["count"] == 3
 
-    # Testing with predefined filters for digest and portfolio
-    response = client.get("/v1/stories?grains=day&grains=week&digest=PORTFOLIO&section=PROMISING_TRENDS")
-    assert response.status_code == status.HTTP_200_OK
-    data = response.json()
-    assert data["count"] == 2
-
     # Test filtering by story_date
     response = client.get("/v1/stories?story_date=2022-01-01")
     assert response.status_code == status.HTTP_200_OK
     data = response.json()
     assert data["count"] == 4
     assert data["results"][0]["story_date"] == "2020-01-01T00:00:00+0000"
+
+    # Testing with predefined filters for digest and portfolio
+    response = client.get("/v1/stories?grains=day&grains=week&digest=PORTFOLIO&section=PROMISING_TRENDS")
+    assert response.status_code == status.HTTP_200_OK
+    data = response.json()
+    assert data["count"] == 2

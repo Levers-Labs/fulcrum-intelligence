@@ -39,7 +39,7 @@ FILTER_MAPPING = {
             StoryGroup.GROWTH_RATES.value,
             StoryGroup.RECORD_VALUES.value,
         ],
-        "genres": StoryGenre.TRENDS.value,
+        "genres": [StoryGenre.TRENDS.value],
     },
     (Digest.METRIC, Section.WHY_IS_IT_HAPPENING): {"story_types": []},
     (Digest.METRIC, Section.WHAT_HAPPENS_NEXT): {"story_groups": [StoryGroup.LIKELY_STATUS.value]},

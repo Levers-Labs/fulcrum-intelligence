@@ -42,9 +42,9 @@ async def get_stories(
     Retrieve stories.
     """
     predefined_filters = {
-        "story_types": story_types if story_types else [],
-        "story_groups": story_groups if story_groups else [],
-        "genres": genres if genres else [],
+        "story_types": story_types,
+        "story_groups": story_groups,
+        "genres": genres,
     }
 
     # Apply predefined filters from FILTER_MAPPING if digest and section are provided
@@ -66,8 +66,8 @@ async def get_stories(
         grains=grains,
         story_date_start=story_date_start,
         story_date_end=story_date_end,
-        digest=digest,
-        section=section,
+        digest=None,
+        section=None,
     )
     results, count = await story_crud.paginate(params=params, filter_params=story_filter.dict(exclude_unset=True))
     return Page.create(items=results, total_count=count, params=params)
