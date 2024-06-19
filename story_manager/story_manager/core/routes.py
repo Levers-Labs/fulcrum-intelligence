@@ -60,9 +60,9 @@ async def get_stories(
 
     story_filter = StoryFilter(
         metric_ids=metric_ids,
-        genres=predefined_filters.get("genres"),
-        story_types=predefined_filters.get("story_types"),
-        story_groups=predefined_filters.get("story_groups"),
+        genres=predefined_filters.get("genres", None),
+        story_types=predefined_filters.get("story_types", None),
+        story_groups=predefined_filters.get("story_groups", None),
         grains=grains,
         story_date_start=story_date_start,
         story_date_end=story_date_end,
