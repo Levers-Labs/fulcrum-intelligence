@@ -163,7 +163,10 @@ GROUP_TO_STORY_TYPE_MAPPING = {
         StoryType.LIKELY_ON_TRACK,
         StoryType.LIKELY_OFF_TRACK,
     ],
-    StoryGroup.REQUIRED_PERFORMANCE: [StoryType.REQUIRED_PERFORMANCE, StoryType.HOLD_STEADY],
+    StoryGroup.REQUIRED_PERFORMANCE: [
+        StoryType.REQUIRED_PERFORMANCE,
+        StoryType.HOLD_STEADY,
+    ],
     StoryGroup.SEGMENT_DRIFT: [
         StoryType.GROWING_SEGMENT,
         StoryType.SHRINKING_SEGMENT,

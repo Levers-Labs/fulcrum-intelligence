@@ -14,14 +14,9 @@ from story_manager.core.enums import (
     StoryType,
 )
 from story_manager.core.filters import StoryFilter
-from story_manager.core.mappings import FILTER_MAPPING
 from story_manager.core.models import Story
 
 router = APIRouter(prefix="/stories", tags=["stories"])
-
-
-def merge_lists(existing: list, new: list) -> list:
-    return list(set(existing + new))
 
 
 @router.get("/", response_model=Page[Story])
@@ -41,33 +36,19 @@ async def get_stories(
     """
     Retrieve stories.
     """
-    predefined_filters = {
-        "story_types": story_types,
-        "story_groups": story_groups,
-        "genres": genres,
-    }
-
-    # Apply predefined filters from FILTER_MAPPING if digest and section are provided
-    if digest and section:
-        mappings = FILTER_MAPPING.get((digest, section), {})
-        for key, value in mappings.items():  # type: ignore
-            if key in predefined_filters:
-                predefined_filters[key] = (
-                    merge_lists(predefined_filters[key], value) if isinstance(predefined_filters[key], list) else value  # type: ignore
-                )
-            else:
-                predefined_filters[key] = value
 
     story_filter = StoryFilter(
         metric_ids=metric_ids,
-        genres=predefined_filters.get("genres", None),  # type: ignore
-        story_types=predefined_filters.get("story_types", None),  # type: ignore
-        story_groups=predefined_filters.get("story_groups", None),  # type: ignore
+        genres=genres,
+        story_types=story_types,
+        story_groups=story_groups,
         grains=grains,
         story_date_start=story_date_start,
         story_date_end=story_date_end,
-        digest=None,
-        section=None,
+        digest=digest,
+        section=section,
     )
+
+    story_filter.apply_predefined_filters()
     results, count = await story_crud.paginate(params=params, filter_params=story_filter.dict(exclude_unset=True))
     return Page.create(items=results, total_count=count, params=params)
