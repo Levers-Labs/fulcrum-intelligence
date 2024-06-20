@@ -7,7 +7,6 @@ from commons.db.models import BaseSQLModel
 
 
 class CorrelateBase(BaseSQLModel):
-    __table_args__ = {"schema": "analysis_store"}
 
     metric_id_1: str = Field(max_length=255, index=True)
     metric_id_2: str = Field(max_length=255, index=True)
