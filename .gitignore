@@ -139,4 +139,4 @@ dmypy.json
 .DS_Store
 
 # VSCode launch configuration
-.vscode/launch.json
+.vscode/*

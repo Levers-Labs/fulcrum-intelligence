@@ -74,15 +74,22 @@ class MetricListResponse(BaseModel):
 class MetricExpression(BaseModel):
     type: Literal["metric"] = "metric"
     metric_id: str
+    coefficient: int | float = Field(1, description="Coefficient for the metric")
     period: int = Field(0, description="Period for the metric, 0 denotes the current period")
     expression_str: str = Field(None, description="Expression string for the metric")
     expression: Expression | None = Field(None, description="Expression for the metric")
+    power: int | float = Field(1, description="Power for the metric")
+
+
+class ConstantExpression(BaseModel):
+    type: Literal["constant"] = "constant"
+    value: int | float
 
 
 class Expression(BaseModel):
     type: Literal["expression"] = "expression"
     operator: str
-    operands: list[MetricExpression | Expression]
+    operands: list[MetricExpression | Expression | ConstantExpression]
 
 
 class MetricDetail(MetricBase):

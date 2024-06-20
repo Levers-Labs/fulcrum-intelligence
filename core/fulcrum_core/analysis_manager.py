@@ -11,6 +11,7 @@ from fulcrum_core.enums import (
     Granularity,
     MetricAim,
 )
+from fulcrum_core.execptions import AnalysisError
 from fulcrum_core.modules import (
     ComponentDriftEvaluator,
     CorrelationAnalyzer,
@@ -524,3 +525,24 @@ class AnalysisManager:
             df = pd.concat([df, slices_df], ignore_index=True)
 
         return df
+
+    def influence_attribution(
+        self, df: pd.DataFrame, input_dfs: list[pd.DataFrame], metric_id: str, values: list[dict[str, Any]]
+    ) -> tuple[dict[str, Any], dict[str, Any]]:
+        # Fit the model
+        model_result = self.model_analysis(df, input_dfs)
+
+        model_type = model_result["model_type"]
+        expression = model_result["expression"]
+        if model_type == "linear":
+            # If linear model, calculate component drift
+            component_drift = self.calculate_component_drift(
+                metric_id,
+                values,
+                expression,
+            )
+            return expression, component_drift
+        else:
+            raise AnalysisError(
+                f"Influence attribution only supported for linear models for now. Model type: {model_type}"
+            )

@@ -172,3 +172,80 @@ def test_construct_polynomial_equation(sample_data: pd.DataFrame, input_dfs: lis
     assert isinstance(equation["terms"], list)
     assert all("feature" in term and "coefficient" in term for term in equation["terms"])
     assert isinstance(equation["constant"], float)
+
+
+def test_get_equation_expression():
+    """
+    Test the get_equation_expression method of the ModelAnalyzer class.
+    """
+    # Prepare
+    analyzer = ModelAnalyzer(target_metric_id="metric1")
+    equation = {
+        "terms": [{"feature": "metric2", "coefficient": 2.0}, {"feature": "metric3", "coefficient": 3.0}],
+        "constant": 4.0,
+    }
+
+    # Act
+    expression = analyzer.get_equation_expression(equation)
+
+    # Assert
+    assert expression == {
+        "expression_str": "2.0 * metric2 + 3.0 * metric3 + 4.0",
+        "type": "expression",
+        "operator": "+",
+        "operands": [
+            {"type": "metric", "metric_id": "metric2", "coefficient": 2.0, "power": 1, "period": 0},
+            {"type": "metric", "metric_id": "metric3", "coefficient": 3.0, "power": 1, "period": 0},
+            {"type": "constant", "value": 4.0},
+        ],
+    }
+
+
+def test_get_equation_expression_multiplication():
+    # Prepare
+    analyzer = ModelAnalyzer(target_metric_id="metric1")
+    equation = {"terms": [{"feature": "metric2*metric3", "coefficient": 2}], "constant": 3.0}
+
+    # Act
+    expression = analyzer.get_equation_expression(equation)
+
+    # Assert
+    assert expression["expression_str"] == "2 * metric2 * metric3 + 3.0"
+    assert expression == {
+        "expression_str": "2 * metric2 * metric3 + 3.0",
+        "type": "expression",
+        "operator": "+",
+        "operands": [
+            {
+                "type": "expression",
+                "operator": "*",
+                "operands": [
+                    {"type": "metric", "metric_id": "metric2", "coefficient": 1, "power": 1, "period": 0},
+                    {"type": "metric", "metric_id": "metric3", "coefficient": 1, "power": 1, "period": 0},
+                    {"type": "constant", "value": 2},
+                ],
+            },
+            {"type": "constant", "value": 3.0},
+        ],
+    }
+
+
+def test_get_equation_expression_power():
+    # Prepare
+    analyzer = ModelAnalyzer(target_metric_id="metric1")
+    equation = {"terms": [{"feature": "metric2", "coefficient": 2, "power": 2}], "constant": 3.0}
+
+    # Act
+    expression = analyzer.get_equation_expression(equation)
+
+    # Assert
+    assert expression["expression_str"] == "2 * metric2^2 + 3.0"
+    assert expression == {
+        "expression_str": "2 * metric2^2 + 3.0",
+        "type": "expression",
+        "operator": "+",
+        "operands": [
+            {"type": "metric", "metric_id": "metric2", "coefficient": 2, "power": 2, "period": 0},
+            {"type": "constant", "value": 3.0},
+        ],
+    }
