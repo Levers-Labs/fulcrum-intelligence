@@ -3,7 +3,7 @@ from typing import Annotated, Any
 
 from pydantic import Field
 
-from analysis_manager.core.models import UserRead
+from analysis_manager.core.models import Component, UserRead
 from commons.models import BaseModel
 from commons.models.enums import Granularity
 
@@ -136,3 +136,19 @@ class SegmentDriftResponse(BaseModel):
     filters: list
     dimension_slices: list[DimensionSlices]
     dimension_slices_permutation_keys: list[str]
+
+
+class InfluenceAttributionRequest(BaseModel):
+    start_date: date
+    end_date: date
+    evaluation_start_date: date
+    evaluation_end_date: date
+    comparison_start_date: date
+    comparison_end_date: date
+    metric_id: str
+    grain: Granularity
+
+
+class InfluenceAttributionResponse(BaseModel):
+    expression: dict[str, Any]
+    influence: Component

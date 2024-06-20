@@ -30,6 +30,8 @@ from analysis_manager.core.schema import (
     DescribeResponse,
     ForecastRequest,
     ForecastResponse,
+    InfluenceAttributionRequest,
+    InfluenceAttributionResponse,
     ProcessControlRequest,
     ProcessControlResponse,
     SegmentDriftRequest,
@@ -336,3 +338,82 @@ async def segment_drift(
         comparison_end_date=drift_req.comparison_end_date,
         dimensions=drift_req.dimensions,
     )
+
+
+@router.post("/influence-attribution", response_model=InfluenceAttributionResponse)
+async def influence_attribution(
+    analysis_manager: AnalysisManagerDep,
+    query_manager: QueryManagerClientDep,
+    request: Annotated[
+        InfluenceAttributionRequest,
+        Body(
+            examples=[
+                {
+                    "metric_id": "NewBizDeals",
+                    "start_date": "2022-01-01",
+                    "end_date": "2023-12-31",
+                    "grain": "week",
+                    "evaluation_start_date": "2024-01-01",
+                    "evaluation_end_date": "2024-01-31",
+                    "comparison_start_date": "2024-02-01",
+                    "comparison_end_date": "2024-02-29",
+                }
+            ]
+        ),
+    ],
+):
+    """
+    Analyze influence attribution for a given metric.
+    """
+    logger.debug(f"Influence attribution request: {request}")
+    metric = await query_manager.get_metric(request.metric_id)
+    # check if metric has influeces ie. influenced_by
+    influenced_by = metric.get("influenced_by", [])
+    if not influenced_by:
+        raise HTTPException(status_code=400, detail="Metric is not influenced by any other metric.")
+    # get metric time series df for output metric
+    df = await query_manager.get_metric_time_series_df(
+        metric_id=request.metric_id,
+        start_date=request.start_date,
+        end_date=request.end_date,
+        grain=request.grain,
+    )
+    # get the time series for all the input metric
+    inputs_dfs = []
+    for metric_id in influenced_by:
+        inputs_df = await query_manager.get_metric_time_series_df(
+            metric_id=metric_id,
+            start_date=request.start_date,
+            end_date=request.end_date,
+            grain=request.grain,
+        )
+        inputs_dfs.append(inputs_df)
+    # get the evaluation and comparison values for all metrics
+    metric_ids = [request.metric_id] + influenced_by
+    eval_values = await query_manager.get_metrics_value(
+        metric_ids=metric_ids, start_date=request.evaluation_start_date, end_date=request.evaluation_end_date
+    )
+    comp_values = await query_manager.get_metrics_value(
+        metric_ids=metric_ids, start_date=request.comparison_start_date, end_date=request.comparison_end_date
+    )
+    # prepare the values for the influence attribution analysis
+    values: list[dict[str, Any]] = []
+    for metric_id in metric_ids:
+        values.append(
+            {
+                "metric_id": metric_id,
+                "evaluation_value": eval_values[metric_id],
+                "comparison_value": comp_values[metric_id],
+            }
+        )
+    # run the influence attribution analysis
+    expression, influence = analysis_manager.influence_attribution(
+        df=df,
+        input_dfs=inputs_dfs,
+        metric_id=request.metric_id,
+        values=values,
+    )
+    return {
+        "expression": expression,
+        "influence": influence,
+    }
