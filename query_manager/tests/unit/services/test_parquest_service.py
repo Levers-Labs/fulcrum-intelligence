@@ -16,6 +16,6 @@ async def test_convert_and_upload(parquet_service):
     result_url = await parquet_service_instance.convert_and_upload(test_data, metric_id, request_id, folder)
 
     # Assertions
-    parquet_service_instance.s3_client.upload_to_s3.assert_called_once()
-    parquet_service_instance.s3_client.generate_presigned_url.assert_called_once()
+    parquet_service_instance.client.upload_to_cloud_storage.assert_called_once()
+    parquet_service_instance.client.generate_presigned_url.assert_awaited_once()
     assert result_url == "http://mocked-presigned-url.com", "The returned URL should match the mocked presigned URL."

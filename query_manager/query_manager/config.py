@@ -22,6 +22,11 @@ class Paths:
     BASE_DIR: Path = ROOT_DIR / "query_manager"
 
 
+class Storage(str, Enum):
+    S3 = "S3"
+    SUPABASE = "SUPABASE"
+
+
 class Settings(BaseSettings):
     PATHS: Paths = Paths()
 
@@ -40,6 +45,10 @@ class Settings(BaseSettings):
     AWS_REGION: str = "us-east-1"
 
     BACKEND_CORS_ORIGINS: list[AnyHttpUrl | str] = []
+    STORAGE: Storage | None = Storage.S3
+    SUPABASE_BUCKET: str
+    SUPABASE_API_URL: str
+    SUPABASE_API_KEY: str
 
     @field_validator("BACKEND_CORS_ORIGINS", mode="before")
     @classmethod

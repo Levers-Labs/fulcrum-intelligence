@@ -8,23 +8,24 @@ from query_manager.services.s3 import NoSuchKeyError, S3Client
 
 @pytest.mark.asyncio
 @patch("query_manager.services.s3.aioboto3.Session.client")
-async def test_upload_to_s3(mock_client):
+async def test_upload_to_cloud_storage(mock_client):
     mock_s3 = AsyncMock(name="mock_s3")
     mock_client.return_value.__aenter__.return_value = mock_s3
 
     s3_client = S3Client("mybucket", "us-east-1")
-    await s3_client.upload_to_s3("path/to/local/file", "s3/key")
+    await s3_client.upload_to_cloud_storage("path/to/local/file", "s3/key")
 
     mock_s3.upload_file.assert_awaited_with("path/to/local/file", "mybucket", "s3/key")
 
 
+@pytest.mark.asyncio
 @patch("query_manager.services.s3.boto3.Session.client")
-def test_generate_presigned_url(mock_client):
+async def test_generate_presigned_url(mock_client):
     mock_s3 = mock_client.return_value
     mock_s3.generate_presigned_url.return_value = "http://mocked-url.com"
 
     s3_client = S3Client("mybucket", "us-east-1")
-    url = s3_client.generate_presigned_url("s3/key")
+    url = await s3_client.generate_presigned_url("s3/key")
 
     assert url == "http://mocked-url.com"
     mock_s3.generate_presigned_url.assert_called_with(
