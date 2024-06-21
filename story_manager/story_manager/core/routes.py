@@ -48,7 +48,6 @@ async def get_stories(
         digest=digest,
         section=section,
     )
-
-    story_filter.apply_predefined_filters()
+    # print(f"Filters:::{story_filter.dict(exclude_unset=True)}")
     results, count = await story_crud.paginate(params=params, filter_params=story_filter.dict(exclude_unset=True))
     return Page.create(items=results, total_count=count, params=params)

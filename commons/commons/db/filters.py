@@ -6,6 +6,8 @@ from pydantic import BaseModel
 from pydantic.fields import FieldInfo
 from sqlalchemy import Column, Select
 
+from story_manager.core.mappings import FILTER_MAPPING
+
 T = TypeVar("T", bound=BaseModel)
 logger = logging.getLogger(__name__)
 
@@ -100,6 +102,19 @@ class BaseFilter(BaseModel, Generic[T]):
 
         :return: The modified query.
         """
+        # Retrieve and pop digest and section to implement predefined filters logic
+        digest = values.pop("digest", None)
+        section = values.pop("section", None)
+
+        if digest and section:
+            mappings = FILTER_MAPPING.get((digest, section), {})
+            for key, value in mappings.items():  # type: ignore
+                current_value = values.get(key)
+                if isinstance(current_value, list):
+                    values[key] = list(set(current_value + value))
+                else:
+                    values[key] = value
+
         for field_name, value in values.items():
             if value is not None and cls.model_fields.get(field_name):
                 filter_field = cls.model_fields[field_name]
