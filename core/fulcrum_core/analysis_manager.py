@@ -11,6 +11,7 @@ from fulcrum_core.enums import (
     Granularity,
     MetricAim,
 )
+from fulcrum_core.execptions import AnalysisError
 from fulcrum_core.modules import (
     ComponentDriftEvaluator,
     CorrelationAnalyzer,
@@ -488,7 +489,7 @@ class AnalysisManager:
     # separate dimension based slices,
     @staticmethod
     def get_dimension_slices_df(
-        dimensions_slices_df_map, ignore_null: bool = False, ignore_zero: bool = False
+        dimensions_slices_df_map, metric_dimension_id_label_map, ignore_null: bool = False, ignore_zero: bool = False
     ) -> pd.DataFrame:
         """
         We are creating dataframes from a dictionary with structure as
@@ -502,6 +503,7 @@ class AnalysisManager:
 
         Params:
             dimensions_slices_df_map: dimension_id and dataframe of slices map
+            metric_dimension_id_label_map: {metric_id : label} dict
             ignore_null: whether to ignore slices with value as None
 
         Output:
@@ -519,8 +521,29 @@ class AnalysisManager:
                 slices_df = slices_df[slices_df["value"] != 0]
 
             slices_df = slices_df[["value", dimension]]
-            slices_df["dimension"] = dimension
+            slices_df["dimension"] = metric_dimension_id_label_map[dimension]
             slices_df.rename(columns={dimension: "member"}, inplace=True)
             df = pd.concat([df, slices_df], ignore_index=True)
 
         return df
+
+    def influence_attribution(
+        self, df: pd.DataFrame, input_dfs: list[pd.DataFrame], metric_id: str, values: list[dict[str, Any]]
+    ) -> tuple[dict[str, Any], dict[str, Any]]:
+        # Fit the model
+        model_result = self.model_analysis(df, input_dfs)
+
+        model_type = model_result["model_type"]
+        expression = model_result["expression"]
+        if model_type == "linear":
+            # If linear model, calculate component drift
+            component_drift = self.calculate_component_drift(
+                metric_id,
+                values,
+                expression,
+            )
+            return expression, component_drift
+        else:
+            raise AnalysisError(
+                f"Influence attribution only supported for linear models for now. Model type: {model_type}"
+            )

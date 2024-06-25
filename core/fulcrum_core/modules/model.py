@@ -29,6 +29,7 @@ class ModelAnalyzer(BaseAnalyzer):
         # Model and equation
         self.model: Any | None = None
         self.equation: dict[str, Any] | None = None
+        self.expression: dict[str, Any] | None = None
 
     def merge_dataframes(self, df: pd.DataFrame, input_dfs: list[pd.DataFrame]):
         """
@@ -100,8 +101,11 @@ class ModelAnalyzer(BaseAnalyzer):
 
         # Constructing the equation dictionary with feature names and their coefficients in a structured format
         equation = {
-            "terms": [{"feature": col, "coefficient": float(coef[i])} for i, col in enumerate(features_train.columns)],
-            "constant": float(intercept),
+            "terms": [
+                {"feature": col, "coefficient": round(float(coef[i]), self.precision)}
+                for i, col in enumerate(features_train.columns)
+            ],
+            "constant": round(float(intercept), self.precision),
         }
 
         return model, equation
@@ -145,7 +149,7 @@ class ModelAnalyzer(BaseAnalyzer):
                 else:
                     equation["terms"].append({"coefficient": coefficient, "feature": term, "power": 1})
 
-        equation["constant"] = float(model_intercept)
+        equation["constant"] = round(float(model_intercept), self.precision)
         return equation
 
     def fit_polynomial_regression_equation(self, df: pd.DataFrame) -> tuple[Any, dict[str, Any]]:
@@ -217,6 +221,7 @@ class ModelAnalyzer(BaseAnalyzer):
         self._model_fit = True
         self.model = model
         self.equation = equation
+        self.expression = self.get_equation_expression(equation)
 
     def fit_model(self, df: pd.DataFrame, input_dfs: list[pd.DataFrame], **kwargs) -> dict[str, Any]:
         """
@@ -257,6 +262,8 @@ class ModelAnalyzer(BaseAnalyzer):
         return {
             "model": self.model,
             "equation": self.equation,
+            "expression": self.expression,
+            "model_type": "linear" if isinstance(self.model, LinearRegression) else "polynomial",
         }
 
     def analyze(self, df: pd.DataFrame, input_dfs: list[pd.DataFrame], **kwargs) -> dict[str, Any]:  # noqa
@@ -264,3 +271,70 @@ class ModelAnalyzer(BaseAnalyzer):
         Analyze the provided DataFrame and return the analysis results.
         """
         return self.fit_model(df, input_dfs, **kwargs)
+
+    def get_equation_expression(self, equation: dict[str, Any]) -> dict[str, Any]:
+        """
+        Convert the equation with terms and constant to the standard expression dictionary and prepare
+        the expression string.
+
+        Parameters:
+            equation (dict[str, Any]): The equation dictionary with terms and constant.
+
+        Returns:
+            dict[str, Any]: The standard expression dictionary including the expression string.
+        """
+        expression = {"expression_str": "", "type": "expression", "operator": "+", "operands": []}
+        expression_parts: list[str] = []
+
+        for term in equation["terms"]:
+            feature = term["feature"]
+            coefficient = term["coefficient"]
+            power = term.get("power", 1)
+            # Check if the feature is a product of multiple metrics (e.g., "A*B*C" or "A*B")
+            if "*" in feature:
+                metrics = feature.split("*")
+                # Create a nested expression for each metric multiplication
+                operand: dict[str, Any] = {
+                    "type": "expression",
+                    "operator": "*",
+                    "operands": [
+                        {"type": "metric", "metric_id": metric, "period": 0, "coefficient": 1, "power": power}
+                        for metric in metrics
+                    ],
+                }
+                # Add the coefficient to the operand as constant
+                if coefficient != 1:
+                    operand["operands"].append({"type": "constant", "value": coefficient})  # type: ignore
+
+                # Prepare part of the expression string
+                expression_parts.append(
+                    f"{coefficient} * {' * '.join(metrics)}" if coefficient != 1 else " * ".join(metrics)
+                )
+            else:
+                metric_id = feature
+                operand = {
+                    "type": "metric",
+                    "metric_id": metric_id,
+                    "period": 0,
+                    "coefficient": coefficient,
+                    "power": power,
+                }
+                # Prepare part of the expression string
+                if power == 1:
+                    expression_parts.append(f"{coefficient} * {metric_id}" if coefficient != 1 else metric_id)
+                else:
+                    expression_parts.append(
+                        f"{coefficient} * {metric_id}^{power}" if coefficient != 1 else f"{metric_id}^{power}"
+                    )
+
+            expression["operands"].append(operand)  # type: ignore
+
+        # Add the constant term
+        if equation["constant"] != 0:
+            expression["operands"].append({"type": "constant", "value": equation["constant"]})  # type: ignore
+            expression_parts.append(str(equation["constant"]))
+
+        # Join all parts to form the complete expression string
+        expression["expression_str"] = " + ".join(expression_parts)
+
+        return expression

@@ -1,6 +1,7 @@
 import random
 from unittest.mock import AsyncMock
 
+import numpy as np
 import pandas as pd
 import pytest
 from deepdiff import DeepDiff
@@ -537,3 +538,88 @@ async def test_segment_drift(
     )
     assert response.status_code == 200
     assert sorted(response.json()) == sorted(segment_drift_output)
+
+
+@pytest.mark.asyncio
+async def test_influence_attribution_success(client, mocker, metric_sms):
+    # Mock the QueryClient's methods
+    metric_mock = AsyncMock(return_value=metric_sms)
+    get_metric_time_series_df_mock = AsyncMock(
+        side_effect=[
+            pd.DataFrame(
+                {
+                    "date": pd.date_range("2024-01-01", periods=10, freq="D"),
+                    "metric_id": ["SalesMktSpend"] * 10,
+                    "value": np.random.randint(1000, 1200, 10),
+                }
+            ),
+            pd.DataFrame(
+                {
+                    "date": pd.date_range("2024-01-01", periods=10, freq="D"),
+                    "metric_id": ["influenced1"] * 10,
+                    "value": np.random.randint(600, 800, 10),
+                }
+            ),
+            pd.DataFrame(
+                {
+                    "date": pd.date_range("2024-01-01", periods=10, freq="D"),
+                    "metric_id": ["influenced2"] * 10,
+                    "value": np.random.randint(400, 600, 10),
+                }
+            ),
+        ]
+    )
+    get_metrics_value_mock = AsyncMock(
+        side_effect=[
+            {"SalesMktSpend": 1000, "influenced1": 500, "influenced2": 300},
+            {"SalesMktSpend": 1200, "influenced1": 600, "influenced2": 400},
+        ]
+    )
+    mocker.patch.object(QueryManagerClient, "get_metric", metric_mock)
+    mocker.patch.object(QueryManagerClient, "get_metric_time_series_df", get_metric_time_series_df_mock)
+    mocker.patch.object(QueryManagerClient, "get_metrics_value", get_metrics_value_mock)
+
+    response = client.post(
+        "/v1/analyze/influence-attribution",
+        json={
+            "metric_id": "SalesMktSpend",
+            "start_date": "2024-01-01",
+            "end_date": "2024-01-31",
+            "grain": "day",
+            "evaluation_start_date": "2024-01-01",
+            "evaluation_end_date": "2024-01-31",
+            "comparison_start_date": "2024-02-01",
+            "comparison_end_date": "2024-02-29",
+        },
+    )
+    assert response.status_code == 200
+    assert "expression" in response.json()
+    assert "influence" in response.json()
+
+
+@pytest.mark.asyncio
+async def test_influence_attribution_no_influenced_by(client, mocker, metric_sms):
+    # Mock the QueryClient's methods
+    metric_sms_copy = metric_sms.copy()
+    metric_sms_copy["influenced_by"] = []
+    metric_mock = AsyncMock(return_value=metric_sms_copy)
+    mocker.patch.object(QueryManagerClient, "get_metric", metric_mock)
+
+    # Act
+    response = client.post(
+        "/v1/analyze/influence-attribution",
+        json={
+            "metric_id": "SalesMktSpend",
+            "start_date": "2024-01-01",
+            "end_date": "2024-01-31",
+            "grain": "day",
+            "evaluation_start_date": "2024-01-01",
+            "evaluation_end_date": "2024-01-31",
+            "comparison_start_date": "2024-02-01",
+            "comparison_end_date": "2024-02-29",
+        },
+    )
+
+    # Assert
+    assert response.status_code == 400
+    assert response.json()["detail"] == "Metric is not influenced by any other metric."

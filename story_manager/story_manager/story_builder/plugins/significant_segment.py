@@ -22,10 +22,11 @@ class SignificantSegmentStoryBuilder(StoryBuilderBase):
                 start_date=start_date,
                 end_date=end_date,
             )
-
             dimensions_slices_df_map[dimension] = dimension_slices_df
 
-        dimensions_slices_df = self.analysis_manager.get_dimension_slices_df(dimensions_slices_df_map)
+        dimensions_slices_df = self.analysis_manager.get_dimension_slices_df(
+            dimensions_slices_df_map, metric_dimensions
+        )
 
         # if we are having less than 8 stories, we are skipping story creation to avoid having the same dimension slice
         # in top and bottom 4.
@@ -53,5 +54,4 @@ class SignificantSegmentStoryBuilder(StoryBuilderBase):
             df=bottom_4_dimensions_slices_df,
             average=avg_value,
         )
-
         return [top_4_segment_story, bottom_4_segment_story]

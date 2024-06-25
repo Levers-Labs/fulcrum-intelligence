@@ -32,6 +32,27 @@ class QueryManagerClient(AsyncHttpClient):
         results = await self.get_metric_values(metric_id=metric_id, **kwargs)
         return results[0] if len(results) == 1 else None
 
+    async def get_metrics_value(
+        self, metric_ids: list[str], start_date: date | None = None, end_date: date | None = None, **kwargs
+    ) -> dict[str, Any]:
+        """
+        Get aggregated metric values for multiple metric IDs.
+
+        Args:
+            metric_ids: List of metric IDs.
+            start_date: Optional start date to filter the metrics.
+            end_date: Optional end date to filter the metrics.
+            kwargs: Additional filters to pass to the query manager values endpoint.
+
+        Returns:
+            A dictionary with metric IDs as keys and their corresponding values.
+        """
+        results = {}
+        for metric_id in metric_ids:
+            value = await self.get_metric_value(metric_id, start_date, end_date, **kwargs)
+            results[metric_id] = value["value"]
+        return results
+
     async def get_metric_values(
         self,
         metric_id: str,
@@ -151,6 +172,40 @@ class QueryManagerClient(AsyncHttpClient):
         """
         data = await self.get_metric_time_series(metric_id, start_date, end_date, grain, dimensions)
         return pd.DataFrame(data)
+
+    async def get_metrics_time_series_df(
+        self, metric_ids: list[str], start_date: date, end_date: date, grain: Granularity = Granularity.DAY
+    ) -> pd.DataFrame:
+        """
+        Fetches time series data for multiple metrics and returns it as a pandas DataFrame.
+
+        Args:
+            metric_ids (list[str]): List of metric IDs for which the time series data is required.
+            start_date (date): The start date for the time series data.
+            end_date (date): The end date for the time series data.
+            grain (Granularity): The granularity of the time series data (default is DAY).
+
+        Returns:
+            pd.DataFrame: A DataFrame where each column represents a metric ID with their respective
+                          time series data, indexed by date.
+        """
+        # Initialize an empty DataFrame to store results
+        combined_df = pd.DataFrame(columns=["date"])
+
+        # Loop through each metric ID and fetch its time series data
+        for metric_id in metric_ids:
+            data = await self.get_metric_time_series(metric_id, start_date, end_date, grain)
+            # Convert the list of dictionaries to a DataFrame
+            metric_df = pd.DataFrame(data)
+            # Rename the 'value' column to the current metric_id
+            metric_df.rename(columns={"value": metric_id}, inplace=True)
+            # Keep only the 'date' and the current metric_id columns
+            metric_df = metric_df[["date", metric_id]]
+            # Merge the current metric's DataFrame with the main DataFrame
+            # Use an outer join to include all dates, filling missing values with NaN
+            combined_df = combined_df.merge(metric_df, on="date", how="outer")
+
+        return combined_df
 
     async def get_metric(self, metric_id: str) -> dict[str, Any]:
         """

@@ -2,10 +2,10 @@ from datetime import date
 
 from sqlmodel import Field
 
-from commons.db.models import BaseTimeStampedModel
+from analysis_manager.core.models.base_model import AnalysisSchemaBaseModel
 
 
-class Describe(BaseTimeStampedModel, table=True):  # type: ignore
+class Describe(AnalysisSchemaBaseModel, table=True):  # type: ignore
     metric_id: str = Field(max_length=255, index=True)
     start_date: date
     end_date: date
