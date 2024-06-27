@@ -241,6 +241,10 @@ class CausalInference:
             # for variable, percentage in normalized_percentage_impact.items():
             #     print(f"Normalized overall effect of '{variable}' on 'Y' (%):", percentage)
 
+            impact_df = pd.DataFrame(normalized_percentage_impact, index=[0])
+
+            impact_df.columns = [f"{variable}_normalized_percentage" for variable in impact_df.columns]
+
             normalized_row_effects = data.apply(lambda row: self.normalize_effects_row(row, factor_columns), axis=1)
             
             # Adding columns coefficient and percantage for each column
@@ -277,6 +281,7 @@ class CausalInference:
                     natural_effect[f'NDE_{indirect_columns[i]}_percentage'] = [0]
                     natural_effect[f'NIE_{indirect_columns[i]}_percentage'] = [0]
             
+            natural_effect = pd.concat([natural_effect, impact_df], axis=1)
             # Dropping original columns
             data = data.drop(factor_columns,axis=1)
             data = data.drop(outcome_column,axis=1)
