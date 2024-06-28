@@ -1,6 +1,6 @@
 # for both direct and indirect combined
 import pandas as pd
-import json
+import re
 from dowhy import CausalModel
 
 from prophet_seasonality import ProphetSeasonality
@@ -199,7 +199,7 @@ class CausalInference:
                     updated_edges.append(f"{src_replaced} -> {dst_replaced}")
 
             updated_graph_definition = f"digraph {{ {'; '.join(updated_edges)} }}"
-            
+
             # model definintion containing data, treatment variables which are factor columns, outcome and digraph
             model = CausalModel(
                 data=data,
@@ -285,11 +285,73 @@ class CausalInference:
             # Dropping original columns
             data = data.drop(factor_columns,axis=1)
             data = data.drop(outcome_column,axis=1)
-            return data,natural_effect
+            data = data.drop('ds',axis=1)
+            return data,natural_effect,updated_graph_definition
 
         except Exception as e:
             print(f"An error occurred during causal analysis: {str(e)}")
             return None
+        
+    def prepare_output(self,contributions,natural_effect,graph):
+        coefficient_columns = natural_effect.filter(regex='^coefficient')
+        coefficient_df = pd.DataFrame(coefficient_columns)
+
+        contributions = contributions.drop(contributions.filter(regex='_percentage$').columns, axis=1)
+
+        natural_effect = natural_effect.drop(natural_effect.filter(regex='^coefficient_').columns, axis=1)
+        pattern = r'^(NDE|NIE).*percentage$'
+
+        # Filter the columns using the regex pattern
+        nde_nie_percentage_columns = natural_effect.loc[:, natural_effect.columns.str.contains(pattern)]
+
+        # Save the filtered DataFrame to another variable
+        filtered_df = nde_nie_percentage_columns
+        natural_effect = natural_effect.loc[:, ~natural_effect.columns.str.contains('NDE|NIE')]
+        natural_effect.columns = natural_effect.columns.str.replace('_normalized_percentage', '', regex=False)
+
+        contributions = contributions.iloc[[0]]
+
+        columns_to_remove = [col.split('coefficient_NDE_')[1] for col in coefficient_df.columns if col.startswith('coefficient_NDE_')]
+
+        contributions.drop(columns=[f'coefficient_{col}' for col in columns_to_remove if f'coefficient_{col}' in contributions.columns], inplace=True)
+        final_contributions = pd.merge(coefficient_df, contributions, left_index=True, right_index=True)
+        final_contributions.columns = final_contributions.columns.str.replace('coefficient_', '', regex=False)
+
+        relationships = re.findall(r'(\w+)\s*->\s*(\w+)', graph)
+    
+        # Initialize matrix with nodes as indices
+        nodes = sorted(set([node for relation in relationships for node in relation]))
+        coefficients = pd.DataFrame(0.0, index=nodes, columns=nodes)
+        relation_dict = {}
+        for source, target in relationships:
+            if source in relation_dict:
+                relation_dict[source].append(target)
+            else:
+                relation_dict[source] = [target]
+        
+        # Map coefficients from final_contributions to matrix based on relationships
+        for col_name, value in final_contributions.iloc[0].items():
+            if 'NDE_' in col_name:
+                source_node = col_name.split('NDE_')[1]
+                current_node = source_node
+                while current_node in relation_dict:
+                    next_node = relation_dict[current_node][0]  # Assuming one-to-one relationship
+                    current_node = next_node
+                coefficients.loc[source_node, current_node] = value
+            if 'NIE_' in col_name:
+                source_node = col_name.split('NIE_')[1]
+                for source, target in relationships:
+                    if source == source_node:
+                        coefficients.loc[source, target] = value
+            else:
+                for source, target in relationships:
+                    if source == col_name:
+                        coefficients.loc[source, target] = value
+
+        percentage = pd.concat([natural_effect, filtered_df], axis=1)
+        
+        return coefficients,percentage
+        
 
     def run(self):
         merged_df = self.merge_dataframes()
@@ -304,8 +366,9 @@ class CausalInference:
             return None
 
         graph_definition = self.build_causal_graph(graph_edges)
-        contributions,natural_effect = self.causal_analysis(prepared_data, selected_columns, graph_definition)
-        return contributions,natural_effect
+        contributions,natural_effect,graph = self.causal_analysis(prepared_data, selected_columns, graph_definition)
+        coefficients,percentage = self.prepare_output(contributions,natural_effect,graph)
+        return coefficients,percentage
 
 
 # Required hierarchy_list which has connection data and a list or a single dataframe as input
@@ -343,17 +406,17 @@ if __name__ == "__main__":
     dataframes = [hierarchy_output, merged_output]  #you can pass any number(>0) of dataframes in this list 
 
     causal_analyzer = CausalInference(dataframes=dataframes, hierarchy_list=hierarchy_list)
-    contributions,natural_effect = causal_analyzer.run()
+    coefficients,percentage = causal_analyzer.run()
 
-    if contributions is not None:
-        print("Contributions data:\n")
-        print(contributions.head(5))
+    if coefficients is not None:
+        print("Coefficients data:\n")
+        print(coefficients.head(13))
     else:
         print("Causal analysis failed. Please check logs for details.")
 
-    if natural_effect is not None:
-        print("Natural Effect data:\n")
-        print(natural_effect.head(5))
+    if percentage is not None:
+        print("Percentage impact data:\n")
+        print(percentage.head(5))
     else:
         print("Causal analysis failed. Please check logs for details.")
 
