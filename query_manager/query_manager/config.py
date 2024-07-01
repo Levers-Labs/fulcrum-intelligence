@@ -46,9 +46,9 @@ class Settings(BaseSettings):
 
     BACKEND_CORS_ORIGINS: list[AnyHttpUrl | str] = []
     STORAGE: Storage | None = Storage.S3
-    SUPABASE_BUCKET: str
-    SUPABASE_API_URL: str
-    SUPABASE_API_KEY: str
+    SUPABASE_BUCKET: str | None = None
+    SUPABASE_API_URL: str | None = None
+    SUPABASE_API_KEY: str | None = None
 
     @field_validator("BACKEND_CORS_ORIGINS", mode="before")
     @classmethod

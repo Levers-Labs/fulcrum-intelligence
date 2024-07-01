@@ -38,12 +38,12 @@ async def get_supabase_client() -> SupabaseClient:
 SupabaseClientDep = Annotated[SupabaseClient, Depends(get_supabase_client)]
 
 
-async def get_parquet_service(s3_client: S3ClientDep, supabase_client: SupabaseClientDep) -> ParquetService:
+async def get_parquet_service() -> ParquetService:
     settings = get_settings()
     if settings.STORAGE == Storage.SUPABASE:
-        return ParquetService(supabase_client)
+        return ParquetService(await get_supabase_client())
     else:
-        return ParquetService(s3_client)
+        return ParquetService(await get_s3_client())
 
 
 async def get_query_client(cube_client: CubeClientDep) -> QueryClient:

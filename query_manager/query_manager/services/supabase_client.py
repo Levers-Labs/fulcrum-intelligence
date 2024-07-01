@@ -6,8 +6,13 @@ logger = logging.getLogger(__name__)
 
 
 class SupabaseClient:
-    def __init__(self, bucket_name: str, supabase_api_url: str, supabase_api_key: str):
-        self.supabase = AClient(supabase_url=supabase_api_url, supabase_key=supabase_api_key)
+    def __init__(
+        self,
+        bucket_name: str | None,
+        supabase_api_url: str | None,
+        supabase_api_key: str | None,
+    ):
+        self.supabase = AClient(supabase_url=supabase_api_url, supabase_key=supabase_api_key)  # type: ignore
         self.bucket_name = bucket_name
         self.bucket_obj = None
 

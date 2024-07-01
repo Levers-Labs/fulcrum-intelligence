@@ -1,5 +1,6 @@
 import pytest
 
+from query_manager.config import Storage, get_settings
 from query_manager.core.dependencies import (
     get_cube_client,
     get_parquet_service,
@@ -22,8 +23,11 @@ async def test_get_s3_client():
 
 @pytest.mark.asyncio
 async def test_get_supabase_client():
-    supabase_client = await get_supabase_client()
-    assert isinstance(supabase_client, SupabaseClient)
+    settings = get_settings()
+
+    if settings.STORAGE == Storage.SUPABASE:
+        supabase_client = await get_supabase_client()
+        assert isinstance(supabase_client, SupabaseClient)
 
 
 @pytest.mark.asyncio
@@ -34,9 +38,7 @@ async def test_get_cube_client():
 
 @pytest.mark.asyncio
 async def test_get_parquet_service():
-    s3_client = await get_s3_client()
-    supabase_client = await get_supabase_client()
-    parquet_service = await get_parquet_service(s3_client=s3_client, supabase_client=supabase_client)
+    parquet_service = await get_parquet_service()
     assert isinstance(parquet_service, ParquetService)
 
 
