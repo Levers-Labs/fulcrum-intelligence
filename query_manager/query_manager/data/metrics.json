@@ -36,6 +36,8 @@
     "input_to": [],
     "influences": [],
     "influenced_by": [
+      "SQLs",
+      "OpenNewBizOpps"
     ],
     "periods": [
       "Week",
@@ -478,7 +480,9 @@
     "output_of": [],
     "input_to": [],
     "influences": [],
-    "influenced_by": [],
+    "influenced_by": [
+      "NewSalesAcceptLeads"
+    ],
     "periods": [
       "Month",
       "Quarter"
@@ -553,7 +557,9 @@
     "output_of": [],
     "input_to": [],
     "influences": [],
-    "influenced_by": [],
+    "influenced_by": [
+      "NewProsps"
+    ],
     "periods": [
       "Week",
       "Month",

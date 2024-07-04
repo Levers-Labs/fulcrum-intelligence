@@ -263,3 +263,26 @@ class QueryManagerClient(AsyncHttpClient):
         """
         data = await self.get_metric_values(metric_id, start_date, end_date, dimensions)
         return pd.DataFrame(data)
+
+    async def get_influencers(self, metric_id: str, include_indirect: bool = False) -> list[dict[str, Any]]:
+        """
+        Get influencers for a given metric.
+        metric_id: id of the metric
+        include_indirect: whether to include indirect influences (default: False)
+        Returns: array of dictionaries with the following keys:
+                - metric_id: str
+                - influencers: list[influencers]
+        """
+        # Retrieve the metric details for the given metric_id
+        metric = await self.get_metric(metric_id)
+        # Initialize a list to hold the influences of the metric
+        influencers = [{"metric_id": influencer_id} for influencer_id in metric["influenced_by"]]
+        # If there are influencers and include_indirect is True, recursively fetch indirect influencers
+        if influencers and include_indirect:
+            for influencer in influencers:
+                # Fetch the influences of the current influence
+                influencer["influencers"] = await self.get_influencers(
+                    influencer["metric_id"], include_indirect=include_indirect
+                )
+        # Return the list of influencers, including indirect ones if requested
+        return influencers
