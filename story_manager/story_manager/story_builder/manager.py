@@ -73,3 +73,18 @@ class StoryManager:
                 except Exception as e:
                     logger.exception(f"Error generating stories for metric {metric_id} with grain {grain}: {str(e)}")
                     continue
+
+    async def run_all_builders_by_group(self, group) -> None:
+        """
+        Run all story generation builders
+        """
+        metrics = await self.query_service.list_metrics()
+        logger.info(f"Running story builders for story group: {group}")
+        story_builder = StoryFactory.create_story_builder(
+            group,
+            self.query_service,
+            self.analysis_service,
+            analysis_manager=self.analysis_manager,
+            db_session=self.db_session,
+        )
+        await self._run_builder_for_metrics(story_builder, metrics)
