@@ -14,6 +14,9 @@ async def test_create_user(db_session, client):
     response = client.post("/v1/users/", json=user_json)
     assert response.status_code == status.HTTP_200_OK
 
+    response = client.post("/v1/users/", json=user_json)
+    assert response.status_code == status.HTTP_400_BAD_REQUEST
+
 
 def test_get_user(db_session, client, db_user):
     response = client.get("/v1/users/1")
@@ -23,10 +26,16 @@ def test_get_user(db_session, client, db_user):
     del user["updated_at"]
     assert user == db_user
 
+    response = client.get("/v1/users/2")
+    assert response.status_code == status.HTTP_404_NOT_FOUND
+
 
 def test_get_user_by_email(db_session, client, db_user):
     response = client.get("/v1/users/user-by-email/test_email@test.com")
     assert response.status_code == status.HTTP_200_OK
+
+    response = client.get("/v1/users/user-by-email/test_email12@test.com")
+    assert response.status_code == status.HTTP_404_NOT_FOUND
 
 
 def test_update_user(db_session, client):
@@ -42,6 +51,9 @@ def test_update_user(db_session, client):
     response = response.json()
     assert response["provider"] == "email"
     assert response["profile_picture"] == "http://test-some-url.com"
+
+    response = client.put("/v1/users/4", json=user_json)
+    assert response.status_code == status.HTTP_404_NOT_FOUND
 
 
 def test_list_user(client, db_user):

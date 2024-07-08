@@ -2,7 +2,10 @@ import logging
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy.exc import IntegrityError
+from starlette import status
 
+from commons.db.crud import NotFoundError
 from commons.utilities.pagination import PaginationParams
 from insights_backend.core.dependencies import UsersCRUDDep
 from insights_backend.core.models import User, UserCreate, UserList
@@ -16,7 +19,10 @@ async def create_user(user: UserCreate, user_crud_client: UsersCRUDDep) -> User:
     """
     To create a new user in DB, this endpoint will be used by Auth0 for user registration.
     """
-    return await user_crud_client.create(obj_in=user)
+    try:
+        return await user_crud_client.create(obj_in=user)
+    except IntegrityError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e.orig)) from e
 
 
 @user_router.get("/{user_id}", response_model=User)
@@ -24,7 +30,10 @@ async def get_user(user_id: int, user_crud_client: UsersCRUDDep) -> User:
     """
     Retrieve a user by ID.
     """
-    user: User = await user_crud_client.get(user_id)
+    try:
+        user: User = await user_crud_client.get(user_id)
+    except NotFoundError as e:
+        raise HTTPException(status_code=404, detail="User not found") from e
     return user
 
 
@@ -44,9 +53,10 @@ async def update_user(user_id: int, user: UserCreate, user_crud_client: UsersCRU
     """
     Update a user by ID.
     """
-    old_user_obj: User = await user_crud_client.get(user_id)
-    if old_user_obj is None:
-        raise HTTPException(status_code=404, detail="User not found")
+    try:
+        old_user_obj: User = await user_crud_client.get(user_id)
+    except NotFoundError as e:
+        raise HTTPException(status_code=404, detail="User not found") from e
 
     return await user_crud_client.update(obj=old_user_obj, obj_in=user)
 
