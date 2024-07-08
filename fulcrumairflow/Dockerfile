@@ -12,8 +12,10 @@ USER root
 #    commons
 
 # Example: If you have other requirements in a requirements.txt file
-COPY requirements.txt /tmp/requirements.txt
-RUN pip install --no-cache-dir --upgrade -r /tmp/requirements.txt
+COPY requirements.txt requirements.txt
+
 
 # Switch back to the airflow user
 USER airflow
+RUN pip3 install --user --upgrade pip \
+    && pip3 install --no-cache-dir --user -r requirements.txt

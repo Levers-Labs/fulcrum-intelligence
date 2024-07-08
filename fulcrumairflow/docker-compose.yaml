@@ -62,9 +62,10 @@ x-airflow-common:
     AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: 'true'
     AIRFLOW__CORE__LOAD_EXAMPLES: 'true'
 #    AIRFLOW__API__AUTH_BACKENDS: 'airflow.api.auth.backend.basic_auth,airflow.api.auth.backend.session'
-    AIRFLOW_PROJ_DIR: /Users/sadafshaikh/PycharmProjects/Fulcrum/fulcrum-intelligence/fulcrumairflow
-    CUSTOM_PROJ_DIR: /Users/sadafshaikh/PycharmProjects/Fulcrum/fulcrum-intelligence/story_manager
-    COMMON_PROJ_DIR: /Users/sadafshaikh/PycharmProjects/Fulcrum/fulcrum-intelligence/commons
+    AIRFLOW_PROJ_DIR: ../fulcrumairflow
+    CUSTOM_PROJ_DIR: ../story_manager
+    COMMON_PROJ_DIR: ../commons
+    AIRFLOW__CORE__SQLALCHEMY_SCHEMA=__allow_unmapped__: 'true'
 
     # yamllint disable rule:line-length
     # Use simple http server on scheduler for health checks
