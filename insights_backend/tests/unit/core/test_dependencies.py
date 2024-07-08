@@ -3,7 +3,7 @@ from unittest.mock import AsyncMock
 import pytest
 
 from insights_backend.core.dependencies import get_users_crud
-from insights_backend.core.models.users import User
+from insights_backend.core.models import User
 
 
 @pytest.mark.asyncio

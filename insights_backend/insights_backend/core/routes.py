@@ -5,18 +5,18 @@ from fastapi import APIRouter, Depends, HTTPException
 
 from commons.utilities.pagination import PaginationParams
 from insights_backend.core.dependencies import UsersCRUDDep
-from insights_backend.core.models.users import User, UserList
+from insights_backend.core.models import User, UserCreate, UserList
 
 user_router = APIRouter(prefix="/users", tags=["users"])
 logger = logging.getLogger(__name__)
 
 
 @user_router.post("/", response_model=User)
-async def create_user(user: User, user_crud_client: UsersCRUDDep) -> User:
+async def create_user(user: UserCreate, user_crud_client: UsersCRUDDep) -> User:
     """
     To create a new user in DB, this endpoint will be used by Auth0 for user registration.
     """
-    return await user_crud_client.create(obj_in=User(**user.dict()))
+    return await user_crud_client.create(obj_in=user)
 
 
 @user_router.get("/{user_id}", response_model=User)
@@ -40,7 +40,7 @@ async def get_user_by_email(email: str, user_crud_client: UsersCRUDDep) -> User:
 
 
 @user_router.put("/{user_id}", response_model=User)
-async def update_user(user_id: int, user: User, user_crud_client: UsersCRUDDep) -> User:
+async def update_user(user_id: int, user: UserCreate, user_crud_client: UsersCRUDDep) -> User:
     """
     Update a user by ID.
     """

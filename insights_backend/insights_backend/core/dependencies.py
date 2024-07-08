@@ -5,7 +5,7 @@ from typing import Annotated
 from fastapi import Depends
 
 from insights_backend.core.crud import CRUDUser
-from insights_backend.core.models.users import User
+from insights_backend.core.models import User
 from insights_backend.db.config import AsyncSessionDep
 
 

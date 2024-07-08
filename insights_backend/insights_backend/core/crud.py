@@ -1,10 +1,10 @@
 from sqlalchemy import select
 
 from commons.db.crud import CRUDBase
-from insights_backend.core.models.users import User
+from insights_backend.core.models import User, UserCreate
 
 
-class CRUDUser(CRUDBase[User, User, User, None]):  # type: ignore
+class CRUDUser(CRUDBase[User, UserCreate, UserCreate, None]):  # type: ignore
     """
     CRUD for User Model.
     """
