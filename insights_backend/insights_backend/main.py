@@ -6,7 +6,7 @@ from commons.middleware import process_time_log_middleware, request_id_middlewar
 from commons.utilities.docs import setup_swagger_ui
 from commons.utilities.logger import setup_rich_logger
 from insights_backend.config import get_settings
-from insights_backend.core.routes import router as core_router
+from insights_backend.core.routes import user_router as core_router
 from insights_backend.health import router as health_check_router
 
 

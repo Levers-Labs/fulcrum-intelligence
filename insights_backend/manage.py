@@ -112,7 +112,7 @@ def create_alembic_revision(
 
 @cli.command("run-local-server")
 def run_server(
-    port: int = 8002,
+    port: int = 8004,
     host: str = "localhost",
     log_level: str = "debug",
     reload: bool = True,

@@ -1,71 +1,64 @@
+import logging
+from typing import Annotated
+
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
-from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
 
-from commons.db.session import get_async_session
+from commons.utilities.pagination import PaginationParams
+from insights_backend.core.dependencies import UsersCRUDDep
+from insights_backend.core.models.users import User, UserList
 
-from .models import Users
-
-router = APIRouter(prefix="/insights-backend", tags=["insights-backend"])
+user_router = APIRouter(prefix="/users", tags=["users"])
+logger = logging.getLogger(__name__)
 
 
-class UserBase(BaseModel):
-    name: str
-    provider: str
-    external_user_id: str
-    profile_pic: str | None = None
+@user_router.post("/", response_model=User)
+async def create_user(user: User, user_crud_client: UsersCRUDDep) -> User:
+    """
+    To create a new user in DB, this endpoint will be used by Auth0 for user registration.
+    """
+    return await user_crud_client.create(obj_in=User(**user.dict()))
 
 
-class UsersInDB(UserBase):
-    id: int
+@user_router.get("/{user_id}", response_model=User)
+async def get_user(user_id: int, user_crud_client: UsersCRUDDep) -> User:
+    """
+    Retrieve a user by ID.
+    """
+    user: User = await user_crud_client.get(user_id)
+    return user
 
 
-@router.post("/create_user", response_model=UsersInDB)
-async def create_user(user: UserBase):
-    db: AsyncSession = Depends(get_async_session)
-    db_user = Users(**user.dict())
-    db.add(db_user)
-    await db.commit()
-    await db.refresh(db_user)
-    return db_user
-
-
-@router.get("/get_user_by_id/{user_id}", response_model=UsersInDB)
-async def get_user_by_id(user_id: int):
-    db: AsyncSession = Depends(get_async_session)
-    statement = select(UsersInDB).where(UsersInDB.id == user_id)  # type: ignore
-    result = await db.execute(statement)
-    db_user = result.scalar_one_or_none()
+@user_router.get("/user-by-email/{email}", response_model=User)
+async def get_user_by_email(email: str, user_crud_client: UsersCRUDDep) -> User:
+    """
+    Retrieve a user by email.
+    """
+    db_user = await user_crud_client.get_user_by_email(email)
     if db_user is None:
         raise HTTPException(status_code=404, detail="User not found")
     return db_user
 
 
-@router.get("/get_user_by_email/{user_email}", response_model=UsersInDB)
-async def get_user_by_email(email: str):
-    db: AsyncSession = Depends(get_async_session)
-    statement = select(Users).where(UsersInDB.email == email)  # type: ignore
-    result = await db.execute(statement)
-    db_user = result.scalar_one_or_none()
-    if db_user is None:
+@user_router.put("/{user_id}", response_model=User)
+async def update_user(user_id: int, user: User, user_crud_client: UsersCRUDDep) -> User:
+    """
+    Update a user by ID.
+    """
+    old_user_obj: User = await user_crud_client.get(user_id)
+    if old_user_obj is None:
         raise HTTPException(status_code=404, detail="User not found")
-    return db_user
+
+    return await user_crud_client.update(obj=old_user_obj, obj_in=user)
 
 
-# @router.put("/users/{user_id}", response_model=UsersInDB)
-# async def update_user(user_id: int, user: UserBase, db: AsyncSession = Depends(get_async_session)):
-#     db_user = await db.query(Users).filter(Users.id == user_id).first()
-#     if db_user is None:
-#         raise HTTPException(status_code=404, detail="User not found")
-#     for key, value in user.dict(exclude_unset=True).items():
-#         setattr(db_user, key, value)
-#     await db.commit()
-#     await db.refresh(db_user)
-#     return db_user
-#
-#
-# @router.get("/users/", response_model=list[UsersInDB])
-# async def get_all_users(db: AsyncSession = Depends(get_async_session)):
-#     db_users = await db.execute(AsyncSession.query(Users).all())
-#     return db_users.fetchall()
+@user_router.get("/", response_model=UserList)
+async def list_users(
+    user_crud_client: UsersCRUDDep,
+    params: Annotated[PaginationParams, Depends(PaginationParams)],
+) -> UserList:
+    """
+    Retrieve all the users in DB.
+    """
+    count = await user_crud_client.total_count()
+    results: list[User] = [User.from_orm(user) for user in await user_crud_client.list_results(params=params)]
+    return UserList(results=results, count=count)

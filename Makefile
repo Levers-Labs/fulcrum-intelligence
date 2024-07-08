@@ -38,7 +38,7 @@ install-all-deps:
 	@make install-deps path=query_manager
 	@make install-deps path=analysis_manager
 	@make install-deps path=story_manager
-
+	@make install-deps path=insights_backend
 port ?= 8000
 run:
 	@echo "Running the application... $(app) @ $(port)"
@@ -48,7 +48,8 @@ run-all:
 	@echo "Running all applications..."
 	@make run app=query_manager port=8001 &
 	@make run app=analysis_manager port=8000 &
-	@make run app=story_manager port=8002
+	@make run app=story_manager port=8002 &
+	@make run app=insights_backend port=8004
 
 path ?= .
 format:
@@ -60,6 +61,7 @@ format-all:
 	@make format path=query_manager
 	@make format path=analysis_manager
 	@make format path=story_manager
+	@make format path=insights_backend
 
 lint:
 	@python manage.py lint $(path)
@@ -70,6 +72,7 @@ lint-all:
 	@make lint path=query_manager
 	@make lint path=analysis_manager
 	@make lint path=story_manager
+	@make lint path=insights_backend
 
 start-shell:
 ifndef app
@@ -91,3 +94,4 @@ test-all:
 	@make test app=query_manager
 	@make test app=analysis_manager
 	@make test app=story_manager
+	@make test path=insights_backend
