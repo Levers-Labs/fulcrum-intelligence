@@ -94,4 +94,4 @@ test-all:
 	@make test app=query_manager
 	@make test app=analysis_manager
 	@make test app=story_manager
-	@make test path=insights_backend
+	@make test app=insights_backend
