@@ -1,5 +1,4 @@
 fastapi
 sqlmodel
 pydantic-settings
-commons
-sqlalchemy==1.4.36
+sqlalchemy
