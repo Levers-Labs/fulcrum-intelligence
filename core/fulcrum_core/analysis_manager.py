@@ -13,6 +13,7 @@ from fulcrum_core.enums import (
 )
 from fulcrum_core.execptions import AnalysisError
 from fulcrum_core.modules import (
+    CausalModelAnalyzer,
     ComponentDriftEvaluator,
     CorrelationAnalyzer,
     DescribeAnalyzer,
@@ -551,3 +552,24 @@ class AnalysisManager:
             raise AnalysisError(
                 f"Influence attribution only supported for linear models for now. Model type: {model_type}"
             )
+
+    def influence_drift(
+        self, df: pd.DataFrame, input_dfs: list[pd.DataFrame], target_metric_id: str, influencers: list[dict[str, Any]]
+    ) -> tuple[pd.DataFrame, pd.DataFrame]:
+        """
+        Analyze the influence drift using CausalModelAnalyzer.
+
+        Args:
+            df (pd.DataFrame): The main DataFrame for analysis.
+            input_dfs (list[pd.DataFrame]): List of additional DataFrames for analysis.
+            target_metric_id (str): The target metric ID for analysis.
+            influencers (list[dict[str, Any]]): List of influencers for analysis.
+
+        Returns:
+            tuple[pd.DataFrame, pd.DataFrame]: A tuple containing the coefficients and percentage impact DataFrames.
+        """
+        # Initialize CausalModelAnalyzer with target_metric_id and influences
+        causal_model_analyzer = CausalModelAnalyzer(target_metric_id, influencers)
+        # Run the analysis
+        coefficients = causal_model_analyzer.run(df, input_dfs=input_dfs)
+        return coefficients

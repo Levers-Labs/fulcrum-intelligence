@@ -5,7 +5,9 @@ from .describe import DescribeAnalyzer
 from .forecasting import SimpleForecast
 from .model import ModelAnalyzer
 from .process_control import ProcessControlAnalyzer
+from .seasonality import SeasonalityAnalyzer
 from .segment_drift import SegmentDriftEvaluator
+from .causal_model import CausalModelAnalyzer  # noqa
 
 __all__ = [
     "BaseAnalyzer",
@@ -16,4 +18,6 @@ __all__ = [
     "CorrelationAnalyzer",
     "DescribeAnalyzer",
     "ModelAnalyzer",
+    "SeasonalityAnalyzer",
+    "CausalModelAnalyzer",
 ]

@@ -31,43 +31,6 @@ class ModelAnalyzer(BaseAnalyzer):
         self.equation: dict[str, Any] | None = None
         self.expression: dict[str, Any] | None = None
 
-    def merge_dataframes(self, df: pd.DataFrame, input_dfs: list[pd.DataFrame]):
-        """
-        Merges multiple data files or dataframes based on the 'date' column and returns the merged dataframe.
-        The dataframes are expected to have a 'date' column and a 'value' column.
-        The 'value' column is renamed to the 'metric_id' column value.
-        """
-        dfs = [df]
-        dfs.extend(input_dfs)
-        # Fetching common dates in all features
-        common_dates = df["date"]
-        for _df in dfs[1:]:
-            common_dates = common_dates[common_dates.isin(_df["date"])]
-        # Renaming the value column to metric_id and dropping the metric_id column
-        # Keeping only those dates that are common
-        for _df in dfs:
-            # convert date column to datetime
-            _df["date"] = pd.to_datetime(_df["date"])
-            # convert value column to numeric
-            _df["value"] = pd.to_numeric(_df["value"], errors="coerce")
-            metric_id = _df["metric_id"].iloc[0]
-            _df.rename(columns={"value": metric_id}, inplace=True)
-            # drop metric_id column
-            _df.drop(columns=["metric_id"], inplace=True)
-            # Keeping only those dates that are common
-            _df = _df[_df["date"].isin(common_dates)]
-
-        # Merging all dataframes
-        merged_df = dfs[0]
-        for _df in dfs[1:]:
-            merged_df = merged_df.merge(_df, on="date")
-
-        # drop na
-        merged_df = merged_df.dropna()
-        # drop date column
-        merged_df = merged_df.drop("date", axis=1)
-        return merged_df
-
     def validate_input(self, df: pd.DataFrame, **kwargs):
         # make sure it has metric_id, date and value column
         if not all(col in df.columns for col in ["metric_id", "date", "value"]):
@@ -230,7 +193,7 @@ class ModelAnalyzer(BaseAnalyzer):
         It also fits a polynomial regression model and selects the best model based on the RMSE.
         """
         # Merge the input dataframes
-        final_df = self.merge_dataframes(df, input_dfs=input_dfs)
+        final_df = self.merge_dataframes([df] + input_dfs)
 
         # Features and target
         features = final_df.drop(columns=[self.target_metric_id])

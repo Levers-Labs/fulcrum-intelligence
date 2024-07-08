@@ -50,6 +50,11 @@ class StoryType(str, Enum):
     WORSENING_SEGMENT = "WORSENING_SEGMENT"
     TOP_4_SEGMENTS = "TOP_4_SEGMENTS"
     BOTTOM_4_SEGMENTS = "BOTTOM_4_SEGMENTS"
+    # Influence Drift Stories
+    STRONGER_INFLUENCE = "STRONGER_INFLUENCE"
+    WEAKER_INFLUENCE = "WEAKER_INFLUENCE"
+    IMPROVING_INFLUENCE = "IMPROVING_INFLUENCE"
+    WORSENING_INFLUENCE = "WORSENING_INFLUENCE"
 
 
 class StoryGroup(str, Enum):
@@ -67,6 +72,7 @@ class StoryGroup(str, Enum):
     RECORD_VALUES = "RECORD_VALUES"
     STATUS_CHANGE = "STATUS_CHANGE"
     SEGMENT_DRIFT = "SEGMENT_DRIFT"
+    INFLUENCE_DRIFT = "INFLUENCE_DRIFT"
 
     REQUIRED_PERFORMANCE = "REQUIRED_PERFORMANCE"
     SIGNIFICANT_SEGMENTS = "SIGNIFICANT_SEGMENTS"
@@ -154,6 +160,12 @@ GROUP_TO_STORY_TYPE_MAPPING = {
     StoryGroup.SIGNIFICANT_SEGMENTS: [
         StoryType.TOP_4_SEGMENTS,
         StoryType.BOTTOM_4_SEGMENTS,
+    ],
+    StoryGroup.INFLUENCE_DRIFT: [
+        StoryType.STRONGER_INFLUENCE,
+        StoryType.WEAKER_INFLUENCE,
+        StoryType.IMPROVING_INFLUENCE,
+        StoryType.WORSENING_INFLUENCE,
     ],
 }
 
@@ -334,5 +346,37 @@ STORY_TYPES_META: dict[str, dict[str, str]] = {
     StoryType.BOTTOM_4_SEGMENTS: {
         "title": "Prior {{grain}} worst performing segments",
         "detail": "The segments below had the lowest average values for {{metric.label}} over the past {{grain}}",
+    },
+    StoryType.STRONGER_INFLUENCE: {
+        "title": "Key Driver: Stronger influence of {{influence_metric.label}}",
+        # e.g. The inflluence of CAC on ARPU is growing stronger. A 10% increase in CAC is associated with a 10%
+        # increase in ARPU – up from 10% the prior month.
+        "detail": "The influence of {{influence_metric.label}} on {{output_metric.label}} is growing stronger. "
+        "A {{influence_deviation}}% increase in {{influence_metric.label}} is associated with a {{output_deviation}}%"
+        " {{direction}} in {{output_metric.label}} – up from {{prev_output_deviation}}% the prior {{grain}}.",
+    },
+    StoryType.WEAKER_INFLUENCE: {
+        "title": "Key Driver: Weaker influence of {{influence_metric.label}}",
+        # e.g. The inflluence of CAC on ARPU is getting weaker. A 10% increase in CAC is associated with a 10% decrease
+        # in ARPU – down from 10% the prior month.
+        "detail": "The influence of {{influence_metric.label}} on {{output_metric.label}} is getting weaker. "
+        "A {{influence_deviation}}% increase in {{influence_metric.label}} is associated with a {{output_deviation}}%"
+        " {{direction}} in {{output_metric.label}} – down from {{prev_output_deviation}}% the prior {{grain}}.",
+    },
+    StoryType.IMPROVING_INFLUENCE: {
+        "title": "Key Driver: Increase in {{influence_metric.label}}",
+        # E.g., The influence of CAC on ARPU is growing stronger. A 10% increase in CAC is associated with a 10%
+        # increase in ARPU – up from 10% the prior month.
+        "detail": "The {{influence_deviation}}% increase in {{influence_metric.label}} over the past {{grain}} "
+        "contributed {{output_deviation}}% {{direction}} pressure on {{output_metric.label}} and accounts for "
+        "{{output_deviation}}% of its overall change.",
+    },
+    StoryType.WORSENING_INFLUENCE: {
+        "title": "Key Driver: Declining {{influence_metric.label}}",
+        # e.g. The inflluence of CAC on ARPU is getting weaker. A 10% increase in CAC is associated with a 10%
+        # decrease in ARPU – down from 10% the prior month.
+        "detail": "The {{influence_deviation}}% decrease in {{influence_metric.label}} over the past {{grain}} "
+        "contributed {{output_deviation}}% {{direction}} pressure on {{output_metric.label}} and accounts for "
+        "{{output_deviation}}% of its overall change.",
     },
 }
