@@ -57,7 +57,7 @@ x-airflow-common:
     _AIRFLOW_WWW_USER_USERNAME: airflow  # Replace with your desired username
     _AIRFLOW_WWW_USER_PASSWORD: airflow  # Replace with your desired password
     AIRFLOW__CORE__EXECUTOR: LocalExecutor
-    AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres/airflow
+    AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+asyncpg://postgres:root@localhost:5432/test
 #    AIRFLOW__CORE__FERNET_KEY: ''
     AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: 'true'
     AIRFLOW__CORE__LOAD_EXAMPLES: 'true'

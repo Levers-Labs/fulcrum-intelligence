@@ -8,16 +8,16 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from commons.clients.analysis_manager import AnalysisManagerClient
 from commons.clients.query_manager import QueryManagerClient
 from fulcrum_core import AnalysisManager
+from story_manager.core.enums import StoryGroup
 from story_manager.story_builder import StoryManager
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-StoryGroup = ["a", "b"]
 
 # Fetch the story group list from the enum
-story_group_list = [group for group in StoryGroup]
+story_group_list = [group.value for group in StoryGroup]
 
 
 def run_stories(group):
