@@ -50,6 +50,9 @@ class StoryType(str, Enum):
     WORSENING_SEGMENT = "WORSENING_SEGMENT"
     TOP_4_SEGMENTS = "TOP_4_SEGMENTS"
     BOTTOM_4_SEGMENTS = "BOTTOM_4_SEGMENTS"
+    # Component drift stories
+    IMPROVING_COMPONENT = "IMPROVING_COMPONENT"
+    WORSENING_COMPONENT = "WORSENING_COMPONENT"
 
 
 class StoryGroup(str, Enum):
@@ -70,6 +73,8 @@ class StoryGroup(str, Enum):
 
     REQUIRED_PERFORMANCE = "REQUIRED_PERFORMANCE"
     SIGNIFICANT_SEGMENTS = "SIGNIFICANT_SEGMENTS"
+
+    COMPONENT_DRIFT = "COMPONENT_DRIFT"
 
 
 class Position(str, Enum):
@@ -155,6 +160,7 @@ GROUP_TO_STORY_TYPE_MAPPING = {
         StoryType.TOP_4_SEGMENTS,
         StoryType.BOTTOM_4_SEGMENTS,
     ],
+    StoryGroup.COMPONENT_DRIFT: [StoryType.IMPROVING_COMPONENT, StoryType.WORSENING_COMPONENT],
 }
 
 # Story type meta-information
@@ -334,5 +340,17 @@ STORY_TYPES_META: dict[str, dict[str, str]] = {
     StoryType.BOTTOM_4_SEGMENTS: {
         "title": "Prior {{grain}} worst performing segments",
         "detail": "The segments below had the lowest average values for {{metric.label}} over the past {{grain}}",
+    },
+    StoryType.IMPROVING_COMPONENT: {
+        "title": "Key Driver: Increase in {{component}}",
+        "detail": "The {{current_growth}}% increase in {{component}} over the past {{grain}} contributed {{"
+        "relative_impact}}% {{pressure}} pressure on {{metric.value}} and accounts for {{contribution}}% of "
+        "its overall change.",
+    },
+    StoryType.WORSENING_COMPONENT: {
+        "title": "Key Driver: Declining {{component}}",
+        "detail": "The {{current_growth}}% decrease in {{component}} over the past {{grain}} contributed {{"
+        "relative_impact}}% {{pressure}} pressure on {{metric.value}} and accounts for {{contribution}}% of "
+        "its overall change.",
     },
 }
