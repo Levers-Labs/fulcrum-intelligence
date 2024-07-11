@@ -65,8 +65,14 @@ class ComponentDriftStoryBuilder(StoryBuilderBase):
             comparison_end_date,
         )
 
+        try:
+            components = response["components"][0]["components"]
+        except Exception as ex:
+            logger.error(f"An error occured while fetching components data from response: {ex}")
+            return []
+
         # Extract components data
-        components_data = self.extract_components_data(response["components"][0]["components"])
+        components_data = self.extract_components_data(components)
 
         # Create DataFrame
         df = self.create_ranked_df(components_data)
@@ -92,11 +98,7 @@ class ComponentDriftStoryBuilder(StoryBuilderBase):
             )
             return []
 
-        # Identify story type and pressure
-        # conditions = top_components["evaluation_value"] > top_components["comparison_value"]
-        # story_types = np.where(conditions, StoryType.IMPROVING_COMPONENT.value, StoryType.WORSENING_COMPONENT.value)
-        # pressures = np.where(conditions, Pressure.UPWARD.value, Pressure.DOWNWARD.value)
-
+        # Create 'story_types' column based on conditions
         top_components["story_types"] = pd.Series(
             np.where(
                 top_components["evaluation_value"] > top_components["comparison_value"],
