@@ -120,7 +120,7 @@ class ComponentDriftStoryBuilder(StoryBuilderBase):
         for index, row in top_components.iterrows():
             story_details = self.prepare_story_dict(
                 story_type=top_components.at[index, "story_types"],
-                grain=grain,
+                grain=grain,  # type: ignore
                 metric=metric,
                 df=df,
                 component=row["metric_id"],
