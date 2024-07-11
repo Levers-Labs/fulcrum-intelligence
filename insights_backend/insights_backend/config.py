@@ -39,6 +39,10 @@ class Settings(BaseSettings):
     SQLALCHEMY_ENGINE_OPTIONS: dict = {"pool_pre_ping": True, "pool_size": 5, "max_overflow": 80, "echo": True}
 
     BACKEND_CORS_ORIGINS: list[AnyHttpUrl | str] = []
+    AUTH0_DOMAIN: str
+    AUTH0_API_AUDIENCE: str
+    AUTH0_ISSUER: str
+    AUTH0_ALGORITHMS: str
 
     @field_validator("BACKEND_CORS_ORIGINS", mode="before")
     @classmethod

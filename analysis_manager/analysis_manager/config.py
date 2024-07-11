@@ -40,6 +40,12 @@ class Settings(BaseSettings):
 
     QUERY_MANAGER_SERVER_HOST: str | AnyHttpUrl
     DSENSEI_BASE_URL: str = "http://localhost:5001"
+    INSIGHTS_BACKEND_SERVER_HOST: str | AnyHttpUrl
+
+    AUTH0_DOMAIN: str
+    AUTH0_API_AUDIENCE: str
+    AUTH0_ISSUER: str
+    AUTH0_ALGORITHMS: str
 
     @field_validator("BACKEND_CORS_ORIGINS", mode="before")
     @classmethod
