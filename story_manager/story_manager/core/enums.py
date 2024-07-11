@@ -343,14 +343,14 @@ STORY_TYPES_META: dict[str, dict[str, str]] = {
     },
     StoryType.IMPROVING_COMPONENT: {
         "title": "Key Driver: Increase in {{component}}",
-        "detail": "The {{current_growth}}% increase in {{component}} over the past {{grain}} contributed {{"
-        "relative_impact}}% {{pressure}} pressure on {{metric.value}} and accounts for {{contribution}}% of "
+        "detail": "The {{percentage_drift}}% increase in {{component}} over the past {{grain}} contributed {{"
+        "relative_impact}}% {{pressure}} pressure on {{metric.label}} and accounts for {{contribution}}% of "
         "its overall change.",
     },
     StoryType.WORSENING_COMPONENT: {
         "title": "Key Driver: Declining {{component}}",
-        "detail": "The {{current_growth}}% decrease in {{component}} over the past {{grain}} contributed {{"
-        "relative_impact}}% {{pressure}} pressure on {{metric.value}} and accounts for {{contribution}}% of "
+        "detail": "The {{percentage_drift}}% decrease in {{component}} over the past {{grain}} contributed {{"
+        "relative_impact}}% {{pressure}} pressure on {{metric.label}} and accounts for {{contribution}}% of "
         "its overall change.",
     },
 }
