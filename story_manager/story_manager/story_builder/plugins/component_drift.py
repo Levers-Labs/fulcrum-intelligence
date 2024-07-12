@@ -64,11 +64,26 @@ class ComponentDriftStoryBuilder(StoryBuilderBase):
             comparison_start_date,
             comparison_end_date,
         )
+        if not response:
+            logger.warning(
+                "Discarding story generation for metric '%s' with grain '%s'" "due to no components data.",
+                metric_id,
+                grain,
+            )
+            return []
 
         components = self.fetch_all_components(response)
 
         # Extract components data
         components_df = self.extract_components_data(components)
+
+        if len(components_df) < self.min_component_count:
+            logger.warning(
+                "Discarding story generation for metric '%s' with grain '%s'" "due to insufficient components.",
+                metric_id,
+                grain,
+            )
+            return []
 
         # Create DataFrame
         df = self.create_ranked_df(components_df)
@@ -85,14 +100,6 @@ class ComponentDriftStoryBuilder(StoryBuilderBase):
 
         # Get top 4 components
         top_components = self.get_top_components(df, n=4)
-
-        if len(top_components) < self.min_component_count:
-            logger.warning(
-                "Discarding story generation for metric '%s' with grain '%s'" "due to insufficient components.",
-                metric_id,
-                grain,
-            )
-            return []
 
         # Loop over top 4 components and compare evaluation_value and comparison_value
         for index, row in top_components.iterrows():
@@ -122,9 +129,9 @@ class ComponentDriftStoryBuilder(StoryBuilderBase):
         """
         extracted_data = [
             {
-                "metric_id": comp["metric_id"],
-                "evaluation_value": comp["evaluation_value"],
-                "comparison_value": comp["comparison_value"],
+                "metric_id": comp.get("metric_id", None),
+                "evaluation_value": comp.get("evaluation_value", 0),
+                "comparison_value": comp.get("comparison_value", 0),
                 **comp["drift"],  # Unpacking all keys from 'drift' dictionary
             }
             for comp in components
