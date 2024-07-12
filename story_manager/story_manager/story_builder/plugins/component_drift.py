@@ -65,17 +65,13 @@ class ComponentDriftStoryBuilder(StoryBuilderBase):
             comparison_end_date,
         )
 
-        try:
-            components = response["components"][0]["components"]
-        except Exception as ex:
-            logger.error(f"An error occured while fetching components data from response: {ex}")
-            return []
+        components = self.fetch_all_components(response)
 
         # Extract components data
-        components_data = self.extract_components_data(components)
+        components_df = self.extract_components_data(components)
 
         # Create DataFrame
-        df = self.create_ranked_df(components_data)
+        df = self.create_ranked_df(components_df)
 
         # validate time series data has minimum required data points
         time_durations = self.get_time_durations(grain)  # type: ignore
@@ -98,33 +94,15 @@ class ComponentDriftStoryBuilder(StoryBuilderBase):
             )
             return []
 
-        # Create 'story_types' column based on conditions
-        top_components["story_types"] = pd.Series(
-            np.where(
-                top_components["evaluation_value"] > top_components["comparison_value"],
-                StoryType.IMPROVING_COMPONENT.value,
-                StoryType.WORSENING_COMPONENT.value,
-            )
-        )
-
-        # Create 'pressures' column based on conditions
-        top_components["pressures"] = pd.Series(
-            np.where(
-                top_components["evaluation_value"] > top_components["comparison_value"],
-                Pressure.UPWARD.value,
-                Pressure.DOWNWARD.value,
-            )
-        )
-
         # Loop over top 4 components and compare evaluation_value and comparison_value
         for index, row in top_components.iterrows():
             story_details = self.prepare_story_dict(
-                story_type=top_components.at[index, "story_types"],
+                story_type=top_components.at[index, "story_type"],
                 grain=grain,  # type: ignore
                 metric=metric,
                 df=df,
                 component=row["metric_id"],
-                pressure=top_components.at[index, "pressures"],
+                pressure=top_components.at[index, "pressure"],
                 percentage_drift=abs(row["percentage_drift"]),
                 relative_impact=row["relative_impact"],
                 contribution=row["marginal_contribution_root"],
@@ -135,9 +113,12 @@ class ComponentDriftStoryBuilder(StoryBuilderBase):
         return stories
 
     @staticmethod
-    def extract_components_data(components):
+    def extract_components_data(components) -> pd.DataFrame:
         """
-        Extract relevant data from components into a list of dictionaries.
+        Extract relevant data from components into a DataFrame.
+
+        :param components: List of dictionaries containing component data.
+        :return: DataFrame containing extracted component data with added 'story_type' and 'pressure' columns.
         """
         extracted_data = [
             {
@@ -148,22 +129,48 @@ class ComponentDriftStoryBuilder(StoryBuilderBase):
             }
             for comp in components
         ]
-        return extracted_data
+
+        df = pd.DataFrame(extracted_data)
+
+        # Create 'story_type' column based on conditions
+        df["story_type"] = np.where(
+            df["evaluation_value"] > df["comparison_value"],
+            StoryType.IMPROVING_COMPONENT.value,
+            StoryType.WORSENING_COMPONENT.value,
+        )
+
+        # Create 'pressure' column based on conditions
+        df["pressure"] = np.where(
+            df["evaluation_value"] > df["comparison_value"],
+            Pressure.UPWARD.value,
+            Pressure.DOWNWARD.value,
+        )
+
+        return df
 
     @staticmethod
-    def create_ranked_df(components_data: list[dict]) -> pd.DataFrame:
+    def create_ranked_df(df: pd.DataFrame) -> pd.DataFrame:
         """
-        Create a ranked DataFrame of components based on marginal_contribution_root.
+        Create a ranked DataFrame of components based on absolute marginal_contribution_root.
 
-        :param components_data: The list of components dictionary.
-        :return ranked_df: A ranked by 'marginal_contribution_root' df.
+        :param df: The Dataframe with components data.
+        :return ranked_df: A DataFrame ranked by absolute 'marginal_contribution_root'.
         """
-        df = pd.DataFrame(components_data)
-        ranked_df = df.sort_values(by="marginal_contribution_root", ascending=False)
+        # Apply absolute value to 'marginal_contribution_root' column
+        df["abs_marginal_contribution_root"] = df["marginal_contribution_root"].abs()
+
+        # Sort DataFrame by absolute 'marginal_contribution_root' in descending order
+        ranked_df = df.sort_values(by="abs_marginal_contribution_root", ascending=False)
+
+        # Reset index to maintain a clean integer index
+        ranked_df = ranked_df.reset_index(drop=True)
+
+        # Drop the temporary absolute column if no longer needed
+        ranked_df = ranked_df.drop(columns=["abs_marginal_contribution_root"])
+
         return ranked_df
 
-    @staticmethod
-    def get_top_components(df: pd.DataFrame, n=4) -> pd.DataFrame:
+    def get_top_components(self, df: pd.DataFrame, n=4) -> pd.DataFrame:
         """
         Get the top N components from a DataFrame based on 'marginal_contribution_root' ranking.
 
@@ -175,7 +182,33 @@ class ComponentDriftStoryBuilder(StoryBuilderBase):
         top_components = df.head(n).copy()
 
         # Round numerical columns
-        top_components["percentage_drift"] = top_components["percentage_drift"].round(2)
-        top_components["relative_impact"] = top_components["relative_impact"].round(2)
-        top_components["marginal_contribution_root"] = top_components["marginal_contribution_root"].round(2)
+        top_components = top_components.round(self.precision)
         return top_components
+
+    @staticmethod
+    def fetch_all_components(response):
+        """
+        Recursively fetches all components from a nested JSON response.
+
+        :param response: The JSON response containing components in a hierarchical structure.
+        :return: List of all components fetched recursively.
+        """
+        components_list = []
+
+        def recursive_fetch(components):
+            """
+            Recursively fetch components and append them to the components_list.
+
+            :param components: List of components to fetch recursively.
+            """
+            nonlocal components_list
+            if components:
+                for comp in components:
+                    components_list.append(comp)
+                    if comp.get("components"):
+                        recursive_fetch(comp["components"])
+
+        # Start recursive fetching from the top level components
+        recursive_fetch(response["components"])
+
+        return components_list
