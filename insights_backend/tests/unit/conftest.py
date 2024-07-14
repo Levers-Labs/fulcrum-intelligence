@@ -1,14 +1,11 @@
-import importlib
 import os
 
 import pytest
 from _pytest.monkeypatch import MonkeyPatch
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine, text
-from sqlmodel import Session, SQLModel
+from sqlalchemy import create_engine
+from sqlmodel import Session
 from testing.postgresql import Postgresql
-
-from insights_backend.db.config import MODEL_PATHS
 
 
 @pytest.fixture(scope="session")
@@ -52,25 +49,8 @@ def client(setup_env):
         yield client
 
 
-@pytest.fixture(scope="session", autouse=True)
-def setup_db(postgres):
-    db_sync_uri = postgres.url()
-    # Ensure tables are created
-    engine = create_engine(db_sync_uri)
-    # create schema
-    with engine.connect() as conn:
-        conn.execute(text("CREATE SCHEMA IF NOT EXISTS insights_store"))
-        conn.commit()
-    # create all models
-    for model_path in MODEL_PATHS:
-        importlib.import_module(model_path)
-    SQLModel.metadata.create_all(engine)
-    engine.dispose()
-    yield db_sync_uri
-
-
-@pytest.fixture(scope="function")
-def db_session(postgres):
+@pytest.fixture(scope="module")
+def db_session(setup_env, postgres):
     # Create an asynchronous engine
     engine = create_engine(postgres.url(), echo=True)
 
@@ -84,13 +64,12 @@ def db_session(postgres):
     engine.dispose()
 
 
-@pytest.fixture()
-def db_user():
+@pytest.fixture
+def db_user_json():
     return {
+        "name": "test_name",
+        "email": "test_email@test.com",
         "provider": "google",
         "external_user_id": "auth0|001123",
-        "name": "test_name",
-        "id": 1,
-        "email": "test_email@test.com",
         "profile_picture": "http://test.com",
     }

@@ -78,3 +78,15 @@ async def list_users(
     count = await user_crud_client.total_count()
     results: list[User] = [User.from_orm(user) for user in await user_crud_client.list_results(params=params)]
     return UserList(results=results, count=count)
+
+
+@user_router.delete("/{user_id}")
+async def delete_user(user_id: int, user_crud_client: UsersCRUDDep):
+    """
+    Retrieve a user by ID.
+    """
+    try:
+        user: User = await user_crud_client.delete(id=user_id)
+    except NotFoundError as e:
+        raise HTTPException(status_code=404, detail="User not found") from e
+    return user
