@@ -38,6 +38,12 @@ jobs:
           poetry export -f requirements.txt --output requirements.txt --without-hashes -C commons
           pip install -U -r requirements.txt
 
+      - name: Install Insights Backend Dependencies
+        run: |
+          echo "Installing insights_backend dependencies"
+          poetry export -f requirements.txt --output requirements.txt --without-hashes -C insights_backend
+          pip install -U -r requirements.txt
+
       - name: Install Analysis Manager Dependencies
         run: |
           echo "Installing analysis_manager dependencies"
@@ -81,6 +87,11 @@ jobs:
         run: |
           export PYTHONPATH=`pwd`
           make test app=core
+
+      - name: Run Unit Tests and Coverage @ Insights Backend
+        run: |
+          export PYTHONPATH=`pwd`
+          make test app=insights_backend
 
       - name: Run Unit Tests and Coverage @ Analysis Manager
         run: |

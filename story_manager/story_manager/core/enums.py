@@ -10,7 +10,7 @@ class StoryGenre(str, Enum):
     TRENDS = "TRENDS"
     PERFORMANCE = "PERFORMANCE"
     BIG_MOVES = "BIG_MOVES"
-    ROOT_CAUSE = "ROOT_CAUSE"
+    ROOT_CAUSES = "ROOT_CAUSES"
 
 
 class StoryType(str, Enum):
@@ -43,6 +43,13 @@ class StoryType(str, Enum):
     # Likely status
     LIKELY_ON_TRACK = "LIKELY_ON_TRACK"
     LIKELY_OFF_TRACK = "LIKELY_OFF_TRACK"
+    # Segment Drift Stories
+    GROWING_SEGMENT = "GROWING_SEGMENT"
+    SHRINKING_SEGMENT = "SHRINKING_SEGMENT"
+    IMPROVING_SEGMENT = "IMPROVING_SEGMENT"
+    WORSENING_SEGMENT = "WORSENING_SEGMENT"
+    TOP_4_SEGMENTS = "TOP_4_SEGMENTS"
+    BOTTOM_4_SEGMENTS = "BOTTOM_4_SEGMENTS"
 
 
 class StoryGroup(str, Enum):
@@ -59,8 +66,10 @@ class StoryGroup(str, Enum):
     LIKELY_STATUS = "LIKELY_STATUS"
     RECORD_VALUES = "RECORD_VALUES"
     STATUS_CHANGE = "STATUS_CHANGE"
+    SEGMENT_DRIFT = "SEGMENT_DRIFT"
 
     REQUIRED_PERFORMANCE = "REQUIRED_PERFORMANCE"
+    SIGNIFICANT_SEGMENTS = "SIGNIFICANT_SEGMENTS"
 
 
 class Position(str, Enum):
@@ -88,6 +97,16 @@ class Direction(str, Enum):
 
     UP = "up"
     DOWN = "down"
+
+
+class Pressure(str, Enum):
+    """
+    Defines the pressure of a slice
+    """
+
+    UPWARD = "upward"
+    DOWNWARD = "downward"
+    UNCHANGED = "unchanged"
 
 
 GROUP_TO_STORY_TYPE_MAPPING = {
@@ -126,6 +145,16 @@ GROUP_TO_STORY_TYPE_MAPPING = {
         StoryType.LIKELY_OFF_TRACK,
     ],
     StoryGroup.REQUIRED_PERFORMANCE: [StoryType.REQUIRED_PERFORMANCE, StoryType.HOLD_STEADY],
+    StoryGroup.SEGMENT_DRIFT: [
+        StoryType.GROWING_SEGMENT,
+        StoryType.SHRINKING_SEGMENT,
+        StoryType.IMPROVING_SEGMENT,
+        StoryType.WORSENING_SEGMENT,
+    ],
+    StoryGroup.SIGNIFICANT_SEGMENTS: [
+        StoryType.TOP_4_SEGMENTS,
+        StoryType.BOTTOM_4_SEGMENTS,
+    ],
 }
 
 # Story type meta-information
@@ -270,5 +299,40 @@ STORY_TYPES_META: dict[str, dict[str, str]] = {
         "title": "Metric must maintain its performance",
         "detail": "{{metric.label}} is already performing at its target level for the end of {{duration}} {{grain}}s "
         "and needs to maintain this lead for the next {{req_duration}} {{grain}}s to stay On Track.",
+    },
+    StoryType.GROWING_SEGMENT: {
+        "title": "Key Driver: Growing {{slice | default('null')}} share of {{dimension}}",
+        "detail": "The share of {{dimension}} that is {{slice | default('null')}} increased from "
+        "{{previous_share}}% to {{current_share}}% over the past {{grain}}. This increase "
+        "contributed {{slice_share_change_percentage}}% {{pressure_direction}} pressure on {{metric.label}}.",
+    },
+    StoryType.SHRINKING_SEGMENT: {
+        "title": "Key Driver: Falling {{slice | default('null')}} share of {{dimension}}",
+        "detail": "For {{metric.label}}, the share of {{dimension}} that is {{slice | default('null')}} has decreased "
+        "from {{previous_share}}% to {{current_share}}% over the past {{grain}}. This "
+        "decrease contributed {{slice_share_change_percentage}}% {{pressure_direction}} pressure on "
+        "{{metric.label}}.",
+    },
+    StoryType.IMPROVING_SEGMENT: {
+        "title": "Key Driver: Stronger {{slice | default('null')}} segment",
+        "detail": "Over the past {{grain}}, when {{dimension}} is {{slice | default('null')}}, {{metric.label}} is "
+        "{{current_value}}. This is an increase of {{deviation}}% relative to "
+        "the prior {{grain}}, and this increase contributed {{pressure_change}}% {{pressure_direction}} "
+        "pressure on {{metric.label}}.",
+    },
+    StoryType.WORSENING_SEGMENT: {
+        "title": "Key Driver: Weaker {{slice}} segment",
+        "detail": "Over the past {{grain}}, when {{dimension}} is {{slice | default('null')}}, {{metric.label}} is "
+        "{{current_value}}. This is a decrease of {{deviation}}% relative to "
+        "the prior {{grain}}, and this decrease contributed {{pressure_change}}% {{pressure_direction}} "
+        "pressure on {{metric.label}}.",
+    },
+    StoryType.TOP_4_SEGMENTS: {
+        "title": "Prior {{grain}} best performing segments",
+        "detail": "The segments below had the highest average values for {{metric.label}} over the past {{grain}}",
+    },
+    StoryType.BOTTOM_4_SEGMENTS: {
+        "title": "Prior {{grain}} worst performing segments",
+        "detail": "The segments below had the lowest average values for {{metric.label}} over the past {{grain}}",
     },
 }

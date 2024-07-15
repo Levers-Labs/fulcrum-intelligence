@@ -28,3 +28,32 @@ class AnalysisManagerClient(AsyncHttpClient):
         }
         response = await self.post(endpoint="analyze/process-control", data=params)
         return response  # type: ignore
+
+    async def get_segment_drift(
+        self,
+        metric_id: str,
+        evaluation_start_date: date,
+        evaluation_end_date: date,
+        comparison_start_date: date,
+        comparison_end_date: date,
+        dimensions: list[str],
+    ) -> dict[str, Any]:
+        """
+        Fetching segment drift data for a given metric id and date range.
+        metric_id: metric id for which we want to calculate drift
+        evaluation_start_date: Start date of the current time series,
+        evaluation_end_date: End date of the current time series,
+        comparison_start_date: start date of the past time series for comparison,
+        comparison_end_date:  end date of the past time series for comparison,
+        dimensions: dimensions of the time series, on which we want to perform the drift calculation
+        """
+        params = {
+            "metric_id": metric_id,
+            "evaluation_start_date": evaluation_start_date,
+            "evaluation_end_date": evaluation_end_date,
+            "comparison_start_date": comparison_start_date,
+            "comparison_end_date": comparison_end_date,
+            "dimensions": dimensions,
+        }
+        response = await self.post(endpoint="analyze/drift/segment", data=params)
+        return response

@@ -98,6 +98,31 @@ def test_resolve_expression_values_expression(evaluator):
     assert resolved["comparison_value"] == 125  # 100 + 25
 
 
+def test_resolve_expression_values_metric_for_constant(evaluator):
+    metric_expression = {
+        "type": "expression",
+        "operator": "+",
+        "operands": [
+            {"type": "metric", "metric_id": "SalesDevSpend"},
+            {"type": "constant", "value": 100},
+        ],
+    }
+    resolved = evaluator.resolve_expression_values(metric_expression)
+    assert resolved["evaluation_value"] == 300  # 200 + 100
+    assert resolved["comparison_value"] == 200  # 100 + 100
+
+
+def test_resolve_expression_values_metric_coefficient(evaluator):
+    metric_expression = {
+        "type": "expression",
+        "operator": "+",
+        "operands": [{"type": "metric", "metric_id": "SalesDevSpend", "coefficient": 2}],
+    }
+    resolved = evaluator.resolve_expression_values(metric_expression)
+    assert resolved["evaluation_value"] == 400  # 200 * 2
+    assert resolved["comparison_value"] == 200  # 100 * 2
+
+
 # Test calculate_drift_for_node for a simple metric
 def test_calculate_drift_for_node_metric(evaluator):
     metric_node = {"type": "metric", "metric_id": "SalesDevSpend", "evaluation_value": 200, "comparison_value": 100}

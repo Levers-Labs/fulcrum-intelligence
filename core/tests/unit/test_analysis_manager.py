@@ -2,12 +2,13 @@ import os
 from datetime import date
 from unittest.mock import ANY, AsyncMock
 
+import numpy as np
 import pandas as pd
 import pytest
-from sqlalchemy.exc import InvalidRequestError
 
 from fulcrum_core import AnalysisManager
 from fulcrum_core.enums import AggregationMethod, AggregationOption, MetricChangeDirection
+from fulcrum_core.execptions import AnalysisError
 from fulcrum_core.modules import SegmentDriftEvaluator
 
 
@@ -271,7 +272,7 @@ def test_get_metric_change_direction():
 
 
 def test_get_overall_change():
-    assert SegmentDriftEvaluator("").get_overall_change(10, 0) == 0.0
+    assert SegmentDriftEvaluator("").get_overall_change(10, 0) == -1.0
 
 
 def test_calculate_segment_relative_change():
@@ -281,7 +282,7 @@ def test_calculate_segment_relative_change():
     segment = {"comparison_value": {"slice_value": 2100}, "evaluation_value": {"slice_value": 1000}}
 
     # for valid values
-    assert SegmentDriftEvaluator("").calculate_segment_relative_change(segment, 0) == 110.00000000000001
+    assert SegmentDriftEvaluator("").calculate_segment_relative_change(segment, 0) == -52.38095238095239
 
 
 @pytest.mark.asyncio
@@ -326,8 +327,78 @@ async def test_get_insights(mocker, insight_api_response, get_insight_response):
 
 def test_validate_request_data():
     segment_drift_evaluator = SegmentDriftEvaluator("")
-    with pytest.raises(InvalidRequestError) as exc_info:
+    with pytest.raises(ValueError) as exc_info:
         segment_drift_evaluator.validate_request_data(pd.DataFrame())
 
     # Assert that the raised exception has the expected message
     assert str(exc_info.value) == "Provided metric column name must exist in data"
+
+
+def test_influence_attribution():
+    # Prepare
+    periods = 50
+    sample_data = {
+        "metric_id": ["metric1"] * periods,
+        "date": pd.date_range(start="2022-01-01", periods=periods, freq="D"),
+        "value": np.random.randint(50, 100, periods),
+    }
+    out_df = pd.DataFrame(sample_data)
+    data1 = {
+        "metric_id": ["metric2"] * periods,
+        "date": pd.date_range(start="2022-01-01", periods=periods, freq="D"),
+        "value": np.random.randint(10, 20, periods),
+    }
+    data2 = {
+        "metric_id": ["metric3"] * periods,
+        "date": pd.date_range(start="2022-01-01", periods=periods, freq="D"),
+        "value": np.random.randint(30, 50, periods),
+    }
+    input_dfs = [pd.DataFrame(data1), pd.DataFrame(data2)]
+    # Manipulate data to favor linear model (e.g., ensure linear relationship)
+    out_df["value"] = input_dfs[0]["value"] + input_dfs[1]["value"]
+    analysis_manager = AnalysisManager()
+    values = [
+        {"metric_id": "metric2", "evaluation_value": 15.0, "comparison_value": 10.0},
+        {"metric_id": "metric3", "evaluation_value": 40.0, "comparison_value": 35.0},
+    ]
+
+    # Act
+    expression, component_drift = analysis_manager.influence_attribution(out_df, input_dfs, "metric1", values)
+
+    # Assert
+    assert expression["expression_str"] == "metric2 + metric3"
+    assert "components" in component_drift
+    assert len(component_drift["components"]) == 2
+    assert component_drift["metric_id"] == "metric1"
+    assert "drift" in component_drift
+
+
+def test_influence_attribution_analysis_error():
+    # Prepare
+    periods = 50
+    sample_data = {
+        "metric_id": ["metric1"] * periods,
+        "date": pd.date_range(start="2022-01-01", periods=periods, freq="D"),
+        "value": np.random.randint(50, 100, periods),
+    }
+    out_df = pd.DataFrame(sample_data)
+    data1 = {
+        "metric_id": ["metric2"] * periods,
+        "date": pd.date_range(start="2022-01-01", periods=periods, freq="D"),
+        "value": np.random.randint(10, 20, periods),
+    }
+    data2 = {
+        "metric_id": ["metric3"] * periods,
+        "date": pd.date_range(start="2022-01-01", periods=periods, freq="D"),
+        "value": np.random.randint(30, 50, periods),
+    }
+    input_dfs = [pd.DataFrame(data1), pd.DataFrame(data2)]
+    values = [
+        {"metric_id": "metric2", "evaluation_value": 15.0, "comparison_value": 10.0},
+        {"metric_id": "metric3", "evaluation_value": 40.0, "comparison_value": 35.0},
+    ]
+    out_df["value"] = input_dfs[0]["value"] * input_dfs[1]["value"]
+
+    analysis_manager = AnalysisManager()
+    with pytest.raises(AnalysisError):
+        analysis_manager.influence_attribution(out_df, input_dfs, "metric1", values)

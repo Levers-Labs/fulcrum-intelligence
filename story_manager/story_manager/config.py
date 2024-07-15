@@ -41,7 +41,8 @@ class Settings(BaseSettings):
     QUERY_MANAGER_SERVER_HOST: str | AnyHttpUrl
     ANALYSIS_MANAGER_SERVER_HOST: str | AnyHttpUrl
 
-    BACKEND_CORS_ORIGINS: list[AnyHttpUrl] = []
+    BACKEND_CORS_ORIGINS: list[AnyHttpUrl | str] = []
+    DSENSEI_BASE_URL: str = "http//localhost:5001"
 
     @field_validator("BACKEND_CORS_ORIGINS", mode="before")
     @classmethod

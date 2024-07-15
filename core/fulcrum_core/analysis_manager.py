@@ -11,10 +11,12 @@ from fulcrum_core.enums import (
     Granularity,
     MetricAim,
 )
+from fulcrum_core.execptions import AnalysisError
 from fulcrum_core.modules import (
     ComponentDriftEvaluator,
     CorrelationAnalyzer,
     DescribeAnalyzer,
+    ModelAnalyzer,
     ProcessControlAnalyzer,
     SegmentDriftEvaluator,
     SimpleForecast,
@@ -416,8 +418,8 @@ class AnalysisManager:
 
         return round(slope, precision)
 
+    @staticmethod
     async def segment_drift(
-        self,
         dsensei_base_url: str,
         df: pd.DataFrame,
         evaluation_start_date: date,
@@ -461,3 +463,91 @@ class AnalysisManager:
         """
         required_growth = ((target_value - current_value) / number_of_periods) * 100
         return round(required_growth, precision)
+
+    def model_analysis(self, df: pd.DataFrame, input_dfs: list[pd.DataFrame]) -> dict:
+        """
+        for a given output metrics and list of input metrics,
+        perform model analysis to predict the output metric using the input metrics.
+
+        Args:
+            df (pd.DataFrame): The output metric data.
+            input_dfs (list[pd.DataFrame]): The input metric data.
+
+        Returns:
+            dict: The linear or polynomial regression model.
+        """
+        # Create an instance of ModelAnalyzer
+        target_metric_id = df["metric_id"].iloc[0]
+        model_analyzer = ModelAnalyzer(target_metric_id=target_metric_id)
+
+        # perform model analysis
+        result = model_analyzer.run(df, input_dfs=input_dfs)
+
+        # Return the model and equation
+        return result
+
+    # separate dimension based slices,
+    @staticmethod
+    def get_dimension_slices_df(
+        dimensions_slices_df_map: dict[str, pd.DataFrame],
+        metric_dimension_id_label_map: dict[str, str],
+        ignore_null: bool = False,
+        ignore_zero: bool = False,
+    ) -> pd.DataFrame:
+        """
+        We are creating dataframes from a dictionary with structure as
+        {'dimension_id': data_frame of the slices for the dimension}
+
+        "account_segment": [
+            {"metric_id": "NewBizDeals", "value": 4, "date": None, "account_segment": "Mid Market"},
+            {"metric_id": "NewBizDeals", "value": 3, "date": None, "account_segment": "Enterprise"},
+            {"metric_id": "NewBizDeals", "value": 0, "date": None, "account_segment": None},
+        ]
+
+        Params:
+            dimensions_slices_df_map: dimension_id and dataframe of slices map
+            metric_dimension_id_label_map: {metric_id : label} dict
+            ignore_null: whether to ignore slices with value as None
+
+        Output:
+            A dataframe of all the slices with the structure
+            |dimension   member  value|
+
+            member is the slice of that specific dimension
+        """
+        df = pd.DataFrame()
+
+        for dimension, slices_df in dimensions_slices_df_map.items():
+            if ignore_null:
+                slices_df = slices_df[slices_df[dimension].notna()]
+            if ignore_zero:
+                slices_df = slices_df[slices_df["value"] != 0]
+
+            slices_df = slices_df[["value", dimension]]
+            slices_df["dimension_id"] = dimension
+            slices_df["dimension_label"] = metric_dimension_id_label_map[dimension]
+            slices_df.rename(columns={dimension: "member"}, inplace=True)
+            df = pd.concat([df, slices_df], ignore_index=True)
+
+        return df
+
+    def influence_attribution(
+        self, df: pd.DataFrame, input_dfs: list[pd.DataFrame], metric_id: str, values: list[dict[str, Any]]
+    ) -> tuple[dict[str, Any], dict[str, Any]]:
+        # Fit the model
+        model_result = self.model_analysis(df, input_dfs)
+
+        model_type = model_result["model_type"]
+        expression = model_result["expression"]
+        if model_type == "linear":
+            # If linear model, calculate component drift
+            component_drift = self.calculate_component_drift(
+                metric_id,
+                values,
+                expression,
+            )
+            return expression, component_drift
+        else:
+            raise AnalysisError(
+                f"Influence attribution only supported for linear models for now. Model type: {model_type}"
+            )

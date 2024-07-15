@@ -118,11 +118,18 @@ class ComponentDriftEvaluator:
             # Fetch evaluation and comparison values for metrics
             metric_id = expression["metric_id"]
             metric_data = self.metric_values[metric_id]
+            # Update the expression with calculated values
             expression["evaluation_value"] = metric_data["evaluation_value"]
             expression["comparison_value"] = metric_data["comparison_value"]
+            # Apply coefficient if present
+            coefficient = expression.get("coefficient", 1)
+            # Calculate evaluation and comparison values considering the coefficient
+            evaluation_value = metric_data["evaluation_value"] * coefficient
+            comparison_value = metric_data["comparison_value"] * coefficient
+
             return {
-                "evaluation_value": metric_data["evaluation_value"],
-                "comparison_value": metric_data["comparison_value"],
+                "evaluation_value": evaluation_value,
+                "comparison_value": comparison_value,
             }
         elif expression["type"] == "expression":
             # Recursively resolve values for expression operands
@@ -133,6 +140,16 @@ class ComponentDriftEvaluator:
             # Update the expression node with calculated values
             expression["evaluation_value"] = evaluation_value
             expression["comparison_value"] = comparison_value
+        elif expression["type"] == "constant":
+            # Handle constant type nodes
+            constant_value = expression["value"]
+            # Constants have the same evaluation and comparison values
+            expression["evaluation_value"] = constant_value
+            expression["comparison_value"] = constant_value
+            return {
+                "evaluation_value": constant_value,
+                "comparison_value": constant_value,
+            }
         return expression
 
     def calculate_drift_for_node(

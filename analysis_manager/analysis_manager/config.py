@@ -36,7 +36,7 @@ class Settings(BaseSettings):
     DATABASE_URL: str
     SQLALCHEMY_ENGINE_OPTIONS: dict = {"pool_pre_ping": True, "pool_size": 5, "max_overflow": 80, "echo": True}
 
-    BACKEND_CORS_ORIGINS: list[AnyHttpUrl] = []
+    BACKEND_CORS_ORIGINS: list[AnyHttpUrl | str] = []
 
     QUERY_MANAGER_SERVER_HOST: str | AnyHttpUrl
     DSENSEI_BASE_URL: str = "http://localhost:5001"

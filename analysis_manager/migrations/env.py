@@ -4,7 +4,7 @@ from logging.config import fileConfig
 
 from alembic import context
 from dotenv import load_dotenv
-from sqlalchemy import pool
+from sqlalchemy import pool, text
 from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import async_engine_from_config
 from sqlmodel import SQLModel
@@ -32,6 +32,7 @@ target_metadata.naming_convention = {
     "fk": "fk_%(table_name)s_%(column_0_name)" "s_%(referred_table_name)s",
     "pk": "pk_%(table_name)s",
 }
+schema = "analysis_store"
 
 
 def run_migrations_offline() -> None:
@@ -52,6 +53,8 @@ def run_migrations_offline() -> None:
         target_metadata=target_metadata,
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},
+        version_table_schema=schema,
+        include_schemas=True,
     )
 
     with context.begin_transaction():
@@ -59,8 +62,14 @@ def run_migrations_offline() -> None:
 
 
 def do_run_migrations(connection: Connection) -> None:
-    context.configure(connection=connection, target_metadata=target_metadata)
-
+    context.configure(
+        connection=connection,
+        target_metadata=target_metadata,
+        version_table_schema=schema,
+        include_schemas=True,
+    )
+    # create schema if not exists
+    connection.execute(text(f"CREATE SCHEMA IF NOT EXISTS {schema}"))
     with context.begin_transaction():
         context.run_migrations()
 
