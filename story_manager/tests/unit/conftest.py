@@ -62,6 +62,13 @@ def setup_env(session_monkeypatch, postgres):  # noqa
     session_monkeypatch.setenv("ANALYSIS_MANAGER_SERVER_HOST", "http://localhost:8000/v1/")
     session_monkeypatch.setenv("DATABASE_URL", db_async_uri)
     session_monkeypatch.setenv("DSENSEI_BASE_URL", "localhost:5001")
+    session_monkeypatch.setenv("AUTH0_DOMAIN", "some_auth0_domain")
+    session_monkeypatch.setenv("AUTH0_API_AUDIENCE", "http://some_auth0_audience")
+    session_monkeypatch.setenv("AUTH0_ISSUER", "http://some_auth0_domain/")
+    session_monkeypatch.setenv("AUTH0_ALGORITHMS", "RS256")
+    session_monkeypatch.setenv("SERVICE_CLIENT_ID", "client_id")
+    session_monkeypatch.setenv("SERVICE_CLIENT_SECRET", "client_secret")
+    session_monkeypatch.setenv("INSIGHTS_BACKEND_SERVER_HOST", "http://localhost:8004/v1/")
     yield
 
 
