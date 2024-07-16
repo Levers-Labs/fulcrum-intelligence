@@ -86,7 +86,6 @@ async def delete_user(user_id: int, user_crud_client: UsersCRUDDep):
     Retrieve a user by ID.
     """
     try:
-        user: User = await user_crud_client.delete(id=user_id)
+        await user_crud_client.delete(id=user_id)
     except NotFoundError as e:
         raise HTTPException(status_code=404, detail="User not found") from e
-    return user
