@@ -69,10 +69,10 @@ jobs:
           poetry export -f requirements.txt --output requirements.txt --without-hashes -C core
           pip install -U -r requirements.txt
 
-      - name: Install Fulucrum Airflow Dependencies
+      - name: Install Fulcrum Airflow Dependencies
         run: |
-          echo "Installing fulucrum_airflow dependencies"
-          poetry export -f requirements.txt --output requirements.txt --without-hashes -C fulucrum_airflow
+          echo "Installing fulcrum_airflow dependencies"
+          poetry export -f requirements.txt --output requirements.txt --without-hashes -C fulcrum_airflow
           pip install -U -r requirements.txt
 
       - name: Check Code Formatting

@@ -5,7 +5,6 @@ description = "Airflow DAGs for Fulcrum"
 authors = ["leverslabs"]
 package-mode = false
 
-# Define dependencies common to all components
 [tool.poetry.dependencies]
 python = "^3.10"
 requests = "^2.28.1"
