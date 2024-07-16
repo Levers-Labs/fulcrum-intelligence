@@ -43,6 +43,12 @@ def setup_env(session_monkeypatch, postgres):
     session_monkeypatch.setenv("BACKEND_CORS_ORIGINS", '["http://localhost"]')
     session_monkeypatch.setenv("QUERY_MANAGER_SERVER_HOST", "http://localhost:8001/v1/")
     session_monkeypatch.setenv("DATABASE_URL", db_async_uri)
+    session_monkeypatch.setenv("AUTH0_DOMAIN", "some_auth0_domain")
+    session_monkeypatch.setenv("AUTH0_API_AUDIENCE", "http://some_auth0_audience")
+    session_monkeypatch.setenv("AUTH0_ISSUER", "http://some_auth0_domain/")
+    session_monkeypatch.setenv("AUTH0_ALGORITHMS", "RS256")
+    session_monkeypatch.setenv("SERVICE_CLIENT_ID", "client_id")
+    session_monkeypatch.setenv("SERVICE_CLIENT_SECRET", "client_secret")
     yield
 
 
