@@ -1,7 +1,12 @@
 from datetime import datetime
 from typing import Annotated, Any
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import (
+    APIRouter,
+    Depends,
+    HTTPException,
+    Query,
+)
 
 from commons.models.enums import Granularity
 from commons.utilities.pagination import Page, PaginationParams
@@ -9,8 +14,19 @@ from story_manager.core.dependencies import CRUDStoryDep
 from story_manager.core.enums import StoryGenre, StoryGroup, StoryType
 from story_manager.core.filters import StoryFilter
 from story_manager.core.models import Story
+from story_manager.core.schemas import StoryGroupMeta
+from story_manager.story_builder import StoryBuilderBase
+from story_manager.story_builder.factory import StoryFactory
 
 router = APIRouter(prefix="/stories", tags=["stories"])
+
+
+@router.get("/groups/{group}", response_model=StoryGroupMeta)
+async def get_story_group_meta(group: StoryGroup) -> StoryGroupMeta:
+    builder_klass: type[StoryBuilderBase] = StoryFactory.get_story_builder(group)
+    if builder_klass is None:
+        raise HTTPException(status_code=404, detail="Story group not found")
+    return StoryGroupMeta(group=group, grains=builder_klass.supported_grains)
 
 
 @router.get("/", response_model=Page[Story])

@@ -74,6 +74,12 @@ lint-all:
 	@make lint path=story_manager
 	@make lint path=insights_backend
 
+
+build-story-builder-image:
+	@echo "Building the story-builder image..."
+	@docker build -f story_manager/Dockerfile.story_builder -t story-builder-manager:latest .
+	@echo "Story-builder image built successfully."
+
 start-shell:
 ifndef app
 	@echo "Error: No app provided. Please provide an app to start the shell."
