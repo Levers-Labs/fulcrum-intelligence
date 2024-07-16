@@ -40,6 +40,14 @@ class Settings(BaseSettings):
     AWS_REGION: str = "us-east-1"
 
     BACKEND_CORS_ORIGINS: list[AnyHttpUrl | str] = []
+    INSIGHTS_BACKEND_SERVER_HOST: str | AnyHttpUrl
+
+    AUTH0_DOMAIN: str
+    AUTH0_API_AUDIENCE: str
+    AUTH0_ISSUER: str
+    AUTH0_ALGORITHMS: str
+    SERVICE_CLIENT_ID: str
+    SERVICE_CLIENT_SECRET: str
 
     @field_validator("BACKEND_CORS_ORIGINS", mode="before")
     @classmethod

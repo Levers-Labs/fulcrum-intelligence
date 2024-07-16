@@ -39,10 +39,9 @@ def get_insight_backend_client() -> InsightBackend:
     return insights_backend_client
 
 
-def get_security_obj() -> Auth:
+def get_verify_method_obj() -> Auth:
     settings = get_settings()
     return Auth(settings, get_insight_backend_client())
 
 
 UsersCRUDDep = Annotated[CRUDUser, Depends(get_users_crud)]
-auth_obj = get_security_obj()

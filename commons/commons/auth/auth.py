@@ -83,7 +83,10 @@ class Auth:
         if len(security_scopes.scopes) > 0:
             self._check_token_claims(payload, "permissions", security_scopes.scopes)
 
-        # verify user
+        # verify user, skipping the user check in DB if the request is a machine to machine comm.
+        if payload["sub"].endswith("@clients"):
+            return payload["sub"]
+
         user = await self.get_auth_user(payload["user_id"], token.credentials)
         return user
 
@@ -116,28 +119,3 @@ class Auth:
         if user is None:
             raise UnauthenticatedException(detail="Invalid User")
         return user
-
-
-# class MachineToMachineAuth:
-#     def __init__(self, auth0_domain):
-#         self.auth0_domain = auth0_domain
-#
-#     def get_auth0_access_token(self, client_id, client_secret, audience):
-#         token_url = self.auth0_domain
-#
-#         payload = {
-#             'grant_type': 'client_credentials',
-#             'client_id': client_id,
-#             'client_secret': client_secret,
-#             'audience': audience
-#         }
-#
-#         headers = {'Content-Type': 'application/json'}
-#
-#         try:
-#             response = requests.post(token_url, json=payload, headers=headers)
-#             response.raise_for_status()
-#             return response.json()['access_token']
-#         except requests.exceptions.HTTPError as error:
-#             print(f"Error getting access token: {error}")
-#             return None

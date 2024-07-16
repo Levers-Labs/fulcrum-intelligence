@@ -16,7 +16,7 @@ from analysis_manager.core.dependencies import (
     ComponentDriftServiceDep,
     QueryManagerClientDep,
     UsersCRUDDep,
-    auth_obj,
+    get_security_obj,
 )
 from analysis_manager.core.models import (
     Component,
@@ -52,7 +52,7 @@ logger = logging.getLogger(__name__)
 async def list_users(
     # users: UsersCRUDDep,
     # params: Annotated[PaginationParams, Depends(PaginationParams)],
-    auth_user: dict[str, Any] = Security(auth_obj.verify, scopes=["qm_read:messages"])  # noqa: B008
+    auth_user: dict[str, Any] = Security(get_security_obj().verify, scopes=["qm_read:messages"])  # noqa: B008
 ) -> Any:
     """
     Retrieve users.

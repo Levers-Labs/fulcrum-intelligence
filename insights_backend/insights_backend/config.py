@@ -6,6 +6,8 @@ from pathlib import Path
 from pydantic import AnyHttpUrl, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+MODEL_PATHS = ["insights_backend.core.models"]
+
 
 class StrEnum(str, Enum):
     pass
@@ -43,6 +45,8 @@ class Settings(BaseSettings):
     AUTH0_API_AUDIENCE: str
     AUTH0_ISSUER: str
     AUTH0_ALGORITHMS: str
+    SERVICE_CLIENT_ID: str
+    SERVICE_CLIENT_SECRET: str
 
     @field_validator("BACKEND_CORS_ORIGINS", mode="before")
     @classmethod

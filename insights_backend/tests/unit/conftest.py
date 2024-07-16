@@ -1,11 +1,18 @@
+import importlib
+import logging
 import os
 
+import fastapi
 import pytest
 from _pytest.monkeypatch import MonkeyPatch
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine
-from sqlmodel import Session
+from sqlalchemy import create_engine, text
+from sqlmodel import Session, SQLModel
 from testing.postgresql import Postgresql
+
+from insights_backend.config import MODEL_PATHS
+
+logger = logging.getLogger(__name__)
 
 
 @pytest.fixture(scope="session")
@@ -16,11 +23,39 @@ def postgres():
         yield postgres
 
 
+def mock_security(*args, **kwargs):
+    return {
+        "name": "test_name",
+        "email": "test_email@test.com",
+        "provider": "google",
+        "external_user_id": "auth0|001123",
+        "profile_picture": "http://test.com",
+    }
+
+
 @pytest.fixture(scope="session")
 def session_monkeypatch():
     m_patch = MonkeyPatch()
     yield m_patch
     m_patch.undo()
+
+
+@pytest.fixture(scope="session", autouse=True)
+def setup_db(postgres):
+    db_sync_uri = postgres.url()
+    # Ensure tables are created
+    engine = create_engine(db_sync_uri)
+    # create schema
+    logger.info("Creating db schema and tables")
+    with engine.connect() as conn:
+        conn.execute(text("CREATE SCHEMA IF NOT EXISTS insights_store"))
+        conn.commit()
+    # create all models
+    for model_path in MODEL_PATHS:
+        importlib.import_module(model_path)
+    SQLModel.metadata.create_all(engine)
+    engine.dispose()
+    yield db_sync_uri
 
 
 @pytest.fixture(autouse=True, scope="session")
@@ -31,12 +66,19 @@ def setup_env(session_monkeypatch, postgres):  # noqa
 
     db_sync_uri = postgres.url()
     db_async_uri = db_sync_uri.replace("postgresql://", "postgresql+asyncpg://")
+    logger.info(f"Setting up test environment {db_async_uri}")
     session_monkeypatch.setenv("SERVER_HOST", "http://localhost:8004")
     session_monkeypatch.setenv("DEBUG", "true")
     session_monkeypatch.setenv("ENV", "dev")
     session_monkeypatch.setenv("SECRET_KEY", "secret")
     session_monkeypatch.setenv("BACKEND_CORS_ORIGINS", '["http://localhost"]')
     session_monkeypatch.setenv("DATABASE_URL", db_async_uri)
+    session_monkeypatch.setenv("AUTH0_DOMAIN", "some_auth0_domain")
+    session_monkeypatch.setenv("AUTH0_API_AUDIENCE", "http://some_auth0_audience")
+    session_monkeypatch.setenv("AUTH0_ISSUER", "http://some_auth0_domain/")
+    session_monkeypatch.setenv("AUTH0_ALGORITHMS", "RS256")
+    session_monkeypatch.setenv("SERVICE_CLIENT_ID", "client_id")
+    session_monkeypatch.setenv("SERVICE_CLIENT_SECRET", "client_secret")
     yield
 
 
@@ -45,6 +87,7 @@ def client(setup_env):
     # Import only after setting up the environment
     from insights_backend.main import app  # noqa
 
+    fastapi.Security = mock_security
     with TestClient(app) as client:
         yield client
 

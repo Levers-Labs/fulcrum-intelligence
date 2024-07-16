@@ -68,9 +68,7 @@ def test_update_user(db_user_json, client):
     client.delete(f"/v1/users/{db_user['id']}")
 
 
-# def test_list_user(mocker, client):
-#     mocker.patch('fastapi.Security', db_user)
-#     response = client.get("/v1/users/")
-#     users = response.json()
-#
-#     assert response.status_code == status.HTTP_200_OK
+def test_list_user(mocker, db_user_json, client):
+    response = client.get("/v1/users/")
+
+    assert response.status_code == status.HTTP_403_FORBIDDEN
