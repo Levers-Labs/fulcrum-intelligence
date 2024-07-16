@@ -25,7 +25,7 @@ router = APIRouter(prefix="/stories", tags=["stories"])
 async def get_story_group_meta(group: StoryGroup) -> StoryGroupMeta:
     builder_klass: type[StoryBuilderBase] = StoryFactory.get_story_builder(group)
     if builder_klass is None:
-        raise HTTPException(status_code=404, detail="Story group not found")
+        raise HTTPException(status_code=404)
     return StoryGroupMeta(group=group, grains=builder_klass.supported_grains)
 
 
