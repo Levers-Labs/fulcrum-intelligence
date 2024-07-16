@@ -39,6 +39,7 @@ install-all-deps:
 	@make install-deps path=analysis_manager
 	@make install-deps path=story_manager
 	@make install-deps path=insights_backend
+	@make install-deps path=fulcrum_airflow
 
 port ?= 8000
 run:
