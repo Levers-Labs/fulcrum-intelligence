@@ -4,6 +4,7 @@ from typing import Annotated
 
 from fastapi import Depends
 
+from commons.auth.machine_to_machine_auth import M2MAuth
 from commons.clients.analysis_manager import AnalysisManagerClient
 from commons.clients.query_manager import QueryManagerClient
 from fulcrum_core import AnalysisManager
@@ -19,12 +20,12 @@ async def get_stories_crud(session: AsyncSessionDep) -> CRUDStory:
 
 async def get_query_manager_client() -> QueryManagerClient:
     settings = get_settings()
-    return QueryManagerClient(base_url=settings.QUERY_MANAGER_SERVER_HOST)
+    return QueryManagerClient(base_url=settings.QUERY_MANAGER_SERVER_HOST, auth=M2MAuth(settings))
 
 
 async def get_analysis_manager_client() -> AnalysisManagerClient:
     settings = get_settings()
-    return AnalysisManagerClient(base_url=settings.ANALYSIS_MANAGER_SERVER_HOST)
+    return AnalysisManagerClient(base_url=settings.ANALYSIS_MANAGER_SERVER_HOST, auth=M2MAuth(settings))
 
 
 async def get_analysis_manager() -> AnalysisManager:

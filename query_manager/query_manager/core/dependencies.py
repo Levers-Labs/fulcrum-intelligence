@@ -3,6 +3,7 @@ from typing import Annotated
 from fastapi import Depends
 
 from commons.auth.auth import Auth
+from commons.auth.machine_to_machine_auth import M2MAuth
 from commons.clients.insight_backend import InsightBackendClient
 from query_manager.config import get_settings
 from query_manager.services.cube import CubeClient, CubeJWTAuthType
@@ -41,7 +42,7 @@ async def get_query_client(cube_client: CubeClientDep) -> QueryClient:
 
 def get_insight_backend_client() -> InsightBackendClient:
     settings = get_settings()
-    return InsightBackendClient(settings.INSIGHTS_BACKEND_SERVER_HOST)
+    return InsightBackendClient(settings.INSIGHTS_BACKEND_SERVER_HOST, auth=M2MAuth(settings))
 
 
 def get_security_obj() -> Auth:

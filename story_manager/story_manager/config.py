@@ -43,6 +43,14 @@ class Settings(BaseSettings):
 
     BACKEND_CORS_ORIGINS: list[AnyHttpUrl | str] = []
     DSENSEI_BASE_URL: str = "http//localhost:5001"
+    INSIGHTS_BACKEND_SERVER_HOST: str | AnyHttpUrl
+
+    AUTH0_DOMAIN: str
+    AUTH0_API_AUDIENCE: str
+    AUTH0_ISSUER: str
+    AUTH0_ALGORITHMS: str
+    SERVICE_CLIENT_ID: str
+    SERVICE_CLIENT_SECRET: str
 
     @field_validator("BACKEND_CORS_ORIGINS", mode="before")
     @classmethod

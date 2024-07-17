@@ -10,7 +10,9 @@ logger = logging.getLogger(__name__)
 class M2MAuth(Auth):
     def __init__(self, config):
         """
-        Machine to Machine Comm. Auth class
+        Machine to Machine Comm. Auth class, It can be used to get the token for inter service communication.
+        Ex: Analysis Manager wants to communicate with query manager, in that case we will pass this class object
+        while creating the client.
         :param config:
         """
         self.config = config
@@ -26,9 +28,17 @@ class M2MAuth(Auth):
         yield request
 
     def regenerate_expired_token(self):
+        """
+        If the token is expired, regenerate it.
+        """
         return self.get_auth0_access_token()
 
     def get_auth0_access_token(self):
+        """
+        Fetching the token from Auth0 server,
+        Client ID and client Secret are of specific apps in Auth0,
+        based on client ID and secret we will get the scopes in token for authorization
+        """
         token_url = f"https://{self.config.AUTH0_DOMAIN}/oauth/token"
 
         payload = {

@@ -29,7 +29,7 @@ async def get_analysis_manager() -> AnalysisManager:
 
 
 def get_insight_backend_client() -> InsightBackendClient:
-    return InsightBackendClient(settings.INSIGHTS_BACKEND_SERVER_HOST)
+    return InsightBackendClient(settings.INSIGHTS_BACKEND_SERVER_HOST, auth=M2MAuth(settings))
 
 
 def get_security_obj() -> Auth:
