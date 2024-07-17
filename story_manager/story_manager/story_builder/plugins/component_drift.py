@@ -103,6 +103,9 @@ class ComponentDriftStoryBuilder(StoryBuilderBase):
 
         # Loop over top 4 components and compare evaluation_value and comparison_value
         for index, row in top_components.iterrows():
+            pct_drift_change = self.analysis_manager.calculate_percentage_difference(
+                float(row["evaluation_value"]), float(row["comparison_value"]), 2
+            )
             story_details = self.prepare_story_dict(
                 story_type=top_components.at[index, "story_type"],
                 grain=grain,  # type: ignore
@@ -110,7 +113,7 @@ class ComponentDriftStoryBuilder(StoryBuilderBase):
                 df=df,
                 component=row["metric_id"],
                 pressure=top_components.at[index, "pressure"],
-                percentage_drift=abs(row["percentage_drift"]),
+                percentage_drift=abs(pct_drift_change),
                 relative_impact=row["relative_impact"],
                 contribution=row["marginal_contribution_root"],
             )
@@ -209,11 +212,13 @@ class ComponentDriftStoryBuilder(StoryBuilderBase):
             :param components: List of components to fetch recursively.
             """
             nonlocal components_list
-            if components:
-                for comp in components:
-                    components_list.append(comp)
-                    if comp.get("components"):
-                        recursive_fetch(comp["components"])
+            if not components:
+                return
+
+            for comp in components:
+                components_list.append(comp)
+                if comp.get("components"):
+                    recursive_fetch(comp["components"])
 
         # Start recursive fetching from the top level components
         recursive_fetch(response["components"])
