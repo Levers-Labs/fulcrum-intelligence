@@ -77,7 +77,7 @@ def setup_env(session_monkeypatch, postgres):  # noqa
     session_monkeypatch.setenv("AUTH0_DOMAIN", "some_auth0_domain")
     session_monkeypatch.setenv("AUTH0_API_AUDIENCE", "http://some_auth0_audience")
     session_monkeypatch.setenv("AUTH0_ISSUER", "http://some_auth0_domain/")
-    session_monkeypatch.setenv("AUTH0_ALGORITHMS", "RS256")
+    session_monkeypatch.setenv("AUTH0_ALGORITHMS", '["RS256"]')
     session_monkeypatch.setenv("SERVICE_CLIENT_ID", "client_id")
     session_monkeypatch.setenv("SERVICE_CLIENT_SECRET", "client_secret")
     yield
