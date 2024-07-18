@@ -7,15 +7,18 @@ from httpx import Auth, Request, Response
 logger = logging.getLogger(__name__)
 
 
-class M2MAuth(Auth):
-    def __init__(self, config):
+class ClientCredsAuth(Auth):
+    def __init__(self, auth0_domain: str, service_client_id: str, service_client_secret: str, api_audience: str):
         """
         Machine to Machine Comm. Auth class, It can be used to get the token for inter service communication.
         Ex: Analysis Manager wants to communicate with query manager, in that case we will pass this class object
         while creating the client.
         :param config:
         """
-        self.config = config
+        self.auth0_domain = auth0_domain
+        self.service_client_id = service_client_id
+        self.service_client_secret = service_client_secret
+        self.api_audience = api_audience
 
     def auth_flow(self, request: Request) -> Generator[Request, Response, None]:
         """
@@ -39,13 +42,13 @@ class M2MAuth(Auth):
         Client ID and client Secret are of specific apps in Auth0,
         based on client ID and secret we will get the scopes in token for authorization
         """
-        token_url = f"https://{self.config.AUTH0_DOMAIN}/oauth/token"
+        token_url = f"https://{self.auth0_domain}/oauth/token"
 
         payload = {
             "grant_type": "client_credentials",
-            "client_id": self.config.SERVICE_CLIENT_ID,
-            "client_secret": self.config.SERVICE_CLIENT_SECRET,
-            "audience": self.config.AUTH0_API_AUDIENCE,
+            "client_id": self.service_client_id,
+            "client_secret": self.service_client_secret,
+            "audience": self.api_audience,
         }
 
         headers = {"Content-Type": "application/json"}

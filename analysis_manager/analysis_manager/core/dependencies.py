@@ -10,8 +10,7 @@ from analysis_manager.core.models import User
 from analysis_manager.core.services.component_drift import ComponentDriftService
 from analysis_manager.db.config import AsyncSessionDep
 from commons.auth.auth import Auth
-from commons.auth.machine_to_machine_auth import M2MAuth
-from commons.clients.insight_backend import InsightBackendClient
+from commons.auth.client_creds_auth import ClientCredsAuth
 from commons.clients.query_manager import QueryManagerClient
 from fulcrum_core.analysis_manager import AnalysisManager
 
@@ -21,19 +20,29 @@ async def get_users_crud(session: AsyncSessionDep) -> CRUDUser:
 
 
 async def get_query_manager_client() -> QueryManagerClient:
-    return QueryManagerClient(settings.QUERY_MANAGER_SERVER_HOST, auth=M2MAuth(settings))
+    return QueryManagerClient(
+        settings.QUERY_MANAGER_SERVER_HOST,
+        auth=ClientCredsAuth(
+            auth0_domain=settings.AUTH0_DOMAIN,
+            service_client_id=settings.SERVICE_CLIENT_ID,
+            service_client_secret=settings.SERVICE_CLIENT_SECRET,
+            api_audience=settings.AUTH0_API_AUDIENCE,
+        ),
+    )
 
 
 async def get_analysis_manager() -> AnalysisManager:
     return AnalysisManager()
 
 
-def get_insight_backend_client() -> InsightBackendClient:
-    return InsightBackendClient(settings.INSIGHTS_BACKEND_SERVER_HOST, auth=M2MAuth(settings))
-
-
 def get_security_obj() -> Auth:
-    return Auth(settings, get_insight_backend_client())
+    return Auth(
+        auth0_domain=settings.AUTH0_DOMAIN,
+        auth0_algorithms=settings.AUTH0_ALGORITHMS,
+        auth0_issuer=settings.AUTH0_ISSUER,
+        auth0_api_audience=settings.AUTH0_API_AUDIENCE,
+        insights_backend_host=settings.INSIGHTS_BACKEND_SERVER_HOST,
+    )
 
 
 async def get_component_drift_service(

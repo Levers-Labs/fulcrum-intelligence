@@ -1,5 +1,9 @@
+from unittest import mock
+
 import pytest
 from starlette import status
+
+mock.patch("fastapi.Security", lambda *args, **kwargs: True).start()
 
 
 @pytest.mark.asyncio
@@ -68,7 +72,6 @@ def test_update_user(db_user_json, client):
     client.delete(f"/v1/users/{db_user['id']}")
 
 
-def test_list_user(mocker, db_user_json, client):
+def test_list_user(client):
     response = client.get("/v1/users/")
-
-    assert response.status_code == status.HTTP_403_FORBIDDEN
+    assert response.status_code == status.HTTP_200_OK

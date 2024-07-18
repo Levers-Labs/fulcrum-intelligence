@@ -6,6 +6,7 @@ import pandas as pd
 from fastapi import (
     APIRouter,
     Body,
+    Depends,
     HTTPException,
     Security,
 )
@@ -39,8 +40,7 @@ from analysis_manager.core.schema import (
     SegmentDriftResponse,
     UserList,
 )
-
-# from commons.utilities.pagination import PaginationParams
+from commons.utilities.pagination import PaginationParams
 from fulcrum_core.execptions import InsufficientDataError
 
 router = APIRouter(prefix="/analyze", tags=["analyze"])
@@ -50,17 +50,16 @@ logger = logging.getLogger(__name__)
 
 @user_router.get("", response_model=UserList)
 async def list_users(
-    # users: UsersCRUDDep,
-    # params: Annotated[PaginationParams, Depends(PaginationParams)],
-    auth_user: dict[str, Any] = Security(get_security_obj().verify, scopes=["qm_read:messages"])  # noqa: B008
+    users: UsersCRUDDep,
+    params: Annotated[PaginationParams, Depends(PaginationParams)],
+    auth_user: dict[str, Any] = Security(get_security_obj().verify, scopes=["analysis_manager:*"]),  # noqa: B008
 ) -> Any:
     """
     Retrieve users.
     """
-    return UserList(results=[], count=0)
-    # count = await users.total_count()
-    # results: list[UserRead] = [UserRead.from_orm(user) for user in await users.list_results(params=params)]
-    # return UserList(results=results, count=count)
+    count = await users.total_count()
+    results: list[UserRead] = [UserRead.from_orm(user) for user in await users.list_results(params=params)]
+    return UserList(results=results, count=count)
 
 
 @user_router.get("/{user_id}", response_model=UserRead)

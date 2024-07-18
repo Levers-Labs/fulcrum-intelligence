@@ -23,6 +23,7 @@ def postgres():
         yield postgres
 
 
+@pytest.fixture(scope="session")
 def mock_security(*args, **kwargs):
     return {
         "name": "test_name",
@@ -83,12 +84,27 @@ def setup_env(session_monkeypatch, postgres):  # noqa
 
 
 @pytest.fixture(scope="session")
-def client(setup_env):
+def token():
+    return (
+        "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImZWT3owbEM0Q1lNTjduaVlpejRSViJ9.eyJpc3MiOiJodHRwczovL2luc2lna"
+        "HRzLXdlYi1hcHAudXMuYXV0aDAuY29tLyIsInN1YiI6IlBOMEN0SkFTbE1EbTlURWl2YjNpenNEbklmNWRjRllBQGNsaWVudHMiLCJhd"
+        "WQiOiJodHRwczovL2Z1bGNydW1fYXBpX2lkZW50aWZpZXIiLCJpYXQiOjE3MjExMjIxNzAsImV4cCI6MTcyMTIwODU3MCwic2NvcGUiOiJ"
+        "1c2VyLXJlYWQgcXVlcnlfbWFuYWdlcjoqIGFuYWx5c2lzX21hbmFnZXI6KiBzdG9yeV9tYW5hZ2VyOioiLCJndHkiOiJjbGllbnQtY3Jl"
+        "ZGVudGlhbHMiLCJhenAiOiJQTjBDdEpBU2xNRG05VEVpdmIzaXpzRG5JZjVkY0ZZQSJ9.tMph01mxSQJcPjvNUqVVkWbaThCcN2DqVMQe"
+        "rmO3pFKX2lE2WeaFYTH11h1_xHR1HX2UPyytBYYnMQ9PYXhKqUlhVGnYtpYljPl_g0Qpoa4mtWzd5vNjjOG0flfCFRiOs7L_9BrzFHkcdF"
+        "79C-CT00yqvym9scoqNuR1RdmQDdlW4wpsOBV7xlvJ5ualOD4nvRFIOohC496AxAwjA4FqOXUOGkFzyaDwvJaSBNIHKyVHv1YmQjcKATm"
+        "m4n6J8s7lGaGkdi5ZCAAGafiecpYG65MDb4m2D4rGzVLPjd4aK-_I2hiZUgxHYJTdprbWyd8beX-lnaIBfkA_2PDVgK23dg"
+    )
+
+
+@pytest.fixture(scope="session")
+def client(setup_env, token):
     # Import only after setting up the environment
     from insights_backend.main import app  # noqa
 
     fastapi.Security = mock_security
-    with TestClient(app) as client:
+    headers = {"Authorization": f"Bearer {token}"}
+    with TestClient(app, headers=headers) as client:
         yield client
 
 

@@ -1,12 +1,13 @@
 import logging
+import urllib
 from collections.abc import Callable
 from typing import Any, TypeVar
 
+import httpx
 import jwt
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer, SecurityScopes
-
-from commons.clients.insight_backend import InsightBackendClient
+from pydantic import AnyHttpUrl
 
 F = TypeVar("F", bound=Callable[..., Any])
 logger = logging.getLogger(__name__)
@@ -31,13 +32,27 @@ class Auth:
     - verify the authenticated user from DB
     """
 
-    def __init__(self, config, insight_backend_client: InsightBackendClient) -> None:
-        self.config = config
-        self.insight_backend_client = insight_backend_client
+    def __init__(
+        self,
+        auth0_domain: str,
+        auth0_algorithms: list[str],
+        auth0_api_audience: str,
+        auth0_issuer: str,
+        insights_backend_host: str | AnyHttpUrl,
+    ) -> None:
+        self.auth0_domain = auth0_domain
+        self.auth0_algorithms = auth0_algorithms
+        self.auth0_api_audience = auth0_api_audience
+        self.auth0_issuer = auth0_issuer
+        self.insights_backend_host = insights_backend_host
+        self.jwks_client = self.get_jwk_client()
 
-        # Fetching Public Keys from Auth0 to validate the jwt token
-        jwks_url = f"https://{self.config.AUTH0_DOMAIN}/.well-known/jwks.json"
-        self.jwks_client = jwt.PyJWKClient(jwks_url)
+    def get_jwk_client(self):
+        """
+        Method to fetch the public keys for JWT, from specified auth0_domain
+        """
+        jwks_url = f"https://{self.auth0_domain}/.well-known/jwks.json"
+        return jwt.PyJWKClient(jwks_url, cache_jwk_set=True, cache_keys=True)
 
     async def verify(
         self,
@@ -63,25 +78,25 @@ class Auth:
             signing_key = self.jwks_client.get_signing_key_from_jwt(token.credentials).key
 
         except jwt.exceptions.PyJWKClientError as error:
-            raise UnauthorizedException(str(error)) from error
+            raise UnauthenticatedException(str(error)) from error
 
         except jwt.exceptions.DecodeError as error:
-            raise UnauthorizedException(str(error)) from error
+            raise UnauthenticatedException(str(error)) from error
 
         try:
             payload = jwt.decode(
                 token.credentials,
                 signing_key,
-                algorithms=self.config.AUTH0_ALGORITHMS,
-                audience=self.config.AUTH0_API_AUDIENCE,
-                issuer=self.config.AUTH0_ISSUER,
+                algorithms=self.auth0_algorithms,
+                audience=self.auth0_api_audience,
+                issuer=self.auth0_issuer,
             )
         except Exception as error:
-            raise UnauthorizedException(str(error)) from error
+            raise UnauthenticatedException(str(error)) from error
 
         # to check the claims
         if len(security_scopes.scopes) > 0:
-            self._check_token_claims(payload, "permissions", security_scopes.scopes)
+            self._check_token_claims(payload, "scope", security_scopes.scopes)
 
         # verify user, skipping the user check in DB if the request is a machine to machine comm.
         if payload["sub"].endswith("@clients"):
@@ -115,7 +130,17 @@ class Auth:
         - user_id: id of the user
         - token : jwt token
         """
-        user = await self.insight_backend_client.get_user(user_id, token)
-        if user is None:
-            raise UnauthenticatedException(detail="Invalid User")
-        return user
+        async with httpx.AsyncClient() as client:
+            headers = {"Authorization": f"Bearer {token}"}
+            response = await client.get(
+                urllib.parse.urljoin(  # type: ignore
+                    str(self.insights_backend_host),
+                    user_id,
+                ),
+                headers=headers,
+            )
+
+            user = response.json()
+            if user is None:
+                raise UnauthenticatedException(detail="Invalid User")
+            return user

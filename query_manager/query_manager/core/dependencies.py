@@ -3,8 +3,6 @@ from typing import Annotated
 from fastapi import Depends
 
 from commons.auth.auth import Auth
-from commons.auth.machine_to_machine_auth import M2MAuth
-from commons.clients.insight_backend import InsightBackendClient
 from query_manager.config import get_settings
 from query_manager.services.cube import CubeClient, CubeJWTAuthType
 from query_manager.services.parquet import ParquetService
@@ -40,14 +38,15 @@ async def get_query_client(cube_client: CubeClientDep) -> QueryClient:
     return QueryClient(cube_client)
 
 
-def get_insight_backend_client() -> InsightBackendClient:
-    settings = get_settings()
-    return InsightBackendClient(settings.INSIGHTS_BACKEND_SERVER_HOST, auth=M2MAuth(settings))
-
-
 def get_security_obj() -> Auth:
     settings = get_settings()
-    return Auth(settings, get_insight_backend_client())
+    return Auth(
+        auth0_domain=settings.AUTH0_DOMAIN,
+        auth0_algorithms=settings.AUTH0_ALGORITHMS,
+        auth0_issuer=settings.AUTH0_ISSUER,
+        auth0_api_audience=settings.AUTH0_API_AUDIENCE,
+        insights_backend_host=settings.INSIGHTS_BACKEND_SERVER_HOST,
+    )
 
 
 ParquetServiceDep = Annotated[ParquetService, Depends(get_parquet_service)]
