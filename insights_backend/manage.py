@@ -1,7 +1,6 @@
 # pylint: disable=import-outside-toplevel
 from __future__ import annotations
 
-import asyncio
 import importlib
 from pathlib import Path
 from typing import Annotated, Optional
@@ -13,17 +12,12 @@ from alembic import command
 from alembic.config import Config
 from alembic.util import CommandError
 
-from commons.models.enums import Granularity
-from story_manager.config import get_settings
-from story_manager.core.enums import StoryGroup
-from story_manager.db.config import MODEL_PATHS
-from story_manager.story_builder.manager import StoryManager
+from insights_backend.config import get_settings
+from insights_backend.db.config import MODEL_PATHS
 
 cli = typer.Typer()
 db_cli = typer.Typer()
-story_cli = typer.Typer()
 cli.add_typer(db_cli, name="db")
-cli.add_typer(story_cli, name="story")
 
 
 @db_cli.command("upgrade")
@@ -118,14 +112,14 @@ def create_alembic_revision(
 
 @cli.command("run-local-server")
 def run_server(
-    port: int = 8002,
+    port: int = 8004,
     host: str = "localhost",
     log_level: str = "debug",
     reload: bool = True,
 ):
     """Run the API development server(uvicorn)."""
     uvicorn.run(
-        "story_manager.main:app",
+        "insights_backend.main:app",
         host=host,
         port=port,
         log_level=log_level,
@@ -151,35 +145,6 @@ def start_app(app_name: str):
         with open(app_dir / file, "w") as f:
             f.write(content)
     typer.secho(f"App {package_name} created", fg=typer.colors.GREEN)
-
-
-@story_cli.command("generate")
-def run_builder_for_group(
-    group: Annotated[
-        StoryGroup,
-        typer.Argument(help="The story group for which the builder should be run."),
-    ],
-    metric_id: Annotated[
-        str,
-        typer.Argument(help="The metric id for which the builder should be run."),
-    ],
-    grain: Annotated[
-        Optional[Granularity],  # noqa
-        typer.Argument(help="The grain for which the builder should be run."),
-    ] = None,
-):
-    """
-    Run the builder for a specific story group and metric.
-    """
-    typer.secho(
-        f"Running builder for group {group} and metric {metric_id}",
-        fg=typer.colors.GREEN,
-    )
-    asyncio.run(StoryManager.run_builder_for_story_group(group, metric_id, grain=grain))
-    typer.secho(
-        f"Execution for group {group} and metric {metric_id} finished",
-        fg=typer.colors.GREEN,
-    )
 
 
 @cli.command()

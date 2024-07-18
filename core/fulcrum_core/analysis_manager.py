@@ -489,7 +489,10 @@ class AnalysisManager:
     # separate dimension based slices,
     @staticmethod
     def get_dimension_slices_df(
-        dimensions_slices_df_map, ignore_null: bool = False, ignore_zero: bool = False
+        dimensions_slices_df_map: dict[str, pd.DataFrame],
+        metric_dimension_id_label_map: dict[str, str],
+        ignore_null: bool = False,
+        ignore_zero: bool = False,
     ) -> pd.DataFrame:
         """
         We are creating dataframes from a dictionary with structure as
@@ -503,6 +506,7 @@ class AnalysisManager:
 
         Params:
             dimensions_slices_df_map: dimension_id and dataframe of slices map
+            metric_dimension_id_label_map: {metric_id : label} dict
             ignore_null: whether to ignore slices with value as None
 
         Output:
@@ -520,7 +524,8 @@ class AnalysisManager:
                 slices_df = slices_df[slices_df["value"] != 0]
 
             slices_df = slices_df[["value", dimension]]
-            slices_df["dimension"] = dimension
+            slices_df["dimension_id"] = dimension
+            slices_df["dimension_label"] = metric_dimension_id_label_map[dimension]
             slices_df.rename(columns={dimension: "member"}, inplace=True)
             df = pd.concat([df, slices_df], ignore_index=True)
 
