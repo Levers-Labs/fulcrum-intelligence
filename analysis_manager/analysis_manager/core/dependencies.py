@@ -23,9 +23,9 @@ async def get_query_manager_client() -> QueryManagerClient:
     return QueryManagerClient(
         settings.QUERY_MANAGER_SERVER_HOST,
         auth=ClientCredsAuth(
-            auth0_domain=settings.AUTH0_DOMAIN,
-            service_client_id=settings.SERVICE_CLIENT_ID,
-            service_client_secret=settings.SERVICE_CLIENT_SECRET,
+            auth0_issuer=settings.AUTH0_ISSUER,
+            client_id=settings.AUTH0_CLIENT_ID,
+            client_secret=settings.AUTH0_CLIENT_SECRET,
             api_audience=settings.AUTH0_API_AUDIENCE,
         ),
     )
@@ -37,8 +37,6 @@ async def get_analysis_manager() -> AnalysisManager:
 
 def get_security_obj() -> Auth:
     return Auth(
-        auth0_domain=settings.AUTH0_DOMAIN,
-        auth0_algorithms=settings.AUTH0_ALGORITHMS,
         auth0_issuer=settings.AUTH0_ISSUER,
         auth0_api_audience=settings.AUTH0_API_AUDIENCE,
         insights_backend_host=settings.INSIGHTS_BACKEND_SERVER_HOST,

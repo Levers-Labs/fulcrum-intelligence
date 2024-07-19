@@ -35,6 +35,16 @@ Fulcrum Intelligence Engine is a project that includes several services such as 
 This project requires certain environment variables to be set. These variables are loaded from `.env` files located in
 the `analysis_manager` and `query_manager` directories.
 
+#### Auth0 Creds (envs)
+The auth0 creds are used to authenticate the user and get the access token.
+Below are the variables that you need to set in the `.env` file for each service.
+```
+AUTH0_API_AUDIENCE= // The auth0 api audience
+AUTH0_ISSUER= // The auth0 issuer
+AUTH0_CLIENT_ID= // The auth0 client id
+AUTH0_CLIENT_SECRET= // The auth0 client secret
+```
+
 #### Analysis Manager `.env` File
 
 Navigate to the `analysis_manager` directory and create a `.env` file with the following variables:
