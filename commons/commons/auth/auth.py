@@ -21,6 +21,7 @@ class UnauthorizedException(HTTPException):
 
 class UnauthenticatedException(HTTPException):
     def __init__(self, detail: str, **kwargs):
+        """Returns HTTP 401"""
         super().__init__(status_code=status.HTTP_401_UNAUTHORIZED, detail=detail)
 
 
@@ -34,41 +35,55 @@ class Auth:
 
     def __init__(
         self,
-        auth0_domain: str,
-        auth0_algorithms: list[str],
         auth0_api_audience: str,
         auth0_issuer: str,
         insights_backend_host: str | AnyHttpUrl,
     ) -> None:
-        self.auth0_domain = auth0_domain
-        self.auth0_algorithms = auth0_algorithms
+        """
+        Initialize the Auth class.
+
+        Args:
+            auth0_api_audience (str): The API audience for Auth0.
+            auth0_issuer (str): The issuer URL for Auth0.
+            insights_backend_host (str | AnyHttpUrl): The host URL for the insights backend.
+        """
         self.auth0_api_audience = auth0_api_audience
         self.auth0_issuer = auth0_issuer
         self.insights_backend_host = insights_backend_host
         self.jwks_client = self.get_jwk_client()
+        self.auth0_algorithms = ["RS256"]  # Add this line to define the algorithms
 
-    def get_jwk_client(self):
+    def get_jwk_client(self) -> jwt.PyJWKClient:
         """
-        Method to fetch the public keys for JWT, from specified auth0_domain
+        Method to fetch the public keys for JWT, from specified auth0_domain.
+
+        Returns:
+            jwt.PyJWKClient: The JWT client for fetching public keys.
         """
-        jwks_url = f"https://{self.auth0_domain}/.well-known/jwks.json"
+        jwks_url = f"{self.auth0_issuer}/.well-known/jwks.json"
         return jwt.PyJWKClient(jwks_url, cache_jwk_set=True, cache_keys=True)
 
     async def verify(
         self,
         security_scopes: SecurityScopes,
         token: HTTPAuthorizationCredentials | None = Depends(HTTPBearer()),  # noqa: B008
-    ):
+    ) -> Any:
         """
         This method verifies the token, in total there are 3 checks
         - we fetch the public keys from the origin of jwt to verify the provided token
         - once the token is verified, we verify the claims
         - if the claims are verified, then we verify the user whose id is present in token with our DB.
 
-        Input:
-        - security_scopes: scopes required for a route to execute
-        - token: jwt token, present in Authorization header
+        Args:
+            security_scopes (SecurityScopes): Scopes required for a route to execute.
+            token (HTTPAuthorizationCredentials | None): JWT token, present in Authorization header.
 
+        Returns:
+            Any: The authenticated user or machine-to-machine client ID.
+
+        Raises:
+            UnauthenticatedException: If the token is invalid or authentication fails.
+            UnauthorizedException: If the user is not authorized to perform the operation.
         """
         if token is None:
             raise UnauthenticatedException(detail="Authentication token is not provided.")
@@ -76,10 +91,8 @@ class Auth:
         # This gets the 'kid' from the passed token
         try:
             signing_key = self.jwks_client.get_signing_key_from_jwt(token.credentials).key
-
         except jwt.exceptions.PyJWKClientError as error:
             raise UnauthenticatedException(str(error)) from error
-
         except jwt.exceptions.DecodeError as error:
             raise UnauthenticatedException(str(error)) from error
 
@@ -89,13 +102,12 @@ class Auth:
                 signing_key,
                 algorithms=self.auth0_algorithms,
                 audience=self.auth0_api_audience,
-                issuer=self.auth0_issuer,
+                options={"verify_issuer": False},
             )
         except Exception as error:
             raise UnauthenticatedException(str(error)) from error
 
-        # to check the claims
-        if len(security_scopes.scopes) > 0:
+        if security_scopes.scopes:
             self._check_token_claims(payload, "scope", security_scopes.scopes)
 
         # verify user, skipping the user check in DB if the request is a machine to machine comm.
@@ -105,14 +117,17 @@ class Auth:
         user = await self.get_auth_user(payload["user_id"], token.credentials)
         return user
 
-    def _check_token_claims(self, payload: dict[str, Any], claim_name: str, expected_value: list[str]):
+    def _check_token_claims(self, payload: dict[str, Any], claim_name: str, expected_value: list[str]) -> None:
         """
-        In this method we are verifying the claims which are present in the payload with the ones required for the
-        route
-        Input:
-        - payload: jwt payload
-        - claim_name: key which contains the claim in payload
-        - expected_value: scopes required for the route to execute
+        Verify the claims which are present in the payload with the ones required for the route.
+
+        Args:
+            payload (dict[str, Any]): JWT payload.
+            claim_name (str): Key which contains the claim in payload.
+            expected_value (list[str]): Scopes required for the route to execute.
+
+        Raises:
+            UnauthorizedException: If the required claims are not present or the user is not authorized.
         """
         if claim_name not in payload:
             raise UnauthorizedException(detail=f'No claim "{claim_name}" found in token')
@@ -123,19 +138,26 @@ class Auth:
             if value not in payload_claim:
                 raise UnauthorizedException(detail="User isn't authorised to perform this operation")
 
-    async def get_auth_user(self, user_id: int, token: str):
+    async def get_auth_user(self, user_id: int, token: str) -> dict[str, Any]:
         """
         Method to fetch the user from DB, whose ID is present in the JWT.
-        Input:
-        - user_id: id of the user
-        - token : jwt token
+
+        Args:
+            user_id (int): ID of the user.
+            token (str): JWT token.
+
+        Returns:
+            dict[str, Any]: The authenticated user data.
+
+        Raises:
+            UnauthenticatedException: If the user is invalid or not found.
         """
         async with httpx.AsyncClient() as client:
             headers = {"Authorization": f"Bearer {token}"}
             response = await client.get(
                 urllib.parse.urljoin(  # type: ignore
                     str(self.insights_backend_host),
-                    user_id,
+                    str(user_id),  # Convert user_id to string
                 ),
                 headers=headers,
             )

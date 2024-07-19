@@ -5,7 +5,7 @@ from insights_backend.core.crud import CRUDUser
 from insights_backend.core.models import User
 
 
-class AuthExtended(Auth):
+class CustomBackendAuth(Auth):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 

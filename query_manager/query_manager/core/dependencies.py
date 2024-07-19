@@ -41,8 +41,6 @@ async def get_query_client(cube_client: CubeClientDep) -> QueryClient:
 def get_security_obj() -> Auth:
     settings = get_settings()
     return Auth(
-        auth0_domain=settings.AUTH0_DOMAIN,
-        auth0_algorithms=settings.AUTH0_ALGORITHMS,
         auth0_issuer=settings.AUTH0_ISSUER,
         auth0_api_audience=settings.AUTH0_API_AUDIENCE,
         insights_backend_host=settings.INSIGHTS_BACKEND_SERVER_HOST,
