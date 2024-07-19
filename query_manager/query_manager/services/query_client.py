@@ -50,6 +50,7 @@ class QueryClient:
         :param metric_ids: Optional list of metric IDs to filter the results by.
         :return: A list of dictionaries representing metrics.
         """
+        # TODO: Replace with db
         metrics_data = await self.load_data(self.metric_file_path)
         # Implement pagination logic here if necessary,
         # Implement filtering logic here
@@ -64,6 +65,7 @@ class QueryClient:
         :param metric_id: The ID of the metric to fetch details for.
         :return: A dictionary representing the metric details, or None if not found.
         """
+        # TODO: Replace with db
         metrics_data = await self.load_data(self.metric_file_path)
         res = next((metric for metric in metrics_data if metric["id"] == metric_id), None)
         if res:
@@ -76,6 +78,7 @@ class QueryClient:
 
         :return: A list of dictionaries representing dimensions.
         """
+        # TODO: Replace with db
         dimensions_data = await self.load_data(self.dimension_file_path)
         return dimensions_data
 
@@ -86,6 +89,7 @@ class QueryClient:
         :param dimension_id: The ID of the dimension to fetch details for.
         :return: A dictionary representing the dimension details, or None if not found.
         """
+        # TODO: Replace with db
         dimensions_data = await self.load_data(self.dimension_file_path)
         return next((dimension for dimension in dimensions_data if dimension["id"] == dimension_id), None)
 
