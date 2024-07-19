@@ -164,3 +164,12 @@ class QueryClient:
         return await self.cube_client.load_metric_targets_from_cube(
             metric, grain=grain, start_date=start_date, end_date=end_date
         )
+
+    async def get_dimension_members_from_db(self, dimension) -> list[Any]:
+        """
+        Fetches members for a specific dimension by its ID.
+
+        :param dimension: The dimension to fetch members for.
+        :return: A list of members for the dimension, or an empty list if not found.
+        """
+        return await self.cube_client.load_dimension_members_from_cube(dimension)

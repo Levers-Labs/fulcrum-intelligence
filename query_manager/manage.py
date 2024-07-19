@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import importlib
 from pathlib import Path
-from typing import Annotated
+from typing import Annotated, Optional
 
 import httpx
 import typer
@@ -58,9 +58,9 @@ def show_migration(config_file: Path = Path("alembic.ini"), rev: str = "head") -
 def merge_migrations(
     revisions: list[str],
     config_file: Path = Path("alembic.ini"),
-    message: Annotated[str | None, typer.Argument()] = None,  # noqa
-    branch_label: Annotated[list[str] | None, typer.Argument()] = None,  # noqa
-    rev_id: Annotated[str | None, typer.Argument()] = None,  # noqa
+    message: Annotated[Optional[str], typer.Argument()] = None,  # noqa
+    branch_label: Annotated[Optional[list[str]], typer.Argument()] = None,  # noqa
+    rev_id: Annotated[Optional[str], typer.Argument()] = None,  # noqa
 ):
     """Merge two revisions, creating a new migration file"""
     config = Config(config_file)
@@ -79,14 +79,14 @@ def merge_migrations(
 
 @db_cli.command("revision")
 def create_alembic_revision(
-    message: str | None = None,  # noqa
+    message: Optional[str] = None,  # noqa
     config_file: Path = Path("alembic.ini"),
     autogenerate: bool = True,
     head: str = "head",
     splice: bool = False,
-    version_path: Annotated[str | None, typer.Argument()] = None,  # noqa
-    rev_id: Annotated[str | None, typer.Argument()] = None,  # noqa
-    depends_on: Annotated[str | None, typer.Argument()] = None,  # noqa
+    version_path: Annotated[Optional[str], typer.Argument()] = None,  # noqa
+    rev_id: Annotated[Optional[str], typer.Argument()] = None,  # noqa
+    depends_on: Annotated[Optional[str], typer.Argument()] = None,  # noqa
 ) -> None:
     """Create a new Alembic revision"""
     # Import all the models to be able to autogenerate migrations

@@ -5,13 +5,16 @@ from typing import Annotated, Any
 from fastapi import (
     APIRouter,
     Body,
+    Depends,
     Query,
     Request,
 )
 
 from commons.models.enums import Granularity
-from query_manager.core.dependencies import ParquetServiceDep, QueryClientDep
+from commons.utilities.pagination import PaginationParams
+from query_manager.core.dependencies import CRUDDimensionDep, ParquetServiceDep, QueryClientDep
 from query_manager.core.enums import OutputFormat
+from query_manager.core.models import Dimensions
 from query_manager.core.schemas import (
     Dimension,
     DimensionDetail,
@@ -29,7 +32,8 @@ router = APIRouter(prefix="")
 
 @router.get("/metrics", response_model=MetricListResponse, tags=["metrics"])
 async def list_metrics(
-    client: QueryClientDep, metric_ids: Annotated[list[str], Query(description="List of metric ids")] = None  # type: ignore
+    client: QueryClientDep,
+    metric_ids: Annotated[list[str] | None, Query(description="List of metric ids")] = None,  # type: ignore
 ):
     """
     Retrieve a list of metrics.
@@ -123,3 +127,32 @@ async def get_metric_targets(
         return {"url": parquet_url}
 
     return {"results": res}
+
+
+@router.get("/dimensions/db/", response_model=list[Dimensions], tags=["dimensions"])
+async def list_dimensions_db(
+    dbclient: CRUDDimensionDep,
+    params: Annotated[PaginationParams, Depends(PaginationParams)],
+):
+    """
+    Retrieve a list of dimensions from db.
+    """
+    return await dbclient.list_results(params=params)
+
+
+@router.get("/dimensions/db/{dimension_id}", response_model=Dimensions, tags=["dimensions"])
+async def get_dimension_db(dimension_id: str, dbclient: CRUDDimensionDep):
+    """
+    Retrieve a dimension by ID from db.
+    """
+    return await dbclient.get_by_dimension_id(dimension_id)
+
+
+@router.get("/dimensions/db/{dimension_id}/members", response_model=list[Any], tags=["dimensions"])
+async def get_dimension_members_db(dimension_id: str, dbclient: CRUDDimensionDep, client: QueryClientDep):
+    """
+    Retrieve members of a dimension by ID from db.
+    """
+    dimension = await dbclient.get_by_dimension_id(dimension_id)
+    dimension = Dimensions.parse_obj(dimension)
+    return await client.get_dimension_members_from_db(dimension)
