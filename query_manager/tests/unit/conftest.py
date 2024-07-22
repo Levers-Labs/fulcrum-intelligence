@@ -28,6 +28,7 @@ def setup_env(session_monkeypatch):
     session_monkeypatch.setenv("AWS_BUCKET", "bucket")
     session_monkeypatch.setenv("AWS_REGION", "region")
     session_monkeypatch.setenv("CUBE_API_URL", "http://localhost:4000")
+    session_monkeypatch.setenv("DATABASE_URL", "postgresql+asyncpg://postgres:root@localhost:5432/qm_test")
     yield
 
 
