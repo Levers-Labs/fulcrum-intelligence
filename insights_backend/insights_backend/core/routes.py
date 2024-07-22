@@ -1,18 +1,13 @@
 import logging
 from typing import Annotated
 
-from fastapi import (
-    APIRouter,
-    Depends,
-    HTTPException,
-    Security,
-)
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.exc import IntegrityError
 from starlette import status
 
 from commons.db.crud import NotFoundError
 from commons.utilities.pagination import PaginationParams
-from insights_backend.core.dependencies import UsersCRUDDep, get_security_obj
+from insights_backend.core.dependencies import UsersCRUDDep
 from insights_backend.core.models import User, UserCreate, UserList
 
 user_router = APIRouter(prefix="/users", tags=["users"])
@@ -70,7 +65,6 @@ async def update_user(user_id: int, user: UserCreate, user_crud_client: UsersCRU
 async def list_users(
     user_crud_client: UsersCRUDDep,
     params: Annotated[PaginationParams, Depends(PaginationParams)],
-    auth_user=Security(get_security_obj().verify, scopes=[]),  # noqa: B008
 ) -> UserList:
     """
     Retrieve all the users in DB.
