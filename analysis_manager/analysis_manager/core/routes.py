@@ -17,7 +17,7 @@ from analysis_manager.core.dependencies import (
     ComponentDriftServiceDep,
     QueryManagerClientDep,
     UsersCRUDDep,
-    get_security_obj,
+    oauth2_auth,
 )
 from analysis_manager.core.models import (
     Component,
@@ -48,11 +48,12 @@ user_router = APIRouter(prefix="/users", tags=["users"])
 logger = logging.getLogger(__name__)
 
 
-@user_router.get("", response_model=UserList)
+@user_router.get(
+    "", response_model=UserList, dependencies=[Security(oauth2_auth().verify, scopes=["analysis_manager:*"])]
+)
 async def list_users(
     users: UsersCRUDDep,
     params: Annotated[PaginationParams, Depends(PaginationParams)],
-    auth_user: dict[str, Any] = Security(get_security_obj().verify, scopes=["analysis_manager:*"]),  # noqa: B008
 ) -> Any:
     """
     Retrieve users.

@@ -2,7 +2,7 @@ from typing import Annotated
 
 from fastapi import Depends
 
-from commons.auth.auth import Auth
+from commons.auth.auth import Oauth2Auth
 from query_manager.config import get_settings
 from query_manager.services.cube import CubeClient, CubeJWTAuthType
 from query_manager.services.parquet import ParquetService
@@ -38,11 +38,11 @@ async def get_query_client(cube_client: CubeClientDep) -> QueryClient:
     return QueryClient(cube_client)
 
 
-def get_security_obj() -> Auth:
+def oauth2_auth() -> Oauth2Auth:
     settings = get_settings()
-    return Auth(
-        auth0_issuer=settings.AUTH0_ISSUER,
-        auth0_api_audience=settings.AUTH0_API_AUDIENCE,
+    return Oauth2Auth(
+        issuer=settings.AUTH0_ISSUER,
+        api_audience=settings.AUTH0_API_AUDIENCE,
         insights_backend_host=settings.INSIGHTS_BACKEND_SERVER_HOST,
     )
 
