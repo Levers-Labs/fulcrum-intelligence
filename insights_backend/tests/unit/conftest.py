@@ -10,7 +10,7 @@ from sqlalchemy import create_engine, text
 from sqlmodel import Session, SQLModel
 from testing.postgresql import Postgresql
 
-from insights_backend.config import MODEL_PATHS
+from insights_backend.db.config import MODEL_PATHS
 
 logger = logging.getLogger(__name__)
 
