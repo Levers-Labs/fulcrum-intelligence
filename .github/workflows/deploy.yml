@@ -13,11 +13,11 @@ on:
 
 env:
   # replace all the vars with secret later
-  AWS_ACCESS_KEY_ID: "ASIASSZID53ACKOF36MF" #${{ secrets.AWS_ACCESS_KEY_ID }}
-  AWS_SECRET_ACCESS_KEY: "+Uqf8Bl3wvYTghm0jl40tj4t4lcYCpRWy5PyNV2C"
+  AWS_ACCESS_KEY_ID: "ASIASSZID53AHPSMIMXK" #${{ secrets.AWS_ACCESS_KEY_ID }}
+  AWS_SECRET_ACCESS_KEY: "f62BMjJvzbiwSHfCflq47QExbCodcBx/2AiA4Szg"
   AWS_REGION: "us-west-1"
   ECR_REGISTRY: "177788415680.dkr.ecr.us-west-1.amazonaws.com"
-  TAG: "20240724_145930"
+  TAG: $(date +%Y%m%d_%H%M%S)
 
 jobs:
   insights-backend-deployment:
@@ -36,9 +36,9 @@ jobs:
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v1
         with:
-          aws-access-key-id: "ASIASSZID53ACKOF36MF"
-          aws-secret-access-key: "+Uqf8Bl3wvYTghm0jl40tj4t4lcYCpRWy5PyNV2C"
-          aws-region: "us-west-1"
+          aws-access-key-id: $AWS_ACCESS_KEY_ID
+          aws-secret-access-key: $AWS_SECRET_ACCESS_KEY
+          aws-region: $AWS_REGION
 
       - name: Login to Amazon ECR
         id: login-ecr
@@ -47,7 +47,7 @@ jobs:
       - name: Build and push Docker image for $IMAGE
         working-directory: .
         run: |
-          echo "Building and tagging the image"
+          echo "Building and tagging the image with tag ${{ TAG }}"
           docker build --platform linux/amd64 -t $MODULE_ECR_REPOSITORY:$TAG -f $MODULE_DIR/Dockerfile .
           echo "Pushing image to ECR..."
           docker push $ECR_REGISTRY/$IMAGE:$TAG
