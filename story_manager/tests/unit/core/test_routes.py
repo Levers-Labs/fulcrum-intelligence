@@ -6,6 +6,43 @@ from starlette import status
 from commons.models.enums import Granularity
 from story_manager.core.enums import StoryGenre, StoryGroup, StoryType
 from story_manager.core.models import Story
+from story_manager.story_builder import StoryBuilderBase, StoryFactory
+
+
+@pytest.mark.asyncio
+async def test_get_story_group_meta_success(mocker, client):
+    """
+    Test successful retrieval of story group metadata.
+    """
+
+    class MockStoryBuilder(StoryBuilderBase):
+        supported_grains = [Granularity.DAY, Granularity.WEEK]
+
+    # Mock the StoryFactory.get_story_builder method
+    mocker.patch.object(StoryFactory, "get_story_builder", return_value=MockStoryBuilder)
+
+    # Get the story group metadata
+    response = client.get(f"/v1/stories/groups/{StoryGroup.TREND_CHANGES}")
+
+    # Check the response
+    assert response.status_code == 200
+    result = response.json()
+    assert result["group"] == StoryGroup.TREND_CHANGES.value
+    assert result["grains"] == [Granularity.DAY.value, Granularity.WEEK.value]
+
+
+@pytest.mark.asyncio
+async def test_get_story_group_meta_not_found(mocker, client):
+    """
+    Test handling of non-existent story group.
+    """
+    # Mock the StoryFactory.get_story_builder method to return None
+    mocker.patch.object(StoryFactory, "get_story_builder", return_value=None)
+
+    # Get the story group metadata
+    response = client.get(f"/stories/groups/{StoryGroup.TREND_CHANGES}")
+    # Check the response
+    assert response.status_code == 404
 
 
 @pytest.mark.asyncio
