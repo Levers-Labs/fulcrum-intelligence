@@ -66,8 +66,8 @@ jobs:
         run: |
           aws lambda update-function-code \
             --region $AWS_REGION \
-            --function-name $MODULE_LAMBDA_FUNCTION_NAME \
-            --image-uri $MODULE_ECR_REPOSITORY:$TAG
+            --function-name insights-backend-dev \
+            --image-uri 177788415680.dkr.ecr.us-west-1.amazonaws.com/insights-backend:20240725_015744
 
 #  query-manager-deployment:
 #    runs-on: ubuntu-latest
