@@ -13,8 +13,8 @@ on:
 
 env:
   # replace all the vars with secret later
-  AWS_ACCESS_KEY_ID: "ASIASSZID53AHPSMIMXK" #${{ secrets.AWS_ACCESS_KEY_ID }}
-  AWS_SECRET_ACCESS_KEY: "f62BMjJvzbiwSHfCflq47QExbCodcBx/2AiA4Szg"
+  AWS_ACCESS_KEY_ID: "AKIASSZID53AAV4SYZPH" #${{ secrets.AWS_ACCESS_KEY_ID }}
+  AWS_SECRET_ACCESS_KEY: "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"
   AWS_REGION: "us-west-1"
   ECR_REGISTRY: "177788415680.dkr.ecr.us-west-1.amazonaws.com"
   TAG: $(date +%Y%m%d_%H%M%S)
@@ -36,8 +36,8 @@ jobs:
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v1
         with:
-          aws-access-key-id: "ASIASSZID53AHPSMIMXK"
-          aws-secret-access-key: "f62BMjJvzbiwSHfCflq47QExbCodcBx/2AiA4Szg"
+          aws-access-key-id: $AWS_ACCESS_KEY_ID
+          aws-secret-access-key: $AWS_SECRET_ACCESS_KEY
           aws-region: "us-west-1"
 
       - name: Login to Amazon ECR
