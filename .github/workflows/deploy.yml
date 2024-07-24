@@ -33,13 +33,25 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v2
 
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: AWS_ACCESS_KEY_ID
+          aws-secret-access-key: AWS_SECRET_ACCESS_KEY
+          aws-region: AWS_REGION
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v1
+
       - name: Build and push Docker image for $IMAGE
         working-directory: .
         run: |
-          docker build --platform linux/amd64 -t $IMAGE:latest -f $MODULE_DIR/Dockerfile .
-          docker tag insights-backend:latest 177788415680.dkr.ecr.us-west-1.amazonaws.com/insights-backend:20240724_145930
-          aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $ECR_REGISTRY
+          echo "Building and tagging the image"
+          docker build --platform linux/amd64 -t $MODULE_ECR_REPOSITORY:$TAG -f $MODULE_DIR/Dockerfile .
+          echo "Pushing image to ECR..."
           docker push $ECR_REGISTRY/$IMAGE:$TAG
+          echo "::set-output name=image::$ECR_REGISTRY/$ECR_REPOSITORY:$TAG"
 
       - name: Update AWS Lambda function
         run: |
