@@ -26,17 +26,17 @@ jobs:
       LAMBDA_FUNCTION: "insights-backend-dev"
       IMAGE: "insights-backend"
       MODULE_DIR: "insights_backend"
-      MODULE_ECR_REPOSITORY: ${{ ECR_REGISTRY }}/insights-backend
-      MODULE_LAMBDA_FUNCTION_NAME: ${{ LAMBDA_FUNCTION }}
+      MODULE_ECR_REPOSITORY: $ECR_REGISTRY/insights-backend
+      MODULE_LAMBDA_FUNCTION_NAME: $LAMBDA_FUNCTION
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
 
-      - name: Build and push Docker image for ${{ IMAGE }}
+      - name: Build and push Docker image for $IMAGE
         working-directory: .
         run: |
-          docker build --platform linux/amd64 -t $IMAGE:latest -f ${{ MODULE_DIR }}/Dockerfile .
+          docker build --platform linux/amd64 -t $IMAGE:latest -f $MODULE_DIR/Dockerfile .
           docker tag $IMAGE:latest $ECR_REGISTRY/$IMAGE:$TAG
           aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $ECR_REGISTRY
           docker push $ECR_REGISTRY/$IMAGE:$TAG
@@ -46,7 +46,7 @@ jobs:
           aws lambda update-function-code \
             --region $AWS_REGION \
             --function-name $MODULE_LAMBDA_FUNCTION_NAME \
-            --image-uri $MODULE_ECR_REPOSITORY:${{ TAG }}
+            --image-uri $MODULE_ECR_REPOSITORY:$TAG
 
 #  query-manager-deployment:
 #    runs-on: ubuntu-latest
