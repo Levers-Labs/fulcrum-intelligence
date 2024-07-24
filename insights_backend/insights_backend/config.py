@@ -6,8 +6,6 @@ from pathlib import Path
 from pydantic import AnyHttpUrl, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-MODEL_PATHS = ["insights_backend.core.models"]
-
 
 class StrEnum(str, Enum):
     pass
