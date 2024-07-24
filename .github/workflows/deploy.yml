@@ -1,0 +1,47 @@
+name: Deploy to AWS Lambda
+
+on:
+  push:
+    branches:
+      - insight-backend  # Targetting the main branch
+  # In case of a merge from
+  # pull_request:
+  #   types: [closed]
+  #   branches:
+  #     - main
+
+env:
+  AWS_ACCESS_KEY_ID: "ASIASSZID53ACKOF36MF" #${{ secrets.AWS_ACCESS_KEY_ID }}
+  AWS_SECRET_ACCESS_KEY: "+Uqf8Bl3wvYTghm0jl40tj4t4lcYCpRWy5PyNV2C"
+  AWS_REGION: "us-west-1"
+  ECR_REGISTRY: "177788415680.dkr.ecr.us-west-1.amazonaws.com"
+  IMAGE: "insights-backend"
+  TAG: $(date +%Y%m%d_%H%M%S)
+  INSIGHT_BACKEND_LAMBDA_FUNCTION: "insights-backend-dev"
+
+
+jobs:
+  insights-backend-deployment:
+    runs-on: ubuntu-latest
+    env:
+      MODULE_ECR_REPOSITORY: ${{ env.ECR_REGISTRY }}/insights-backend
+      MODULE_LAMBDA_FUNCTION_NAME: ${{ env.INSIGHT_BACKEND_LAMBDA_FUNCTION }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Build and push Docker image for ${{ env.IMAGE }}
+        working-directory: insights_backend
+        run: |
+          docker build --platform linux/amd64 -t $IMAGE:latest -f Dockerfile .
+          docker tag $IMAGE:latest $ECR_REGISTRY/$IMAGE:$TAG
+          aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $ECR_REGISTRY
+          docker push $ECR_REGISTRY/$IMAGE:$TAG
+
+      - name: Update AWS Lambda function
+        run: |
+          aws lambda update-function-code \
+            --region $AWS_REGION \
+            --function-name $MODULE_LAMBDA_FUNCTION_NAME \
+            --image-uri $MODULE_ECR_REPOSITORY:${{ env.TAG }}
