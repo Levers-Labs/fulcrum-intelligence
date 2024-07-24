@@ -7,12 +7,8 @@ from commons.clients.auth import JWTAuth, JWTSecretKeyAuth
 from commons.clients.base import HttpClientError
 from commons.models.enums import Granularity
 from query_manager.core.dependencies import get_cube_client
-from query_manager.core.schemas import (
-    Dimension,
-    MetricDetail,
-    SemanticMetaDimension,
-    SemanticMetaMetric,
-)
+from query_manager.core.models import SemanticMetaDimension, SemanticMetaMetric
+from query_manager.core.schemas import Dimension, MetricDetail
 from query_manager.exceptions import MalformedMetricMetadataError, MetricValueNotFoundError, QueryManagerError
 from query_manager.services.cube import CubeClient, CubeJWTAuthType
 

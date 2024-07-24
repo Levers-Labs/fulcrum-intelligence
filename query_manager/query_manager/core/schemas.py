@@ -1,40 +1,13 @@
 from __future__ import annotations
 
 import datetime
-from typing import Literal
 
 from pydantic import Extra, Field
 
 from commons.models import BaseModel
 from commons.models.enums import Granularity
-from query_manager.core.enums import SemanticMemberType, TargetAim
-
-
-class SemanticMetaTimeDimension(BaseModel):
-    cube: str
-    member: str
-
-
-class SemanticMetaBase(BaseModel):
-    cube: str
-    member: str
-
-
-class SemanticMetaDimension(SemanticMetaBase):
-    member_type: Literal[SemanticMemberType.DIMENSION] = SemanticMemberType.DIMENSION
-
-
-class SemanticMetaMetric(SemanticMetaBase):
-    member_type: Literal[SemanticMemberType.MEASURE] = SemanticMemberType.MEASURE
-    time_dimension: SemanticMetaTimeDimension
-
-
-class MetricMetadata(BaseModel):
-    semantic_meta: SemanticMetaMetric
-
-
-class DimensionMetadata(BaseModel):
-    semantic_meta: SemanticMetaDimension
+from query_manager.core.enums import TargetAim
+from query_manager.core.models import DimensionMetadata, MetricExpression, MetricMetadata
 
 
 class Dimension(BaseModel):
@@ -69,27 +42,6 @@ class MetricList(MetricBase):
 
 class MetricListResponse(BaseModel):
     results: list[MetricList]
-
-
-class MetricExpression(BaseModel):
-    type: Literal["metric"] = "metric"
-    metric_id: str
-    coefficient: int | float = Field(1, description="Coefficient for the metric")
-    period: int = Field(0, description="Period for the metric, 0 denotes the current period")
-    expression_str: str = Field(None, description="Expression string for the metric")
-    expression: Expression | None = Field(None, description="Expression for the metric")
-    power: int | float = Field(1, description="Power for the metric")
-
-
-class ConstantExpression(BaseModel):
-    type: Literal["constant"] = "constant"
-    value: int | float
-
-
-class Expression(BaseModel):
-    type: Literal["expression"] = "expression"
-    operator: str
-    operands: list[MetricExpression | Expression | ConstantExpression]
 
 
 class MetricDetail(MetricBase):

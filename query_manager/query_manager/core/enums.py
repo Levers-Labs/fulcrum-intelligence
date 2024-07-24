@@ -17,16 +17,6 @@ class SemanticMemberType(str, Enum):
     DIMENSION = "dimension"
 
 
-class UnitOfMeasure(str, Enum):
-    QUANTITY = "Quantity"
-    PERCENT = "Percent"
-
-
-class Unit(str, Enum):
-    QUANTITY = "n"
-    PERCENT = "%"
-
-
 class Complexity(str, Enum):
     ATOMIC = "Atomic"
     COMPLEX = "Complex"

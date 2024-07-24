@@ -1,11 +1,16 @@
 import json
 from datetime import date
-from typing import Any
+from typing import Any, cast
 
 import aiofiles
+from sqlalchemy import select
+from sqlmodel.ext.asyncio.session import AsyncSession
 
+from commons.db.crud import ModelType, NotFoundError
 from commons.models.enums import Granularity
+from commons.utilities.pagination import PaginationParams
 from query_manager.config import get_settings
+from query_manager.core.models import Dimensions, Metric
 from query_manager.core.schemas import Dimension, MetricDetail
 from query_manager.exceptions import MetricNotFoundError
 from query_manager.services.cube import CubeClient
@@ -20,11 +25,16 @@ class QueryClient:
     METRICS_FILE_PATH = "data/metrics.json"
     DIMENSIONS_FILE_PATH = "data/dimensions.json"
 
-    def __init__(self, cube_client: CubeClient):
+    def __init__(
+        self, cube_client: CubeClient, dim_model: str | None = None, session: AsyncSession | None = AsyncSession
+    ):
         settings = get_settings()
         self.cube_client = cube_client
         self.metric_file_path = str(settings.PATHS.BASE_DIR.joinpath(self.METRICS_FILE_PATH))
         self.dimension_file_path = str(settings.PATHS.BASE_DIR.joinpath(self.DIMENSIONS_FILE_PATH))
+        self.dimension_model = Dimensions
+        self.metric_model = Metric
+        self.session = session
 
     @staticmethod
     async def load_data(file_path: str) -> list[dict[str, Any]]:
@@ -40,23 +50,23 @@ class QueryClient:
         return json.loads(contents)
 
     async def list_metrics(
-        self, page: int | None = None, per_page: int | None = None, metric_ids: list[str] | None = None
+        self, *, params: PaginationParams, metric_ids: list[str] | None = None
     ) -> list[dict[str, Any]]:
         """
         Fetches a list of all metrics, optionally in a paginated manner.
 
-        :param page: Optional page number for pagination.
-        :param per_page: Optional number of items per page for pagination.
+        :param params: Optional number of items per page for pagination.
         :param metric_ids: Optional list of metric IDs to filter the results by.
         :return: A list of dictionaries representing metrics.
         """
-        # TODO: Replace with db
-        metrics_data = await self.load_data(self.metric_file_path)
-        # Implement pagination logic here if necessary,
-        # Implement filtering logic here
+        query = select(self.metric_model).offset(params.offset).limit(params.limit)
         if metric_ids:
-            metrics_data = [metric for metric in metrics_data if metric["id"] in metric_ids]
-        return metrics_data
+            query = query.filter(self.metric_model.metric_id.in_(metric_ids))
+
+        results = await self.session.execute(query)
+        records: list[ModelType] = cast(list[ModelType], results.scalars().all())
+        records_dicts: list[dict[str, Any]] = [record.dict() for record in records]
+        return records_dicts
 
     async def get_metric_details(self, metric_id: str) -> dict[str, Any] | None:
         """
@@ -65,22 +75,30 @@ class QueryClient:
         :param metric_id: The ID of the metric to fetch details for.
         :return: A dictionary representing the metric details, or None if not found.
         """
-        # TODO: Replace with db
-        metrics_data = await self.load_data(self.metric_file_path)
-        res = next((metric for metric in metrics_data if metric["id"] == metric_id), None)
-        if res:
-            return res
-        raise MetricNotFoundError(metric_id)
+        statement = select(self.metric_model).filter_by(metric_id=metric_id)
+        results = await self.session.execute(statement=statement)
+        instance: ModelType | None = results.scalar_one_or_none()
 
-    async def list_dimensions(self) -> list[dict[str, Any]]:
-        """
-        Fetches a list of all dimensions.
+        if instance is None:
+            raise MetricNotFoundError(metric_id)
 
-        :return: A list of dictionaries representing dimensions.
-        """
-        # TODO: Replace with db
-        dimensions_data = await self.load_data(self.dimension_file_path)
-        return dimensions_data
+        instance_dict = instance.dict()  # Convert the instance to a dictionary
+
+        # Remove unwanted fields
+        instance_dict.pop("created_at", None)
+        instance_dict.pop("updated_at", None)
+
+        # Map metric_id to id
+        if "metric_id" in instance_dict:
+            instance_dict["id"] = str(instance_dict.pop("metric_id"))
+
+        return instance_dict
+
+    async def list_dimensions(self, *, params: PaginationParams) -> list[dict[str, Any]]:
+        results = await self.session.execute(select(self.dimension_model).offset(params.offset).limit(params.limit))
+        records: list[ModelType] = cast(list[ModelType], results.scalars().all())
+        records_dicts: list[dict[str, Any]] = [record.dict() for record in records]
+        return records_dicts
 
     async def get_dimension_details(self, dimension_id: str) -> dict[str, Any] | None:
         """
@@ -89,9 +107,28 @@ class QueryClient:
         :param dimension_id: The ID of the dimension to fetch details for.
         :return: A dictionary representing the dimension details, or None if not found.
         """
-        # TODO: Replace with db
-        dimensions_data = await self.load_data(self.dimension_file_path)
-        return next((dimension for dimension in dimensions_data if dimension["id"] == dimension_id), None)
+        statement = select(self.dimension_model).filter_by(dimension_id=dimension_id)
+        results = await self.session.execute(statement=statement)
+        instance: ModelType | None = results.scalar_one_or_none()
+
+        if instance is None:
+            raise NotFoundError(id=dimension_id)
+
+        instance_dict = instance.dict()  # Convert the instance to a dictionary
+
+        # Remove unwanted fields
+        instance_dict.pop("created_at", None)
+        instance_dict.pop("updated_at", None)
+
+        # Map dimension_id to id
+        if "dimension_id" in instance_dict:
+            instance_dict["id"] = str(instance_dict.pop("dimension_id"))
+
+        # Rename meta_data to metadata
+        if "meta_data" in instance_dict:
+            instance_dict["metadata"] = instance_dict.pop("meta_data")
+
+        return instance_dict
 
     async def get_dimension_members(self, dimension_id: str) -> list[Any]:
         """
@@ -164,12 +201,3 @@ class QueryClient:
         return await self.cube_client.load_metric_targets_from_cube(
             metric, grain=grain, start_date=start_date, end_date=end_date
         )
-
-    async def get_dimension_members_from_db(self, dimension) -> list[Any]:
-        """
-        Fetches members for a specific dimension by its ID.
-
-        :param dimension: The dimension to fetch members for.
-        :return: A list of members for the dimension, or an empty list if not found.
-        """
-        return await self.cube_client.load_dimension_members_from_cube(dimension)

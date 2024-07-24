@@ -1,4 +1,5 @@
 import pytest
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from query_manager.core.dependencies import (
     get_cube_client,
@@ -34,5 +35,5 @@ async def test_get_parquet_service():
 @pytest.mark.asyncio
 async def test_get_query_client():
     cube_client = await get_cube_client()
-    query_client = await get_query_client(cube_client=cube_client)
+    query_client = await get_query_client(cube_client=cube_client, session=AsyncSession)
     assert isinstance(query_client, QueryClient)

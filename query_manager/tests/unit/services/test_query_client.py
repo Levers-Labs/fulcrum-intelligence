@@ -1,11 +1,15 @@
 from copy import deepcopy
-from datetime import date
+from datetime import date, datetime
 from unittest.mock import AsyncMock, patch
 
 import pytest
+from sqlalchemy import Result
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from commons.models.enums import Granularity
+from commons.utilities.pagination import PaginationParams
 from query_manager.core.dependencies import get_cube_client, get_query_client
+from query_manager.core.models import Dimensions
 from query_manager.core.schemas import MetricDetail
 from query_manager.exceptions import MetricNotFoundError
 
@@ -13,7 +17,7 @@ from query_manager.exceptions import MetricNotFoundError
 @pytest.fixture
 async def query_client():
     cube_client = await get_cube_client()
-    client = await get_query_client(cube_client)
+    client = await get_query_client(cube_client, session=AsyncSession)
     return client
 
 
@@ -77,25 +81,54 @@ async def test_get_metric_details_not_found(mocker, metric, query_client):
         await query_client.get_metric_details("non_existent_metric_id")
 
 
-@pytest.mark.asyncio
-async def test_list_dimensions(mocker, dimension, query_client):
-    query_client = await query_client
-    mock_load_data = AsyncMock(return_value=[dimension])
-    mocker.patch.object(query_client, "load_data", mock_load_data)
+@pytest.fixture
+def dimensions():
+    return Dimensions(
+        id="billing_plan",
+        label="Billing Plan",
+        reference="billing_plan",
+        definition="Billing Plan Definition",
+        metadata={"semantic_meta": {"cube": "cube1", "member": "billing_plan", "member_type": "dimension"}},
+        created_at=datetime(2024, 7, 24, 9, 54, 10, 411357),
+        updated_at=datetime(2024, 7, 24, 9, 54, 10, 411359),
+    )
 
-    result = await query_client.list_dimensions()
+
+@pytest.mark.asyncio
+async def test_list_dimensions(mocker, dimensions, query_client):
+    query_client = await query_client
+    # Mock the execute method of AsyncSession
+    mock_result = mocker.Mock(spec=Result)
+    mock_result.scalars.return_value.all.return_value = [dimensions]
+    mock_execute = AsyncMock(return_value=mock_result)
+    mocker.patch.object(AsyncSession, "execute", mock_execute)
+
+    params = PaginationParams(page=1, size=10)  # Adjust the parameters as needed
+    result = await query_client.list_dimensions(params=params)
     assert len(result) == 1
-    assert result[0] == dimension
+    assert result[0] == dimensions.dict()
+
+    # Ensure execute was called with the correct statement
+    mock_execute.assert_called_once()
 
 
 @pytest.mark.asyncio
-async def test_get_dimension_details(mocker, dimension, query_client):
+async def test_get_dimension_details(mocker, dimensions, query_client):
     query_client = await query_client
-    mock_load_data = AsyncMock(return_value=[dimension])
-    mocker.patch.object(query_client, "load_data", mock_load_data)
 
-    result = await query_client.get_dimension_details(dimension["id"])
-    assert result == dimension
+    # Mock the execute method of AsyncSession
+    mock_result = mocker.Mock(spec=Result)
+    mock_scalars = mocker.Mock()
+    mock_scalars.one_or_none.return_value = dimensions
+    mock_result.scalars.return_value = mock_scalars
+    mock_execute = AsyncMock(return_value=mock_result)
+    mocker.patch.object(query_client.session, "execute", mock_execute)
+
+    result = await query_client.get_dimension_details("billing_plan")
+    assert result == dimensions
+
+    # Ensure execute was called with the correct statement
+    mock_execute.assert_called_once()
 
 
 @pytest.mark.asyncio

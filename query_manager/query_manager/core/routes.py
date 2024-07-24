@@ -12,11 +12,10 @@ from fastapi import (
 
 from commons.models.enums import Granularity
 from commons.utilities.pagination import PaginationParams
-from query_manager.core.dependencies import CRUDDimensionDep, ParquetServiceDep, QueryClientDep
+from query_manager.core.dependencies import ParquetServiceDep, QueryClientDep
 from query_manager.core.enums import OutputFormat
 from query_manager.core.models import Dimensions
 from query_manager.core.schemas import (
-    Dimension,
     DimensionDetail,
     MetricDetail,
     MetricListResponse,
@@ -33,12 +32,16 @@ router = APIRouter(prefix="")
 @router.get("/metrics", response_model=MetricListResponse, tags=["metrics"])
 async def list_metrics(
     client: QueryClientDep,
-    metric_ids: Annotated[list[str] | None, Query(description="List of metric ids")] = None,  # type: ignore
+    params: Annotated[PaginationParams, Depends(PaginationParams)],
+    metric_ids: Annotated[
+        list[str] | None,
+        Query(description="List of metric ids"),
+    ] = None,  # type: ignore
 ):
     """
     Retrieve a list of metrics.
     """
-    results = await client.list_metrics(metric_ids=metric_ids)
+    results = await client.list_metrics(metric_ids=metric_ids, params=params)
     return {"results": results}
 
 
@@ -50,12 +53,15 @@ async def get_metric(metric_id: str, client: QueryClientDep):
     return await client.get_metric_details(metric_id)
 
 
-@router.get("/dimensions", response_model=list[Dimension], tags=["dimensions"])
-async def list_dimensions(client: QueryClientDep):
+@router.get("/dimensions", response_model=list[Dimensions], tags=["dimensions"])
+async def list_dimensions(
+    client: QueryClientDep,
+    params: Annotated[PaginationParams, Depends(PaginationParams)],
+):
     """
     Retrieve a list of dimensions.
     """
-    return await client.list_dimensions()
+    return await client.list_dimensions(params=params)
 
 
 @router.get("/dimensions/{dimension_id}", response_model=DimensionDetail, tags=["dimensions"])
@@ -127,32 +133,3 @@ async def get_metric_targets(
         return {"url": parquet_url}
 
     return {"results": res}
-
-
-@router.get("/dimensions/db/", response_model=list[Dimensions], tags=["dimensions"])
-async def list_dimensions_db(
-    dbclient: CRUDDimensionDep,
-    params: Annotated[PaginationParams, Depends(PaginationParams)],
-):
-    """
-    Retrieve a list of dimensions from db.
-    """
-    return await dbclient.list_results(params=params)
-
-
-@router.get("/dimensions/db/{dimension_id}", response_model=Dimensions, tags=["dimensions"])
-async def get_dimension_db(dimension_id: str, dbclient: CRUDDimensionDep):
-    """
-    Retrieve a dimension by ID from db.
-    """
-    return await dbclient.get_by_dimension_id(dimension_id)
-
-
-@router.get("/dimensions/db/{dimension_id}/members", response_model=list[Any], tags=["dimensions"])
-async def get_dimension_members_db(dimension_id: str, dbclient: CRUDDimensionDep, client: QueryClientDep):
-    """
-    Retrieve members of a dimension by ID from db.
-    """
-    dimension = await dbclient.get_by_dimension_id(dimension_id)
-    dimension = Dimensions.parse_obj(dimension)
-    return await client.get_dimension_members_from_db(dimension)

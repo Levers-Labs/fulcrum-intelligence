@@ -22,7 +22,7 @@ async def test_get_story_group_meta_success(mocker, client):
     mocker.patch.object(StoryFactory, "get_story_builder", return_value=MockStoryBuilder)
 
     # Get the story group metadata
-    response = client.get(f"/v1/stories/groups/{StoryGroup.TREND_CHANGES}")
+    response = client.get(f"/v1/stories/groups/{StoryGroup.TREND_CHANGES.value}")
 
     # Check the response
     assert response.status_code == 200

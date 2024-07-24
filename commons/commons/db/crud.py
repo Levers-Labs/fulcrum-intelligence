@@ -50,16 +50,6 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType, FilterType
 
         return instance
 
-    async def get_by_dimension_id(self, id: str) -> ModelType:
-        statement = select(self.model).filter_by(dimension_id=id)
-        results = await self.session.execute(statement=statement)
-        instance: ModelType | None = results.scalar_one_or_none()
-
-        if instance is None:
-            raise NotFoundError(id=id)
-
-        return instance
-
     async def list_results(self, *, params: PaginationParams) -> list[ModelType]:
         results = await self.session.execute(select(self.model).offset(params.offset).limit(params.limit))
         records: list[ModelType] = cast(list[ModelType], results.scalars().all())
