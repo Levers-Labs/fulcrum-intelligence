@@ -17,7 +17,7 @@ env:
   AWS_SECRET_ACCESS_KEY: "+Uqf8Bl3wvYTghm0jl40tj4t4lcYCpRWy5PyNV2C"
   AWS_REGION: "us-west-1"
   ECR_REGISTRY: "177788415680.dkr.ecr.us-west-1.amazonaws.com"
-  TAG: $(date +%Y%m%d_%H%M%S)
+  TAG: "20240724_145930"
 
 jobs:
   insights-backend-deployment:
@@ -37,7 +37,7 @@ jobs:
         working-directory: .
         run: |
           docker build --platform linux/amd64 -t $IMAGE:latest -f $MODULE_DIR/Dockerfile .
-          docker tag $IMAGE:latest $ECR_REGISTRY/$IMAGE:$TAG
+          docker tag insights-backend:latest 177788415680.dkr.ecr.us-west-1.amazonaws.com/insights-backend:20240724_145930
           aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $ECR_REGISTRY
           docker push $ECR_REGISTRY/$IMAGE:$TAG
 
