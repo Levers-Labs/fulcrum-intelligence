@@ -33,11 +33,20 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v2
 
+      - name: cleanup
+        run: |
+          unset AWS_DEFAULT_REGION
+          unset AWS_REGION
+          unset AWS_ACCESS_KEY_ID
+          unset AWS_SECRET_ACCESS_KEY
+          unset AWS_SESSION_TOKEN
+
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v1
         with:
-          aws-access-key-id: $AWS_ACCESS_KEY_ID
-          aws-secret-access-key: $AWS_SECRET_ACCESS_KEY
+
+          aws-access-key-id: "AKIASSZID53AAV4SYZPH"
+          aws-secret-access-key: "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"
           aws-region: "us-west-1"
 
       - name: Login to Amazon ECR
