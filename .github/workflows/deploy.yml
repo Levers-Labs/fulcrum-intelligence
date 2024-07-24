@@ -57,7 +57,7 @@ jobs:
         working-directory: .
         run: |
           echo "Building and tagging the image with tag $TAG"
-          docker build --platform linux/amd64 -t $ECR_REGISTRY/$IMAGE:$TAG -f $MODULE_DIR/Dockerfile .
+          docker build --platform linux/amd64 -t 177788415680.dkr.ecr.us-west-1.amazonaws.com/insights-backend:20240725_015744 -f insights_backend/Dockerfile .
           echo "Pushing image to ECR..."
           docker push $ECR_REGISTRY/$IMAGE:$TAG
           echo "::set-output name=image::$ECR_REGISTRY/$ECR_REPOSITORY:$TAG"
