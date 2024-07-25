@@ -1,4 +1,9 @@
-from typing import Literal, Union, List, Optional
+from typing import (
+    List,
+    Literal,
+    Optional,
+    Union,
+)
 
 from sqlalchemy import (
     Column,
@@ -86,20 +91,20 @@ class Metric(QuerySchemaBaseModel, table=True):  # type: ignore
 
     metric_id: str = Field(max_length=255, index=True, primary_key=True, unique=True)
     label: str = Field(sa_type=Text)
-    abbreviation: Optional[str] = Field(sa_type=Text, nullable=True)
-    definition: Optional[str] = Field(sa_type=Text, nullable=True)
-    unit_of_measure: Optional[str] = Field(sa_type=Text, nullable=True)
-    unit: Optional[str] = Field(sa_type=Text, nullable=True)
+    abbreviation: str | None = Field(sa_type=Text, nullable=True)
+    definition: str | None = Field(sa_type=Text, nullable=True)
+    unit_of_measure: str | None = Field(sa_type=Text, nullable=True)
+    unit: str | None = Field(sa_type=Text, nullable=True)
 
-    terms: List = Field(default_factory=list, sa_type=JSONB)
+    terms: list = Field(default_factory=list, sa_type=JSONB)
     complexity: Complexity = Field(sa_column=Column(Enum(Complexity, inherit_schema=True)))
-    metric_expression: Optional[MetricExpression] = Field(sa_type=JSONB, nullable=True)
-    periods: Optional[List[Granularity]] = Field(default_factory=list, sa_type=JSONB)
+    metric_expression: MetricExpression | None = Field(sa_type=JSONB, nullable=True)
+    periods: list[Granularity] | None = Field(default_factory=list, sa_type=JSONB)
     grain_aggregation: Granularity = Field(
         sa_column=Column(Enum(Granularity, name="grain_aggregation", inherit_schema=True))
     )
-    aggregations: List = Field(default_factory=list, sa_type=JSONB)
-    owned_by_team: List = Field(default_factory=list, sa_type=JSONB)
+    aggregations: list = Field(default_factory=list, sa_type=JSONB)
+    owned_by_team: list = Field(default_factory=list, sa_type=JSONB)
     meta_data: MetricMetadata = Field(default_factory=dict, sa_type=JSONB)
 
 

@@ -22,9 +22,7 @@ class QueryClient:
     This will return metadata, values and graph data
     """
 
-    def __init__(
-        self, cube_client: CubeClient, session: AsyncSession | None = AsyncSession
-    ):
+    def __init__(self, cube_client: CubeClient, session: AsyncSession | None = AsyncSession):
         self.cube_client = cube_client
         self.dimension_model = Dimensions
         self.metric_model = Metric
