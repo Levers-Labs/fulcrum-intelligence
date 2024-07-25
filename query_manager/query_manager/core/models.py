@@ -1,4 +1,4 @@
-from typing import Literal, Union
+from typing import Literal, Union, List, Optional
 
 from sqlalchemy import (
     Column,
@@ -79,15 +79,6 @@ class Dimensions(QuerySchemaBaseModel, table=True):  # type: ignore
     meta_data: DimensionMetadata = Field(sa_type=JSONB)
 
 
-class MetricComponent(QuerySchemaBaseModel, table=True):  # type: ignore
-    """
-    Model for metric components relationship
-    """
-
-    metric_id: str = Field(sa_column=Column(ForeignKey("metric.metric_id"), primary_key=True))
-    component_id: str = Field(sa_column=Column(ForeignKey("metric.metric_id"), primary_key=True))
-
-
 class Metric(QuerySchemaBaseModel, table=True):  # type: ignore
     """
     Metric model
@@ -95,40 +86,20 @@ class Metric(QuerySchemaBaseModel, table=True):  # type: ignore
 
     metric_id: str = Field(max_length=255, index=True, primary_key=True, unique=True)
     label: str = Field(sa_type=Text)
-    abbreviation: str = Field(sa_type=Text, nullable=True)
-    definition: str = Field(sa_type=Text, nullable=True)
-    unit_of_measure: str = Field(sa_type=Text, nullable=True)
-    unit: str = Field(sa_type=Text, nullable=True)
+    abbreviation: Optional[str] = Field(sa_type=Text, nullable=True)
+    definition: Optional[str] = Field(sa_type=Text, nullable=True)
+    unit_of_measure: Optional[str] = Field(sa_type=Text, nullable=True)
+    unit: Optional[str] = Field(sa_type=Text, nullable=True)
 
-    # Define self-referential relationships
-    components: list["Metric"] = Relationship(
-        sa_relationship_kwargs={"primaryjoin": "Metric.metric_id == foreign(Metric.metric_id)"},
-        back_populates="components",
-    )
-    terms: list = Field(default_factory=list, sa_type=JSONB)
+    terms: List = Field(default_factory=list, sa_type=JSONB)
     complexity: Complexity = Field(sa_column=Column(Enum(Complexity, inherit_schema=True)))
-    metric_expression: MetricExpression = Field(sa_type=JSONB, nullable=True)
-    output_of: list["Metric"] = Relationship(
-        sa_relationship_kwargs={"primaryjoin": "Metric.metric_id == foreign(Metric.metric_id)"},
-        back_populates="output_of",
-    )
-    input_to: list = Field(default_factory=list, sa_type=JSONB)
-    influences: list["Metric"] = Relationship(
-        sa_relationship_kwargs={"primaryjoin": "Metric.metric_id == foreign(Metric.metric_id)"},
-        back_populates="influences",
-    )
-    influenced_by: list["Metric"] = Relationship(
-        sa_relationship_kwargs={"primaryjoin": "Metric.metric_id == foreign(Metric.metric_id)"},
-        back_populates="influenced_by",
-    )
-
-    periods: list[Granularity] | None = Field(default_factory=list, sa_type=JSONB)
+    metric_expression: Optional[MetricExpression] = Field(sa_type=JSONB, nullable=True)
+    periods: Optional[List[Granularity]] = Field(default_factory=list, sa_type=JSONB)
     grain_aggregation: Granularity = Field(
         sa_column=Column(Enum(Granularity, name="grain_aggregation", inherit_schema=True))
     )
-
-    aggregations: list = Field(default_factory=list, sa_type=JSONB)
-    owned_by_team: list = Field(default_factory=list, sa_type=JSONB)
+    aggregations: List = Field(default_factory=list, sa_type=JSONB)
+    owned_by_team: List = Field(default_factory=list, sa_type=JSONB)
     meta_data: MetricMetadata = Field(default_factory=dict, sa_type=JSONB)
 
 
@@ -144,6 +115,27 @@ class MetricDimensions(QuerySchemaBaseModel, table=True):  # type: ignore
 # Add the dimensions relationship to Metric after MetricDimensions is defined
 Metric.update_forward_refs()
 Metric.dimensions = Relationship(link_model=MetricDimensions)
+Metric.components = Relationship(
+    sa_relationship_kwargs={"remote_side": "Metric.metric_id"},
+    back_populates="components",
+)
+Metric.output_of = Relationship(
+    sa_relationship_kwargs={"remote_side": "Metric.metric_id"},
+    back_populates="input_to",
+)
+Metric.input_to = Relationship(
+    sa_relationship_kwargs={"remote_side": "Metric.metric_id"},
+    back_populates="output_of",
+)
+Metric.influences = Relationship(
+    sa_relationship_kwargs={"remote_side": "Metric.metric_id"},
+    back_populates="influenced_by",
+)
+Metric.influenced_by = Relationship(
+    sa_relationship_kwargs={"remote_side": "Metric.metric_id"},
+    back_populates="influences",
+)
+
 
 # Resolve forward references for other models
 MetricExpression.update_forward_refs()

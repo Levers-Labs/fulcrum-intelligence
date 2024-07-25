@@ -22,16 +22,10 @@ class QueryClient:
     This will return metadata, values and graph data
     """
 
-    METRICS_FILE_PATH = "data/metrics.json"
-    DIMENSIONS_FILE_PATH = "data/dimensions.json"
-
     def __init__(
-        self, cube_client: CubeClient, dim_model: str | None = None, session: AsyncSession | None = AsyncSession
+        self, cube_client: CubeClient, session: AsyncSession | None = AsyncSession
     ):
-        settings = get_settings()
         self.cube_client = cube_client
-        self.metric_file_path = str(settings.PATHS.BASE_DIR.joinpath(self.METRICS_FILE_PATH))
-        self.dimension_file_path = str(settings.PATHS.BASE_DIR.joinpath(self.DIMENSIONS_FILE_PATH))
         self.dimension_model = Dimensions
         self.metric_model = Metric
         self.session = session

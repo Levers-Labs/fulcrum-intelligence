@@ -37,7 +37,7 @@ async def get_parquet_service(s3_client: S3ClientDep) -> ParquetService:
 
 
 async def get_query_client(cube_client: CubeClientDep, session: AsyncSessionDep) -> QueryClient:
-    return QueryClient(cube_client, dim_model=Dimensions, session=session)
+    return QueryClient(cube_client, session=session)
 
 
 async def get_dimensions_crud(session: AsyncSessionDep) -> CRUDDimensions:

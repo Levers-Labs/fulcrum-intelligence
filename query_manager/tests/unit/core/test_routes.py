@@ -4,11 +4,7 @@ import pytest
 
 from query_manager.core.enums import TargetAim
 from query_manager.core.models import Dimensions
-from query_manager.core.schemas import (
-    DimensionDetail,
-    MetricDetail,
-    MetricList,
-)
+from query_manager.core.schemas import DimensionDetail, MetricDetail, MetricList
 from query_manager.exceptions import MetricNotFoundError
 from query_manager.services.parquet import ParquetService
 from query_manager.services.query_client import QueryClient

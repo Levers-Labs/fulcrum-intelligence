@@ -21,31 +21,39 @@ async def query_client():
     return client
 
 
-@pytest.mark.asyncio
-async def test_load_data(query_client):
-    query_client = await query_client
-    result = await query_client.load_data(query_client.metric_file_path)
-    assert len(result) > 0
+# @pytest.mark.asyncio
+# async def test_load_data(query_client):
+#     query_client = await query_client
+#     result = await query_client.load_data(query_client.metric_file_path)
+#     assert len(result) > 0
 
 
-@pytest.mark.asyncio
-async def test_load_data_exception(query_client):
-    query_client = await query_client
-    with patch("query_manager.services.query_client.aiofiles.open") as mock_open:
-        mock_open.side_effect = FileNotFoundError
-        with pytest.raises(FileNotFoundError):
-            await query_client.load_data(query_client.metric_file_path)
+# @pytest.mark.asyncio
+# async def test_load_data_exception(query_client):
+#     query_client = await query_client
+#     with patch("query_manager.services.query_client.aiofiles.open") as mock_open:
+#         mock_open.side_effect = FileNotFoundError
+#         with pytest.raises(FileNotFoundError):
+#             await query_client.load_data(query_client.metric_file_path)
 
 
 @pytest.mark.asyncio
 async def test_list_metrics(mocker, metric, query_client):
     query_client = await query_client
-    mock_load_data = AsyncMock(return_value=[metric])
-    mocker.patch.object(query_client, "load_data", mock_load_data)
 
-    result = await query_client.list_metrics()
+    # Mock the execute method of AsyncSession
+    mock_result = mocker.Mock(spec=Result)
+    mock_result.scalars.return_value.all.return_value = [metric]
+    mock_execute = AsyncMock(return_value=mock_result)
+    mocker.patch.object(query_client.session, "execute", mock_execute)
+
+    params = PaginationParams(page=1, size=10)
+    result = await query_client.list_metrics(params=params)
     assert len(result) == 1
     assert result[0] == metric
+
+    # Ensure execute was called with the correct statement
+    mock_execute.assert_called_once()
 
 
 @pytest.mark.asyncio
@@ -55,8 +63,8 @@ async def test_list_metrics_with_metric_id_filter(mocker, metric, query_client):
     metric2["id"] = "metric_id2"
     mock_load_data = AsyncMock(return_value=[metric, metric2])
     mocker.patch.object(query_client, "load_data", mock_load_data)
-
-    result = await query_client.list_metrics(metric_ids=["metric_id2"])
+    params = PaginationParams(page=1, size=10)
+    result = await query_client.list_metrics(metric_ids=["metric_id2"], params=params)
     assert len(result) == 1
     assert result[0] == metric2
 
@@ -64,11 +72,20 @@ async def test_list_metrics_with_metric_id_filter(mocker, metric, query_client):
 @pytest.mark.asyncio
 async def test_get_metric_details(mocker, metric, query_client):
     query_client = await query_client
-    mock_load_data = AsyncMock(return_value=[metric])
-    mocker.patch.object(query_client, "load_data", mock_load_data)
+
+    # Mock the execute method of AsyncSession
+    mock_result = mocker.Mock(spec=Result)
+    mock_scalars = mocker.Mock()
+    mock_scalars.one_or_none.return_value = metric
+    mock_result.scalars.return_value = mock_scalars
+    mock_execute = AsyncMock(return_value=mock_result)
+    mocker.patch.object(query_client.session, "execute", mock_execute)
 
     result = await query_client.get_metric_details(metric["id"])
     assert result == metric
+
+    # Ensure execute was called with the correct statement
+    mock_execute.assert_called_once()
 
 
 @pytest.mark.asyncio

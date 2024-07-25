@@ -1,5 +1,6 @@
 import logging
 from datetime import date
+from http.client import HTTPException
 from typing import Annotated, Any
 
 from fastapi import (
@@ -9,6 +10,7 @@ from fastapi import (
     Query,
     Request,
 )
+from pydantic import ValidationError
 
 from commons.models.enums import Granularity
 from commons.utilities.pagination import PaginationParams
@@ -42,7 +44,14 @@ async def list_metrics(
     Retrieve a list of metrics.
     """
     results = await client.list_metrics(metric_ids=metric_ids, params=params)
-    return {"results": results}
+    print(f"Results: {results}")
+    # Validate the results against the MetricListResponse schema
+    try:
+        validated_results = MetricListResponse(results=results)
+    except ValidationError as e:
+        logger.error(f"Validation error: {e}")
+
+    return validated_results
 
 
 @router.get("/metrics/{metric_id}", response_model=MetricDetail, tags=["metrics"])
