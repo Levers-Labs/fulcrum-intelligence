@@ -37,10 +37,14 @@ jobs:
         working-directory: .
         run: |
           TAG=$(date +%Y%m%d_%H%M%S)
+          IMAGE_TAG="${{ secrets.ECR_REGISTRY }}/${{ inputs.ecr_repo }}:$TAG"
+
           echo "Building and tagging the image with tag $TAG"
           docker build \
           --platform linux/amd64 \
-          -t ${{ secrets.ECR_REGISTRY }}/${{ inputs.ecr_repo }}:$TAG \
+          -t $IMAGE_TAG \
           -f ${{ inputs.module_folder }}/Dockerfile .
-          docker push ${{ secrets.ECR_REGISTRY }}/${{ inputs.ecr_repo }}:$TAG
-          echo "::set-output name=image::$ECR_REGISTRY/$ECR_REPOSITORY:$TAG"
+
+          echo "Pushing Image to ECR"
+          docker push $IMAGE_TAG
+          echo "Image pushed to ECR registry"
