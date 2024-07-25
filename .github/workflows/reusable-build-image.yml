@@ -1,0 +1,54 @@
+name: Deploy to AWS Lambda
+
+on:
+  # Targeting the insight-backend branch on each push
+  push:
+    branches:
+      - LEV-389_workflow_CICD_pipeline
+  # In case of a merge to main branch we will deploy all the modules
+  # pull_request:
+  #   types: [closed]
+  #   branches:
+  #     - main
+
+# Required to get the ID Token that will be used for OIDC
+permissions:
+  id-token: write # This is required for requesting the JWT
+  contents: read  # This is required for actions/checkout
+
+
+env:
+  AWS_REGION: ${{ secrets.AWS_REGION }}
+  ECR_REGISTRY: ${{ secrets.ECR_REGISTRY }}
+  TAG: $(date +%Y%m%d_%H%M%S)
+
+jobs:
+  insights-backend-deployment:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-region: ${{ secrets.AWS_REGION }}
+          role-to-assume: ${{ secrets.DEV_DEPLOYMENT_ROLE }}
+          role-session-name: OIDCSession
+
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v1
+
+      - name: Build and push Docker image for $IMAGE
+        working-directory: .
+        run: |
+          echo "Building and tagging the image with tag ${{ TAG }}"
+          docker build \
+          --platform linux/amd64 \
+          -t ${{ secrets.ECR_REGISTRY }}/${{ inputs.ecr_repo }}:${{ TAG }} \
+          -f ${{ inputs.module_folder }}/Dockerfile .
+          docker push ${{ secrets.ECR_REGISTRY }}/${{ inputs.ecr_repo }}:${{ TAG }}
+          echo "::set-output name=image::$ECR_REGISTRY/$ECR_REPOSITORY:$TAG"

@@ -10,64 +10,72 @@ on:
   #   types: [closed]
   #   branches:
   #     - main
-
-env:
-  # replace all the vars with secret later
-  AWS_ACCESS_KEY_ID: "AKIASSZID53AAV4SYZPH" #${{ secrets.AWS_ACCESS_KEY_ID }}
-  AWS_SECRET_ACCESS_KEY: "Hx5zVATuXzH1voaVlj61z3TP1dJgEwy4iKrg0RWY"
-  AWS_REGION: "us-west-1"
-  ECR_REGISTRY: "177788415680.dkr.ecr.us-west-1.amazonaws.com"
-  TAG: $(date +%Y%m%d_%H%M%S)
+#
+#env:
+#  # replace all the vars with secret later
+#  AWS_ACCESS_KEY_ID: "AKIASSZID53AAV4SYZPH" #${{ secrets.AWS_ACCESS_KEY_ID }}
+#  AWS_SECRET_ACCESS_KEY: "Hx5zVATuXzH1voaVlj61z3TP1dJgEwy4iKrg0RWY"
+#  AWS_REGION: "us-west-1"
+#  ECR_REGISTRY: "177788415680.dkr.ecr.us-west-1.amazonaws.com"
+#  TAG: $(date +%Y%m%d_%H%M%S)
 
 jobs:
-  insights-backend-deployment:
-    runs-on: ubuntu-latest
-    env:
-      LAMBDA_FUNCTION: "insights-backend-dev"
-      IMAGE: "insights-backend"
-      MODULE_DIR: "insights_backend"
-      MODULE_ECR_REPOSITORY: $ECR_REGISTRY/insights-backend
-      MODULE_LAMBDA_FUNCTION_NAME: $LAMBDA_FUNCTION
+  build-insight-backend-image:
+    uses: ./.github/workflows/reusable-build-image.yml
+    with:
+        ecr_repo: 'insights-backend'
+        module_folder: 'insights_backend'
 
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v2
 
-      - name: cleanup
-        run: |
-          unset AWS_DEFAULT_REGION
-          unset AWS_REGION
-          unset AWS_ACCESS_KEY_ID
-          unset AWS_SECRET_ACCESS_KEY
-          unset AWS_SESSION_TOKEN
 
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v1
-        with:
-
-          aws-access-key-id: "AKIASSZID53AAV4SYZPH"
-          aws-secret-access-key: "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"
-          aws-region: "us-west-1"
-
-      - name: Login to Amazon ECR
-        id: login-ecr
-        uses: aws-actions/amazon-ecr-login@v1
-
-      - name: Build and push Docker image for $IMAGE
-        working-directory: .
-        run: |
-          echo "Building and tagging the image with tag $TAG"
-          docker build --platform linux/amd64 -t 177788415680.dkr.ecr.us-west-1.amazonaws.com/insights-backend:20240725_015744 -f insights_backend/Dockerfile .
-          echo "Pushing image to ECR..."
-          docker push 177788415680.dkr.ecr.us-west-1.amazonaws.com/insights-backend:20240725_015744
-#          echo "::set-output name=image::$ECR_REGISTRY/$ECR_REPOSITORY:$TAG"
-
-      - name: Update AWS Lambda function
-        run: |
-          aws lambda update-function-code \
-            --region $AWS_REGION \
-            --function-name insights-backend-dev \
-            --image-uri 177788415680.dkr.ecr.us-west-1.amazonaws.com/insights-backend:20240725_015744
+#  insights-backend-deployment:
+#    runs-on: ubuntu-latest
+#    env:
+#      LAMBDA_FUNCTION: "insights-backend-dev"
+#      IMAGE: "insights-backend"
+#      MODULE_DIR: "insights_backend"
+#      MODULE_ECR_REPOSITORY: $ECR_REGISTRY/insights-backend
+#      MODULE_LAMBDA_FUNCTION_NAME: $LAMBDA_FUNCTION
+#
+#    steps:
+#      - name: Checkout code
+#        uses: actions/checkout@v2
+#
+#      - name: cleanup
+#        run: |
+#          unset AWS_DEFAULT_REGION
+#          unset AWS_REGION
+#          unset AWS_ACCESS_KEY_ID
+#          unset AWS_SECRET_ACCESS_KEY
+#          unset AWS_SESSION_TOKEN
+#
+#      - name: Configure AWS credentials
+#        uses: aws-actions/configure-aws-credentials@v1
+#        with:
+#
+#          aws-access-key-id: "AKIASSZID53AAV4SYZPH"
+#          aws-secret-access-key: "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"
+#          aws-region: "us-west-1"
+#
+#      - name: Login to Amazon ECR
+#        id: login-ecr
+#        uses: aws-actions/amazon-ecr-login@v1
+#
+#      - name: Build and push Docker image for $IMAGE
+#        working-directory: .
+#        run: |
+#          echo "Building and tagging the image with tag $TAG"
+#          docker build --platform linux/amd64 -t 177788415680.dkr.ecr.us-west-1.amazonaws.com/insights-backend:20240725_015744 -f insights_backend/Dockerfile .
+#          echo "Pushing image to ECR..."
+#          docker push 177788415680.dkr.ecr.us-west-1.amazonaws.com/insights-backend:20240725_015744
+##          echo "::set-output name=image::$ECR_REGISTRY/$ECR_REPOSITORY:$TAG"
+#
+#      - name: Update AWS Lambda function
+#        run: |
+#          aws lambda update-function-code \
+#            --region $AWS_REGION \
+#            --function-name insights-backend-dev \
+#            --image-uri 177788415680.dkr.ecr.us-west-1.amazonaws.com/insights-backend:20240725_015744
 
 #  query-manager-deployment:
 #    runs-on: ubuntu-latest
