@@ -35,6 +35,7 @@ jobs:
       DEV_DEPLOYMENT_ROLE: ${{ secrets.DEV_DEPLOYMENT_ROLE }}
 
   deploy-insight-backend-image-on-lambda:
+    needs: build-insight-backend-image
     uses: ./.github/workflows/reusable-lambda-deployment.yml
     with:
       module_lambda_function_name: 'insights-backend-dev'
