@@ -33,7 +33,8 @@ jobs:
     uses: ./.github/workflows/reusable-lambda-deployment.yml
     with:
       module_lambda_function_name: 'insights-backend-dev'
-      image_tag: ${{ needs.build-insight-backend-image.outputs.image_tag }}
+       # format should be ecr_repo value of previous stage $(ecr_repo)-image-tag
+      image_tag: $insights-backend-image-tag
     secrets:
       AWS_REGION: ${{ secrets.AWS_REGION }}
       DEV_DEPLOYMENT_ROLE: ${{ secrets.DEV_DEPLOYMENT_ROLE }}

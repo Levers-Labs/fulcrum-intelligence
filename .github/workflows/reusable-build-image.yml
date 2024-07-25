@@ -65,4 +65,4 @@ jobs:
 
           echo "Pushing Image to ECR"
           docker push $IMAGE_TAG
-          echo "::set-output name=image_tag::$IMAGE_TAG"
+          echo "${{ inputs.ecr_repo }}-image-tag=$IMAGE_TAG" >> "$GITHUB_ENV"
