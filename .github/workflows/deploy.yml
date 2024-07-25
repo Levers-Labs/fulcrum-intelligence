@@ -35,6 +35,5 @@ jobs:
       module_lambda_function_name: 'insights-backend-dev'
       image_tag: ${{ needs.build-insight-backend-image.outputs.image_tag }}
     secrets:
-      ECR_REGISTRY: ${{ secrets.ECR_REGISTRY }}
       AWS_REGION: ${{ secrets.AWS_REGION }}
       DEV_DEPLOYMENT_ROLE: ${{ secrets.DEV_DEPLOYMENT_ROLE }}
