@@ -35,10 +35,8 @@ jobs:
 
       - name: Build and push Docker image for $IMAGE
         working-directory: .
-        env:
-          TAG: $(date +%Y%m%d_%H%M%S)
-
         run: |
+          TAG=$(date +%Y%m%d_%H%M%S)
           echo "Building and tagging the image with tag $TAG"
           docker build \
           --platform linux/amd64 \
