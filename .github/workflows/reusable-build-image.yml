@@ -1,10 +1,28 @@
 name: Build Leverlabs module images
 
 on:
-  # Targeting the insight-backend branch on each push
-  push:
-    branches:
-      - LEV-389_workflow_CICD_pipeline
+  workflow_call:
+    inputs:
+      ecr_repo:
+        description: 'The ECR repository name'
+        required: true
+        type: string
+      module_folder:
+        description: 'One of the module folder containing the Dockerfile'
+        required: true
+        type: string
+
+    secrets:
+      ECR_REGISTRY:
+        description: 'The ECR registry URL'
+        required: true
+      AWS_REGION:
+        description: 'The region of ECR'
+        required: true
+      DEV_DEPLOYMENT_ROLE:
+        description: 'The deployment role ARN (OIDC)'
+        required: true
+
 
 # Required to get the ID Token that will be used for OIDC
 permissions:
