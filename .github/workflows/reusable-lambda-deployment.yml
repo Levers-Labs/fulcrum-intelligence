@@ -1,0 +1,59 @@
+name: Build Leverlabs module images
+
+on:
+  workflow_call:
+    inputs:
+      ecr_repo:
+        description: 'The ECR repository name'
+        required: true
+        type: string
+      module_lambda_function_name:
+        description: 'One of the module lambda function name'
+        required: true
+        type: string
+
+    secrets:
+      ECR_REGISTRY:
+        description: 'The ECR registry URL'
+        required: true
+      AWS_REGION:
+        description: 'The region of ECR'
+        required: true
+      DEV_DEPLOYMENT_ROLE:
+        description: 'The deployment role ARN (OIDC)'
+        required: true
+
+
+# Required to get the ID Token that will be used for OIDC
+permissions:
+  id-token: write # This is required for requesting the JWT
+  contents: read  # This is required for actions/checkout
+
+
+
+jobs:
+  insights-backend-deployment:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-region: ${{ secrets.AWS_REGION }}
+          role-to-assume: ${{ secrets.DEV_DEPLOYMENT_ROLE }}
+          role-session-name: OIDCSession
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v1
+
+      - name: Update AWS Lambda function
+        run: |
+          TAG="some-tag001"
+          aws lambda update-function-code \
+            --region ${{ secrets.AWS_REGION }} \
+            --function-name ${{ inputs.module_lambda_function_name }} \
+            --image-uri ${{ secrets.ECR_REGISTRY }}/${{ input.ecr_repo }}:$TAG

@@ -34,6 +34,17 @@ jobs:
       AWS_REGION: ${{ secrets.AWS_REGION }}
       DEV_DEPLOYMENT_ROLE: ${{ secrets.DEV_DEPLOYMENT_ROLE }}
 
+  deploy-insight-backend-image-on-lambda:
+    uses: ./.github/workflows/reusable-lambda-deployment.yml
+    with:
+      module_lambda_function_name: 'insights-backend-dev'
+      ecr_repo: 'insights-backend'
+    secrets:
+      ECR_REGISTRY: ${{ secrets.ECR_REGISTRY }}
+      AWS_REGION: ${{ secrets.AWS_REGION }}
+      DEV_DEPLOYMENT_ROLE: ${{ secrets.DEV_DEPLOYMENT_ROLE }}
+
+
 #  insights-backend-deployment:
 #    runs-on: ubuntu-latest
 #    env:
