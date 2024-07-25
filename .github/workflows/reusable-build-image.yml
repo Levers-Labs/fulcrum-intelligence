@@ -55,7 +55,7 @@ jobs:
         working-directory: .
         run: |
           TAG=$(date +%Y%m%d_%H%M%S)
-          IMAGE_TAG="${{ secrets.ECR_REGISTRY }}/${{ inputs.ecr_repo }}:${{ TAG }}"
+          IMAGE_TAG="${{ secrets.ECR_REGISTRY }}/${{ inputs.ecr_repo }}:$TAG"
 
           echo "Building and tagging the image with tag $TAG"
           docker build \
