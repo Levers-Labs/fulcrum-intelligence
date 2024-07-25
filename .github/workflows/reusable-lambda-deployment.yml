@@ -1,4 +1,4 @@
-name: Build Leverlabs module images
+name: Deploy Leverlabs module images
 
 on:
   workflow_call:
@@ -56,4 +56,4 @@ jobs:
           aws lambda update-function-code \
             --region ${{ secrets.AWS_REGION }} \
             --function-name ${{ inputs.module_lambda_function_name }} \
-            --image-uri ${{ secrets.ECR_REGISTRY }}/${{ input.ecr_repo }}:$TAG
+            --image-uri ${{ secrets.ECR_REGISTRY }}/${{ inputs.ecr_repo }}:$TAG
