@@ -11,7 +11,7 @@ class User(InsightsSchemaBaseModel, table=True):  # type: ignore
     name: str = Field(max_length=255, nullable=False)
     provider: AuthProviders | None = Field(sa_column=Column(Enum(AuthProviders, name="provider", inherit_schema=True)))
     email: EmailStr = Field(sa_column=Column(String(255), nullable=False, unique=True))
-    external_user_id: str | None = Field(max_length=100, unique=True, nullable=True)
+    external_user_id: str | None = Field(max_length=100, nullable=True)
     profile_picture: str | None = Field(max_length=255, nullable=True)
 
 
