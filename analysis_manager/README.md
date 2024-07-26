@@ -18,7 +18,7 @@ DEBUG=True
 SERVER_HOST=http://localhost:8000
 SECRET_KEY=qwtqwubYA0pN1GMmKsFKHMw_WCbboJvdTAgM9Fq
 BACKEND_CORS_ORIGINS=["http://localhost"]
-DATABASE_URL=postgresql+asyncpg://postgres:passwordpw@localhost:32768/fulcrum_db
+DATABASE_URL=postgresql+asyncpg://postgres:passwordpw@localhost:5432/fulcrum_db
 REDIS_URL=redis://localhost
 QUERY_MANAGER_SERVER_HOST=http://localhost:8001
 ```

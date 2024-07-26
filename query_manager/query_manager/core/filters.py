@@ -1,6 +1,6 @@
 from commons.db.filters import BaseFilter, FilterField
-from query_manager.core.models import Dimensions
+from query_manager.core.models import Dimension
 
 
-class DimensionFilter(BaseFilter[Dimensions]):
-    dimension_ids: list[str] | None = FilterField(Dimensions, operator="in", default=None)  # type: ignore
+class DimensionFilter(BaseFilter[Dimension]):
+    dimension_ids: list[str] | None = FilterField(Dimension, operator="in", default=None)  # type: ignore

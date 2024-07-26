@@ -1,6 +1,5 @@
 import logging
 from datetime import date
-from http.client import HTTPException
 from typing import Annotated, Any
 
 from fastapi import (
@@ -10,14 +9,14 @@ from fastapi import (
     Query,
     Request,
 )
-from pydantic import ValidationError
 
 from commons.models.enums import Granularity
 from commons.utilities.pagination import PaginationParams
 from query_manager.core.dependencies import ParquetServiceDep, QueryClientDep
 from query_manager.core.enums import OutputFormat
-from query_manager.core.models import Dimensions
+from query_manager.core.models import Dimension
 from query_manager.core.schemas import (
+    DimensionCompact,
     DimensionDetail,
     MetricDetail,
     MetricListResponse,
@@ -44,14 +43,7 @@ async def list_metrics(
     Retrieve a list of metrics.
     """
     results = await client.list_metrics(metric_ids=metric_ids, params=params)
-    print(f"Results: {results}")
-    # Validate the results against the MetricListResponse schema
-    try:
-        validated_results = MetricListResponse(results=results)
-    except ValidationError as e:
-        logger.error(f"Validation error: {e}")
-
-    return validated_results
+    return {"results": results}
 
 
 @router.get("/metrics/{metric_id}", response_model=MetricDetail, tags=["metrics"])
@@ -62,7 +54,7 @@ async def get_metric(metric_id: str, client: QueryClientDep):
     return await client.get_metric_details(metric_id)
 
 
-@router.get("/dimensions", response_model=list[Dimensions], tags=["dimensions"])
+@router.get("/dimensions", response_model=list[DimensionCompact], tags=["dimensions"])
 async def list_dimensions(
     client: QueryClientDep,
     params: Annotated[PaginationParams, Depends(PaginationParams)],

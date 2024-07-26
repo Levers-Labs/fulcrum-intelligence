@@ -1,32 +1,28 @@
-from typing import (
-    List,
-    Literal,
-    Optional,
-    Union,
-)
+from typing import Literal, Optional, Union
 
 from sqlalchemy import (
     Column,
     Enum,
-    ForeignKey,
+    String,
     Text,
 )
-from sqlalchemy.dialects.postgresql import JSONB
-from sqlmodel import Field, Relationship
+from sqlalchemy.dialects.postgresql import ARRAY, JSONB
+from sqlmodel import Field, Relationship, SQLModel
 
-from commons.db.models import BaseTimeStampedModel
+from commons.db.models import BaseSQLModel, BaseTimeStampedModel
 from commons.models import BaseModel
 from commons.models.enums import Granularity
 from query_manager.core.enums import Complexity, SemanticMemberType
 
 
+# Expression models
 class MetricExpression(BaseModel):
     type: Literal["metric"] = "metric"
     metric_id: str
     coefficient: int | float = Field(1, description="Coefficient for the metric")
     period: int = Field(0, description="Period for the metric, 0 denotes the current period")
     expression_str: str = Field(None, description="Expression string for the metric")
-    expression: Union["Expression", None] = Field(None, description="Expression for the metric")
+    expression: Optional["Expression"] = Field(None, description="Expression for the metric")
     power: int | float = Field(1, description="Power for the metric")
 
 
@@ -41,6 +37,7 @@ class Expression(BaseModel):
     operands: list[Union["MetricExpression", "Expression", "ConstantExpression"]]
 
 
+# Metadata models
 class SemanticMetaBase(BaseModel):
     cube: str
     member: str
@@ -68,80 +65,147 @@ class DimensionMetadata(BaseModel):
     semantic_meta: SemanticMetaDimension
 
 
+# Base DB model
 class QuerySchemaBaseModel(BaseTimeStampedModel):
     __table_args__ = {"schema": "query_store"}
 
 
-class Dimensions(QuerySchemaBaseModel, table=True):  # type: ignore
+# Association tables
+class MetricDimension(SQLModel, table=True):
+    """
+    Association table for the many-to-many relationship between Metric and Dimensions.
+    """
+
+    __table_args__ = {"schema": "query_store"}
+    metric_id: int = Field(foreign_key="query_store.metric.id", primary_key=True)
+    dimension_id: int = Field(foreign_key="query_store.dimension.id", primary_key=True)
+
+
+class MetricInfluence(SQLModel, table=True):
+    """Association table for metric influences"""
+
+    __table_args__ = {"schema": "query_store"}
+    influencer_id: int = Field(foreign_key="query_store.metric.id", primary_key=True)
+    influenced_id: int = Field(foreign_key="query_store.metric.id", primary_key=True)
+
+
+class MetricComponent(SQLModel, table=True):
+    """Association table for metric components"""
+
+    __table_args__ = {"schema": "query_store"}
+    parent_id: int = Field(foreign_key="query_store.metric.id", primary_key=True)
+    component_id: int = Field(foreign_key="query_store.metric.id", primary_key=True)
+
+
+class MetricInput(SQLModel, table=True):
+    """Association table for metric inputs"""
+
+    __table_args__ = {"schema": "query_store"}
+    metric_id: int = Field(foreign_key="query_store.metric.id", primary_key=True)
+    input_id: int = Field(foreign_key="query_store.metric.id", primary_key=True)
+
+
+# Dimension models
+class DimensionBase(BaseSQLModel):
+    dimension_id: str = Field(sa_column=Column(String(255), index=True, unique=True))
+    label: str = Field(sa_column=Column(String(255)))
+    reference: str = Field(sa_column=Column(String(255), nullable=True))
+    definition: str = Field(sa_column=Column(Text, nullable=True))
+    meta_data: DimensionMetadata = Field(sa_type=JSONB)
+
+
+class Dimension(DimensionBase, QuerySchemaBaseModel, table=True):  # type: ignore
     """
     Dimensions model
     """
 
-    dimension_id: str = Field(max_length=50, index=True, primary_key=True, unique=True)
-    label: str = Field(sa_type=Text, max_length=255)
-    reference: str = Field(sa_type=Text, max_length=50, nullable=True)
-    definition: str = Field(sa_type=Text, nullable=True)
-    meta_data: DimensionMetadata = Field(sa_type=JSONB)
+    metrics: list["Metric"] = Relationship(back_populates="dimensions", link_model=MetricDimension)
 
 
-class Metric(QuerySchemaBaseModel, table=True):  # type: ignore
+class MetricBase(BaseSQLModel):
+    metric_id: str = Field(sa_column=Column(String(255), index=True, unique=True))
+    label: str = Field(sa_column=Column(String(255)))
+    abbreviation: str | None = Field(sa_column=Column(String(255), nullable=True))
+    definition: str | None = Field(sa_column=Column(Text, nullable=True))
+    unit_of_measure: str | None = Field(sa_column=Column(String(255), nullable=True))
+    unit: str | None = Field(sa_column=Column(String(255), nullable=True))
+    terms: list[str] = Field(
+        sa_column=Column(
+            ARRAY(String),
+            nullable=True,
+        )
+    )
+    complexity: Complexity = Field(sa_column=Column(Enum(Complexity, name="metric_complexity", inherit_schema=True)))
+    metric_expression: MetricExpression | None = Field(sa_type=JSONB, nullable=True)
+    periods: list[Granularity] | None = Field(sa_column=Column(ARRAY(String), nullable=True, default=list))
+    grain_aggregation: str = Field(sa_column=Column(String, max_length=255, default="sum"))
+    aggregations: list[str] = Field(sa_column=Column(ARRAY(String), nullable=True, default=list))
+    owned_by_team: list[str] = Field(sa_column=Column(ARRAY(String), nullable=True, default=list))
+    meta_data: MetricMetadata = Field(sa_type=JSONB, default_factory=dict)
+
+
+class Metric(MetricBase, QuerySchemaBaseModel, table=True):  # type: ignore
     """
     Metric model
     """
 
-    metric_id: str = Field(max_length=255, index=True, primary_key=True, unique=True)
-    label: str = Field(sa_type=Text)
-    abbreviation: str | None = Field(sa_type=Text, nullable=True)
-    definition: str | None = Field(sa_type=Text, nullable=True)
-    unit_of_measure: str | None = Field(sa_type=Text, nullable=True)
-    unit: str | None = Field(sa_type=Text, nullable=True)
-
-    terms: list = Field(default_factory=list, sa_type=JSONB)
-    complexity: Complexity = Field(sa_column=Column(Enum(Complexity, inherit_schema=True)))
-    metric_expression: MetricExpression | None = Field(sa_type=JSONB, nullable=True)
-    periods: list[Granularity] | None = Field(default_factory=list, sa_type=JSONB)
-    grain_aggregation: Granularity = Field(
-        sa_column=Column(Enum(Granularity, name="grain_aggregation", inherit_schema=True))
+    dimensions: list["Dimension"] = Relationship(
+        back_populates="metrics", link_model=MetricDimension, sa_relationship_kwargs={"lazy": "joined"}
     )
-    aggregations: list = Field(default_factory=list, sa_type=JSONB)
-    owned_by_team: list = Field(default_factory=list, sa_type=JSONB)
-    meta_data: MetricMetadata = Field(default_factory=dict, sa_type=JSONB)
 
+    influences: list["Metric"] = Relationship(
+        back_populates="influencers",
+        link_model=MetricInfluence,
+        sa_relationship_kwargs={
+            "primaryjoin": "Metric.id == MetricInfluence.influencer_id",
+            "secondaryjoin": "Metric.id == MetricInfluence.influenced_id",
+        },
+    )
+    influencers: list["Metric"] = Relationship(
+        back_populates="influences",
+        link_model=MetricInfluence,
+        sa_relationship_kwargs={
+            "primaryjoin": "Metric.id == MetricInfluence.influenced_id",
+            "secondaryjoin": "Metric.id == MetricInfluence.influencer_id",
+        },
+    )
 
-class MetricDimensions(QuerySchemaBaseModel, table=True):  # type: ignore
-    """
-    Model for metric-dimensions many-to-many relationship
-    """
+    components: list["Metric"] = Relationship(
+        back_populates="parent_metrics",
+        link_model=MetricComponent,
+        sa_relationship_kwargs={
+            "primaryjoin": "Metric.id == MetricComponent.parent_id",
+            "secondaryjoin": "Metric.id == MetricComponent.component_id",
+            "lazy": "joined",
+        },
+    )
+    parent_metrics: list["Metric"] = Relationship(
+        back_populates="components",
+        link_model=MetricComponent,
+        sa_relationship_kwargs={
+            "primaryjoin": "Metric.id == MetricComponent.component_id",
+            "secondaryjoin": "Metric.id == MetricComponent.parent_id",
+        },
+    )
 
-    metric_id: str = Field(sa_column=Column(ForeignKey(Metric.metric_id), primary_key=True))
-    dimension_id: str = Field(sa_column=Column(ForeignKey(Dimensions.dimension_id), primary_key=True))
+    inputs: list["Metric"] = Relationship(
+        back_populates="outputs",
+        link_model=MetricInput,
+        sa_relationship_kwargs={
+            "primaryjoin": "Metric.id == MetricInput.metric_id",
+            "secondaryjoin": "Metric.id == MetricInput.input_id",
+        },
+    )
+    outputs: list["Metric"] = Relationship(
+        back_populates="inputs",
+        link_model=MetricInput,
+        sa_relationship_kwargs={
+            "primaryjoin": "Metric.id == MetricInput.input_id",
+            "secondaryjoin": "Metric.id == MetricInput.metric_id",
+        },
+    )
 
-
-# Add the dimensions relationship to Metric after MetricDimensions is defined
-Metric.update_forward_refs()
-Metric.dimensions = Relationship(link_model=MetricDimensions)
-Metric.components = Relationship(
-    sa_relationship_kwargs={"remote_side": "Metric.metric_id"},
-    back_populates="components",
-)
-Metric.output_of = Relationship(
-    sa_relationship_kwargs={"remote_side": "Metric.metric_id"},
-    back_populates="input_to",
-)
-Metric.input_to = Relationship(
-    sa_relationship_kwargs={"remote_side": "Metric.metric_id"},
-    back_populates="output_of",
-)
-Metric.influences = Relationship(
-    sa_relationship_kwargs={"remote_side": "Metric.metric_id"},
-    back_populates="influenced_by",
-)
-Metric.influenced_by = Relationship(
-    sa_relationship_kwargs={"remote_side": "Metric.metric_id"},
-    back_populates="influences",
-)
-
-
-# Resolve forward references for other models
-MetricExpression.update_forward_refs()
-Expression.update_forward_refs()
+    def get_dimension(self, dimension_id: str) -> Dimension | None:
+        if self.dimensions is None:
+            return None
+        return next((dimension for dimension in self.dimensions if dimension.id == dimension_id), None)

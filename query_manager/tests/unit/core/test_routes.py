@@ -3,7 +3,7 @@ from unittest.mock import AsyncMock
 import pytest
 
 from query_manager.core.enums import TargetAim
-from query_manager.core.models import Dimensions
+from query_manager.core.models import Dimension
 from query_manager.core.schemas import DimensionDetail, MetricDetail, MetricList
 from query_manager.exceptions import MetricNotFoundError
 from query_manager.services.parquet import ParquetService
@@ -50,7 +50,7 @@ async def test_list_dimensions(client, mocker, dimension):
 
     response = client.get("/v1/dimensions")
     assert response.status_code == 200
-    assert response.json() == [Dimensions(**dimension).model_dump(mode="json")]
+    assert response.json() == [Dimension(**dimension).model_dump(mode="json")]
 
 
 @pytest.mark.asyncio

@@ -1,11 +1,11 @@
-from query_manager.core.schemas import Dimension, MetricDetail
+from query_manager.core.schemas import DimensionDetail, MetricDetail
 
 
 def test_metric_schema_get_dimension(metric, dimension):
     # Prepare
     metric_detail = MetricDetail(**metric)
     dimension_id = dimension["id"]
-    dimension_obj = Dimension(**dimension)
+    dimension_obj = DimensionDetail(**dimension)
 
     # Execute
     result = metric_detail.get_dimension(dimension_id)

@@ -8,7 +8,7 @@ from commons.clients.base import HttpClientError
 from commons.models.enums import Granularity
 from query_manager.core.dependencies import get_cube_client
 from query_manager.core.models import SemanticMetaDimension, SemanticMetaMetric
-from query_manager.core.schemas import Dimension, MetricDetail
+from query_manager.core.schemas import DimensionDetail, MetricDetail
 from query_manager.exceptions import MalformedMetricMetadataError, MetricValueNotFoundError, QueryManagerError
 from query_manager.services.cube import CubeClient, CubeJWTAuthType
 
@@ -420,7 +420,7 @@ async def test_load_metric_targets_from_cube_error(mocker, metric, cube_client):
 async def test_load_dimension_members_from_cube(mocker, dimension, cube_client):
     # Prepare
     cube_client = await cube_client
-    dimension = Dimension.parse_obj(dimension)
+    dimension = DimensionDetail.model_validate(dimension)
     query = {"dimensions": ["cube1.billing_plan"]}
     cube_response = [{"cube1.billing_plan": "Enterprise"}, {"cube1.billing_plan": "Partnership"}]
     # mock the load_query_data method
@@ -439,7 +439,7 @@ async def test_load_dimension_members_from_cube(mocker, dimension, cube_client):
 async def test_load_dimension_members_from_cube_error(mocker, dimension, cube_client):
     # Prepare
     cube_client = await cube_client
-    dimension = Dimension.parse_obj(dimension)
+    dimension = DimensionDetail.model_validate(dimension)
     # mock the load_query_data method
     load_query_data_mock = AsyncMock(side_effect=HttpClientError("Error"))
     mocker.patch.object(cube_client, "load_query_data", load_query_data_mock)

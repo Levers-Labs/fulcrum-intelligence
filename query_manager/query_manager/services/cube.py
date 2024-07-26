@@ -9,7 +9,7 @@ from httpx import Auth
 from commons.clients.auth import JWTAuth, JWTSecretKeyAuth
 from commons.clients.base import AsyncHttpClient, HttpClientError
 from commons.models.enums import Granularity
-from query_manager.core.schemas import Dimension, MetricDetail
+from query_manager.core.schemas import DimensionDetail, MetricDetail
 from query_manager.exceptions import (
     ErrorCode,
     MalformedMetricMetadataError,
@@ -361,7 +361,7 @@ class CubeClient(AsyncHttpClient):
 
         return target_values
 
-    async def load_dimension_members_from_cube(self, dimension: Dimension) -> list[Any]:
+    async def load_dimension_members_from_cube(self, dimension: DimensionDetail) -> list[Any]:
         """
         Loads members of a dimension from the Cube API.
         :param dimension: The dimension to fetch members for.

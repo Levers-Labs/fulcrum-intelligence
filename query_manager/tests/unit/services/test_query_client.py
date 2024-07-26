@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from commons.models.enums import Granularity
 from commons.utilities.pagination import PaginationParams
 from query_manager.core.dependencies import get_cube_client, get_query_client
-from query_manager.core.models import Dimensions
+from query_manager.core.models import Dimension
 from query_manager.core.schemas import MetricDetail
 from query_manager.exceptions import MetricNotFoundError
 
@@ -100,7 +100,7 @@ async def test_get_metric_details_not_found(mocker, metric, query_client):
 
 @pytest.fixture
 def dimensions():
-    return Dimensions(
+    return Dimension(
         id="billing_plan",
         label="Billing Plan",
         reference="billing_plan",

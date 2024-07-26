@@ -4,7 +4,7 @@ from fastapi import Depends
 
 from query_manager.config import get_settings
 from query_manager.core.crud import CRUDDimensions
-from query_manager.core.models import Dimensions
+from query_manager.core.models import Dimension
 from query_manager.db.config import AsyncSessionDep
 from query_manager.services.cube import CubeClient, CubeJWTAuthType
 from query_manager.services.parquet import ParquetService
@@ -41,7 +41,7 @@ async def get_query_client(cube_client: CubeClientDep, session: AsyncSessionDep)
 
 
 async def get_dimensions_crud(session: AsyncSessionDep) -> CRUDDimensions:
-    return CRUDDimensions(model=Dimensions, session=session)
+    return CRUDDimensions(model=Dimension, session=session)
 
 
 ParquetServiceDep = Annotated[ParquetService, Depends(get_parquet_service)]

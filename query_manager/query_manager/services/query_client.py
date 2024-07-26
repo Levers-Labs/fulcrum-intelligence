@@ -4,14 +4,15 @@ from typing import Any, cast
 
 import aiofiles
 from sqlalchemy import select
+from sqlalchemy.orm import joinedload, selectinload
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from commons.db.crud import ModelType, NotFoundError
 from commons.models.enums import Granularity
 from commons.utilities.pagination import PaginationParams
 from query_manager.config import get_settings
-from query_manager.core.models import Dimensions, Metric
-from query_manager.core.schemas import Dimension, MetricDetail
+from query_manager.core.models import Dimension, Metric
+from query_manager.core.schemas import MetricDetail
 from query_manager.exceptions import MetricNotFoundError
 from query_manager.services.cube import CubeClient
 
@@ -24,7 +25,7 @@ class QueryClient:
 
     def __init__(self, cube_client: CubeClient, session: AsyncSession | None = AsyncSession):
         self.cube_client = cube_client
-        self.dimension_model = Dimensions
+        self.dimension_model = Dimension
         self.metric_model = Metric
         self.session = session
 
@@ -41,50 +42,54 @@ class QueryClient:
             contents = await f.read()
         return json.loads(contents)
 
-    async def list_metrics(
-        self, *, params: PaginationParams, metric_ids: list[str] | None = None
-    ) -> list[dict[str, Any]]:
+    async def list_metrics(self, *, params: PaginationParams, metric_ids: list[str] | None = None) -> list[Metric]:
         """
-        Fetches a list of all metrics, optionally in a paginated manner.
+        Fetches a list of all metrics with their associated dimensions and influences, optionally in a paginated manner.
 
         :param params: Optional number of items per page for pagination.
         :param metric_ids: Optional list of metric IDs to filter the results by.
-        :return: A list of dictionaries representing metrics.
+        :return: A list of Metric objects with their dimensions and influences.
         """
-        query = select(self.metric_model).offset(params.offset).limit(params.limit)
+        query = (
+            select(self.metric_model)
+            .options(selectinload(self.metric_model.dimensions))
+            .options(selectinload(self.metric_model.influences))
+            .options(selectinload(self.metric_model.influencers))
+            .options(selectinload(self.metric_model.inputs))
+            .options(selectinload(self.metric_model.outputs))
+            .offset(params.offset)
+            .limit(params.limit)
+        )
         if metric_ids:
             query = query.filter(self.metric_model.metric_id.in_(metric_ids))
 
         results = await self.session.execute(query)
-        records: list[ModelType] = cast(list[ModelType], results.scalars().all())
-        records_dicts: list[dict[str, Any]] = [record.dict() for record in records]
-        return records_dicts
+        records: list[ModelType] = cast(list[ModelType], results.unique().scalars().all())
+        return records
 
-    async def get_metric_details(self, metric_id: str) -> dict[str, Any] | None:
+    async def get_metric_details(self, metric_id: str) -> Metric | None:
         """
         Fetches detailed information for a specific metric by its ID.
 
         :param metric_id: The ID of the metric to fetch details for.
         :return: A dictionary representing the metric details, or None if not found.
         """
-        statement = select(self.metric_model).filter_by(metric_id=metric_id)
-        results = await self.session.execute(statement=statement)
-        instance: ModelType | None = results.scalar_one_or_none()
+        query = (
+            select(self.metric_model)
+            .options(selectinload(self.metric_model.dimensions))
+            .options(selectinload(self.metric_model.influences))
+            .options(selectinload(self.metric_model.influencers))
+            .options(selectinload(self.metric_model.inputs))
+            .options(selectinload(self.metric_model.outputs))
+            .filter_by(metric_id=metric_id)
+        )
+        results = await self.session.execute(statement=query)
+        instance: ModelType | None = results.unique().scalar_one_or_none()
 
         if instance is None:
             raise MetricNotFoundError(metric_id)
 
-        instance_dict = instance.dict()  # Convert the instance to a dictionary
-
-        # Remove unwanted fields
-        instance_dict.pop("created_at", None)
-        instance_dict.pop("updated_at", None)
-
-        # Map metric_id to id
-        if "metric_id" in instance_dict:
-            instance_dict["id"] = str(instance_dict.pop("metric_id"))
-
-        return instance_dict
+        return instance
 
     async def list_dimensions(self, *, params: PaginationParams) -> list[dict[str, Any]]:
         results = await self.session.execute(select(self.dimension_model).offset(params.offset).limit(params.limit))
