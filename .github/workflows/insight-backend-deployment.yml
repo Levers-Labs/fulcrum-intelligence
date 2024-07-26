@@ -1,0 +1,55 @@
+name: Deploy Insight Backend to AWS Lambda
+
+on:
+  push:
+    branches:
+      - LEV-389_workflow_CICD_pipeline
+#    paths:
+#        - 'insights_backend/**'
+  # In case of a merge to main branch we will deploy all the modules
+  # pull_request:
+  #   types: [closed]
+  #   branches:
+  #     - main
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+
+  generate-tag:
+    name: generate-tag
+    runs-on: ubuntu-latest
+    outputs:
+      tag_id: ${{ steps.generate-tag.outputs.tag_id }}
+    steps:
+      - name: Generate TAG
+        id: generate-tag
+        run: |
+          echo "tag_id=$(date +%Y%m%d_%H%M%S)" >> $GITHUB_OUTPUT
+
+  build-insight-backend-image:
+    needs: generate-tag
+    uses: ./.github/workflows/reusable-build-image.yml
+    with:
+        ecr_repo: 'insights-backend'
+        app_name: 'insights_backend'
+        tag: ${{ needs.generate-tag.outputs.tag_id }}
+
+    secrets:
+      ECR_REGISTRY: ${{ secrets.ECR_REGISTRY }}
+      AWS_REGION: ${{ secrets.AWS_REGION }}
+      DEV_DEPLOYMENT_ROLE: ${{ secrets.DEV_DEPLOYMENT_ROLE }}
+
+  deploy-insight-backend-image-on-lambda:
+    needs: [build-insight-backend-image, generate-tag]
+    uses: ./.github/workflows/reusable-lambda-deployment.yml
+    with:
+      ecr_repo: 'insights-backend'
+      app_lambda_function_name: 'insights-backend-dev'
+      tag: ${{ needs.generate-tag.outputs.tag_id }}
+    secrets:
+      AWS_REGION: ${{ secrets.AWS_REGION }}
+      DEV_DEPLOYMENT_ROLE: ${{ secrets.DEV_DEPLOYMENT_ROLE }}
+      ECR_REGISTRY: ${{ secrets.ECR_REGISTRY }}

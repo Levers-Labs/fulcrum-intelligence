@@ -1,21 +1,20 @@
-name: Deploy to AWS Lambda
+name: Deploy Query Manager to AWS Lambda
 
 on:
-  # Targeting the insight-backend branch on each push
   push:
     branches:
       - LEV-389_workflow_CICD_pipeline
+#    paths:
+#        - 'query_manager/**'
   # In case of a merge to main branch we will deploy all the modules
   # pull_request:
   #   types: [closed]
   #   branches:
   #     - main
 
-#  TAG: $(date +%Y%m%d_%H%M%S)
-
 permissions:
   id-token: write
-  contents: read  # Adjust other permissions as needed
+  contents: read
 
 jobs:
 
@@ -34,8 +33,8 @@ jobs:
     needs: generate-tag
     uses: ./.github/workflows/reusable-build-image.yml
     with:
-        ecr_repo: 'insights-backend'
-        app_name: 'insights_backend'
+        ecr_repo: 'query-manager'
+        app_name: 'query_manager'
         tag: ${{ needs.generate-tag.outputs.tag_id }}
 
     secrets:
@@ -47,8 +46,8 @@ jobs:
     needs: [build-insight-backend-image, generate-tag]
     uses: ./.github/workflows/reusable-lambda-deployment.yml
     with:
-      ecr_repo: 'insights-backend'
-      app_lambda_function_name: 'insights-backend-dev'
+      ecr_repo: 'query-manager'
+      app_lambda_function_name: 'query-manager-dev'
       tag: ${{ needs.generate-tag.outputs.tag_id }}
     secrets:
       AWS_REGION: ${{ secrets.AWS_REGION }}
