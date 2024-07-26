@@ -11,6 +11,10 @@ on:
   #   types: [closed]
   #   branches:
   #     - main
+env:
+  ecr_repo: 'query-manager'
+  app_name: 'query_manager'
+  app_lambda_function_name: 'query-manager-dev'
 
 permissions:
   id-token: write
@@ -29,12 +33,12 @@ jobs:
         run: |
           echo "tag_id=$(date +%Y%m%d_%H%M%S)" >> $GITHUB_OUTPUT
 
-  build-query-manager-image:
+  build-image:
     needs: generate-tag
     uses: ./.github/workflows/reusable-build-image.yml
     with:
-        ecr_repo: 'query-manager'
-        app_name: 'query_manager'
+        ecr_repo: ${{ env.ecr_repo }}
+        app_name: ${{ env.app_name }}
         tag: ${{ needs.generate-tag.outputs.tag_id }}
 
     secrets:
@@ -42,12 +46,12 @@ jobs:
       AWS_REGION: ${{ secrets.AWS_REGION }}
       DEV_DEPLOYMENT_ROLE: ${{ secrets.DEV_DEPLOYMENT_ROLE }}
 
-  deploy-query-manager-image-on-lambda:
-    needs: [build-query-manager-image, generate-tag]
+  deploy-image-on-lambda:
+    needs: [build-image, generate-tag]
     uses: ./.github/workflows/reusable-lambda-deployment.yml
     with:
-      ecr_repo: 'query-manager'
-      app_lambda_function_name: 'query-manager-dev'
+      ecr_repo: ${{ env.ecr_repo }}
+      app_lambda_function_name: ${{ env.app_lambda_function_name }}
       tag: ${{ needs.generate-tag.outputs.tag_id }}
     secrets:
       AWS_REGION: ${{ secrets.AWS_REGION }}

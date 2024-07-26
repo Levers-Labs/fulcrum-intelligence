@@ -12,6 +12,11 @@ on:
   #   branches:
   #     - main
 # testing parallel deployment
+env:
+  ecr_repo: 'query-manager'
+  app_name: 'query_manager'
+  app_lambda_function_name: 'query-manager-dev'
+
 permissions:
   id-token: write
   contents: read
@@ -29,12 +34,12 @@ jobs:
         run: |
           echo "tag_id=$(date +%Y%m%d_%H%M%S)" >> $GITHUB_OUTPUT
 
-  build-insight-backend-image:
+  build-image:
     needs: generate-tag
     uses: ./.github/workflows/reusable-build-image.yml
     with:
-        ecr_repo: 'insights-backend'
-        app_name: 'insights_backend'
+        ecr_repo: ${{ env.ecr_repo }}
+        app_name: ${{ env.app_name }}
         tag: ${{ needs.generate-tag.outputs.tag_id }}
 
     secrets:
@@ -42,12 +47,12 @@ jobs:
       AWS_REGION: ${{ secrets.AWS_REGION }}
       DEV_DEPLOYMENT_ROLE: ${{ secrets.DEV_DEPLOYMENT_ROLE }}
 
-  deploy-insight-backend-image-on-lambda:
-    needs: [build-insight-backend-image, generate-tag]
+  deploy-image-on-lambda:
+    needs: [build-image, generate-tag]
     uses: ./.github/workflows/reusable-lambda-deployment.yml
     with:
-      ecr_repo: 'insights-backend'
-      app_lambda_function_name: 'insights-backend-dev'
+      ecr_repo: ${{ env.ecr_repo }}
+      app_lambda_function_name: ${{ env.app_lambda_function_name }}
       tag: ${{ needs.generate-tag.outputs.tag_id }}
     secrets:
       AWS_REGION: ${{ secrets.AWS_REGION }}
