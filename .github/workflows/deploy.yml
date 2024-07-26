@@ -20,12 +20,13 @@ permissions:
 jobs:
 
   generate-tag:
+    name: generate-tag
     runs-on: ubuntu-latest
     outputs:
-      tag_id: ${{ steps.commit_hash.outputs.TAG_ID }}
+      tag_id: ${{ steps.generate-tag.outputs.TAG_ID }}
     steps:
       - name: Generate TAG
-        id: generate_tag
+        id: generate-tag
         run: |
           echo "TAG_ID=$(date +%Y%m%d_%H%M%S)" >> $GITHUB_OUTPUT
 
