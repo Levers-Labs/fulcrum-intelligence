@@ -38,8 +38,8 @@ jobs:
     needs: generate-tag
     uses: ./.github/workflows/reusable-build-image.yml
     with:
-        ecr_repo: $ecr_repo
-        app_name: $app_name
+        ecr_repo: ${{ ecr_repo }}
+        app_name: ${{ app_name }}
         tag: ${{ needs.generate-tag.outputs.tag_id }}
 
     secrets:
@@ -51,8 +51,8 @@ jobs:
     needs: [build-image, generate-tag]
     uses: ./.github/workflows/reusable-lambda-deployment.yml
     with:
-      ecr_repo: $ecr_repo
-      app_lambda_function_name: $app_lambda_function_name
+      ecr_repo: ${{ ecr_repo }}
+      app_lambda_function_name: ${{ app_lambda_function_name }}
       tag: ${{ needs.generate-tag.outputs.tag_id }}
     secrets:
       AWS_REGION: ${{ secrets.AWS_REGION }}
