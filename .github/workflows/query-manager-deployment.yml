@@ -6,6 +6,7 @@ on:
       - LEV-389_workflow_CICD_pipeline
     paths:
         - 'query_manager/**'
+        - 'commons/**'
   # In case of a merge to main branch we will deploy all the modules
   # pull_request:
   #   types: [closed]
