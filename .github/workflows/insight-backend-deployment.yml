@@ -13,9 +13,9 @@ on:
   #     - main
 # testing parallel deployment
 env:
-  ecr_repo: 'query-manager'
-  app_name: 'query_manager'
-  app_lambda_function_name: 'query-manager-dev'
+  ecr_repo: query-manager
+  app_name: query_manager
+  app_lambda_function_name: query-manager-dev
 
 permissions:
   id-token: write
