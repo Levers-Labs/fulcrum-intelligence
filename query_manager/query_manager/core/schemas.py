@@ -11,15 +11,15 @@ from query_manager.core.models import DimensionBase, MetricBase
 
 
 class DimensionCompact(DimensionBase):
-    id: str
+    id: int
 
 
 class DimensionDetail(DimensionBase):
-    id: str
+    id: int
 
 
 class MetricList(MetricBase):
-    id: str
+    id: int
 
 
 class MetricListResponse(BaseModel):
@@ -27,7 +27,7 @@ class MetricListResponse(BaseModel):
 
 
 class MetricDetail(MetricBase):
-    id: str
+    id: int
     outputs: list[str] | None = Field(default_factory=list)
     inputs: list[str] | None = Field(default_factory=list)
     influences: list[str] | None = Field(default_factory=list)
