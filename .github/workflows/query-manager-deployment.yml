@@ -12,15 +12,31 @@ on:
   #   branches:
   #     - main
 env:
-  ecr_repo: query-manager
-  app_name: query_manager
-  app_lambda_function_name: query-manager-dev
+  ecr_repo: "query-manager"
+  app_name: "query_manager"
+  app_lambda_function_name: "query-manager-dev"
 
 permissions:
   id-token: write
   contents: read
 
 jobs:
+  set-vars:
+    name: set-vars
+    runs-on: ubuntu-latest
+
+    outputs:
+      ecr_repo: ${{ steps.set-vars.outputs.ecr_repo }}
+      app_name: ${{ steps.set-vars.outputs.app_name }}
+      app_lambda_function_name: ${{ steps.set-vars.outputs.app_lambda_function_name }}
+
+    steps:
+      - name: set-vars
+        id: set-vars
+        run: |
+          echo "ecr_repo=$ecr_repo" >> $GITHUB_OUTPUT
+          echo "ecr_repo=$app_name" >> $GITHUB_OUTPUT
+          echo "ecr_repo=$app_lambda_function_name" >> $GITHUB_OUTPUT
 
   generate-tag:
     name: generate-tag
@@ -37,8 +53,8 @@ jobs:
     needs: generate-tag
     uses: ./.github/workflows/reusable-build-image.yml
     with:
-        ecr_repo: $ecr_repo
-        app_name: $app_name
+        ecr_repo: ${{ needs.set-vars.outputs.ecr_repo }}
+        app_name: ${{ needs.set-vars.outputs.app_name }}
         tag: ${{ needs.generate-tag.outputs.tag_id }}
 
     secrets:
@@ -50,8 +66,8 @@ jobs:
     needs: [build-image, generate-tag]
     uses: ./.github/workflows/reusable-lambda-deployment.yml
     with:
-      ecr_repo: $ecr_repo
-      app_lambda_function_name: $app_lambda_function_name
+      ecr_repo: ${{ needs.set-vars.outputs.ecr_repo }}
+      app_lambda_function_name: ${{ needs.set-vars.outputs.app_lambda_function_name }}
       tag: ${{ needs.generate-tag.outputs.tag_id }}
     secrets:
       AWS_REGION: ${{ secrets.AWS_REGION }}
