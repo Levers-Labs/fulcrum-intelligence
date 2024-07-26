@@ -51,7 +51,7 @@ jobs:
           echo "tag_id=$(date +%Y%m%d_%H%M%S)" >> $GITHUB_OUTPUT
 
   build-image:
-    needs: [generate-tag, set_vars]
+    needs: [generate-tag, set-vars]
     uses: ./.github/workflows/reusable-build-image.yml
     with:
         ecr_repo: ${{ needs.set-vars.outputs.ecr_repo }}
@@ -64,7 +64,7 @@ jobs:
       DEV_DEPLOYMENT_ROLE: ${{ secrets.DEV_DEPLOYMENT_ROLE }}
 
   deploy-image-on-lambda:
-    needs: [build-image, generate-tag]
+    needs: [build-image, generate-tag, set-vars]
     uses: ./.github/workflows/reusable-lambda-deployment.yml
     with:
       ecr_repo: ${{ needs.set-vars.outputs.ecr_repo }}
