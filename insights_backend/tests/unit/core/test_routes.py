@@ -6,6 +6,7 @@ from starlette import status
 mock.patch("fastapi.Security", lambda *args, **kwargs: True).start()
 
 
+# testing deployment trigger
 @pytest.mark.asyncio
 async def test_create_user(client, db_user_json):
     response = client.post("/v1/users/", json=db_user_json)
