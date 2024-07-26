@@ -23,7 +23,7 @@ jobs:
     name: generate-tag
     runs-on: ubuntu-latest
     outputs:
-      tag_id: ${{ steps.generate-tag.outputs.TAG_ID }}
+      tag_id: ${{ steps.generate-tag.outputs.tag_id }}
     steps:
       - name: Generate TAG
         id: generate-tag
@@ -44,7 +44,7 @@ jobs:
       DEV_DEPLOYMENT_ROLE: ${{ secrets.DEV_DEPLOYMENT_ROLE }}
 
   deploy-insight-backend-image-on-lambda:
-    needs: build-insight-backend-image
+    needs: [build-insight-backend-image, generate-tag]
     uses: ./.github/workflows/reusable-lambda-deployment.yml
     with:
       ecr_repo: 'insights-backend'
