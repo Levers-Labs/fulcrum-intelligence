@@ -43,7 +43,7 @@ jobs:
       DEV_DEPLOYMENT_ROLE: ${{ secrets.DEV_DEPLOYMENT_ROLE }}
 
   deploy-query-manager-image-on-lambda:
-    needs: [build-insight-backend-image, generate-tag]
+    needs: [build-query-manager-image, generate-tag]
     uses: ./.github/workflows/reusable-lambda-deployment.yml
     with:
       ecr_repo: 'query-manager'
