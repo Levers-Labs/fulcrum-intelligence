@@ -3,8 +3,8 @@ name: Deploy Leverlabs Apps images
 on:
   workflow_call:
     inputs:
-      image_url:
-        description: 'Image tag generated in previous stage'
+      ecr_repo:
+        description: 'application ecr repo name'
         required: true
         type: string
       app_lambda_function_name:
