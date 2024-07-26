@@ -29,7 +29,7 @@ jobs:
         run: |
           echo "tag_id=$(date +%Y%m%d_%H%M%S)" >> $GITHUB_OUTPUT
 
-  build-insight-backend-image:
+  build-query-manager-image:
     needs: generate-tag
     uses: ./.github/workflows/reusable-build-image.yml
     with:
@@ -42,7 +42,7 @@ jobs:
       AWS_REGION: ${{ secrets.AWS_REGION }}
       DEV_DEPLOYMENT_ROLE: ${{ secrets.DEV_DEPLOYMENT_ROLE }}
 
-  deploy-insight-backend-image-on-lambda:
+  deploy-query-manager-image-on-lambda:
     needs: [build-insight-backend-image, generate-tag]
     uses: ./.github/workflows/reusable-lambda-deployment.yml
     with:

@@ -11,7 +11,7 @@ on:
   #   types: [closed]
   #   branches:
   #     - main
-
+# testing parallel deployment
 permissions:
   id-token: write
   contents: read
