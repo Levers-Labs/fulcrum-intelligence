@@ -4,7 +4,12 @@ from typing import Any, Generic, TypeVar
 
 from pydantic import BaseModel
 from pydantic.fields import FieldInfo
-from sqlalchemy import Column, Select
+from sqlalchemy import (
+    Column,
+    Select,
+)
+
+from story_manager.core.mappings import FILTER_MAPPING
 
 T = TypeVar("T", bound=BaseModel)
 logger = logging.getLogger(__name__)
@@ -100,6 +105,23 @@ class BaseFilter(BaseModel, Generic[T]):
 
         :return: The modified query.
         """
+        digest = values.pop("digest", None)
+        section = values.pop("section", None)
+
+        if digest and section:
+            mapping = FILTER_MAPPING.get((digest, section))
+            if mapping:
+                logger.debug("Applying mapping for (%s, %s): %s", digest, section, mapping)
+                for key, value in mapping.items():
+                    if key in values and values[key] is not None:
+                        # Merge lists if the key already exists in values
+                        if isinstance(values[key], list):
+                            values[key] = list(set(values[key] + value))
+                        else:
+                            values[key] = value
+                    else:
+                        values[key] = value
+
         for field_name, value in values.items():
             if value is not None and cls.model_fields.get(field_name):
                 filter_field = cls.model_fields[field_name]
@@ -111,5 +133,4 @@ class BaseFilter(BaseModel, Generic[T]):
                 except Exception as exc:
                     logger.error("Error applying filter %s: %s", field_name, exc)
                     continue
-
         return query

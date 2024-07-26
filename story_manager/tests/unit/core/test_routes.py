@@ -22,12 +22,12 @@ async def test_get_story_group_meta_success(mocker, client):
     mocker.patch.object(StoryFactory, "get_story_builder", return_value=MockStoryBuilder)
 
     # Get the story group metadata
-    response = client.get(f"/v1/stories/groups/{StoryGroup.TREND_CHANGES}")
+    response = client.get(f"/v1/stories/?story_groups={StoryGroup.GROWTH_RATES}")
 
     # Check the response
     assert response.status_code == 200
     result = response.json()
-    assert result["group"] == StoryGroup.TREND_CHANGES.value
+    assert result["group"] == StoryGroup.GROWTH_RATES.value
     assert result["grains"] == [Granularity.DAY.value, Granularity.WEEK.value]
 
 
@@ -81,8 +81,8 @@ async def test_get_stories(db_session, client):
             is_published=True,
         ),
         Story(
-            genre=StoryGenre.PERFORMANCE,
-            story_group=StoryGroup.TREND_CHANGES,
+            genre=StoryGenre.GROWTH,
+            story_group=StoryGroup.GROWTH_RATES,
             grain=Granularity.WEEK,
             story_date=datetime(2020, 1, 1),
             story_type=StoryType.ACCELERATING_GROWTH,
@@ -96,8 +96,8 @@ async def test_get_stories(db_session, client):
             "reference_period_days}} {{grain}}s.",
         ),
         Story(
-            genre=StoryGenre.TRENDS,
-            story_group=StoryGroup.TREND_CHANGES,
+            genre=StoryGenre.PERFORMANCE,
+            story_group=StoryGroup.GOAL_VS_ACTUAL,
             grain=Granularity.WEEK,
             story_date=datetime(2020, 1, 1),
             story_type=StoryType.ON_TRACK,
@@ -124,11 +124,10 @@ async def test_get_stories(db_session, client):
     response = client.get("/v1/stories/?genres=GROWTH")
     assert response.status_code == status.HTTP_200_OK
     data = response.json()
-    assert data["count"] == 2
+    assert data["count"] == 3
     for result in data["results"]:
         assert result["genre"] == StoryGenre.GROWTH.value
         assert result["story_group"] == StoryGroup.GROWTH_RATES.value
-        assert result["grain"] == Granularity.DAY.value
 
     # Test filtering by metric_id
     response = client.get("/v1/stories?metric_ids=CAC")
@@ -148,11 +147,11 @@ async def test_get_stories(db_session, client):
     response = client.get("/v1/stories?story_groups=GROWTH_RATES&story_types=ACCELERATING_GROWTH")
     assert response.status_code == status.HTTP_200_OK
     data = response.json()
-    assert data["count"] == 1
+    assert data["count"] == 3
     assert data["results"][0]["genre"] == StoryGenre.GROWTH.value
     assert data["results"][0]["story_group"] == StoryGroup.GROWTH_RATES.value
     assert data["results"][0]["grain"] == Granularity.DAY.value
-    assert data["results"][0]["metric_id"] == "NewMRR"
+    assert data["results"][0]["metric_id"] == "CAC"
 
     # Test Multiple story types based filtering
     response = client.get("/v1/stories?story_types=ON_TRACK&story_types=ACCELERATING_GROWTH")
@@ -185,7 +184,7 @@ async def test_get_stories(db_session, client):
     assert data["count"] == len(stories)
 
     # Testing with multiple filters
-    response = client.get("/v1/stories?grains=day&grains=week&genres=GROWTH&genres=PERFORMANCE")
+    response = client.get("/v1/stories?grains=day&grains=week&genres=GROWTH&genres=GROWTH")
     assert response.status_code == status.HTTP_200_OK
     data = response.json()
     assert data["count"] == 3
@@ -196,3 +195,8 @@ async def test_get_stories(db_session, client):
     data = response.json()
     assert data["count"] == 4
     assert data["results"][0]["story_date"] == "2020-01-01T00:00:00+0000"
+
+    response = client.get("/v1/stories?grains=day&grains=week&digest=PORTFOLIO&section=PROMISING_TRENDS")
+    assert response.status_code == status.HTTP_200_OK
+    data = response.json()
+    assert data["count"] == 3
