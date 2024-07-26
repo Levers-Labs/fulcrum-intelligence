@@ -34,7 +34,7 @@ jobs:
     uses: ./.github/workflows/reusable-build-image.yml
     with:
         ecr_repo: 'insights-backend'
-        module_folder: 'insights_backend'
+        app_name: 'insights_backend'
         tag: ${{ needs.generate-tag.outputs.TAG_ID }}
 
     secrets:
@@ -47,7 +47,7 @@ jobs:
     uses: ./.github/workflows/reusable-lambda-deployment.yml
     with:
       ecr_repo: 'insights-backend'
-      module_lambda_function_name: 'insights-backend-dev'
+      app_lambda_function_name: 'insights-backend-dev'
       tag: ${{ needs.generate-tag.outputs.TAG_ID }}
     secrets:
       AWS_REGION: ${{ secrets.AWS_REGION }}
