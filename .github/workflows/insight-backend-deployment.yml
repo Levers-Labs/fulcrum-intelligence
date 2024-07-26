@@ -4,14 +4,13 @@ on:
   push:
     branches:
       - LEV-389_workflow_CICD_pipeline
-#    paths:
-#        - 'insights_backend/**'
+    paths:
+        - 'insights_backend/**'
   # In case of a merge to main branch we will deploy all the modules
   # pull_request:
   #   types: [closed]
   #   branches:
   #     - main
-# testing parallel deployment
 env:
   ecr_repo: "insights-backend"
   app_name: "insights_backend"
