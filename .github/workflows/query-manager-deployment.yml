@@ -35,8 +35,8 @@ jobs:
         id: set-vars
         run: |
           echo "ecr_repo=$ecr_repo" >> $GITHUB_OUTPUT
-          echo "ecr_repo=$app_name" >> $GITHUB_OUTPUT
-          echo "ecr_repo=$app_lambda_function_name" >> $GITHUB_OUTPUT
+          echo "app_name=$app_name" >> $GITHUB_OUTPUT
+          echo "app_lambda_function_name=$app_lambda_function_name" >> $GITHUB_OUTPUT
 
   generate-tag:
     name: generate-tag
