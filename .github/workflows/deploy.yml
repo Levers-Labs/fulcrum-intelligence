@@ -18,11 +18,25 @@ permissions:
   contents: read  # Adjust other permissions as needed
 
 jobs:
+
+  generate-tag:
+    runs-on: ubuntu-latest
+    outputs:
+      tag_id: ${{ steps.commit_hash.outputs.TAG_ID }}
+    steps:
+      - name: Generate TAG
+        id: generate_tag
+        run: |
+          echo "TAG_ID=$(date +%Y%m%d_%H%M%S)" >> $GITHUB_OUTPUT
+
   build-insight-backend-image:
+    needs: generate-tag
     uses: ./.github/workflows/reusable-build-image.yml
     with:
         ecr_repo: 'insights-backend'
         module_folder: 'insights_backend'
+        tag: ${{ needs.generate-tag.outputs.TAG_ID }}
+
     secrets:
       ECR_REGISTRY: ${{ secrets.ECR_REGISTRY }}
       AWS_REGION: ${{ secrets.AWS_REGION }}
@@ -32,9 +46,10 @@ jobs:
     needs: build-insight-backend-image
     uses: ./.github/workflows/reusable-lambda-deployment.yml
     with:
+      ecr_repo: 'insights-backend'
       module_lambda_function_name: 'insights-backend-dev'
-       # format should be ecr_repo value of previous stage $(ecr_repo)-image-tag
-      image_tag: $insights-backend-image-tag
+      tag: ${{ needs.generate-tag.outputs.TAG_ID }}
     secrets:
       AWS_REGION: ${{ secrets.AWS_REGION }}
       DEV_DEPLOYMENT_ROLE: ${{ secrets.DEV_DEPLOYMENT_ROLE }}
+      ECR_REGISTRY: ${{ secrets.ECR_REGISTRY }}

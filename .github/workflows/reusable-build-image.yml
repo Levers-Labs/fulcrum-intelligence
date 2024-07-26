@@ -1,4 +1,4 @@
-name: Build Leverlabs module images
+name: Build Leverlabs Apps images
 
 on:
   workflow_call:
@@ -7,10 +7,15 @@ on:
         description: 'The ECR repository name'
         required: true
         type: string
-      module_folder:
-        description: 'One of the module folder containing the Dockerfile'
+      app_name:
+        description: 'One of the app folders containing the Dockerfile'
         required: true
         type: string
+      tag:
+        description: 'Dynamically generated tag, format curdate_curtime'
+        required: true
+        type: string
+
 
     secrets:
       ECR_REGISTRY:
@@ -32,7 +37,7 @@ permissions:
 
 
 jobs:
-  insights-backend-deployment:
+  build-app-image:
     runs-on: ubuntu-latest
 
     steps:
@@ -54,15 +59,12 @@ jobs:
       - name: Build and push Docker image for $IMAGE
         working-directory: .
         run: |
-          TAG=$(date +%Y%m%d_%H%M%S)
-          IMAGE_TAG="${{ secrets.ECR_REGISTRY }}/${{ inputs.ecr_repo }}:$TAG"
+          IMAGE_TAG="${{ secrets.ECR_REGISTRY }}/${{ inputs.ecr_repo }}:${{ inputs.tag }}"
 
-          echo "Building and tagging the image with tag $TAG"
+          echo "Building and tagging the image"
           docker build \
-          --platform linux/amd64 \
           -t $IMAGE_TAG \
-          -f ${{ inputs.module_folder }}/Dockerfile .
+          -f ${{ inputs.app_name }}/Dockerfile .
 
           echo "Pushing Image to ECR"
           docker push $IMAGE_TAG
-          echo "${{ inputs.ecr_repo }}-image-tag=$IMAGE_TAG" >> "$GITHUB_ENV"
