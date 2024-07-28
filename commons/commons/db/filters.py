@@ -4,10 +4,7 @@ from typing import Any, Generic, TypeVar
 
 from pydantic import BaseModel
 from pydantic.fields import FieldInfo
-from sqlalchemy import (
-    Column,
-    Select,
-)
+from sqlalchemy import Column, Select
 
 from story_manager.core.mappings import FILTER_MAPPING
 
@@ -112,7 +109,7 @@ class BaseFilter(BaseModel, Generic[T]):
             mapping = FILTER_MAPPING.get((digest, section))
             if mapping:
                 logger.debug("Applying mapping for (%s, %s): %s", digest, section, mapping)
-                for key, value in mapping.items():
+                for key, value in mapping.items():  # type: ignore
                     if key in values and values[key] is not None:
                         # Merge lists if the key already exists in values
                         if isinstance(values[key], list):
