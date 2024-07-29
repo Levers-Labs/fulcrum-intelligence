@@ -4,72 +4,53 @@ on:
   workflow_dispatch:
     inputs:
       environment:
-        description: 'Rostra env where dbt models will be deployed.'
+        description: 'Leverlabs backend environment deployment choices'
         type: choice
         required: true
         options:
           - DEV
-          - PROD2
+          - STAGING
           - PROD
   push:
     branches:
       - LEV-389_workflow_CICD_pipeline
 jobs:
-  testing-manual-deployment:
+  manual-deployment:
     name: manual-deployment
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Branch
         uses: actions/checkout@v2
 
-      - name: Testing Environment
-        run: |
-          echo "testing the manual flow ${{github.event.inputs.environment}}"
-#          if ${{ github.ref == 'refs/heads/main' && github.event.inputs.environment == ''}}; then
-#            echo "rostra_deployment_stage=DEV" >> $GITHUB_ENV;
-#          elif ${{ github.event.inputs.environment != '' }}; then
-#            echo "rostra_deployment_stage=${{github.event.inputs.environment}}" >> $GITHUB_ENV;
-#          else
-#            echo "Unknown Stage/Branch"
-#          fi
-#
-#      - name: Configure Deployment Environment Variables
-#        run: |
-#            echo "SNOWFLAKE_ACCOUNT=${{ secrets[format('{0}_SNOWFLAKE_ACCOUNT', env.rostra_deployment_stage)] }}" >> $GITHUB_ENV;
-#            echo "SNOWFLAKE_USER=${{ secrets[format('{0}_SNOWFLAKE_USER', env.rostra_deployment_stage)] }}" >> $GITHUB_ENV;
-#            echo "SNOWFLAKE_PASSWORD=${{ secrets[format('{0}_SNOWFLAKE_PASSWORD', env.rostra_deployment_stage)] }}" >> $GITHUB_ENV;
-#            echo "VIEWFI_DECRYPTION=${{ secrets[format('{0}_VIEWFI_DECRYPTION', env.rostra_deployment_stage)] }}" >> $GITHUB_ENV;
-#            echo "COGNITO_CLIENT_ID=${{ secrets[format('{0}_COGNITO_CLIENT_ID', env.rostra_deployment_stage)] }}" >> $GITHUB_ENV;
-#            echo "COGNITO_CLIENT_SECRET=${{ secrets[format('{0}_COGNITO_CLIENT_SECRET', env.rostra_deployment_stage)] }}" >> $GITHUB_ENV;
-#            echo "COGNITO_TOKEN_URL=${{ secrets[format('{0}_COGNITO_TOKEN_URL', env.rostra_deployment_stage)] }}" >> $GITHUB_ENV;
-#            echo "GC_BASE_URL=${{ secrets[format('{0}_GC_BASE_URL', env.rostra_deployment_stage)] }}" >> $GITHUB_ENV;
-#            echo "SNOWFLAKE_RAW_DATABASE=${{ env.rostra_deployment_stage == 'PROD' && 'PROD_RAW' || 'RAW' }}" >> $GITHUB_ENV;
-#            echo "SNOWFLAKE_CURATED_DATABASE=${{ env.rostra_deployment_stage == 'PROD' && 'PROD_CURATED' || 'CURATED' }}" >> $GITHUB_ENV;
-#            echo "SNOWFLAKE_CORE_DATABASE=TC_CORE" >> $GITHUB_ENV;
-#            echo "SNOWFLAKE_PRESENTATION_DATABASE=PRESENTATION" >> $GITHUB_ENV;
-#            echo "SNOWFLAKE_MIXPANEL_DATABASE=MIXPANEL" >> $GITHUB_ENV;
-#            echo "SNOWFLAKE_TRANSFORM_ROLE=TRANSFORMER" >> $GITHUB_ENV;
-#            echo "SNOWFLAKE_TRANSFORM_WAREHOUSE=TRANSFORM_DBT" >> $GITHUB_ENV;
-#            echo "SNOWFLAKE_PREPERATION_SCHEMA=PUBLIC" >> $GITHUB_ENV;
-#
-#      - name: Enforce Python Version
-#        uses: actions/setup-python@v4
-#        with:
-#          python-version: '3.9'
-#
-#      - name: Install Dependencies
-#        run: |
-#          python -m pip install --upgrade pip
-#          pip install -r requirements.txt
-#          dbt deps --target dev
-#
-#      - name: Dbt Docs generate
-#        if: always()
-#        run: |
-#          dbt docs generate
-#          cd target
-#          ls -la
-#
-#      - name: Sync Models, Macros & Test sqls between git and Rostra
-#        run: |
-#          python sync_git_with_rostra.py
+      - name: Triggering Dev Environment Workflows
+        if: ${{ github.event.inputs.environment == 'DEV'}}
+        uses: actions/github-script@v6
+        with:
+          script: |
+            await github.rest.repos.createDispatchEvent({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              event_type: 'manual-dev-deployment-trigger'
+            })
+
+      - name: Triggering Staging Environment Workflows
+        if: ${{ github.event.inputs.environment == 'STAGING'}}
+        uses: actions/github-script@v6
+        with:
+          script: |
+            await github.rest.repos.createDispatchEvent({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              event_type: 'manual-staging-deployment-trigger'
+            })
+
+      - name: Triggering Dev Environment Workflows
+        if: ${{ github.event.inputs.environment == 'PROD'}}
+        uses: actions/github-script@v6
+        with:
+          script: |
+            await github.rest.repos.createDispatchEvent({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              event_type: 'manual-prod-deployment-trigger'
+            })

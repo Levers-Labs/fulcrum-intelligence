@@ -1,17 +1,29 @@
 name: Deploy Insight Backend to AWS Lambda
 
 on:
-  push:
-    branches:
-      - LEV-389_workflow_CICD_pipeline
+  pull_request:
+     types: [closed]
+     branches:
+       - main
+     paths:
+       - 'insights_backend/**'
+       - 'commons/**'
+
+#  push:
+#    branches:
+#      - LEV-389_workflow_CICD_pipeline
+#    paths:
+#        - 'insights_backend/**'
+#        - 'commons/**'
+  repository_dispatch:
+    types: [ manual-dev-deployment-trigger ]
     paths:
-        - 'insights_backend/**'
-        - 'commons/**'
+      - 'insights_backend/**'
+      - 'commons/**'
+
   # In case of a merge to main branch we will deploy all the modules
-  # pull_request:
-  #   types: [closed]
-  #   branches:
-  #     - main
+
+
 env:
   ecr_repo: "insights-backend"
   app_name: "insights_backend"
