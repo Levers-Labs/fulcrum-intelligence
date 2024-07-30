@@ -75,7 +75,8 @@ class Oauth2Auth:
         Returns:
             jwt.PyJWKClient: The JWT client for fetching public keys.
         """
-        jwks_url = f"{self.issuer}/.well-known/jwks.json"
+        jwks_url = f"{self.issuer}.well-known/jwks.json"
+        logger.info(jwks_url)
         return jwt.PyJWKClient(jwks_url, cache_jwk_set=True, cache_keys=True)
 
     def verify_jwt(self, token: str) -> dict[str, Any]:
@@ -130,12 +131,13 @@ class Oauth2Auth:
             UnauthenticatedException: If the token is invalid or authentication fails.
             UnauthorizedException: If the user is not authorized to perform the operation.
         """
+        logger.info(token)
         if token is None:
             raise UnauthenticatedException(detail="Authentication token is not provided.")
 
         # verify the token
         payload = self.verify_jwt(token.credentials)
-
+        logger.info(payload)
         # Verify the scopes if route requires it
         if security_scopes.scopes:
             self._verify_token_claims(payload, "scope", security_scopes.scopes)
