@@ -24,13 +24,13 @@ on:
         required: true
         options:
           - DEV
-          - PROD2
+          - STAGING
           - PROD
 
 env:
   ecr_repo: "insights-backend"
   app_name: "insights_backend"
-  app_lambda_function_name: "insights-backend-dev"
+  app_lambda_function_name: "insights-backend"
 
 permissions:
   id-token: write
@@ -52,7 +52,13 @@ jobs:
         run: |
           echo "ecr_repo=$ecr_repo" >> $GITHUB_OUTPUT
           echo "app_name=$app_name" >> $GITHUB_OUTPUT
-          echo "app_lambda_function_name=$app_lambda_function_name" >> $GITHUB_OUTPUT
+          if ${{ github.event.inputs.environment == 'PROD'}}; then
+            echo "app_lambda_function_name=${app_lambda_function_name}-prod" >> $GITHUB_ENV;
+          elif ${{ github.event.inputs.environment != 'STAGING' }}; then
+            echo "app_lambda_function_name=${app_lambda_function_name}-staging" >> $GITHUB_ENV;
+          else
+            echo "app_lambda_function_name=${app_lambda_function_name}-dev" >> $GITHUB_ENV;
+          fi
 
   build_and_deploy:
     needs: set-vars
