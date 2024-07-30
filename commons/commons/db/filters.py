@@ -6,7 +6,7 @@ from pydantic import BaseModel
 from pydantic.fields import FieldInfo
 from sqlalchemy import Column, Select
 
-from story_manager.core.mappings import FILTER_MAPPING
+from commons.utilities.mappings import FILTER_MAPPING
 
 T = TypeVar("T", bound=BaseModel)
 logger = logging.getLogger(__name__)
