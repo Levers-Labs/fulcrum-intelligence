@@ -35,16 +35,16 @@ jobs:
   generate-tag:
     name: generate-tag
     runs-on: ubuntu-latest
-    outputs:
-      tag_id: ${{ steps.generate-tag.outputs.tag_id }}
     steps:
       - name: Generate TAG
         id: generate-tag
         run: |
           echo "tag_id=$(date +%Y%m%d_%H%M%S)" >> $GITHUB_OUTPUT
+    outputs:
+      tag_id: ${{ steps.generate-tag.outputs.tag_id }}
 
   build-image:
-    needs: [generate-tag, set-vars]
+    needs: generate-tag
     uses: ./.github/workflows/reusable-build-image.yml
     with:
         ecr_repo: ${{ inputs.ecr_repo }}
