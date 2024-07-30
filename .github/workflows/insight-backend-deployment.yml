@@ -54,7 +54,7 @@ jobs:
           echo "app_name=$app_name" >> $GITHUB_OUTPUT
           if ${{ github.event.inputs.environment == 'PROD'}}; then
             echo "app_lambda_function_name=${app_lambda_function_name}-prod" >> $GITHUB_OUTPUT;
-          elif ${{ github.event.inputs.environment != 'STAGING' }}; then
+          elif ${{ github.event.inputs.environment == 'STAGING' }}; then
             echo "app_lambda_function_name=${app_lambda_function_name}-staging" >> $GITHUB_OUTPUT;
           else
             echo "app_lambda_function_name=${app_lambda_function_name}-dev" >> $GITHUB_OUTPUT;
