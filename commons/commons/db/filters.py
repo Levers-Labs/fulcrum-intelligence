@@ -25,8 +25,8 @@ class FilterField(FieldInfo):
 
         :param field: The SQLAlchemy column to filter on.
         :param operator: The comparison operator to use for filtering.
-            Supported operators: "eq", "ne", "lt", "le", "gt", "ge", "like", "ilike",
-            "in", "not_in", "between", "not_between", "is", "is_not".
+            Supported operators: "eq", "ne", "lt", "le", "gt", "ge", "like",
+            "ilike", "in", "not_in", "between", "not_between", "is", "is_not".
         :param filter_fn: A custom filter function to apply the filter.
             If provided, this function will be used instead of the default filter function.
         :param kwargs: Keyword arguments to pass to the Pydantic Field constructor.
