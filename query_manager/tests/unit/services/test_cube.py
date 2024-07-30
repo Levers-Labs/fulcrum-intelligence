@@ -349,7 +349,7 @@ async def test_load_metric_targets_from_cube(mocker, metric, cube_client):
             "metric_targets.red_buffer",
         ],
         "filters": [
-            {"member": "metric_targets.metric_id", "operator": "equals", "values": [metric.id]},
+            {"member": "metric_targets.metric_id", "operator": "equals", "values": [metric.metric_id]},
             {"member": "metric_targets.grain", "operator": "equals", "values": [grain.value]},
         ],
         "timeDimensions": [

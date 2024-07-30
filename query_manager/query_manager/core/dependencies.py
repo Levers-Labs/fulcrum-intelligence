@@ -3,8 +3,8 @@ from typing import Annotated
 from fastapi import Depends
 
 from query_manager.config import get_settings
-from query_manager.core.crud import CRUDDimensions
-from query_manager.core.models import Dimension
+from query_manager.core.crud import CRUDDimensions, CRUDMetric
+from query_manager.core.models import Dimension, Metric
 from query_manager.db.config import AsyncSessionDep
 from query_manager.services.cube import CubeClient, CubeJWTAuthType
 from query_manager.services.parquet import ParquetService
@@ -36,14 +36,23 @@ async def get_parquet_service(s3_client: S3ClientDep) -> ParquetService:
     return ParquetService(s3_client)
 
 
-async def get_query_client(cube_client: CubeClientDep, session: AsyncSessionDep) -> QueryClient:
-    return QueryClient(cube_client, session=session)
-
-
 async def get_dimensions_crud(session: AsyncSessionDep) -> CRUDDimensions:
     return CRUDDimensions(model=Dimension, session=session)
 
 
+async def get_metric_crud(session: AsyncSessionDep) -> CRUDMetric:
+    return CRUDMetric(model=Metric, session=session)
+
+
+CRUDDimensionDep = Annotated[CRUDDimensions, Depends(get_dimensions_crud)]
+CRUDMetricDep = Annotated[CRUDMetric, Depends(get_metric_crud)]
+
+
+async def get_query_client(
+    cube_client: CubeClientDep, dimensions_crud: CRUDDimensionDep, metric_crud: CRUDMetricDep
+) -> QueryClient:
+    return QueryClient(cube_client, dimensions_crud, metric_crud)
+
+
 ParquetServiceDep = Annotated[ParquetService, Depends(get_parquet_service)]
 QueryClientDep = Annotated[QueryClient, Depends(get_query_client)]
-CRUDDimensionDep = Annotated[CRUDDimensions, Depends(get_dimensions_crud)]

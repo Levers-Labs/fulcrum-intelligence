@@ -9,7 +9,7 @@ from httpx import Auth
 from commons.clients.auth import JWTAuth, JWTSecretKeyAuth
 from commons.clients.base import AsyncHttpClient, HttpClientError
 from commons.models.enums import Granularity
-from query_manager.core.schemas import DimensionDetail, MetricDetail
+from query_manager.core.models import Dimension, Metric
 from query_manager.exceptions import (
     ErrorCode,
     MalformedMetricMetadataError,
@@ -109,7 +109,7 @@ class CubeClient(AsyncHttpClient):
 
     @staticmethod
     def convert_cube_response_to_metric_values(
-        response: list[dict], metric: MetricDetail, grain: Granularity | None = None
+        response: list[dict], metric: Metric, grain: Granularity | None = None
     ) -> list[dict[str, Any]]:
         """
         Converts the response from the Cube API to a list of dictionaries representing the metric values.
@@ -159,7 +159,7 @@ class CubeClient(AsyncHttpClient):
         """
         if not response:
             return []
-        semantic_meta = metric.metadata.semantic_meta
+        semantic_meta = metric.meta_data.semantic_meta
         time_dimension = semantic_meta.time_dimension
         time_dimension_member = (
             f"{time_dimension.cube}.{time_dimension.member}.{grain.value}"
@@ -170,7 +170,7 @@ class CubeClient(AsyncHttpClient):
         metric_key = f"{semantic_meta.cube}.{semantic_meta.member}"
         dimension_key_map = (
             {
-                f"{dimension.metadata.semantic_meta.cube}.{dimension.metadata.semantic_meta.member}": dimension.id
+                f"{dimension.meta_data.semantic_meta.cube}.{dimension.meta_data.semantic_meta.member}": dimension.dimension_id  # noqa
                 for dimension in metric.dimensions
             }
             if metric.dimensions
@@ -180,7 +180,7 @@ class CubeClient(AsyncHttpClient):
         dimension_keys_present = [key for key in dimension_key_map if key in response[0]]
         metric_values = []
         for data in response:
-            value_node = {"metric_id": metric.id, "value": data[metric_key]}
+            value_node = {"metric_id": metric.metric_id, "value": data[metric_key]}
             if is_time_series:
                 # convert date to date only
                 value_node["date"] = data[time_dimension_member].split("T")[0]
@@ -189,12 +189,12 @@ class CubeClient(AsyncHttpClient):
                 value_node[dimension_key_map[key]] = data[key]
             metric_values.append(value_node)
 
-        logger.debug("Converted metric values: %s for metric_id: %s", metric_values, metric.id)
+        logger.debug("Converted metric values: %s for metric_id: %s", metric_values, metric.metric_id)
         return metric_values
 
     @staticmethod
     def generate_query_for_metric(
-        metric: MetricDetail,
+        metric: Metric,
         grain: Granularity | None = None,
         start_date: date | None = None,
         end_date: date | None = None,
@@ -232,7 +232,7 @@ class CubeClient(AsyncHttpClient):
         :param dimensions: The dimensions to include in the query.
         :return: A dictionary representing the query.
         """
-        semantic_meta = metric.metadata.semantic_meta
+        semantic_meta = metric.meta_data.semantic_meta
         query: dict[str, list] = {
             "measures": [],
             "dimensions": [],
@@ -261,18 +261,18 @@ class CubeClient(AsyncHttpClient):
         if dimensions is not None:
             for dimension_id in dimensions:
                 dimension = metric.get_dimension(dimension_id)
-                if not dimension or not dimension.metadata:
-                    logger.warning("Dimension metadata not found for dimension_id: %s", dimension_id)
+                if not dimension or not dimension.meta_data:
+                    logger.warning("Dimension meta_data not found for dimension_id: %s", dimension_id)
                     continue
-                dimension_semantic_meta = dimension.metadata.semantic_meta
+                dimension_semantic_meta = dimension.meta_data.semantic_meta
                 query["dimensions"].append(f"{dimension_semantic_meta.cube}.{dimension_semantic_meta.member}")
 
-        logger.debug("Cube query generated: %s for metric_id: %s", query, metric.id)
+        logger.debug("Cube query generated: %s for metric_id: %s", query, metric.metric_id)
         return query
 
     async def load_metric_values_from_cube(
         self,
-        metric: MetricDetail,
+        metric: Metric,
         grain: Granularity | None = None,
         start_date: date | None = None,
         end_date: date | None = None,
@@ -286,7 +286,7 @@ class CubeClient(AsyncHttpClient):
         :param end_date: The end date of the period to fetch values for.
         :param dimensions: The dimensions to include in the query.
         :return: A list of dictionaries representing the metric values.
-        :raises MalformedMetricMetadataError: If the metric metadata is malformed
+        :raises MalformedMetricMetadataError: If the metric meta_data is malformed
                                             or if the Cube API request fails.
         :raises MetricValueNotFoundError: If no values are found for the metric.
         """
@@ -295,16 +295,16 @@ class CubeClient(AsyncHttpClient):
             response = await self.load_query_data(query)
         except HttpClientError as exc:
             logger.error("Cube API request failed with error: %s", exc)
-            raise MalformedMetricMetadataError(metric.id) from exc
+            raise MalformedMetricMetadataError(metric.metric_id) from exc
         metric_values = self.convert_cube_response_to_metric_values(response, metric, grain=grain)
         if not metric_values:
-            logger.warning("No values found for metric_id: %s", metric.id)
-            raise MetricValueNotFoundError(metric.id)
+            logger.warning("No values found for metric_id: %s", metric.metric_id)
+            raise MetricValueNotFoundError(metric.metric_id)
         return metric_values
 
     async def load_metric_targets_from_cube(
         self,
-        metric: MetricDetail,
+        metric: Metric,
         grain: Granularity | None = None,
         start_date: date | None = None,
         end_date: date | None = None,
@@ -333,7 +333,7 @@ class CubeClient(AsyncHttpClient):
         cube_columns = [f"{targets_cube}.{col}" for col in target_columns]
         query: dict = {
             "dimensions": cube_columns,
-            "filters": [{"member": f"{targets_cube}.metric_id", "operator": "equals", "values": [metric.id]}],
+            "filters": [{"member": f"{targets_cube}.metric_id", "operator": "equals", "values": [metric.metric_id]}],
             "timeDimensions": [],
         }
 
@@ -350,7 +350,7 @@ class CubeClient(AsyncHttpClient):
         except HttpClientError as exc:
             logger.error("Cube API request failed with error: %s", exc)
             raise QueryManagerError(
-                500, ErrorCode.METRIC_TARGET_ERROR, f"Failed to fetch targets for metric_id: {metric.id}"
+                500, ErrorCode.METRIC_TARGET_ERROR, f"Failed to fetch targets for metric_id: {metric.metric_id}"
             ) from exc
 
         # convert cube response to target values
@@ -361,13 +361,13 @@ class CubeClient(AsyncHttpClient):
 
         return target_values
 
-    async def load_dimension_members_from_cube(self, dimension: DimensionDetail) -> list[Any]:
+    async def load_dimension_members_from_cube(self, dimension: Dimension) -> list[Any]:
         """
         Loads members of a dimension from the Cube API.
         :param dimension: The dimension to fetch members for.
         :return: A list of dimension members.
         """
-        key = f"{dimension.metadata.semantic_meta.cube}.{dimension.metadata.semantic_meta.member}"
+        key = f"{dimension.meta_data.semantic_meta.cube}.{dimension.meta_data.semantic_meta.member}"
         query = {"dimensions": [key]}
         try:
             response = await self.load_query_data(query)
@@ -377,5 +377,5 @@ class CubeClient(AsyncHttpClient):
         # convert cube response to dimension members (list of values)
         # also remove null values from the list
         members = [row[key] for row in response if row[key] is not None]
-        logger.debug("Dimension members: %s for dimension_id: %s", members, dimension.id)
+        logger.debug("Dimension members: %s for dimension_id: %s", members, dimension.dimension_id)
         return members

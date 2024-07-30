@@ -11,13 +11,12 @@ from fastapi import (
 )
 
 from commons.models.enums import Granularity
-from commons.utilities.pagination import PaginationParams
+from commons.utilities.pagination import Page, PaginationParams
 from query_manager.core.dependencies import ParquetServiceDep, QueryClientDep
 from query_manager.core.enums import OutputFormat
-from query_manager.core.models import Dimension
 from query_manager.core.schemas import (
-    DimensionCompact,
     DimensionDetail,
+    DimensionListResponse,
     MetricDetail,
     MetricListResponse,
     MetricValuesResponse,
@@ -37,13 +36,13 @@ async def list_metrics(
     metric_ids: Annotated[
         list[str] | None,
         Query(description="List of metric ids"),
-    ] = None,  # type: ignore
+    ] = None,
 ):
     """
     Retrieve a list of metrics.
     """
-    results = await client.list_metrics(metric_ids=metric_ids, params=params)
-    return {"results": results}
+    results, count = await client.list_metrics(metric_ids=metric_ids, params=params)
+    return Page.create(items=results, total_count=count, params=params)
 
 
 @router.get("/metrics/{metric_id}", response_model=MetricDetail, tags=["metrics"])
@@ -54,7 +53,7 @@ async def get_metric(metric_id: str, client: QueryClientDep):
     return await client.get_metric_details(metric_id)
 
 
-@router.get("/dimensions", response_model=list[DimensionCompact], tags=["dimensions"])
+@router.get("/dimensions", response_model=DimensionListResponse, tags=["dimensions"])
 async def list_dimensions(
     client: QueryClientDep,
     params: Annotated[PaginationParams, Depends(PaginationParams)],
@@ -62,7 +61,8 @@ async def list_dimensions(
     """
     Retrieve a list of dimensions.
     """
-    return await client.list_dimensions(params=params)
+    results, count = await client.list_dimensions(params=params)
+    return Page.create(items=results, total_count=count, params=params)
 
 
 @router.get("/dimensions/{dimension_id}", response_model=DimensionDetail, tags=["dimensions"])

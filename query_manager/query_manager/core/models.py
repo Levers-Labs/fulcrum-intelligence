@@ -1,10 +1,17 @@
-from typing import Literal, Optional, Union
+from typing import (
+    Any,
+    Literal,
+    Optional,
+    Union,
+)
 
+from pydantic import TypeAdapter
 from sqlalchemy import (
     Column,
     Enum,
     String,
     Text,
+    event,
 )
 from sqlalchemy.dialects.postgresql import ARRAY, JSONB
 from sqlmodel import Field, Relationship, SQLModel
@@ -121,6 +128,13 @@ class Dimension(DimensionBase, QuerySchemaBaseModel, table=True):  # type: ignor
 
     metrics: list["Metric"] = Relationship(back_populates="dimensions", link_model=MetricDimension)
 
+    @classmethod
+    def __declare_last__(cls):
+        @event.listens_for(cls, "load", propagate=True)
+        def receive_load(target: Dimension, context: Any):
+            if isinstance(target.meta_data, dict):  # type: ignore
+                target.meta_data = TypeAdapter(DimensionMetadata).validate_python(target.meta_data)  # type: ignore[unreachable]
+
 
 class MetricBase(BaseSQLModel):
     metric_id: str = Field(sa_column=Column(String(255), index=True, unique=True))
@@ -206,6 +220,11 @@ class Metric(MetricBase, QuerySchemaBaseModel, table=True):  # type: ignore
     )
 
     def get_dimension(self, dimension_id: str) -> Dimension | None:
-        if self.dimensions is None:
-            return None
-        return next((dimension for dimension in self.dimensions if dimension.id == dimension_id), None)
+        return next((dimension for dimension in self.dimensions if dimension.dimension_id == dimension_id), None)
+
+    @classmethod
+    def __declare_last__(cls):
+        @event.listens_for(cls, "load", propagate=True)
+        def receive_load(target: Metric, context):
+            if isinstance(target.meta_data, dict):  # type: ignore
+                target.meta_data = TypeAdapter(MetricMetadata).validate_python(target.meta_data)  # type: ignore

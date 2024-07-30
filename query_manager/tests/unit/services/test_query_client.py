@@ -1,6 +1,6 @@
 from copy import deepcopy
 from datetime import date, datetime
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock
 
 import pytest
 from sqlalchemy import Result

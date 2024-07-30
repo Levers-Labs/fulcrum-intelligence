@@ -18,11 +18,17 @@ class DimensionDetail(DimensionBase):
     id: int
 
 
+class DimensionListResponse(BaseModel):
+    count: int
+    results: list[DimensionCompact]
+
+
 class MetricList(MetricBase):
     id: int
 
 
 class MetricListResponse(BaseModel):
+    count: int
     results: list[MetricList]
 
 
