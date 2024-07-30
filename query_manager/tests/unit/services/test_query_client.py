@@ -155,9 +155,6 @@ async def test_get_dimension_members(mocker, dimension, query_client):
         query_client.cube_client, "load_dimension_members_from_cube", mock_load_dimension_members_from_cube
     )
 
-    mock_load_data = AsyncMock(return_value=[dimension])
-    mocker.patch.object(query_client, "load_data", mock_load_data)
-
     result = await query_client.get_dimension_members(dimension["id"])
     assert result == ["Enterprise", "Basic"]
 

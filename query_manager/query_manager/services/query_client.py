@@ -1,8 +1,5 @@
-import json
 from datetime import date
 from typing import Any
-
-import aiofiles
 
 from commons.db.crud import NotFoundError
 from commons.models.enums import Granularity
@@ -25,19 +22,6 @@ class QueryClient:
         self.metric_crud = metric_crud
         self.dimension_model = Dimension
         self.metric_model = Metric
-
-    @staticmethod
-    async def load_data(file_path: str) -> list[dict[str, Any]]:
-        """
-        Loads data from a specified JSON file.
-
-        :param file_path: Path to the JSON file to be loaded.
-        :return: A list of dictionaries representing the data.
-        """
-
-        async with aiofiles.open(file_path, "r") as f:
-            contents = await f.read()
-        return json.loads(contents)
 
     async def list_metrics(
         self, *, params: PaginationParams, metric_ids: list[str] | None = None
