@@ -1,13 +1,13 @@
 name: Deploy Query Manager to AWS Lambda
 
 on:
-#  pull_request:
-#    types: [ closed ]
-#    branches:
-#      - main
-#    paths:
-#      - 'query_manager/**'
-#      - 'commons/**'
+  pull_request:
+    types: [ closed ]
+    branches:
+      - main
+    paths:
+      - 'query_manager/**'
+      - 'commons/**'
 
   workflow_dispatch:
     inputs:
