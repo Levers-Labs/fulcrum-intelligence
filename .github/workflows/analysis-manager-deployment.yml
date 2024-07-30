@@ -1,0 +1,74 @@
+name: Deploy Analysis Manager to AWS Lambda
+
+on:
+  pull_request:
+     types: [closed]
+     branches:
+       - main
+     paths:
+       - 'insights_backend/**'
+       - 'commons/**'
+
+  push:
+    branches:
+      - LEV-389_workflow_CICD_pipeline
+#    paths:
+#        - 'insights_backend/**'
+#        - 'commons/**'
+
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Analysis Manager Deployment environment choices'
+        type: choice
+        required: true
+        options:
+          - DEV
+          - STAGING
+          - PROD
+
+env:
+  ecr_repo: "analysis-manager"
+  app_name: "analysis_manager"
+  app_lambda_function_name: "analysis-manager"
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  set-vars:
+    name: set-vars
+    runs-on: ubuntu-latest
+
+    outputs:
+      ecr_repo: ${{ steps.set-vars.outputs.ecr_repo }}
+      app_name: ${{ steps.set-vars.outputs.app_name }}
+      app_lambda_function_name: ${{ steps.set-vars.outputs.app_lambda_function_name }}
+
+    steps:
+      - name: set-vars
+        id: set-vars
+        run: |
+          echo "ecr_repo=$ecr_repo" >> $GITHUB_OUTPUT
+          echo "app_name=$app_name" >> $GITHUB_OUTPUT
+          if ${{ github.event.inputs.environment == 'PROD'}}; then
+            echo "app_lambda_function_name=${app_lambda_function_name}-prod" >> $GITHUB_OUTPUT;
+          elif ${{ github.event.inputs.environment == 'STAGING' }}; then
+            echo "app_lambda_function_name=${app_lambda_function_name}-staging" >> $GITHUB_OUTPUT;
+          else
+            echo "app_lambda_function_name=${app_lambda_function_name}-dev" >> $GITHUB_OUTPUT;
+          fi
+
+  build_and_deploy:
+    needs: set-vars
+    uses: ./.github/workflows/reusable-ci-cd.yml
+    with:
+        ecr_repo: ${{ needs.set-vars.outputs.ecr_repo }}
+        app_name: ${{ needs.set-vars.outputs.app_name }}
+        app_lambda_function_name: ${{ needs.set-vars.outputs.app_lambda_function_name }}
+
+    secrets:
+      ECR_REGISTRY: ${{ secrets.ECR_REGISTRY }}
+      AWS_REGION: ${{ secrets.AWS_REGION }}
+      DEV_DEPLOYMENT_ROLE: ${{ secrets.DEV_DEPLOYMENT_ROLE }}
