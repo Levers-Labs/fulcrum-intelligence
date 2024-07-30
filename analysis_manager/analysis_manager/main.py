@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
 
 from analysis_manager.config import settings
-from analysis_manager.core.routes import router as core_router, user_router
+from analysis_manager.core.routes import router as core_router
 from analysis_manager.health import router as health_check_router
 from commons.middleware import process_time_log_middleware
 from commons.utilities.docs import setup_swagger_ui
@@ -17,7 +17,6 @@ def get_application() -> FastAPI:
         debug=settings.DEBUG,
     )
     _app.include_router(core_router, prefix="/v1")
-    _app.include_router(user_router, prefix="/v1")
     _app.include_router(health_check_router, prefix="/v1")
     swagger_router = setup_swagger_ui("Analysis Manager", settings)
     _app.include_router(swagger_router)
