@@ -23,8 +23,7 @@ greenlet = "^3.0.3"
 fulcrum-core = { path = "../core", develop = true }
 commons = { path = "../commons"}
 typer = "^0.9.0"
-magnum = "^18.0.0"
-
+mangum = "0.17.0"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]

@@ -15,11 +15,11 @@ on:
 #    paths:
 #        - 'insights_backend/**'
 #        - 'commons/**'
-  repository_dispatch:
-    types: [ manual-dev-deployment-trigger ]
-    paths:
-      - 'insights_backend/**'
-      - 'commons/**'
+#  repository_dispatch:
+#    types: [ manual-dev-deployment-trigger ]
+#    paths:
+#      - 'insights_backend/**'
+#      - 'commons/**'
 
   # In case of a merge to main branch we will deploy all the modules
 

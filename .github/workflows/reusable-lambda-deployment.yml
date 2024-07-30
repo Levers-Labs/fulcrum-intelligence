@@ -49,10 +49,6 @@ jobs:
           role-to-assume: ${{ secrets.DEV_DEPLOYMENT_ROLE }}
           role-session-name: OIDCSession
 
-      - name: Login to Amazon ECR
-        id: login-ecr
-        uses: aws-actions/amazon-ecr-login@v1
-
       - name: Update AWS Lambda function
         run: |
           IMAGE_URI="${{ secrets.ECR_REGISTRY }}/${{ inputs.ecr_repo }}:${{ inputs.tag }}"
