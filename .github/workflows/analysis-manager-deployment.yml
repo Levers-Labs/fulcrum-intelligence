@@ -3,10 +3,10 @@ name: Deploy Analysis Manager to AWS Lambda
 on:
   push:
     branches:
-      - LEV-389_workflow_CICD_pipeline
-#    paths:
-#        - 'insights_backend/**'
-#        - 'commons/**'
+      - main
+    paths:
+        - 'analysis_manager/**'
+        - 'commons/**'
 
   workflow_dispatch:
     inputs:
