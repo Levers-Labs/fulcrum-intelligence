@@ -1,27 +1,28 @@
-name: Deploy Query Manager to AWS Lambda
+name: Deploy Analysis Manager to AWS Lambda
 
 on:
-  workflow_dispatch:
-    inputs:
-      environment:
-        description: 'Query Manager Deployment environment choices'
-        type: choice
-        required: true
-        options:
-          - DEV
-          - PROD2
-          - PROD
   push:
     branches:
       - LEV-389_workflow_CICD_pipeline
 #    paths:
-#        - 'query_manager/**'
+#        - 'insights_backend/**'
 #        - 'commons/**'
 
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Story Manager Deployment environment choices'
+        type: choice
+        required: true
+        options:
+          - DEV
+          - STAGING
+          - PROD
+
 env:
-  ecr_repo: "query-manager"
-  app_name: "query_manager"
-  app_lambda_function_prefix: "query-manager"
+  ecr_repo: "story-manager"
+  app_name: "story_manager"
+  app_lambda_function_prefix: "story-manager"
 
 permissions:
   id-token: write
