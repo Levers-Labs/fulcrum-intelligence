@@ -44,11 +44,12 @@ def client(setup_env):
 @pytest.fixture(scope="session")
 def dimension():
     return {
-        "id": "billing_plan",
+        "id": 1,
+        "dimension_id": "billing_plan",
         "label": "Billing Plan",
         "reference": "billing_plan",
         "definition": "Billing Plan Definition",
-        "metadata": {
+        "meta_data": {
             "semantic_meta": {"cube": "cube1", "member": "billing_plan", "member_type": "dimension"},
         },
     }
@@ -57,13 +58,14 @@ def dimension():
 @pytest.fixture(scope="session")
 def metric(dimension):
     return {
-        "id": "metric1",
+        "id": 1,
+        "metric_id": "metric1",
         "label": "Metric 1",
         "abbreviation": "M1",
         "definition": "Definition 1",
         "unit_of_measure": "Units",
         "unit": "U",
-        "complexity": "Simple",
+        "complexity": "Complex",
         "metric_expression": {
             "expression_str": "{SalesMktSpend\u209c} / {NewCust\u209c}",
             "metric_id": "CAC",
@@ -79,17 +81,12 @@ def metric(dimension):
             },
         },
         "grain_aggregation": "aggregation",
-        "components": ["component1", "component2"],
         "terms": ["term1", "term2"],
-        "output_of": ["output"],
-        "input_to": ["input1", "input2"],
-        "influences": ["influence1", "influence2"],
-        "influenced_by": ["influenced1", "influenced2"],
-        "periods": ["period1", "period2"],
+        "periods": ["day", "week"],
         "aggregations": ["aggregation1", "aggregation2"],
         "owned_by_team": ["team1", "team2"],
         "dimensions": [dimension],
-        "metadata": {
+        "meta_data": {
             "semantic_meta": {
                 "cube": "cube1",
                 "member": "member1",

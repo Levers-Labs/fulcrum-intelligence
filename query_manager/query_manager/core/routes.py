@@ -14,11 +14,12 @@ from commons.models.enums import Granularity
 from commons.utilities.pagination import Page, PaginationParams
 from query_manager.core.dependencies import ParquetServiceDep, QueryClientDep
 from query_manager.core.enums import OutputFormat
+from query_manager.core.models import Dimension, Metric
 from query_manager.core.schemas import (
+    DimensionCompact,
     DimensionDetail,
-    DimensionListResponse,
     MetricDetail,
-    MetricListResponse,
+    MetricList,
     MetricValuesResponse,
     TargetListResponse,
 )
@@ -29,7 +30,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="")
 
 
-@router.get("/metrics", response_model=MetricListResponse, tags=["metrics"])
+@router.get("/metrics", response_model=Page[MetricList], tags=["metrics"])
 async def list_metrics(
     client: QueryClientDep,
     params: Annotated[PaginationParams, Depends(PaginationParams)],
@@ -42,7 +43,7 @@ async def list_metrics(
     Retrieve a list of metrics.
     """
     results, count = await client.list_metrics(metric_ids=metric_ids, params=params)
-    return Page.create(items=results, total_count=count, params=params)
+    return Page[Metric].create(items=results, total_count=count, params=params)
 
 
 @router.get("/metrics/{metric_id}", response_model=MetricDetail, tags=["metrics"])
@@ -53,7 +54,7 @@ async def get_metric(metric_id: str, client: QueryClientDep):
     return await client.get_metric_details(metric_id)
 
 
-@router.get("/dimensions", response_model=DimensionListResponse, tags=["dimensions"])
+@router.get("/dimensions", response_model=Page[DimensionCompact], tags=["dimensions"])
 async def list_dimensions(
     client: QueryClientDep,
     params: Annotated[PaginationParams, Depends(PaginationParams)],
@@ -62,7 +63,7 @@ async def list_dimensions(
     Retrieve a list of dimensions.
     """
     results, count = await client.list_dimensions(params=params)
-    return Page.create(items=results, total_count=count, params=params)
+    return Page[Dimension].create(items=results, total_count=count, params=params)
 
 
 @router.get("/dimensions/{dimension_id}", response_model=DimensionDetail, tags=["dimensions"])

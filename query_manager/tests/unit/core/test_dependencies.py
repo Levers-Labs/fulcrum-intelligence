@@ -1,8 +1,11 @@
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from query_manager.core.crud import CRUDDimensions, CRUDMetric
 from query_manager.core.dependencies import (
     get_cube_client,
+    get_dimensions_crud,
+    get_metric_crud,
     get_parquet_service,
     get_query_client,
     get_s3_client,
@@ -33,7 +36,23 @@ async def test_get_parquet_service():
 
 
 @pytest.mark.asyncio
+async def test_get_dimensions_crud():
+    dimensions_crud = await get_dimensions_crud(session=AsyncSession)
+    assert isinstance(dimensions_crud, CRUDDimensions)
+
+
+@pytest.mark.asyncio
+async def test_get_metrics_crud():
+    metrics_crud = await get_metric_crud(session=AsyncSession)
+    assert isinstance(metrics_crud, CRUDMetric)
+
+
+@pytest.mark.asyncio
 async def test_get_query_client():
+    dimensions_crud = await get_dimensions_crud(session=AsyncSession)
+    metric_crud = await get_metric_crud(session=AsyncSession)
     cube_client = await get_cube_client()
-    query_client = await get_query_client(cube_client=cube_client, session=AsyncSession)
+    query_client = await get_query_client(
+        cube_client=cube_client, dimensions_crud=dimensions_crud, metric_crud=metric_crud
+    )
     assert isinstance(query_client, QueryClient)

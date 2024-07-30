@@ -3,8 +3,13 @@ from unittest.mock import AsyncMock
 import pytest
 
 from query_manager.core.enums import TargetAim
-from query_manager.core.models import Dimension
-from query_manager.core.schemas import DimensionDetail, MetricDetail, MetricList
+from query_manager.core.models import Metric
+from query_manager.core.schemas import (
+    DimensionCompact,
+    DimensionDetail,
+    MetricDetail,
+    MetricList,
+)
 from query_manager.exceptions import MetricNotFoundError
 from query_manager.services.parquet import ParquetService
 from query_manager.services.query_client import QueryClient
@@ -22,12 +27,18 @@ def test_health(client):
 @pytest.mark.asyncio
 async def test_list_metrics(client, mocker, metric):
     # Mock the QueryClient's list_metrics method
-    mock_list_metrics = AsyncMock(return_value=[metric])
+    mock_list_metrics = AsyncMock(return_value=([Metric.parse_obj(metric)], 10))
     mocker.patch.object(QueryClient, "list_metrics", mock_list_metrics)
 
     response = client.get("/v1/metrics")
     assert response.status_code == 200
-    assert response.json() == {"results": [MetricList(**metric).model_dump(mode="json")]}
+    assert response.json() == {
+        "count": 10,
+        "limit": 10,
+        "offset": 0,
+        "pages": 1,
+        "results": [MetricList(**metric).model_dump(mode="json")],
+    }
 
 
 @pytest.mark.asyncio
@@ -45,12 +56,18 @@ async def test_get_metric(client, mocker, metric):
 @pytest.mark.asyncio
 async def test_list_dimensions(client, mocker, dimension):
     # Mock the QueryClient's list_dimensions method
-    mock_list_dimensions = AsyncMock(return_value=[dimension])
+    mock_list_dimensions = AsyncMock(return_value=([dimension], 10))
     mocker.patch.object(QueryClient, "list_dimensions", mock_list_dimensions)
 
     response = client.get("/v1/dimensions")
     assert response.status_code == 200
-    assert response.json() == [Dimension(**dimension).model_dump(mode="json")]
+    assert response.json() == {
+        "count": 10,
+        "limit": 10,
+        "offset": 0,
+        "pages": 1,
+        "results": [DimensionCompact(**dimension).model_dump(mode="json")],
+    }
 
 
 @pytest.mark.asyncio
