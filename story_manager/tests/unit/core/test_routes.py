@@ -1,4 +1,5 @@
 from datetime import datetime
+from unittest import mock
 
 import pytest
 from starlette import status
@@ -7,6 +8,15 @@ from commons.models.enums import Granularity
 from story_manager.core.enums import StoryGenre, StoryGroup, StoryType
 from story_manager.core.models import Story
 from story_manager.story_builder import StoryBuilderBase, StoryFactory
+
+
+class MockSecurity:
+    def __init__(self, *args, **kwargs):
+        self.dependency = lambda: True
+        self.use_cache = False
+
+
+mock.patch("fastapi.Security", MockSecurity).start()
 
 
 @pytest.mark.asyncio
