@@ -1,0 +1,73 @@
+name: Build and Deploy Application
+
+on:
+  workflow_call:
+    inputs:
+      ecr_repo:
+        description: 'application ecr repo name'
+        required: true
+        type: string
+      app_lambda_function_name:
+        description: "One of the App's lambda function name"
+        required: true
+        type: string
+      app_name:
+        description: 'One of the app folders containing the Dockerfile'
+        required: true
+        type: string
+
+    secrets:
+      AWS_REGION:
+        description: 'The region of ECR'
+        required: true
+      DEV_DEPLOYMENT_ROLE:
+        description: 'The deployment role ARN (OIDC)'
+        required: true
+      ECR_REGISTRY:
+        description: 'The ECR registry URL'
+        required: true
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  generate-tag:
+    name: generate-tag
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Branch
+        uses: actions/checkout@v3
+
+      - name: Generate TAG
+        id: generate-tag
+        run: |
+          COMMIT_HASH=$(git rev-parse HEAD)
+          echo "tag_id=${COMMIT_HASH}_$(date +%Y%m%d_%H%M%S)" >> $GITHUB_OUTPUT
+    outputs:
+      tag_id: ${{ steps.generate-tag.outputs.tag_id }}
+
+  build-image:
+    needs: generate-tag
+    uses: ./.github/workflows/reusable-build-image.yml
+    with:
+        ecr_repo: ${{ inputs.ecr_repo }}
+        app_name: ${{ inputs.app_name }}
+        tag: ${{ needs.generate-tag.outputs.tag_id }}
+
+    secrets:
+      ECR_REGISTRY: ${{ secrets.ECR_REGISTRY }}
+      AWS_REGION: ${{ secrets.AWS_REGION }}
+      DEV_DEPLOYMENT_ROLE: ${{ secrets.DEV_DEPLOYMENT_ROLE }}
+
+  deploy-image-on-lambda:
+    needs: [build-image, generate-tag]
+    uses: ./.github/workflows/reusable-lambda-deployment.yml
+    with:
+      ecr_repo: ${{ inputs.ecr_repo }}
+      app_lambda_function_name: ${{ inputs.app_lambda_function_name }}
+      tag: ${{ needs.generate-tag.outputs.tag_id }}
+    secrets:
+      AWS_REGION: ${{ secrets.AWS_REGION }}
+      DEV_DEPLOYMENT_ROLE: ${{ secrets.DEV_DEPLOYMENT_ROLE }}
+      ECR_REGISTRY: ${{ secrets.ECR_REGISTRY }}

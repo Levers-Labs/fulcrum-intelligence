@@ -29,6 +29,7 @@ class Settings(BaseSettings):
     SECRET_KEY: str
     ENV: Environment = Environment.dev
     LOGGING_LEVEL: str = "INFO"
+    OPENAPI_PREFIX: str | None = None
 
     SERVER_HOST: str | AnyHttpUrl
     PAGINATION_PER_PAGE: int = 20
