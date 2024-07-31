@@ -26,7 +26,7 @@ async def test_verify_with_valid_token_and_scopes(oauth2_auth, monkeypatch):
 
     # Mock the return values of verify_jwt and get_oauth_user
     def mock_verify_jwt(token):
-        return {"sub": "user_id", "scope": ["read"]}
+        return {"sub": "userId", "permissions": ["read"]}
 
     async def mock_get_oauth_user(payload, token):
         return OAuth2User(
@@ -49,7 +49,7 @@ async def test_verify_with_valid_token_and_scopes(oauth2_auth, monkeypatch):
 
 def test_verify_jwt(oauth2_auth):
     token = "valid_token"  # noqa
-    payload = {"sub": "user_id", "scope": ["read"]}
+    payload = {"sub": "user_id", "permissions": ["read"]}
 
     # Mocking jwks_client behavior
     oauth2_auth.jwks_client = MagicMock()
@@ -62,16 +62,16 @@ def test_verify_jwt(oauth2_auth):
 
 
 def test_verify_token_claims_present_claim(oauth2_auth):
-    payload = {"scope": ["read", "write"], "user_id": "123"}
-    claim_name = "scope"
+    payload = {"permissions": ["read", "write"], "user": "123"}
+    claim_name = "permissions"
     expected_value = ["read"]
 
     oauth2_auth._verify_token_claims(payload, claim_name, expected_value)
 
 
 def test_verify_token_claims_missing_claim(oauth2_auth):
-    payload = {"user_id": "123"}
-    claim_name = "scope"
+    payload = {"user": "123"}
+    claim_name = "permissions"
     expected_value = ["read"]
 
     with pytest.raises(UnauthorizedException):
@@ -79,8 +79,8 @@ def test_verify_token_claims_missing_claim(oauth2_auth):
 
 
 def test_verify_token_claims_missing_value(oauth2_auth):
-    payload = {"scope": ["write"], "user_id": "123"}
-    claim_name = "scope"
+    payload = {"permissions": ["write"], "user": "123"}
+    claim_name = "permissions"
     expected_value = ["read"]
 
     with pytest.raises(UnauthorizedException):
@@ -97,7 +97,7 @@ async def test_get_oauth_user(oauth2_auth):
         permissions=[],
     )
 
-    app_user_payload = {"sub": "some_id", "user_id": 1}
+    app_user_payload = {"sub": "some_id", "userId": 1}
     oauth2_auth.get_app_user = AsyncMock(side_effect=lambda a, b: app_user_payload)
 
     result = await oauth2_auth.get_oauth_user(app_user_payload, "some_token")
