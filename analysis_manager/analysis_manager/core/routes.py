@@ -58,8 +58,8 @@ async def list_users(
     """
     Retrieve users.
     """
-    count = await users.total_count()
-    results: list[UserRead] = [UserRead.from_orm(user) for user in await users.list_results(params=params)]
+    count = 0  # await users.total_count()
+    results: list[UserRead] = []  # [UserRead.from_orm(user) for user in await users.list_results(params=params)]
     return UserList(results=results, count=count)
 
 
