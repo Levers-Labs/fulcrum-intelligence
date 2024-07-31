@@ -8,6 +8,7 @@ from fastapi import (
     Body,
     Depends,
     HTTPException,
+    Security,
 )
 
 from analysis_manager.config import settings
@@ -16,6 +17,7 @@ from analysis_manager.core.dependencies import (
     ComponentDriftServiceDep,
     QueryManagerClientDep,
     UsersCRUDDep,
+    oauth2_auth,
 )
 from analysis_manager.core.models import (
     Component,
@@ -46,7 +48,9 @@ user_router = APIRouter(prefix="/users", tags=["users"])
 logger = logging.getLogger(__name__)
 
 
-@user_router.get("", response_model=UserList)
+@user_router.get(
+    "", response_model=UserList, dependencies=[Security(oauth2_auth().verify, scopes=["analysis_manager:*"])]
+)
 async def list_users(
     users: UsersCRUDDep,
     params: Annotated[PaginationParams, Depends(PaginationParams)],
@@ -54,8 +58,8 @@ async def list_users(
     """
     Retrieve users.
     """
-    count = await users.total_count()
-    results: list[UserRead] = [UserRead.from_orm(user) for user in await users.list_results(params=params)]
+    count = 0  # await users.total_count()
+    results: list[UserRead] = []  # [UserRead.from_orm(user) for user in await users.list_results(params=params)]
     return UserList(results=results, count=count)
 
 

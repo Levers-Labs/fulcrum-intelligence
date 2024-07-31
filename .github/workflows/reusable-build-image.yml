@@ -1,0 +1,70 @@
+name: Build Leverlabs Apps images
+
+on:
+  workflow_call:
+    inputs:
+      ecr_repo:
+        description: 'The ECR repository name'
+        required: true
+        type: string
+      app_name:
+        description: 'One of the app folders containing the Dockerfile'
+        required: true
+        type: string
+      tag:
+        description: 'Dynamically generated tag, format curdate_curtime'
+        required: true
+        type: string
+
+
+    secrets:
+      ECR_REGISTRY:
+        description: 'The ECR registry URL'
+        required: true
+      AWS_REGION:
+        description: 'The region of ECR'
+        required: true
+      DEV_DEPLOYMENT_ROLE:
+        description: 'The deployment role ARN (OIDC)'
+        required: true
+
+
+# Required to get the ID Token that will be used for OIDC
+permissions:
+  id-token: write # This is required for requesting the JWT
+  contents: read  # This is required for actions/checkout
+
+
+
+jobs:
+  build-app-image:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-region: ${{ secrets.AWS_REGION }}
+          role-to-assume: ${{ secrets.DEV_DEPLOYMENT_ROLE }}
+          role-session-name: OIDCSession
+
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v1
+
+      - name: Build and push Docker image for $IMAGE
+        working-directory: .
+        run: |
+          IMAGE_TAG="${{ secrets.ECR_REGISTRY }}/${{ inputs.ecr_repo }}:${{ inputs.tag }}"
+
+          echo "Building and tagging the image"
+          docker build \
+          -t $IMAGE_TAG \
+          -f ${{ inputs.app_name }}/Dockerfile .
+
+          echo "Pushing Image to ECR"
+          docker push $IMAGE_TAG
