@@ -63,7 +63,9 @@ async def list_users(
     return UserList(results=results, count=count)
 
 
-@user_router.get("/{user_id}", response_model=UserRead)
+@user_router.get(
+    "/{user_id}", response_model=UserRead, dependencies=[Security(oauth2_auth().verify, scopes=["analysis_manager:*"])]
+)
 async def get_user(user_id: int, users: UsersCRUDDep) -> Any:
     """
     Retrieve a user by ID.
@@ -72,7 +74,11 @@ async def get_user(user_id: int, users: UsersCRUDDep) -> Any:
     return user
 
 
-@router.post("/describe", response_model=list[DescribeResponse])
+@router.post(
+    "/describe",
+    response_model=list[DescribeResponse],
+    dependencies=[Security(oauth2_auth().verify, scopes=["analysis_manager:*"])],
+)
 async def describe_analysis(
     analysis_manager: AnalysisManagerDep,
     query_manager: QueryManagerClientDep,
@@ -135,7 +141,11 @@ async def describe_analysis(
     return results
 
 
-@router.post("/correlate", response_model=list[CorrelateRead])
+@router.post(
+    "/correlate",
+    response_model=list[CorrelateRead],
+    dependencies=[Security(oauth2_auth().verify, scopes=["analysis_manager:*"])],
+)
 async def correlate(
     analysis_manager: AnalysisManagerDep,
     query_manager: QueryManagerClientDep,
@@ -170,7 +180,11 @@ async def correlate(
     return analysis_manager.correlate(df=metrics_df)
 
 
-@router.post("/process-control", response_model=list[ProcessControlResponse])
+@router.post(
+    "/process-control",
+    response_model=list[ProcessControlResponse],
+    dependencies=[Security(oauth2_auth().verify, scopes=["analysis_manager:*"])],
+)
 async def process_control(
     analysis_manager: AnalysisManagerDep,
     query_manager: QueryManagerClientDep,
@@ -200,7 +214,11 @@ async def process_control(
     return results
 
 
-@router.post("/drift/component", response_model=Component)
+@router.post(
+    "/drift/component",
+    response_model=Component,
+    dependencies=[Security(oauth2_auth().verify, scopes=["analysis_manager:*"])],
+)
 async def component_drift(
     query_manager: QueryManagerClientDep,
     component_drift_service: ComponentDriftServiceDep,
@@ -233,7 +251,11 @@ async def component_drift(
     )
 
 
-@router.post("/forecast/simple", response_model=list[ForecastResponse])
+@router.post(
+    "/forecast/simple",
+    response_model=list[ForecastResponse],
+    dependencies=[Security(oauth2_auth().verify, scopes=["analysis_manager:*"])],
+)
 async def simple_forecast(
     analysis_manager: AnalysisManagerDep,
     query_manager: QueryManagerClientDep,
@@ -284,7 +306,11 @@ async def simple_forecast(
     return res
 
 
-@router.post("/drift/segment", response_model=SegmentDriftResponse)
+@router.post(
+    "/drift/segment",
+    response_model=SegmentDriftResponse,
+    dependencies=[Security(oauth2_auth().verify, scopes=["analysis_manager:*"])],
+)
 async def segment_drift(
     analysis_manager: AnalysisManagerDep,
     query_manager: QueryManagerClientDep,
@@ -344,7 +370,11 @@ async def segment_drift(
     )
 
 
-@router.post("/influence-attribution", response_model=InfluenceAttributionResponse)
+@router.post(
+    "/influence-attribution",
+    response_model=InfluenceAttributionResponse,
+    dependencies=[Security(oauth2_auth().verify, scopes=["analysis_manager:*"])],
+)
 async def influence_attribution(
     analysis_manager: AnalysisManagerDep,
     query_manager: QueryManagerClientDep,
