@@ -36,11 +36,14 @@ jobs:
     name: generate-tag
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout Branch
+        uses: actions/checkout@v3
+
       - name: Generate TAG
         id: generate-tag
         run: |
           COMMIT_HASH=$(git rev-parse HEAD)
-          echo "tag_id=${COMMIT_HASH}_${(date +%Y%m%d_%H%M%S)}" >> $GITHUB_OUTPUT
+          echo "tag_id=${COMMIT_HASH}_$(date +%Y%m%d_%H%M%S)" >> $GITHUB_OUTPUT
     outputs:
       tag_id: ${{ steps.generate-tag.outputs.tag_id }}
 
