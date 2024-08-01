@@ -6,6 +6,7 @@ import pandas as pd
 import pytest
 from deepdiff import DeepDiff
 
+from analysis_manager.core.services.component_drift import ComponentDriftService
 from commons.clients.query_manager import QueryManagerClient
 from fulcrum_core.modules import SegmentDriftEvaluator
 
@@ -348,8 +349,7 @@ async def test_process_control_route_insufficient_data(client, mocker, metric_va
 
 
 @pytest.mark.asyncio
-async def test_component_drift_route(client, mocker, metric_cac, metric_list):
-
+async def test_component_drift_route(client, mocker, metric_cac, metric_list, mock_drift_resp):
     mock_get_metric = AsyncMock(return_value=metric_cac)
     mock_list_metrics = AsyncMock(return_value=metric_list)
     mocker.patch.object(QueryManagerClient, "get_metric", mock_get_metric)
@@ -357,6 +357,9 @@ async def test_component_drift_route(client, mocker, metric_cac, metric_list):
         QueryManagerClient, "get_metric_value", side_effect=lambda *args: {"value": random.randint(100, 200)}  # noqa
     )
     mocker.patch.object(QueryManagerClient, "list_metrics", mock_list_metrics)
+    mock_calculate_drift = AsyncMock(return_value=mock_drift_resp)
+    mocker.patch.object(ComponentDriftService, "calculate_drift", mock_calculate_drift)
+
     response = client.post(
         "/v1/analyze/drift/component",
         json={
@@ -371,7 +374,7 @@ async def test_component_drift_route(client, mocker, metric_cac, metric_list):
     # assert
     assert response.status_code == 200
     assert response.json()["drift"] is not None
-    assert len(response.json()["components"]) == 3
+    assert len(response.json()["components"]) == 2
     assert response.json()["components"][0]["metric_id"] == "SalesMktSpend"
     assert response.json()["components"][0]["drift"] is not None
     assert len(response.json()["components"][0]["components"]) == 2
