@@ -6,7 +6,6 @@ import pandas as pd
 from fastapi import (
     APIRouter,
     Body,
-    Depends,
     HTTPException,
     Security,
 )
@@ -16,15 +15,9 @@ from analysis_manager.core.dependencies import (
     AnalysisManagerDep,
     ComponentDriftServiceDep,
     QueryManagerClientDep,
-    UsersCRUDDep,
     oauth2_auth,
 )
-from analysis_manager.core.models import (
-    Component,
-    ComponentDriftRequest,
-    User,
-    UserRead,
-)
+from analysis_manager.core.models import Component, ComponentDriftRequest
 from analysis_manager.core.models.correlate import CorrelateRead
 from analysis_manager.core.schema import (
     CorrelateRequest,
@@ -38,41 +31,12 @@ from analysis_manager.core.schema import (
     ProcessControlResponse,
     SegmentDriftRequest,
     SegmentDriftResponse,
-    UserList,
 )
 from commons.auth.scopes import ANALYSIS_MANAGER_ALL
-from commons.utilities.pagination import PaginationParams
 from fulcrum_core.execptions import InsufficientDataError
 
 router = APIRouter(prefix="/analyze", tags=["analyze"])
-user_router = APIRouter(prefix="/users", tags=["users"])
 logger = logging.getLogger(__name__)
-
-
-@user_router.get(
-    "", response_model=UserList, dependencies=[Security(oauth2_auth().verify, scopes=[ANALYSIS_MANAGER_ALL])]
-)
-async def list_users(
-    users: UsersCRUDDep,
-    params: Annotated[PaginationParams, Depends(PaginationParams)],
-) -> Any:
-    """
-    Retrieve users.
-    """
-    count = 0  # await users.total_count()
-    results: list[UserRead] = []  # [UserRead.from_orm(user) for user in await users.list_results(params=params)]
-    return UserList(results=results, count=count)
-
-
-@user_router.get(
-    "/{user_id}", response_model=UserRead, dependencies=[Security(oauth2_auth().verify, scopes=[ANALYSIS_MANAGER_ALL])]
-)
-async def get_user(user_id: int, users: UsersCRUDDep) -> Any:
-    """
-    Retrieve a user by ID.
-    """
-    user: User = await users.get(user_id)
-    return user
 
 
 @router.post(
