@@ -10,6 +10,7 @@ from fastapi import (
     Security,
 )
 
+from commons.auth.scopes import QUERY_MANAGER_ALL
 from commons.models.enums import Granularity
 from query_manager.core.dependencies import ParquetServiceDep, QueryClientDep, oauth2_auth
 from query_manager.core.enums import OutputFormat
@@ -32,7 +33,7 @@ router = APIRouter(prefix="")
     "/metrics",
     response_model=MetricListResponse,
     tags=["metrics"],
-    dependencies=[Security(oauth2_auth().verify, scopes=["query_manager:*"])],
+    dependencies=[Security(oauth2_auth().verify, scopes=[QUERY_MANAGER_ALL])],
 )
 async def list_metrics(
     client: QueryClientDep, metric_ids: Annotated[list[str], Query(description="List of metric ids")] = None  # type: ignore
@@ -48,7 +49,7 @@ async def list_metrics(
     "/metrics/{metric_id}",
     response_model=MetricDetail,
     tags=["metrics"],
-    dependencies=[Security(oauth2_auth().verify, scopes=["query_manager:*"])],
+    dependencies=[Security(oauth2_auth().verify, scopes=[QUERY_MANAGER_ALL])],
 )
 async def get_metric(metric_id: str, client: QueryClientDep):
     """
@@ -61,7 +62,7 @@ async def get_metric(metric_id: str, client: QueryClientDep):
     "/dimensions",
     response_model=list[Dimension],
     tags=["dimensions"],
-    dependencies=[Security(oauth2_auth().verify, scopes=["query_manager:*"])],
+    dependencies=[Security(oauth2_auth().verify, scopes=[QUERY_MANAGER_ALL])],
 )
 async def list_dimensions(client: QueryClientDep):
     """
@@ -74,7 +75,7 @@ async def list_dimensions(client: QueryClientDep):
     "/dimensions/{dimension_id}",
     response_model=DimensionDetail,
     tags=["dimensions"],
-    dependencies=[Security(oauth2_auth().verify, scopes=["query_manager:*"])],
+    dependencies=[Security(oauth2_auth().verify, scopes=[QUERY_MANAGER_ALL])],
 )
 async def get_dimension(dimension_id: str, client: QueryClientDep):
     """
@@ -87,7 +88,7 @@ async def get_dimension(dimension_id: str, client: QueryClientDep):
     "/dimensions/{dimension_id}/members",
     response_model=list[Any],
     tags=["dimensions"],
-    dependencies=[Security(oauth2_auth().verify, scopes=["query_manager:*"])],
+    dependencies=[Security(oauth2_auth().verify, scopes=[QUERY_MANAGER_ALL])],
 )
 async def get_dimension_members(dimension_id: str, client: QueryClientDep):
     """
@@ -101,7 +102,7 @@ async def get_dimension_members(dimension_id: str, client: QueryClientDep):
     "/metrics/{metric_id}/values",
     response_model=MetricValuesResponse,
     tags=["metrics"],
-    dependencies=[Security(oauth2_auth().verify, scopes=["query_manager:*"])],
+    dependencies=[Security(oauth2_auth().verify, scopes=[QUERY_MANAGER_ALL])],
 )
 async def get_metric_values(
     request: Request,
@@ -137,7 +138,7 @@ async def get_metric_values(
     "/metrics/{metric_id}/targets",
     response_model=TargetListResponse,
     tags=["metrics"],
-    dependencies=[Security(oauth2_auth().verify, scopes=["query_manager:*"])],
+    dependencies=[Security(oauth2_auth().verify, scopes=[QUERY_MANAGER_ALL])],
 )
 async def get_metric_targets(
     request: Request,

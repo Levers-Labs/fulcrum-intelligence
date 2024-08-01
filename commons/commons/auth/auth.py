@@ -190,7 +190,7 @@ class Oauth2Auth:
             )
         else:
             # Fetch user details from insights backend
-            user_data = await self.get_app_user(payload["userId"], token)
+            user_data = await self.get_app_user(int(payload.get("userId", "user_id")), token)
 
             return OAuth2User(
                 external_id=payload["sub"],

@@ -10,6 +10,7 @@ from fastapi import (
 from sqlalchemy.exc import IntegrityError
 from starlette import status
 
+from commons.auth.scopes import USER_READ, USER_WRITE
 from commons.db.crud import NotFoundError
 from commons.utilities.pagination import PaginationParams
 from insights_backend.core.dependencies import UsersCRUDDep, oauth2_auth
@@ -22,7 +23,7 @@ logger = logging.getLogger(__name__)
 @user_router.post(
     "/",
     response_model=User,
-    dependencies=[Security(oauth2_auth(UsersCRUDDep).verify, scopes=["user-create"])],  # type: ignore
+    dependencies=[Security(oauth2_auth(UsersCRUDDep).verify, scopes=[USER_WRITE])],  # type: ignore
 )
 async def create_user(user: UserCreate, user_crud_client: UsersCRUDDep) -> User:
     """
@@ -37,7 +38,7 @@ async def create_user(user: UserCreate, user_crud_client: UsersCRUDDep) -> User:
 @user_router.get(
     "/{user_id}",
     response_model=User,
-    dependencies=[Security(oauth2_auth(UsersCRUDDep).verify, scopes=["user-read"])],  # type: ignore
+    dependencies=[Security(oauth2_auth(UsersCRUDDep).verify, scopes=[USER_READ])],  # type: ignore
 )
 async def get_user(user_id: int, user_crud_client: UsersCRUDDep) -> User:
     """
@@ -53,7 +54,7 @@ async def get_user(user_id: int, user_crud_client: UsersCRUDDep) -> User:
 @user_router.get(
     "/user-by-email/{email}",
     response_model=User,
-    dependencies=[Security(oauth2_auth(UsersCRUDDep).verify, scopes=["user-read"])],  # type: ignore
+    dependencies=[Security(oauth2_auth(UsersCRUDDep).verify, scopes=[USER_READ])],  # type: ignore
 )
 async def get_user_by_email(email: str, user_crud_client: UsersCRUDDep) -> User:
     """
@@ -68,7 +69,7 @@ async def get_user_by_email(email: str, user_crud_client: UsersCRUDDep) -> User:
 @user_router.put(
     "/{user_id}",
     response_model=User,
-    dependencies=[Security(oauth2_auth(UsersCRUDDep).verify, scopes=["user-create"])],  # type: ignore
+    dependencies=[Security(oauth2_auth(UsersCRUDDep).verify, scopes=[USER_WRITE])],  # type: ignore
 )
 async def update_user(user_id: int, user: UserCreate, user_crud_client: UsersCRUDDep) -> User:
     """
@@ -85,7 +86,7 @@ async def update_user(user_id: int, user: UserCreate, user_crud_client: UsersCRU
 @user_router.get(
     "/",
     response_model=UserList,
-    dependencies=[Security(oauth2_auth(UsersCRUDDep).verify, scopes=["user-read"])],  # type: ignore
+    dependencies=[Security(oauth2_auth(UsersCRUDDep).verify, scopes=[USER_READ])],  # type: ignore
 )
 async def list_users(
     user_crud_client: UsersCRUDDep,
@@ -99,7 +100,7 @@ async def list_users(
     return UserList(results=results, count=count)
 
 
-@user_router.delete("/{user_id}", dependencies=[Security(oauth2_auth(UsersCRUDDep).verify, scopes=[])])  # type: ignore
+@user_router.delete("/{user_id}", dependencies=[Security(oauth2_auth(UsersCRUDDep).verify, scopes=[USER_WRITE])])  # type: ignore
 async def delete_user(user_id: int, user_crud_client: UsersCRUDDep):
     """
     Retrieve a user by ID.
