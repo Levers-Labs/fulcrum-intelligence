@@ -13,7 +13,13 @@ from commons.auth.scopes import STORY_MANAGER_ALL
 from commons.models.enums import Granularity
 from commons.utilities.pagination import Page, PaginationParams
 from story_manager.core.dependencies import CRUDStoryDep, oauth2_auth
-from story_manager.core.enums import StoryGenre, StoryGroup, StoryType
+from story_manager.core.enums import (
+    Digest,
+    Section,
+    StoryGenre,
+    StoryGroup,
+    StoryType,
+)
 from story_manager.core.filters import StoryFilter
 from story_manager.core.models import Story
 from story_manager.core.schemas import StoryGroupMeta
@@ -46,6 +52,8 @@ async def get_stories(
     grains: Annotated[list[Granularity], Query(description="List of grains")] = None,  # type: ignore
     story_date_start: datetime | None = None,
     story_date_end: datetime | None = None,
+    digest: Digest | None = None,
+    section: Section | None = None,
 ) -> Any:
     """
     Retrieve stories.
@@ -58,6 +66,8 @@ async def get_stories(
         grains=grains,
         story_date_start=story_date_start,
         story_date_end=story_date_end,
+        digest=digest,
+        section=section,
     )
 
     results, count = await story_crud.paginate(params=params, filter_params=story_filter.dict(exclude_unset=True))
