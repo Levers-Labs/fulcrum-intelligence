@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
 
 from commons.middleware import process_time_log_middleware, request_id_middleware
-from commons.utilities.docs import setup_swagger_ui
+from commons.utilities.docs import custom_openapi, setup_swagger_ui
 from commons.utilities.logger import setup_rich_logger
 from insights_backend.config import get_settings
 from insights_backend.core.routes import user_router as core_router
@@ -25,6 +25,7 @@ def get_application() -> FastAPI:
     _app.include_router(health_check_router, prefix="/v1")
     swagger_router = setup_swagger_ui("Insights Backend", settings)
     _app.include_router(swagger_router)
+    _app.openapi = lambda: custom_openapi(_app, settings.AUTH0_ISSUER)  # type: ignore
     _app.add_middleware(
         CORSMiddleware,
         allow_origins=[str(origin) for origin in settings.BACKEND_CORS_ORIGINS],
