@@ -1,5 +1,6 @@
 import importlib
 import logging
+import os
 
 import pytest
 from _pytest.monkeypatch import MonkeyPatch
@@ -15,6 +16,8 @@ logger = logging.getLogger(__name__)
 
 @pytest.fixture(scope="session")
 def postgres():
+    os.environ.setdefault("LC_CTYPE", "en_US.UTF-8")
+    os.environ.setdefault("LC_ALL", "en_US.UTF-8")
     with Postgresql() as postgres:
         yield postgres
 

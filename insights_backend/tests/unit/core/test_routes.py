@@ -3,7 +3,14 @@ from unittest import mock
 import pytest
 from starlette import status
 
-mock.patch("fastapi.Security", lambda *args, **kwargs: True).start()
+
+class MockSecurity:
+    def __init__(self, *args, **kwargs):
+        self.dependency = lambda: True
+        self.use_cache = False
+
+
+mock.patch("fastapi.Security", MockSecurity).start()
 
 
 @pytest.mark.asyncio

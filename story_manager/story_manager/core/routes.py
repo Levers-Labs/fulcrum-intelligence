@@ -6,12 +6,20 @@ from fastapi import (
     Depends,
     HTTPException,
     Query,
+    Security,
 )
 
+from commons.auth.scopes import STORY_MANAGER_ALL
 from commons.models.enums import Granularity
 from commons.utilities.pagination import Page, PaginationParams
-from story_manager.core.dependencies import CRUDStoryDep
-from story_manager.core.enums import StoryGenre, StoryGroup, StoryType
+from story_manager.core.dependencies import CRUDStoryDep, oauth2_auth
+from story_manager.core.enums import (
+    Digest,
+    Section,
+    StoryGenre,
+    StoryGroup,
+    StoryType,
+)
 from story_manager.core.filters import StoryFilter
 from story_manager.core.models import Story
 from story_manager.core.schemas import StoryGroupMeta
@@ -21,7 +29,11 @@ from story_manager.story_builder.factory import StoryFactory
 router = APIRouter(prefix="/stories", tags=["stories"])
 
 
-@router.get("/groups/{group}", response_model=StoryGroupMeta)
+@router.get(
+    "/groups/{group}",
+    response_model=StoryGroupMeta,
+    dependencies=[Security(oauth2_auth().verify, scopes=[STORY_MANAGER_ALL])],
+)
 async def get_story_group_meta(group: StoryGroup) -> StoryGroupMeta:
     builder_klass: type[StoryBuilderBase] = StoryFactory.get_story_builder(group)
     if builder_klass is None:
@@ -29,7 +41,7 @@ async def get_story_group_meta(group: StoryGroup) -> StoryGroupMeta:
     return StoryGroupMeta(group=group, grains=builder_klass.supported_grains)
 
 
-@router.get("/", response_model=Page[Story])
+@router.get("/", response_model=Page[Story], dependencies=[Security(oauth2_auth().verify, scopes=[STORY_MANAGER_ALL])])
 async def get_stories(
     story_crud: CRUDStoryDep,
     params: Annotated[PaginationParams, Depends(PaginationParams)],
@@ -40,6 +52,8 @@ async def get_stories(
     grains: Annotated[list[Granularity], Query(description="List of grains")] = None,  # type: ignore
     story_date_start: datetime | None = None,
     story_date_end: datetime | None = None,
+    digest: Digest | None = None,
+    section: Section | None = None,
 ) -> Any:
     """
     Retrieve stories.
@@ -52,6 +66,8 @@ async def get_stories(
         grains=grains,
         story_date_start=story_date_start,
         story_date_end=story_date_end,
+        digest=digest,
+        section=section,
     )
 
     results, count = await story_crud.paginate(params=params, filter_params=story_filter.dict(exclude_unset=True))

@@ -1,4 +1,5 @@
 import random
+from unittest import mock
 from unittest.mock import AsyncMock
 
 import numpy as np
@@ -9,6 +10,15 @@ from deepdiff import DeepDiff
 from analysis_manager.core.services.component_drift import ComponentDriftService
 from commons.clients.query_manager import QueryManagerClient
 from fulcrum_core.modules import SegmentDriftEvaluator
+
+
+class MockSecurity:
+    def __init__(self, *args, **kwargs):
+        self.dependency = lambda: True
+        self.use_cache = False
+
+
+mock.patch("fastapi.Security", MockSecurity).start()
 
 
 @pytest.mark.skip

@@ -21,7 +21,7 @@ UsersCRUDDep = Annotated[CRUDUser, Depends(get_users_crud)]
 def oauth2_auth(user_crud: UsersCRUDDep) -> InsightsBackendAuth:
     settings = get_settings()
     return InsightsBackendAuth(
-        auth0_issuer=settings.AUTH0_ISSUER,
-        auth0_api_audience=settings.AUTH0_API_AUDIENCE,
+        issuer=settings.AUTH0_ISSUER,
+        api_audience=settings.AUTH0_API_AUDIENCE,
         user_crud=user_crud,
     )

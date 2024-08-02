@@ -114,6 +114,25 @@ class Pressure(str, Enum):
     UNCHANGED = "unchanged"
 
 
+class Digest(str, Enum):
+    PORTFOLIO = "PORTFOLIO"
+    METRIC = "METRIC"
+
+
+class Section(str, Enum):
+    # Portfolio Sections
+    OVERVIEW = "OVERVIEW"
+    STATUS_CHANGES = "STATUS_CHANGES"
+    LIKELY_MISSES = "LIKELY_MISSES"
+    BIG_MOVES = "BIG_MOVES"
+    PROMISING_TRENDS = "PROMISING_TRENDS"
+    CONCERNING_TRENDS = "CONCERNING_TRENDS"
+    # Metric Sections
+    WHAT_IS_HAPPENING = "WHAT_IS_HAPPENING"
+    WHY_IS_IT_HAPPENING = "WHY_IS_IT_HAPPENING"
+    WHAT_HAPPENS_NEXT = "WHAT_HAPPENS_NEXT"
+
+
 GROUP_TO_STORY_TYPE_MAPPING = {
     StoryGroup.GROWTH_RATES: [
         StoryType.SLOWING_GROWTH,

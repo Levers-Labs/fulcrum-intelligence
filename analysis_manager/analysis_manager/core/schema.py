@@ -3,14 +3,9 @@ from typing import Annotated, Any
 
 from pydantic import Field
 
-from analysis_manager.core.models import Component, UserRead
+from analysis_manager.core.models import Component
 from commons.models import BaseModel
 from commons.models.enums import Granularity
-
-
-class UserList(BaseModel):
-    count: int
-    results: list[UserRead]
 
 
 class DimensionRequest(BaseModel):
