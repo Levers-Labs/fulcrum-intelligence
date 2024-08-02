@@ -6,11 +6,13 @@ from fastapi import (
     Depends,
     HTTPException,
     Query,
+    Security,
 )
 
+from commons.auth.scopes import STORY_MANAGER_ALL
 from commons.models.enums import Granularity
 from commons.utilities.pagination import Page, PaginationParams
-from story_manager.core.dependencies import CRUDStoryDep
+from story_manager.core.dependencies import CRUDStoryDep, oauth2_auth
 from story_manager.core.enums import (
     Digest,
     Section,
@@ -27,7 +29,11 @@ from story_manager.story_builder.factory import StoryFactory
 router = APIRouter(prefix="/stories", tags=["stories"])
 
 
-@router.get("/groups/{group}", response_model=StoryGroupMeta)
+@router.get(
+    "/groups/{group}",
+    response_model=StoryGroupMeta,
+    dependencies=[Security(oauth2_auth().verify, scopes=[STORY_MANAGER_ALL])],
+)
 async def get_story_group_meta(group: StoryGroup) -> StoryGroupMeta:
     builder_klass: type[StoryBuilderBase] = StoryFactory.get_story_builder(group)
     if builder_klass is None:
@@ -35,7 +41,7 @@ async def get_story_group_meta(group: StoryGroup) -> StoryGroupMeta:
     return StoryGroupMeta(group=group, grains=builder_klass.supported_grains)
 
 
-@router.get("/", response_model=Page[Story])
+@router.get("/", response_model=Page[Story], dependencies=[Security(oauth2_auth().verify, scopes=[STORY_MANAGER_ALL])])
 async def get_stories(
     story_crud: CRUDStoryDep,
     params: Annotated[PaginationParams, Depends(PaginationParams)],

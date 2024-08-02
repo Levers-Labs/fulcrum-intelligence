@@ -7,10 +7,12 @@ from fastapi import (
     Body,
     Query,
     Request,
+    Security,
 )
 
+from commons.auth.scopes import QUERY_MANAGER_ALL
 from commons.models.enums import Granularity
-from query_manager.core.dependencies import ParquetServiceDep, QueryClientDep
+from query_manager.core.dependencies import ParquetServiceDep, QueryClientDep, oauth2_auth
 from query_manager.core.enums import OutputFormat
 from query_manager.core.schemas import (
     Dimension,
@@ -27,7 +29,12 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="")
 
 
-@router.get("/metrics", response_model=MetricListResponse, tags=["metrics"])
+@router.get(
+    "/metrics",
+    response_model=MetricListResponse,
+    tags=["metrics"],
+    dependencies=[Security(oauth2_auth().verify, scopes=[QUERY_MANAGER_ALL])],
+)
 async def list_metrics(
     client: QueryClientDep, metric_ids: Annotated[list[str], Query(description="List of metric ids")] = None  # type: ignore
 ):
@@ -38,7 +45,12 @@ async def list_metrics(
     return {"results": results}
 
 
-@router.get("/metrics/{metric_id}", response_model=MetricDetail, tags=["metrics"])
+@router.get(
+    "/metrics/{metric_id}",
+    response_model=MetricDetail,
+    tags=["metrics"],
+    dependencies=[Security(oauth2_auth().verify, scopes=[QUERY_MANAGER_ALL])],
+)
 async def get_metric(metric_id: str, client: QueryClientDep):
     """
     Retrieve a metric by ID.
@@ -46,7 +58,12 @@ async def get_metric(metric_id: str, client: QueryClientDep):
     return await client.get_metric_details(metric_id)
 
 
-@router.get("/dimensions", response_model=list[Dimension], tags=["dimensions"])
+@router.get(
+    "/dimensions",
+    response_model=list[Dimension],
+    tags=["dimensions"],
+    dependencies=[Security(oauth2_auth().verify, scopes=[QUERY_MANAGER_ALL])],
+)
 async def list_dimensions(client: QueryClientDep):
     """
     Retrieve a list of dimensions.
@@ -54,7 +71,12 @@ async def list_dimensions(client: QueryClientDep):
     return await client.list_dimensions()
 
 
-@router.get("/dimensions/{dimension_id}", response_model=DimensionDetail, tags=["dimensions"])
+@router.get(
+    "/dimensions/{dimension_id}",
+    response_model=DimensionDetail,
+    tags=["dimensions"],
+    dependencies=[Security(oauth2_auth().verify, scopes=[QUERY_MANAGER_ALL])],
+)
 async def get_dimension(dimension_id: str, client: QueryClientDep):
     """
     Retrieve a dimension by ID.
@@ -62,7 +84,12 @@ async def get_dimension(dimension_id: str, client: QueryClientDep):
     return await client.get_dimension_details(dimension_id)
 
 
-@router.get("/dimensions/{dimension_id}/members", response_model=list[Any], tags=["dimensions"])
+@router.get(
+    "/dimensions/{dimension_id}/members",
+    response_model=list[Any],
+    tags=["dimensions"],
+    dependencies=[Security(oauth2_auth().verify, scopes=[QUERY_MANAGER_ALL])],
+)
 async def get_dimension_members(dimension_id: str, client: QueryClientDep):
     """
     Retrieve members of a dimension by ID.
@@ -71,7 +98,12 @@ async def get_dimension_members(dimension_id: str, client: QueryClientDep):
 
 
 # Value APIs
-@router.post("/metrics/{metric_id}/values", response_model=MetricValuesResponse, tags=["metrics"])
+@router.post(
+    "/metrics/{metric_id}/values",
+    response_model=MetricValuesResponse,
+    tags=["metrics"],
+    dependencies=[Security(oauth2_auth().verify, scopes=[QUERY_MANAGER_ALL])],
+)
 async def get_metric_values(
     request: Request,
     client: QueryClientDep,
@@ -102,7 +134,12 @@ async def get_metric_values(
     return {"data": res}
 
 
-@router.get("/metrics/{metric_id}/targets", response_model=TargetListResponse, tags=["metrics"])
+@router.get(
+    "/metrics/{metric_id}/targets",
+    response_model=TargetListResponse,
+    tags=["metrics"],
+    dependencies=[Security(oauth2_auth().verify, scopes=[QUERY_MANAGER_ALL])],
+)
 async def get_metric_targets(
     request: Request,
     client: QueryClientDep,
