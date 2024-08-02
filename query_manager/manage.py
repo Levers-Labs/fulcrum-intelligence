@@ -177,5 +177,21 @@ def info():
     typer.secho(title + app_health + "\n" + envs)
 
 
+@cli.command("metadata-upsert")
+def metadata_upsert():
+    """Upsert metadata from JSON files into the database."""
+    import asyncio
+
+    from query_manager.scripts.metadata_upsert import main as upsert_main
+
+    typer.secho("Starting metadata upsert...", fg=typer.colors.BLUE)
+    try:
+        asyncio.run(upsert_main())
+        typer.secho("Metadata upsert completed successfully!", fg=typer.colors.GREEN)
+    except Exception as e:
+        typer.secho(f"Error during metadata upsert: {str(e)}", fg=typer.colors.RED)
+        raise typer.Exit(code=1) from e
+
+
 if __name__ == "__main__":
     cli()

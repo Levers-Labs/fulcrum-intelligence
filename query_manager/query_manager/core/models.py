@@ -152,7 +152,7 @@ class MetricBase(BaseSQLModel):
     complexity: Complexity = Field(sa_column=Column(Enum(Complexity, name="metric_complexity", inherit_schema=True)))
     metric_expression: MetricExpression | None = Field(sa_type=JSONB, nullable=True)
     periods: list[Granularity] | None = Field(sa_column=Column(ARRAY(String), nullable=True, default=list))
-    grain_aggregation: str = Field(sa_column=Column(String, max_length=255, default="sum"))
+    grain_aggregation: str = Field(sa_column=Column(String(255), default="sum"))
     aggregations: list[str] = Field(sa_column=Column(ARRAY(String), nullable=True, default=list))
     owned_by_team: list[str] = Field(sa_column=Column(ARRAY(String), nullable=True, default=list))
     meta_data: MetricMetadata = Field(sa_type=JSONB, default_factory=dict)
