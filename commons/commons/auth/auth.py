@@ -137,7 +137,11 @@ class Oauth2Auth:
         payload = self.verify_jwt(token.credentials)
         # Verify the scopes if route requires it
         if security_scopes.scopes:
-            self._verify_token_claims(payload, "scope", security_scopes.scopes)
+            # in case of M2M app token permissions are present in scope key
+            # else in case of normal app user it is present in permissions key
+            claims_key = "scope" if payload["sub"].endswith("@clients") else "permissions"
+
+            self._verify_token_claims(payload, claims_key, security_scopes.scopes)
 
         user = await self.get_oauth_user(payload, token.credentials)
         return user
@@ -186,7 +190,7 @@ class Oauth2Auth:
             )
         else:
             # Fetch user details from insights backend
-            user_data = await self.get_app_user(payload["user_id"], token)
+            user_data = await self.get_app_user(int(payload.get("userId", "user_id")), token)
 
             return OAuth2User(
                 external_id=payload["sub"],
