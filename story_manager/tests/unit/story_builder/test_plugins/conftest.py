@@ -144,14 +144,14 @@ def metric_details():
         "owned_by_team": ["Sales"],
         "dimensions": [
             {
-                "id": "account_region",
+                "dimension_id": "account_region",
                 "label": "Account Region",
                 "metadata": {
                     "semantic_meta": {"cube": "dim_opportunity", "member": "account_region", "member_type": "dimension"}
                 },
             },
             {
-                "id": "account_segment",
+                "dimension_id": "account_segment",
                 "label": "Account Segment",
                 "metadata": {
                     "semantic_meta": {
@@ -162,7 +162,7 @@ def metric_details():
                 },
             },
             {
-                "id": "account_territory",
+                "dimension_id": "account_territory",
                 "label": "Account Territory",
                 "metadata": {
                     "semantic_meta": {
@@ -173,21 +173,21 @@ def metric_details():
                 },
             },
             {
-                "id": "billing_plan",
+                "dimension_id": "billing_plan",
                 "label": "Billing Plan",
                 "metadata": {
                     "semantic_meta": {"cube": "dim_opportunity", "member": "billing_plan", "member_type": "dimension"}
                 },
             },
             {
-                "id": "billing_term",
+                "dimension_id": "billing_term",
                 "label": "Billing Term",
                 "metadata": {
                     "semantic_meta": {"cube": "dim_opportunity", "member": "billing_term", "member_type": "dimension"}
                 },
             },
             {
-                "id": "contract_duration_months",
+                "dimension_id": "contract_duration_months",
                 "label": "Contract Duration Months",
                 "metadata": {
                     "semantic_meta": {
@@ -198,7 +198,7 @@ def metric_details():
                 },
             },
             {
-                "id": "customer_success_manager_name",
+                "dimension_id": "customer_success_manager_name",
                 "label": "Customer Success Manager Name",
                 "metadata": {
                     "semantic_meta": {
@@ -209,7 +209,7 @@ def metric_details():
                 },
             },
             {
-                "id": "forecast_category",
+                "dimension_id": "forecast_category",
                 "label": "Forecast Category",
                 "metadata": {
                     "semantic_meta": {
@@ -220,21 +220,21 @@ def metric_details():
                 },
             },
             {
-                "id": "lead_source",
+                "dimension_id": "lead_source",
                 "label": "Lead Source",
                 "metadata": {
                     "semantic_meta": {"cube": "dim_opportunity", "member": "lead_source", "member_type": "dimension"}
                 },
             },
             {
-                "id": "loss_reason",
+                "dimension_id": "loss_reason",
                 "label": "Loss Reason",
                 "metadata": {
                     "semantic_meta": {"cube": "dim_opportunity", "member": "loss_reason", "member_type": "dimension"}
                 },
             },
             {
-                "id": "opportunity_source",
+                "dimension_id": "opportunity_source",
                 "label": "Opportunity Source",
                 "metadata": {
                     "semantic_meta": {

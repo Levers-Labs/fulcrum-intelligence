@@ -5,6 +5,7 @@ from typing import Annotated, Any
 from fastapi import (
     APIRouter,
     Body,
+    Depends,
     Query,
     Request,
     Security,
@@ -12,13 +13,15 @@ from fastapi import (
 
 from commons.auth.scopes import QUERY_MANAGER_ALL
 from commons.models.enums import Granularity
+from commons.utilities.pagination import Page, PaginationParams
 from query_manager.core.dependencies import ParquetServiceDep, QueryClientDep, oauth2_auth
 from query_manager.core.enums import OutputFormat
+from query_manager.core.models import Dimension, Metric
 from query_manager.core.schemas import (
-    Dimension,
+    DimensionCompact,
     DimensionDetail,
     MetricDetail,
-    MetricListResponse,
+    MetricList,
     MetricValuesResponse,
     TargetListResponse,
 )
@@ -31,18 +34,23 @@ router = APIRouter(prefix="")
 
 @router.get(
     "/metrics",
-    response_model=MetricListResponse,
+    response_model=Page[MetricList],
     tags=["metrics"],
     dependencies=[Security(oauth2_auth().verify, scopes=[QUERY_MANAGER_ALL])],
 )
 async def list_metrics(
-    client: QueryClientDep, metric_ids: Annotated[list[str], Query(description="List of metric ids")] = None  # type: ignore
+    client: QueryClientDep,
+    params: Annotated[PaginationParams, Depends(PaginationParams)],
+    metric_ids: Annotated[
+        list[str] | None,
+        Query(description="List of metric ids"),
+    ] = None,
 ):
     """
     Retrieve a list of metrics.
     """
-    results = await client.list_metrics(metric_ids=metric_ids)
-    return {"results": results}
+    results, count = await client.list_metrics(metric_ids=metric_ids, params=params)
+    return Page[Metric].create(items=results, total_count=count, params=params)
 
 
 @router.get(
@@ -60,15 +68,19 @@ async def get_metric(metric_id: str, client: QueryClientDep):
 
 @router.get(
     "/dimensions",
-    response_model=list[Dimension],
+    response_model=Page[DimensionCompact],
     tags=["dimensions"],
     dependencies=[Security(oauth2_auth().verify, scopes=[QUERY_MANAGER_ALL])],
 )
-async def list_dimensions(client: QueryClientDep):
+async def list_dimensions(
+    client: QueryClientDep,
+    params: Annotated[PaginationParams, Depends(PaginationParams)],
+):
     """
     Retrieve a list of dimensions.
     """
-    return await client.list_dimensions()
+    results, count = await client.list_dimensions(params=params)
+    return Page[Dimension].create(items=results, total_count=count, params=params)
 
 
 @router.get(

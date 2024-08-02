@@ -4,6 +4,9 @@ from fastapi import Depends
 
 from commons.auth.auth import Oauth2Auth
 from query_manager.config import get_settings
+from query_manager.core.crud import CRUDDimensions, CRUDMetric
+from query_manager.core.models import Dimension, Metric
+from query_manager.db.config import AsyncSessionDep
 from query_manager.services.cube import CubeClient, CubeJWTAuthType
 from query_manager.services.parquet import ParquetService
 from query_manager.services.query_client import QueryClient
@@ -34,8 +37,22 @@ async def get_parquet_service(s3_client: S3ClientDep) -> ParquetService:
     return ParquetService(s3_client)
 
 
-async def get_query_client(cube_client: CubeClientDep) -> QueryClient:
-    return QueryClient(cube_client)
+async def get_dimensions_crud(session: AsyncSessionDep) -> CRUDDimensions:
+    return CRUDDimensions(model=Dimension, session=session)
+
+
+async def get_metric_crud(session: AsyncSessionDep) -> CRUDMetric:
+    return CRUDMetric(model=Metric, session=session)
+
+
+CRUDDimensionDep = Annotated[CRUDDimensions, Depends(get_dimensions_crud)]
+CRUDMetricDep = Annotated[CRUDMetric, Depends(get_metric_crud)]
+
+
+async def get_query_client(
+    cube_client: CubeClientDep, dimensions_crud: CRUDDimensionDep, metric_crud: CRUDMetricDep
+) -> QueryClient:
+    return QueryClient(cube_client, dimensions_crud, metric_crud)
 
 
 def oauth2_auth() -> Oauth2Auth:

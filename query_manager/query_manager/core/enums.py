@@ -15,3 +15,8 @@ class TargetAim(str, Enum):
 class SemanticMemberType(str, Enum):
     MEASURE = "measure"
     DIMENSION = "dimension"
+
+
+class Complexity(str, Enum):
+    ATOMIC = "Atomic"
+    COMPLEX = "Complex"

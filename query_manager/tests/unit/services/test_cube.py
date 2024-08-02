@@ -7,12 +7,13 @@ from commons.clients.auth import JWTAuth, JWTSecretKeyAuth
 from commons.clients.base import HttpClientError
 from commons.models.enums import Granularity
 from query_manager.core.dependencies import get_cube_client
-from query_manager.core.schemas import (
+from query_manager.core.models import (
     Dimension,
-    MetricDetail,
+    Metric,
     SemanticMetaDimension,
     SemanticMetaMetric,
 )
+from query_manager.core.schemas import DimensionDetail, MetricDetail
 from query_manager.exceptions import MalformedMetricMetadataError, MetricValueNotFoundError, QueryManagerError
 from query_manager.services.cube import CubeClient, CubeJWTAuthType
 
@@ -147,14 +148,14 @@ def test_convert_cube_response_to_metric_values(metric):
         }
     ]
     metric = MetricDetail.parse_obj(metric)
-    metric.metadata.semantic_meta = SemanticMetaMetric(
+    metric.meta_data.semantic_meta = SemanticMetaMetric(
         cube="dim_opportunity",
         member="sqo_rate",
         member_type="measure",
         time_dimension={"cube": "dim_opportunity", "member": "sqo_date"},
     )
-    metric.dimensions[0].id = "account_name"
-    metric.dimensions[0].metadata.semantic_meta = SemanticMetaDimension(
+    metric.dimensions[0].dimension_id = "account_name"
+    metric.dimensions[0].meta_data.semantic_meta = SemanticMetaDimension(
         cube="dim_opportunity", member="account_name", member_type="dimension"
     )
 
@@ -179,7 +180,7 @@ def test_convert_cube_response_to_metric_values_no_time_dimension(metric):
     # Prepare
     response = [{"dim_opportunity.sqo_rate": "100.000000"}]
     metric = MetricDetail.parse_obj(metric)
-    metric.metadata.semantic_meta = SemanticMetaMetric(
+    metric.meta_data.semantic_meta = SemanticMetaMetric(
         cube="dim_opportunity",
         member="sqo_rate",
         member_type="measure",
@@ -196,7 +197,7 @@ def test_convert_cube_response_to_metric_values_no_time_dimension(metric):
 def test_generate_query_for_metric_with_grain(metric):
     # Prepare
     metric = MetricDetail.parse_obj(metric)
-    metric.metadata.semantic_meta = SemanticMetaMetric(
+    metric.meta_data.semantic_meta = SemanticMetaMetric(
         cube="dim_opportunity",
         member="sqo_rate",
         member_type="measure",
@@ -226,7 +227,7 @@ def test_generate_query_for_metric_with_grain(metric):
 def test_generate_query_for_metric_without_grain(metric):
     # Prepare
     metric = MetricDetail.parse_obj(metric)
-    metric.metadata.semantic_meta = SemanticMetaMetric(
+    metric.meta_data.semantic_meta = SemanticMetaMetric(
         cube="dim_opportunity",
         member="sqo_rate",
         member_type="measure",
@@ -248,17 +249,18 @@ def test_generate_query_for_metric_without_grain(metric):
     }
 
 
-def test_generate_query_for_metric_dimensions(metric):
+def test_generate_query_for_metric_dimensions(metric, dimension):
     # Prepare
-    metric = MetricDetail.parse_obj(metric)
-    metric.metadata.semantic_meta = SemanticMetaMetric(
+    metric = Metric.parse_obj(metric)
+    metric.meta_data.semantic_meta = SemanticMetaMetric(
         cube="dim_opportunity",
         member="sqo_rate",
         member_type="measure",
         time_dimension={"cube": "dim_opportunity", "member": "sqo_date"},
     )
-    metric.dimensions[0].id = "account_name"
-    metric.dimensions[0].metadata.semantic_meta = SemanticMetaDimension(
+    metric.dimensions = [Dimension.parse_obj(dimension)]
+    metric.dimensions[0].dimension_id = "account_name"
+    metric.dimensions[0].meta_data.semantic_meta = SemanticMetaDimension(
         cube="dim_opportunity", member="account_name", member_type="dimension"
     )
 
@@ -279,7 +281,7 @@ async def test_load_metric_values_from_cube(mocker, metric, cube_client):
     # Prepare
     cube_client = await cube_client
     metric = MetricDetail.parse_obj(metric)
-    metric.metadata.semantic_meta = SemanticMetaMetric(
+    metric.meta_data.semantic_meta = SemanticMetaMetric(
         cube="dim_opportunity",
         member="sqo_rate",
         member_type="measure",
@@ -308,7 +310,7 @@ async def test_load_metric_values_from_cube_error(mocker, metric, cube_client):
     # Prepare
     cube_client = await cube_client
     metric = MetricDetail.parse_obj(metric)
-    metric.metadata.semantic_meta = SemanticMetaMetric(
+    metric.meta_data.semantic_meta = SemanticMetaMetric(
         cube="dim_opportunity",
         member="sqo_rate",
         member_type="measure",
@@ -353,7 +355,7 @@ async def test_load_metric_targets_from_cube(mocker, metric, cube_client):
             "metric_targets.red_buffer",
         ],
         "filters": [
-            {"member": "metric_targets.metric_id", "operator": "equals", "values": [metric.id]},
+            {"member": "metric_targets.metric_id", "operator": "equals", "values": [metric.metric_id]},
             {"member": "metric_targets.grain", "operator": "equals", "values": [grain.value]},
         ],
         "timeDimensions": [
@@ -424,7 +426,7 @@ async def test_load_metric_targets_from_cube_error(mocker, metric, cube_client):
 async def test_load_dimension_members_from_cube(mocker, dimension, cube_client):
     # Prepare
     cube_client = await cube_client
-    dimension = Dimension.parse_obj(dimension)
+    dimension = DimensionDetail.model_validate(dimension)
     query = {"dimensions": ["cube1.billing_plan"]}
     cube_response = [{"cube1.billing_plan": "Enterprise"}, {"cube1.billing_plan": "Partnership"}]
     # mock the load_query_data method
@@ -443,7 +445,7 @@ async def test_load_dimension_members_from_cube(mocker, dimension, cube_client):
 async def test_load_dimension_members_from_cube_error(mocker, dimension, cube_client):
     # Prepare
     cube_client = await cube_client
-    dimension = Dimension.parse_obj(dimension)
+    dimension = DimensionDetail.model_validate(dimension)
     # mock the load_query_data method
     load_query_data_mock = AsyncMock(side_effect=HttpClientError("Error"))
     mocker.patch.object(cube_client, "load_query_data", load_query_data_mock)

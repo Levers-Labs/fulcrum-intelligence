@@ -2,6 +2,7 @@
 omit=
     # no need to data files
     */data/*
+    scripts/*
 
 [report]
 fail_under = 80

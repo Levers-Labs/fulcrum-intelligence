@@ -6,7 +6,7 @@ from typing import (
 )
 
 from pydantic import BaseModel
-from sqlalchemy import func, select
+from sqlalchemy import Select, func, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from commons.db.filters import BaseFilter
@@ -40,10 +40,13 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType, FilterType
         self.model = model
         self.session = session
 
+    def get_select_query(self) -> Select:
+        return select(self.model)
+
     async def get(self, id: int) -> ModelType:
-        statement = select(self.model).filter_by(id=id)
+        statement = self.get_select_query().filter_by(id=id)
         results = await self.session.execute(statement=statement)
-        instance: ModelType | None = results.scalar_one_or_none()
+        instance: ModelType | None = results.unique().scalar_one_or_none()
 
         if instance is None:
             raise NotFoundError(id=id)
@@ -51,7 +54,7 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType, FilterType
         return instance
 
     async def list_results(self, *, params: PaginationParams) -> list[ModelType]:
-        results = await self.session.execute(select(self.model).offset(params.offset).limit(params.limit))
+        results = await self.session.execute(self.get_select_query().offset(params.offset).limit(params.limit))
         records: list[ModelType] = cast(list[ModelType], results.scalars().all())
         return records
 
@@ -62,7 +65,7 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType, FilterType
         Returns a tuple of the results and the total count.
         """
         # base query
-        query = select(self.model)
+        query = self.get_select_query()
         # apply filters if filter class is provided
         if self.filter_class is not None:
             query = self.filter_class.apply_filters(query, filter_params)
@@ -74,7 +77,7 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType, FilterType
         # get paginated results
         results_query = query.offset(params.offset).limit(params.limit)
         results = await self.session.scalars(results_query)
-        records: list[ModelType] = cast(list[ModelType], results)
+        records: list[ModelType] = cast(list[ModelType], results.unique().all())
         return records, count or 0
 
     async def create(self, *, obj_in: CreateSchemaType) -> ModelType:

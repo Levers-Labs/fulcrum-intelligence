@@ -44,7 +44,7 @@ async def test_get_found(crud_base, async_session):
     # Setup the expected return values for execute
     mock_result = MagicMock()
     expected_instance = ExampleModel(id=1, name="Test Item")
-    mock_result.scalar_one_or_none.return_value = expected_instance
+    mock_result.unique.return_value.scalar_one_or_none.return_value = expected_instance
     async_session.execute.return_value = mock_result
 
     # Act
@@ -59,7 +59,7 @@ async def test_get_found(crud_base, async_session):
 async def test_get_not_found(crud_base, async_session):
     # Setup execute to return a MagicMock with None for scalar_one_or_none
     mock_result = MagicMock()
-    mock_result.scalar_one_or_none.return_value = None
+    mock_result.unique.return_value.scalar_one_or_none.return_value = None
     async_session.execute.return_value = mock_result
 
     # Act & Assert
@@ -96,8 +96,10 @@ async def test_paginate(crud_base, async_session):
     expected_count = len(model_instances)
 
     # Set up mock results for scalars() and scalar()
-    async_session.scalars.return_value = model_instances
+    result_mock = MagicMock()
+    async_session.scalars.return_value = result_mock
     async_session.scalar.return_value = expected_count
+    result_mock.unique.return_value.all.return_value = model_instances
 
     # Set up the pagination and filter parameters
     pagination_params = PaginationParams(offset=0, limit=10)
@@ -163,7 +165,7 @@ async def test_delete(crud_base, async_session):
 
     # Setup the expected return values for executing
     mock_result = MagicMock()
-    mock_result.scalar_one_or_none.return_value = instance_to_delete
+    mock_result.unique.return_value.scalar_one_or_none.return_value = instance_to_delete
     async_session.execute.return_value = mock_result
 
     # Act
