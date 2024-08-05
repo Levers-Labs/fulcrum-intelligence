@@ -19,34 +19,37 @@ def setup_swagger_ui(title, settings):
 
 
 def custom_openapi(app: FastAPI, token_url: str):
-    """
-    Overriding openapi method to add client cred based auth as well in swagger along with token based auth
-    AuthServer schema in following code is for client cred based auth
-    """
-    if app.openapi_schema:
+    def custom_openapi_callable():
+        """
+        Overriding openapi method to add client cred based auth as well in swagger along with token based auth
+        AuthServer schema in following code is for client cred based auth
+        """
+        if app.openapi_schema:
+            return app.openapi_schema
+
+        openapi_schema = get_openapi(
+            title=app.title,
+            version="3.1.0",
+            description=app.description,
+            routes=app.routes,
+        )
+        openapi_schema["components"]["securitySchemes"]["AuthServer"] = {
+            "description": "Authentication via Cognito(OAuth2)",
+            "type": "oauth2",
+            "flows": {
+                "clientCredentials": {
+                    "tokenUrl": f"{token_url}oauth/token",
+                }
+            },
+        }
+
+        # Adding AuthServer security schema for all the routes of app, else they aren't working with client cred auth
+        for _, path_config in openapi_schema["paths"].items():
+            for _, method_config in path_config.items():
+                if "security" in method_config:
+                    method_config["security"].append({"AuthServer": []})
+
+        app.openapi_schema = openapi_schema
         return app.openapi_schema
 
-    openapi_schema = get_openapi(
-        title=app.title,
-        version="2.5.1",
-        description=app.description,
-        routes=app.routes,
-    )
-    openapi_schema["components"]["securitySchemes"]["AuthServer"] = {
-        "description": "Authentication via Cognito(OAuth2)",
-        "type": "oauth2",
-        "flows": {
-            "clientCredentials": {
-                "tokenUrl": f"{token_url}oauth/token",
-            }
-        },
-    }
-
-    # Adding AuthServer security schema for all the routes of app, else they aren't working with client cred auth
-    for _, path_config in openapi_schema["paths"].items():
-        for _, method_config in path_config.items():
-            if "security" in method_config:
-                method_config["security"].append({"AuthServer": []})
-
-    app.openapi_schema = openapi_schema
-    return app.openapi_schema
+    return custom_openapi_callable
