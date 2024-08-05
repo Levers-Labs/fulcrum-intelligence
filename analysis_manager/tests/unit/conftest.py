@@ -43,6 +43,11 @@ def setup_env(session_monkeypatch, postgres):
     session_monkeypatch.setenv("BACKEND_CORS_ORIGINS", '["http://localhost"]')
     session_monkeypatch.setenv("QUERY_MANAGER_SERVER_HOST", "http://localhost:8001/v1/")
     session_monkeypatch.setenv("DATABASE_URL", db_async_uri)
+    session_monkeypatch.setenv("AUTH0_API_AUDIENCE", "https://some_auth0_audience")
+    session_monkeypatch.setenv("AUTH0_ISSUER", "https://some_auth0_domain.com")
+    session_monkeypatch.setenv("AUTH0_CLIENT_ID", "client_id")
+    session_monkeypatch.setenv("AUTH0_CLIENT_SECRET", "client_secret")
+    session_monkeypatch.setenv("INSIGHTS_BACKEND_SERVER_HOST", "http://localhost:8004/v1/")
     yield
 
 
@@ -215,7 +220,7 @@ def metric_values_netmrr():
 @pytest.fixture(scope="session")
 def metric_cac():
     return {
-        "id": "CAC",
+        "metric_id": "CAC",
         "label": "Metric 1",
         "abbreviation": "M1",
         "definition": "Definition 1",
@@ -296,17 +301,17 @@ def metric_sms():
 @pytest.fixture(scope="session")
 def metric_list(metric_cac, metric_sms):
     metric_ss = metric_sms.copy()
-    metric_ss["id"] = "SalesSpend"
+    metric_ss["metric_id"] = "SalesSpend"
     metric_ss["metric_expression"] = None
     metric_ms = metric_sms.copy()
-    metric_ms["id"] = "MktSpend"
+    metric_ms["metric_id"] = "MktSpend"
     metric_ms["metric_expression"] = None
 
     metric_new_cust = metric_sms.copy()
-    metric_new_cust["id"] = "NewCust"
+    metric_new_cust["metric_id"] = "NewCust"
 
     metric_old_cust = metric_new_cust.copy()
-    metric_old_cust["id"] = "OldCust"
+    metric_old_cust["metric_id"] = "OldCust"
     return [metric_cac, metric_sms, metric_ss, metric_ms, metric_new_cust, metric_old_cust]
 
 
@@ -935,3 +940,78 @@ def mock_get_metric_time_series(mocker, segment_drift_evaluation_data, segment_d
         "commons.clients.query_manager.QueryManagerClient.get_metric_time_series",
         side_effect=_mock_get_metric_time_series,
     )
+
+
+@pytest.fixture
+def mock_drift_resp():
+    return {
+        "metric_id": "CAC",
+        "evaluation_value": 3799.9996,
+        "comparison_value": 5899.9933,
+        "drift": {
+            "absolute_drift": -2099.9937,
+            "percentage_drift": -0.3559315397866638,
+            "relative_impact": 1,
+            "marginal_contribution": 1,
+            "relative_impact_root": 1,
+            "marginal_contribution_root": 1,
+        },
+        "components": [
+            {
+                "metric_id": "SalesMktSpend",
+                "evaluation_value": 206,
+                "comparison_value": 241,
+                "drift": {
+                    "absolute_drift": -0.15692076470107352,
+                    "percentage_drift": -0.14522821576763487,
+                    "relative_impact": 0.3566784274548074,
+                    "marginal_contribution": -0.12695310189267545,
+                    "relative_impact_root": 0.3566784274548074,
+                    "marginal_contribution_root": -0.12695310189267545,
+                },
+                "components": [
+                    {
+                        "metric_id": "OpenNewBizOpps",
+                        "evaluation_value": 512,
+                        "comparison_value": 455,
+                        "drift": {
+                            "absolute_drift": 0.11802720608855743,
+                            "percentage_drift": 0.12527472527472527,
+                            "relative_impact": -0.8050695786735789,
+                            "marginal_contribution": 0.10978325931323069,
+                            "relative_impact_root": -0.28715095131299645,
+                            "marginal_contribution_root": -0.013937325305702585,
+                        },
+                        "components": [],
+                    },
+                    {
+                        "metric_id": "SQORate",
+                        "evaluation_value": 33.3984,
+                        "comparison_value": 43.5165,
+                        "drift": {
+                            "absolute_drift": -0.26463218187588744,
+                            "percentage_drift": -0.23251180586674017,
+                            "relative_impact": 1.8050695786735669,
+                            "marginal_contribution": -0.24614819250833003,
+                            "relative_impact_root": 0.6438293787677996,
+                            "marginal_contribution_root": 0.031249276564207912,
+                        },
+                        "components": [],
+                    },
+                ],
+            },
+            {
+                "metric_id": "SQOToWinRate",
+                "evaluation_value": 18.4466,
+                "comparison_value": 24.4813,
+                "drift": {
+                    "absolute_drift": -0.283029489147558,
+                    "percentage_drift": -0.24650243246886402,
+                    "relative_impact": 0.6433215725451906,
+                    "marginal_contribution": -0.22897843789398764,
+                    "relative_impact_root": 0.6433215725451906,
+                    "marginal_contribution_root": -0.22897843789398764,
+                },
+            },
+        ],
+    }

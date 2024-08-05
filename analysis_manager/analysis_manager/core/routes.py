@@ -6,8 +6,8 @@ import pandas as pd
 from fastapi import (
     APIRouter,
     Body,
-    Depends,
     HTTPException,
+    Security,
 )
 
 from analysis_manager.config import settings
@@ -15,14 +15,9 @@ from analysis_manager.core.dependencies import (
     AnalysisManagerDep,
     ComponentDriftServiceDep,
     QueryManagerClientDep,
-    UsersCRUDDep,
+    oauth2_auth,
 )
-from analysis_manager.core.models import (
-    Component,
-    ComponentDriftRequest,
-    User,
-    UserRead,
-)
+from analysis_manager.core.models import Component, ComponentDriftRequest
 from analysis_manager.core.models.correlate import CorrelateRead
 from analysis_manager.core.schema import (
     CorrelateRequest,
@@ -36,39 +31,19 @@ from analysis_manager.core.schema import (
     ProcessControlResponse,
     SegmentDriftRequest,
     SegmentDriftResponse,
-    UserList,
 )
-from commons.utilities.pagination import PaginationParams
+from commons.auth.scopes import ANALYSIS_MANAGER_ALL
 from fulcrum_core.execptions import InsufficientDataError
 
 router = APIRouter(prefix="/analyze", tags=["analyze"])
-user_router = APIRouter(prefix="/users", tags=["users"])
 logger = logging.getLogger(__name__)
 
 
-@user_router.get("", response_model=UserList)
-async def list_users(
-    users: UsersCRUDDep,
-    params: Annotated[PaginationParams, Depends(PaginationParams)],
-) -> Any:
-    """
-    Retrieve users.
-    """
-    count = await users.total_count()
-    results: list[UserRead] = [UserRead.from_orm(user) for user in await users.list_results(params=params)]
-    return UserList(results=results, count=count)
-
-
-@user_router.get("/{user_id}", response_model=UserRead)
-async def get_user(user_id: int, users: UsersCRUDDep) -> Any:
-    """
-    Retrieve a user by ID.
-    """
-    user: User = await users.get(user_id)
-    return user
-
-
-@router.post("/describe", response_model=list[DescribeResponse])
+@router.post(
+    "/describe",
+    response_model=list[DescribeResponse],
+    dependencies=[Security(oauth2_auth().verify, scopes=[ANALYSIS_MANAGER_ALL])],
+)
 async def describe_analysis(
     analysis_manager: AnalysisManagerDep,
     query_manager: QueryManagerClientDep,
@@ -131,7 +106,11 @@ async def describe_analysis(
     return results
 
 
-@router.post("/correlate", response_model=list[CorrelateRead])
+@router.post(
+    "/correlate",
+    response_model=list[CorrelateRead],
+    dependencies=[Security(oauth2_auth().verify, scopes=[ANALYSIS_MANAGER_ALL])],
+)
 async def correlate(
     analysis_manager: AnalysisManagerDep,
     query_manager: QueryManagerClientDep,
@@ -166,7 +145,11 @@ async def correlate(
     return analysis_manager.correlate(df=metrics_df)
 
 
-@router.post("/process-control", response_model=list[ProcessControlResponse])
+@router.post(
+    "/process-control",
+    response_model=list[ProcessControlResponse],
+    dependencies=[Security(oauth2_auth().verify, scopes=[ANALYSIS_MANAGER_ALL])],
+)
 async def process_control(
     analysis_manager: AnalysisManagerDep,
     query_manager: QueryManagerClientDep,
@@ -196,7 +179,11 @@ async def process_control(
     return results
 
 
-@router.post("/drift/component", response_model=Component)
+@router.post(
+    "/drift/component",
+    response_model=Component,
+    dependencies=[Security(oauth2_auth().verify, scopes=[ANALYSIS_MANAGER_ALL])],
+)
 async def component_drift(
     query_manager: QueryManagerClientDep,
     component_drift_service: ComponentDriftServiceDep,
@@ -229,7 +216,11 @@ async def component_drift(
     )
 
 
-@router.post("/forecast/simple", response_model=list[ForecastResponse])
+@router.post(
+    "/forecast/simple",
+    response_model=list[ForecastResponse],
+    dependencies=[Security(oauth2_auth().verify, scopes=[ANALYSIS_MANAGER_ALL])],
+)
 async def simple_forecast(
     analysis_manager: AnalysisManagerDep,
     query_manager: QueryManagerClientDep,
@@ -280,7 +271,11 @@ async def simple_forecast(
     return res
 
 
-@router.post("/drift/segment", response_model=SegmentDriftResponse)
+@router.post(
+    "/drift/segment",
+    response_model=SegmentDriftResponse,
+    dependencies=[Security(oauth2_auth().verify, scopes=[ANALYSIS_MANAGER_ALL])],
+)
 async def segment_drift(
     analysis_manager: AnalysisManagerDep,
     query_manager: QueryManagerClientDep,
@@ -340,7 +335,11 @@ async def segment_drift(
     )
 
 
-@router.post("/influence-attribution", response_model=InfluenceAttributionResponse)
+@router.post(
+    "/influence-attribution",
+    response_model=InfluenceAttributionResponse,
+    dependencies=[Security(oauth2_auth().verify, scopes=[ANALYSIS_MANAGER_ALL])],
+)
 async def influence_attribution(
     analysis_manager: AnalysisManagerDep,
     query_manager: QueryManagerClientDep,

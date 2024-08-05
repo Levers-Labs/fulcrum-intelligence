@@ -1,0 +1,55 @@
+name: Deploy Leverlabs Apps images
+
+on:
+  workflow_call:
+    inputs:
+      ecr_repo:
+        description: 'application ecr repo name'
+        required: true
+        type: string
+      app_lambda_function_name:
+        description: "One of the App's lambda function name"
+        required: true
+        type: string
+      tag:
+        description: 'Dynamically generated tag, format curdate_curtime'
+        required: true
+        type: string
+
+    secrets:
+      AWS_REGION:
+        description: 'The region of ECR'
+        required: true
+      DEV_DEPLOYMENT_ROLE:
+        description: 'The deployment role ARN (OIDC)'
+        required: true
+      ECR_REGISTRY:
+        description: 'The ECR registry URL'
+        required: true
+
+# Required to get the ID Token that will be used for OIDC
+permissions:
+  id-token: write # This is required for requesting the JWT
+  contents: read  # This is required for actions/checkout
+
+
+
+jobs:
+  deploy-app:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-region: ${{ secrets.AWS_REGION }}
+          role-to-assume: ${{ secrets.DEV_DEPLOYMENT_ROLE }}
+          role-session-name: OIDCSession
+
+      - name: Update AWS Lambda function
+        run: |
+          IMAGE_URI="${{ secrets.ECR_REGISTRY }}/${{ inputs.ecr_repo }}:${{ inputs.tag }}"
+          aws lambda update-function-code \
+            --region ${{ secrets.AWS_REGION }} \
+            --function-name ${{ inputs.app_lambda_function_name }} \
+            --image-uri $IMAGE_URI

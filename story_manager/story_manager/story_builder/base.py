@@ -395,6 +395,6 @@ class StoryBuilderBase(ABC):
         """
         dimension_id_label_map = dict()
         for dimension in metric_details["dimensions"]:
-            dimension_id_label_map[dimension["id"]] = dimension["label"]
+            dimension_id_label_map[dimension["dimension_id"]] = dimension["label"]
 
         return dimension_id_label_map
