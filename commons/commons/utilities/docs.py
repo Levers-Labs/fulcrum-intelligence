@@ -18,7 +18,7 @@ def setup_swagger_ui(title, settings):
     return router
 
 
-def custom_openapi(app: FastAPI, token_url: str):
+def custom_openapi(app: FastAPI, oauth_issuer: str):
     def custom_openapi_callable():
         """
         Overriding openapi method to add client cred based auth as well in swagger along with token based auth
@@ -38,7 +38,7 @@ def custom_openapi(app: FastAPI, token_url: str):
             "type": "oauth2",
             "flows": {
                 "clientCredentials": {
-                    "tokenUrl": f"{token_url}oauth/token",
+                    "tokenUrl": f"{oauth_issuer.rstrip('/')}/oauth/token",
                 }
             },
         }
