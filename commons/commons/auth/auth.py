@@ -75,7 +75,7 @@ class Oauth2Auth:
         Returns:
             jwt.PyJWKClient: The JWT client for fetching public keys.
         """
-        jwks_url = f"{self.issuer}.well-known/jwks.json"
+        jwks_url = f"{self.issuer.rstrip('/')}/.well-known/jwks.json"
         return jwt.PyJWKClient(jwks_url, cache_jwk_set=True, cache_keys=True)
 
     def verify_jwt(self, token: str) -> dict[str, Any]:
