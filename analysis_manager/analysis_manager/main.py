@@ -6,7 +6,7 @@ from analysis_manager.config import settings
 from analysis_manager.core.routes import router as core_router
 from analysis_manager.health import router as health_check_router
 from commons.middleware import process_time_log_middleware, request_id_middleware
-from commons.utilities.docs import setup_swagger_ui
+from commons.utilities.docs import custom_openapi, setup_swagger_ui
 from commons.utilities.logger import setup_rich_logger
 
 
@@ -23,6 +23,7 @@ def get_application() -> FastAPI:
     _app.include_router(health_check_router, prefix="/v1")
     swagger_router = setup_swagger_ui("Analysis Manager", settings)
     _app.include_router(swagger_router)
+    _app.openapi = custom_openapi(_app, settings.AUTH0_ISSUER)  # type: ignore
     _app.add_middleware(
         CORSMiddleware,
         allow_origins=[str(origin) for origin in settings.BACKEND_CORS_ORIGINS],
