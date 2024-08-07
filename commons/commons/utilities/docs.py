@@ -33,7 +33,7 @@ def custom_openapi(app: FastAPI, settings: BaseSettings):
             version="3.1.0",
             description=app.description,
             routes=app.routes,
-            servers=[{"url": settings.OPENAPI_PREFIX or "/dev/"}],
+            servers=[{"url": settings.OPENAPI_PREFIX or ""}],
         )
         openapi_schema["components"]["securitySchemes"]["AuthServer"] = {
             "description": "Authentication via Cognito(OAuth2)",
