@@ -25,7 +25,7 @@ def get_application() -> FastAPI:
     _app.include_router(health_check_router, prefix="/v1")
     swagger_router = setup_swagger_ui("Story Manager", settings)
     _app.include_router(swagger_router)
-    _app.openapi = custom_openapi(_app, settings.AUTH0_ISSUER)  # type: ignore
+    _app.openapi = custom_openapi(_app, settings)  # type: ignore
     _app.add_middleware(
         CORSMiddleware,
         allow_origins=[str(origin) for origin in settings.BACKEND_CORS_ORIGINS],

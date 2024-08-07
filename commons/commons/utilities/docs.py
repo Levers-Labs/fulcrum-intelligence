@@ -1,6 +1,7 @@
 from fastapi import APIRouter, FastAPI
 from fastapi.openapi.docs import get_swagger_ui_html
 from fastapi.openapi.utils import get_openapi
+from pydantic_settings import BaseSettings
 
 
 def setup_swagger_ui(title, settings):
@@ -18,7 +19,7 @@ def setup_swagger_ui(title, settings):
     return router
 
 
-def custom_openapi(app: FastAPI, oauth_issuer: str):
+def custom_openapi(app: FastAPI, settings: BaseSettings):
     def custom_openapi_callable():
         """
         Overriding openapi method to add client cred based auth as well in swagger along with token based auth
@@ -32,13 +33,14 @@ def custom_openapi(app: FastAPI, oauth_issuer: str):
             version="3.1.0",
             description=app.description,
             routes=app.routes,
+            servers=[{"url": settings.OPENAPI_PREFIX or ""}],
         )
         openapi_schema["components"]["securitySchemes"]["AuthServer"] = {
             "description": "Authentication via Cognito(OAuth2)",
             "type": "oauth2",
             "flows": {
                 "clientCredentials": {
-                    "tokenUrl": f"{oauth_issuer.rstrip('/')}/oauth/token",
+                    "tokenUrl": f"{settings.AUTH0_ISSUER.rstrip('/')}/oauth/token",
                 }
             },
         }

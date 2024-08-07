@@ -9,6 +9,7 @@ from pydantic import TypeAdapter
 from sqlalchemy import (
     Column,
     Enum,
+    Float,
     String,
     Text,
     event,
@@ -156,6 +157,7 @@ class MetricBase(BaseSQLModel):
     aggregations: list[str] = Field(sa_column=Column(ARRAY(String), nullable=True, default=list))
     owned_by_team: list[str] = Field(sa_column=Column(ARRAY(String), nullable=True, default=list))
     meta_data: MetricMetadata = Field(sa_type=JSONB, default_factory=dict)
+    hypothetical_max: float | None = Field(sa_column=Column(Float, nullable=True))
 
 
 class Metric(MetricBase, QuerySchemaBaseModel, table=True):  # type: ignore
