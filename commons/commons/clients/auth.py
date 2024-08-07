@@ -114,7 +114,7 @@ class ClientCredsAuth(Auth):
         Returns:
             str: The access token.
         """
-        token_url = f"{self.auth0_issuer}/oauth/token"
+        token_url = f"{self.auth0_issuer.rstrip('/')}/oauth/token"
 
         payload = {
             "grant_type": "client_credentials",
