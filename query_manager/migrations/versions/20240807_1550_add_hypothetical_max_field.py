@@ -1,8 +1,8 @@
-"""add_hypothetical_max_field
+"""Add_hypothetical_max_field
 
-Revision ID: 8ab2483681a2
+Revision ID: 7473f11ad662
 Revises: 90cd84520fbd
-Create Date: 2024-08-05 14:00:31.604093
+Create Date: 2024-08-07 15:50:45.057614
 
 """
 
@@ -12,7 +12,7 @@ import sqlalchemy as sa
 from alembic import op
 
 # revision identifiers, used by Alembic.
-revision: str = "8ab2483681a2"
+revision: str = "7473f11ad662"
 down_revision: str | None = "90cd84520fbd"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
