@@ -1,0 +1,35 @@
+name: Database Migrations
+
+on:
+  push:
+    branches:
+      - LEV-406_backend_migration
+
+env:
+  app_name: "insights_backend"
+
+
+jobs:
+  migrate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v3
+        with:
+          python-version: '3.10'  # Specify the Python version you use
+
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install poetry
+          cd app_name
+          poetry install  # Or use pip if you're not using Poetry
+
+      - name: Run migrations
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}  # Use GitHub Secrets for sensitive information
+        run: |
+          poetry run python $app_name/manage.py db upgrade
