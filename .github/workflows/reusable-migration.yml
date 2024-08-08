@@ -22,7 +22,7 @@ jobs:
           python-version: '3.10'  # Specify the Python version you use
 
       - name: Install dependencies
-        working-directory: $app_name
+        working-directory: ${{ app_name }}
         run: |
           pip install --upgrade pip
           pip install poetry
