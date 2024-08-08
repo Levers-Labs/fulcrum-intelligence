@@ -6,6 +6,7 @@ from .forecasting import SimpleForecast
 from .model import ModelAnalyzer
 from .process_control import ProcessControlAnalyzer
 from .segment_drift import SegmentDriftEvaluator
+from .leverage import LeverageCalculator
 
 __all__ = [
     "BaseAnalyzer",
@@ -16,4 +17,5 @@ __all__ = [
     "CorrelationAnalyzer",
     "DescribeAnalyzer",
     "ModelAnalyzer",
+    "LeverageCalculator"
 ]

@@ -7,6 +7,7 @@ from commons.clients.query_manager import QueryManagerClient
 from fulcrum_core import AnalysisManager
 from fulcrum_core.modules.leverage import LeverageCalculator
 
+
 # Set up logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
