@@ -5,13 +5,12 @@ on:
     branches:
       - LEV-406_backend_migration
 
-env:
-  app_name: "query_manager"
-
 
 jobs:
   migrate:
     runs-on: ubuntu-latest
+    env:
+      app_name: "query_manager"
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -22,7 +21,7 @@ jobs:
           python-version: '3.10'  # Specify the Python version you use
 
       - name: Install dependencies
-        working-directory: ${{ app_name }}
+        working-directory: ${{ env.app_name }}
         run: |
           pip install --upgrade pip
           pip install poetry
