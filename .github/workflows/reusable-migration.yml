@@ -1,16 +1,21 @@
-name: Database Migrations
+name: Leverlabs Apps Database Migrations
 
 on:
-  push:
-    branches:
-      - LEV-406_backend_migration
+  workflow_call:
+    inputs:
+      app_name:
+        description: 'One of the app folders containing the Dockerfile'
+        required: true
+        type: string
 
+    secrets:
+      DATABASE_URL:
+        description: 'Application DB url'
+        required: true
 
 jobs:
   migrate:
     runs-on: ubuntu-latest
-    env:
-      app_name: "query_manager"
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -18,18 +23,18 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v3
         with:
-          python-version: '3.10'  # Specify the Python version you use
+          python-version: '3.10'
 
       - name: Install dependencies
-        working-directory: ${{ env.app_name }}
+        working-directory: ${{ inputs.app_name }}
         run: |
           pip install --upgrade pip
           pip install poetry
           poetry install  # Or use pip if you're not using Poetry
 
       - name: Run migrations
-        working-directory: ${{ env.app_name }}
+        working-directory: ${{ inputs.app_name }}
         env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}  # Use GitHub Secrets for sensitive information
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
         run: |
           poetry run python manage.py db upgrade

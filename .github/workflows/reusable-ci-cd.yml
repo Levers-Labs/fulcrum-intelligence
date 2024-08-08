@@ -1,4 +1,4 @@
-name: Build and Deploy Application
+name: Build, DB Migrate and Deploy Application
 
 on:
   workflow_call:
@@ -25,6 +25,9 @@ on:
         required: true
       ECR_REGISTRY:
         description: 'The ECR registry URL'
+        required: true
+      DATABASE_URL:
+        description: 'Application Database URL'
         required: true
 
 permissions:
@@ -60,8 +63,15 @@ jobs:
       AWS_REGION: ${{ secrets.AWS_REGION }}
       DEV_DEPLOYMENT_ROLE: ${{ secrets.DEV_DEPLOYMENT_ROLE }}
 
+  db-migration:
+    uses: ./.github/workflows/reusable-migration.yml
+    with:
+      app_name: ${{ inputs.app_name }}
+    secrets:
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+
   deploy-image-on-lambda:
-    needs: [build-image, generate-tag]
+    needs: [build-image, generate-tag, db-migration]
     uses: ./.github/workflows/reusable-lambda-deployment.yml
     with:
       ecr_repo: ${{ inputs.ecr_repo }}
