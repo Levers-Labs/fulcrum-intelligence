@@ -6,7 +6,7 @@ on:
       - LEV-406_backend_migration
 
 env:
-  app_name: "insights_backend"
+  app_name: "query_manager"
 
 
 jobs:
