@@ -13,10 +13,10 @@ on:
           - PROD
   push:
     branches:
-      - LEV-406_backend_migration
-#    paths:
-#        - 'query_manager/**'
-#        - 'commons/**'
+      - main
+    paths:
+        - 'query_manager/**'
+        - 'commons/**'
 
 env:
   ecr_repo: "query-manager"
