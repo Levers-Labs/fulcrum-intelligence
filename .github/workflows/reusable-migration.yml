@@ -28,7 +28,7 @@ jobs:
           poetry install  # Or use pip if you're not using Poetry
 
       - name: Run migrations
-        working-directory: $app_name
+        working-directory: ${{ env.app_name }}
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}  # Use GitHub Secrets for sensitive information
         run: |
