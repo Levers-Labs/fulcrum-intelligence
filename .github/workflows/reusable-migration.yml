@@ -22,14 +22,15 @@ jobs:
           python-version: '3.10'  # Specify the Python version you use
 
       - name: Install dependencies
+        working-directory: $app_name
         run: |
           pip install --upgrade pip
           pip install poetry
-          cd $app_name
           poetry install  # Or use pip if you're not using Poetry
 
       - name: Run migrations
+        working-directory: $app_name
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}  # Use GitHub Secrets for sensitive information
         run: |
-          poetry run python $app_name/manage.py db upgrade
+          poetry run python manage.py db upgrade
