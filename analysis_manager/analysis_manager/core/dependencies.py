@@ -6,6 +6,7 @@ from fastapi import Depends
 
 from analysis_manager.config import settings
 from analysis_manager.core.services.component_drift import ComponentDriftService
+from analysis_manager.core.services.leverage import LeverageIdService
 from commons.auth.auth import Oauth2Auth
 from commons.clients.auth import ClientCredsAuth
 from commons.clients.query_manager import QueryManagerClient
@@ -42,6 +43,13 @@ async def get_component_drift_service(
     return ComponentDriftService(analysis_manager, query_manager)
 
 
+async def get_leverage_id_service(
+    analysis_manager: AnalysisManagerDep, query_manager: QueryManagerClientDep
+) -> LeverageIdService:
+    return LeverageIdService(analysis_manager, query_manager)
+
+
 QueryManagerClientDep = Annotated[QueryManagerClient, Depends(get_query_manager_client)]
 AnalysisManagerDep = Annotated[AnalysisManager, Depends(get_analysis_manager)]
 ComponentDriftServiceDep = Annotated[ComponentDriftService, Depends(get_component_drift_service)]
+LeverageIdServiceDep = Annotated[LeverageIdService, Depends(get_leverage_id_service)]

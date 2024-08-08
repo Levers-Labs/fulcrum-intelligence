@@ -14,11 +14,13 @@ from analysis_manager.config import settings
 from analysis_manager.core.dependencies import (
     AnalysisManagerDep,
     ComponentDriftServiceDep,
+    LeverageIdServiceDep,
     QueryManagerClientDep,
     oauth2_auth,
 )
 from analysis_manager.core.models import Component, ComponentDriftRequest
 from analysis_manager.core.models.correlate import CorrelateRead
+from analysis_manager.core.models.leverage_id import Leverage, LeverageRequest
 from analysis_manager.core.schema import (
     CorrelateRequest,
     DescribeRequest,
@@ -416,3 +418,43 @@ async def influence_attribution(
         "expression": expression,
         "influence": influence,
     }
+
+
+@router.post(
+    "/analysis/leverage_id",
+    response_model=Leverage,
+    dependencies=[Security(oauth2_auth().verify, scopes=[ANALYSIS_MANAGER_ALL])],
+)
+async def leverage_id(
+    query_manager: QueryManagerClientDep,
+    leverage_id_service: LeverageIdServiceDep,
+    request: Annotated[
+        LeverageRequest,
+        Body(
+            examples=[
+                {
+                    "metric_id": "NewBizDeals",
+                    "start_date": "2024-02-01",
+                    "end_date": "2024-03-01",
+                    "grain": "month",
+                }
+            ]
+        ),
+    ],
+) -> Any:
+    """
+    Analyze Leverage ID for a given metric.
+    """
+    logger.debug(f"Leverage Id request: {request}")
+    metric = await query_manager.get_metric(request.metric_id)
+
+    results = await query_manager.list_metrics()
+    all_metrix = [metric["metric_id"] for metric in results]
+
+    all_values_df = await query_manager.get_metrics_time_series_df(
+        metric_ids=all_metrix, start_date=request.start_date, end_date=request.end_date, grain=request.grain
+    )
+
+    max_values = await query_manager.get_metric_max_values()
+
+    return await leverage_id_service.calculate_leverage_id(metric, all_values_df, max_values)
