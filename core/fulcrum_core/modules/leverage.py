@@ -29,8 +29,6 @@ class LeverageCalculator:
         equations = [f"{metric_json['metric_id']} = {metric_json['metric_expression'].get('expression_str', '')}"]
 
         def recurse_expressions(expression: dict, parent_metric_id: str = None):  # type: ignore
-            if expression is None:
-                return
             if "expression_str" in expression:
                 equations.append(f"{parent_metric_id} = {expression['expression_str']}")
             if "operands" in expression:
@@ -42,7 +40,7 @@ class LeverageCalculator:
         recurse_expressions(metric_json["metric_expression"]["expression"], metric_json["metric_id"])
         return [eq.replace("{", "").replace("}", "") for eq in equations]
 
-    def _create_parent_and_top_parent_dicts(self, metric_json: dict) -> (dict[str, str], dict[str, str]):
+    def _create_parent_and_top_parent_dicts(self, metric_json: dict) -> (dict[str, str], dict[str, str]):  # type: ignore
         """
         Create dictionaries for parent and top parent metrics.
         """
@@ -50,8 +48,6 @@ class LeverageCalculator:
         top_parent_dict = {}
 
         def find_parent_metrics(expression: dict, current_parent: str):
-            if expression is None:
-                return
             if "operator" in expression and "operands" in expression:
                 for operand in expression["operands"]:
                     if "metric_id" in operand:
@@ -162,7 +158,7 @@ class LeverageCalculator:
                 )
 
         for _, row in self.values_df.iterrows():
-            visited_nodes = set()
+            visited_nodes: set = set()
             date = row["date"]
             current_values = row.drop("date").to_dict()
             current_values["date"] = date
@@ -226,7 +222,7 @@ class LeverageCalculator:
 
         return final_results
 
-    def get_metric_details(self, metric_id: str, aggregated_df: pd.DataFrame) -> dict:
+    def get_metric_details(self, metric_id: str, aggregated_df: pd.DataFrame) -> dict | None:
         """
         Extract the details for a given metric_id.
         """
@@ -248,8 +244,6 @@ class LeverageCalculator:
 
         def recursive_build(expression: dict) -> list[dict]:
             components = []
-            if expression is None:
-                return components
             if expression["type"] == "expression":
                 for operand in expression["operands"]:
                     if operand["type"] == "metric":

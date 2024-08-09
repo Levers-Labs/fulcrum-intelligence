@@ -1,5 +1,5 @@
-import pytest
 import pandas as pd
+import pytest
 import sympy as sp
 
 from fulcrum_core.modules.leverage import LeverageCalculator
@@ -16,28 +16,21 @@ def metric_json_fixture():
                 "operator": "+",
                 "operands": [
                     {"type": "metric", "metric_id": "AcceptOpps"},
-                    {"type": "metric", "metric_id": "SQOToWinRate"}
-                ]
-            }
-        }
+                    {"type": "metric", "metric_id": "SQOToWinRate"},
+                ],
+            },
+        },
     }
 
 
 @pytest.fixture(name="values_df")
 def values_df_fixture():
-    return pd.DataFrame({
-        "date": ["2023-01-01", "2023-01-02"],
-        "AcceptOpps": [100, 150],
-        "SQOToWinRate": [50, 75]
-    })
+    return pd.DataFrame({"date": ["2023-01-01", "2023-01-02"], "AcceptOpps": [100, 150], "SQOToWinRate": [50, 75]})
 
 
 @pytest.fixture(name="max_values")
 def max_values_fixture():
-    return {
-        "AcceptOpps": 200,
-        "SQOToWinRate": 100
-    }
+    return {"AcceptOpps": 200, "SQOToWinRate": 100}
 
 
 @pytest.fixture(name="calculator")
@@ -74,7 +67,9 @@ def test_compute_ymax(calculator, metric_json, values_df, max_values):
     calculator.metric_json = metric_json
     calculator.values_df = values_df
     calculator.var_symbols = {var: sp.symbols(var) for var in values_df.columns if var != "date"}
-    ymax = calculator._compute_ymax("AcceptOpps + SQOToWinRate", {"AcceptOpps": 100, "SQOToWinRate": 50}, "AcceptOpps", max_values["AcceptOpps"])
+    ymax = calculator._compute_ymax(
+        "AcceptOpps + SQOToWinRate", {"AcceptOpps": 100, "SQOToWinRate": 50}, "AcceptOpps", max_values["AcceptOpps"]
+    )
     assert ymax == 250
 
 
@@ -104,12 +99,16 @@ def test_get_metric_details(calculator, metric_json, values_df, max_values):
     top_parent_results = calculator.analyze_top_parent()
     final_results = calculator.combine_results(parent_results, top_parent_results)
     df = pd.DataFrame(final_results)
-    aggregated_df = df.groupby("variable").agg(
-        parent_metric=("parent_metric", "first"),
-        top_metric=("top_metric", "first"),
-        parent_percentage_difference=("parent_percentage_difference", "mean"),
-        top_parent_percentage_difference=("top_parent_percentage_difference", "mean"),
-    ).reset_index()
+    aggregated_df = (
+        df.groupby("variable")
+        .agg(
+            parent_metric=("parent_metric", "first"),
+            top_metric=("top_metric", "first"),
+            parent_percentage_difference=("parent_percentage_difference", "mean"),
+            top_parent_percentage_difference=("top_parent_percentage_difference", "mean"),
+        )
+        .reset_index()
+    )
     metric_details = calculator.get_metric_details("AcceptOpps", aggregated_df)
     assert metric_details["metric_id"] == "AcceptOpps"
     assert metric_details["parent_metric"] == "NewBizDeals"
@@ -121,12 +120,16 @@ def test_build_output_structure(calculator, metric_json, values_df, max_values):
     top_parent_results = calculator.analyze_top_parent()
     final_results = calculator.combine_results(parent_results, top_parent_results)
     df = pd.DataFrame(final_results)
-    aggregated_df = df.groupby("variable").agg(
-        parent_metric=("parent_metric", "first"),
-        top_metric=("top_metric", "first"),
-        parent_percentage_difference=("parent_percentage_difference", "mean"),
-        top_parent_percentage_difference=("top_parent_percentage_difference", "mean"),
-    ).reset_index()
+    aggregated_df = (
+        df.groupby("variable")
+        .agg(
+            parent_metric=("parent_metric", "first"),
+            top_metric=("top_metric", "first"),
+            parent_percentage_difference=("parent_percentage_difference", "mean"),
+            top_parent_percentage_difference=("top_parent_percentage_difference", "mean"),
+        )
+        .reset_index()
+    )
     output = calculator.build_output_structure(aggregated_df)
     assert output["metric_id"] == "NewBizDeals"
     assert output["components"][0]["metric_id"] == "AcceptOpps"
