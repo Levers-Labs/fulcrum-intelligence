@@ -6,6 +6,7 @@ from fastapi import (
     APIRouter,
     Body,
     Depends,
+    HTTPException,
     Query,
     Request,
     Security,
@@ -20,8 +21,10 @@ from query_manager.core.models import Dimension, Metric
 from query_manager.core.schemas import (
     DimensionCompact,
     DimensionDetail,
+    MetricCreate,
     MetricDetail,
     MetricList,
+    MetricUpdate,
     MetricValuesResponse,
     TargetListResponse,
 )
@@ -64,6 +67,45 @@ async def get_metric(metric_id: str, client: QueryClientDep):
     Retrieve a metric by ID.
     """
     return await client.get_metric_details(metric_id)
+
+
+@router.post(
+    "/metrics",
+    response_model=MetricDetail,
+    tags=["metrics"],
+    status_code=201,
+    dependencies=[Security(oauth2_auth().verify, scopes=[QUERY_MANAGER_ALL])],
+)
+async def create_metric(
+    metric_data: MetricCreate,
+    client: QueryClientDep,
+):
+    """
+    Create a new metric.
+    """
+    created_metric = await client.create_metric(metric_data)
+    return created_metric
+
+
+@router.patch(
+    "/metrics/{metric_id}",
+    response_model=MetricDetail,
+    tags=["metrics"],
+    dependencies=[Security(oauth2_auth().verify, scopes=[QUERY_MANAGER_ALL])],
+)
+async def update_metric(
+    metric_id: str,
+    metric_data: MetricUpdate,
+    client: QueryClientDep,
+):
+    """
+    Update a metric by ID.
+    """
+    try:
+        updated_metric = await client.update_metric(metric_id, metric_data)
+        return updated_metric
+    except MetricNotFoundError as e:
+        raise HTTPException(status_code=404, detail=f"Metric with ID {metric_id} not found") from e
 
 
 @router.get(

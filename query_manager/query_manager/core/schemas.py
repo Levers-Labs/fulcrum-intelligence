@@ -2,12 +2,21 @@ from __future__ import annotations
 
 import datetime
 
-from pydantic import Field, field_validator
+from pydantic import ConfigDict, Field, field_validator
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from commons.models import BaseModel
 from commons.models.enums import Granularity
-from query_manager.core.enums import TargetAim
-from query_manager.core.models import DimensionBase, MetricBase
+from query_manager.core.enums import Complexity, TargetAim
+from query_manager.core.models import (
+    Dimension,
+    DimensionBase,
+    Metric,
+    MetricBase,
+    MetricExpression,
+    MetricMetadata,
+)
 
 
 class DimensionCompact(DimensionBase):
@@ -91,3 +100,84 @@ class TargetListResponse(BaseModel):
         ],
     )
     url: str | None = Field(None, description="URL to the Parquet file")
+
+
+# Create/Update Schema
+class MetricCreate(MetricBase):
+    dimensions: list[str] | None = Field(None, description="List of dimension IDs")
+    influences: list[str] | None = Field(None, description="List of influencing metric IDs")
+    components: list[str] | None = Field(None, description="List of component metric IDs")
+    inputs: list[str] | None = Field(None, description="List of input metric IDs")
+
+    model_config = ConfigDict(from_attributes=True)  # type: ignore
+
+    @classmethod
+    async def create(cls, db: AsyncSession, validated_data: dict):
+        # Create the metric instance
+        metric = Metric(
+            **{k: v for k, v in validated_data.items() if k not in ["dimensions", "influences", "components", "inputs"]}
+        )
+        db.add(metric)
+
+        # Handle M2M relationships
+        if "dimensions" in validated_data:
+            dimensions = await db.execute(
+                select(Dimension).where(Dimension.dimension_id.in_(validated_data["dimensions"]))  # type: ignore
+            )
+            metric.dimensions = dimensions.scalars().all()  # type: ignore
+
+        for field in ["influences", "components", "inputs"]:
+            if field in validated_data and validated_data[field]:
+                related_metrics = await db.execute(select(Metric).where(Metric.metric_id.in_(validated_data[field])))  # type: ignore
+                setattr(metric, field, related_metrics.scalars().all())
+
+        db.add(metric)
+        await db.commit()
+        await db.refresh(metric)
+        return metric
+
+
+class MetricUpdate(BaseModel):
+    label: str | None = None
+    abbreviation: str | None = None
+    definition: str | None = None
+    unit_of_measure: str | None = None
+    unit: str | None = None
+    terms: list[str] | None = None
+    complexity: Complexity | None = None
+    metric_expression: MetricExpression | None = None
+    periods: list[Granularity] | None = None
+    grain_aggregation: str | None = None
+    aggregations: list[str] | None = None
+    owned_by_team: list[str] | None = None
+    meta_data: MetricMetadata | None = None
+    dimensions: list[str] | None = Field(None, description="List of dimension IDs")
+    influences: list[str] | None = Field(None, description="List of influencing metric IDs")
+    influencers: list[str] | None = Field(None, description="List of influencer metric IDs")
+    components: list[str] | None = Field(None, description="List of component metric IDs")
+    inputs: list[str] | None = Field(None, description="List of input metric IDs")
+
+    model_config = ConfigDict(from_attributes=True)
+
+    @classmethod
+    async def update(cls, db: AsyncSession, instance: Metric, validated_data: dict):
+        # Update simple fields
+        for attr, value in validated_data.items():
+            if attr not in ["dimensions", "influences", "components", "inputs"]:
+                setattr(instance, attr, value)
+
+        # Update M2M relationships
+        if "dimensions" in validated_data:
+            dimensions = await db.execute(
+                select(Dimension).where(Dimension.dimension_id.in_(validated_data["dimensions"]))  # type: ignore
+            )
+            instance.dimensions = dimensions.scalars().all()  # type: ignore
+
+        for field in ["influences", "influencers", "components", "inputs"]:
+            if field in validated_data:
+                related_metrics = await db.execute(select(Metric).where(Metric.metric_id.in_(validated_data[field])))  # type: ignore
+                setattr(instance, field, related_metrics.scalars().all())
+        db.add(instance)
+        await db.commit()
+        await db.refresh(instance)
+        return instance

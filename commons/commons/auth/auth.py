@@ -58,7 +58,7 @@ class Oauth2Auth:
             issuer (str): The issuer URL for OAuth2.
         """
         self.api_audience = api_audience
-        self.issuer = issuer
+        self.issuer = issuer.rstrip("/")
         self.jwks_client = self.get_jwk_client()
         self.algorithms = algorithms or ["RS256"]
 
@@ -96,7 +96,7 @@ class Oauth2Auth:
                 signing_key,
                 algorithms=self.algorithms,
                 audience=self.api_audience,
-                issuer=f"{self.issuer.rstrip('/')}/",
+                issuer=f"{self.issuer}/",
             )
             return payload
         except Exception as error:

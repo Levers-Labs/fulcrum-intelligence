@@ -29,7 +29,7 @@ class MetricExpression(BaseModel):
     metric_id: str
     coefficient: int | float = Field(1, description="Coefficient for the metric")
     period: int = Field(0, description="Period for the metric, 0 denotes the current period")
-    expression_str: str = Field(None, description="Expression string for the metric")
+    expression_str: str | None = Field(None, description="Expression string for the metric")
     expression: Optional["Expression"] = Field(None, description="Expression for the metric")
     power: int | float = Field(1, description="Power for the metric")
 
@@ -165,9 +165,7 @@ class Metric(MetricBase, QuerySchemaBaseModel, table=True):  # type: ignore
     Metric model
     """
 
-    dimensions: list["Dimension"] = Relationship(
-        back_populates="metrics", link_model=MetricDimension, sa_relationship_kwargs={"lazy": "joined"}
-    )
+    dimensions: list["Dimension"] = Relationship(back_populates="metrics", link_model=MetricDimension)
 
     influences: list["Metric"] = Relationship(
         back_populates="influencers",
@@ -192,7 +190,6 @@ class Metric(MetricBase, QuerySchemaBaseModel, table=True):  # type: ignore
         sa_relationship_kwargs={
             "primaryjoin": "Metric.id == MetricComponent.parent_id",
             "secondaryjoin": "Metric.id == MetricComponent.component_id",
-            "lazy": "joined",
         },
     )
     parent_metrics: list["Metric"] = Relationship(
