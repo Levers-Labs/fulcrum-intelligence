@@ -4,13 +4,13 @@ from fastapi.openapi.utils import get_openapi
 from pydantic_settings import BaseSettings
 
 
-def setup_swagger_ui(title, settings):
+def setup_swagger_ui(title: str, root_path: str):
     router = APIRouter(prefix="")
 
     @router.get("/docs", include_in_schema=False)
     async def swagger_ui_html():
-        root_path = settings.OPENAPI_PREFIX.rstrip("/") if settings.OPENAPI_PREFIX else ""
-        openapi_url = root_path + "/openapi.json"
+        url_prefix = root_path.rstrip("/") if root_path else ""
+        openapi_url = url_prefix + "/openapi.json"
         favicon_url = (
             "https://assets-global.website-files.com/65b0c52f1811c3bf08fed0b5/65bbf1d7d16c01cc7220efd8_256.png"
         )
@@ -33,7 +33,7 @@ def custom_openapi(app: FastAPI, settings: BaseSettings):
             version="3.1.0",
             description=app.description,
             routes=app.routes,
-            servers=[{"url": settings.OPENAPI_PREFIX or ""}],
+            servers=[{"url": settings.URL_PREFIX}],
         )
         openapi_schema["components"]["securitySchemes"]["AuthServer"] = {
             "description": "Authentication via Cognito(OAuth2)",

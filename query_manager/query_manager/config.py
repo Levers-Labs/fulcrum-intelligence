@@ -28,7 +28,9 @@ class Settings(BaseSettings):
     DEBUG: bool = False
     SECRET_KEY: str
     ENV: Environment = Environment.dev
-    OPENAPI_PREFIX: str | None = None
+    # App as URL prefix added for each microservice
+    URL_PREFIX: str = "/query"
+
     LOGGING_LEVEL: str = "INFO"
 
     SERVER_HOST: str | AnyHttpUrl

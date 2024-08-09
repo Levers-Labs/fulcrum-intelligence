@@ -18,13 +18,13 @@ def get_application() -> FastAPI:
         title="Query Manager",
         description="Query Manager for Fulcrum Intelligence",
         debug=settings.DEBUG,
-        root_path=settings.OPENAPI_PREFIX,  # type: ignore
+        root_path=settings.URL_PREFIX,
         docs_url=None,
         redoc_url=None,
     )
     _app.include_router(core_router, prefix="/v1")
     _app.include_router(health_check_router, prefix="/v1")
-    swagger_router = setup_swagger_ui("Query Manager", settings)
+    swagger_router = setup_swagger_ui("Query Manager", settings.URL_PREFIX)
     _app.include_router(swagger_router)
     _app.openapi = custom_openapi(_app, settings)  # type: ignore
     _app.add_middleware(
