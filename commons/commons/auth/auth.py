@@ -219,12 +219,13 @@ class Oauth2Auth:
         async with httpx.AsyncClient() as client:
             headers = {"Authorization": f"Bearer {token}"}
             response = await client.get(
-                urllib.parse.urljoin(  # type: ignore
-                    str(self.insights_backend_host),
-                    str(user_id),  # Convert user_id to string
-                ),
+                urllib.parse.urljoin(str(self.insights_backend_host), f"users/{user_id}"),  # type: ignore
                 headers=headers,
             )
+            try:
+                response.raise_for_status()
+            except httpx.HTTPStatusError as error:
+                raise UnauthenticatedException(detail="Invalid User") from error
 
             user = response.json()
             if user is None:
