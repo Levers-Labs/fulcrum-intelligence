@@ -14,9 +14,15 @@ number_of_data_points = 90
 
 @pytest.fixture
 def required_performance_story_builder(
-    mock_query_service, mock_analysis_service, mock_analysis_manager, mock_db_session, metric_values, mock_story_date
+    mock_query_service,
+    mock_analysis_service,
+    mock_analysis_manager,
+    mock_db_session,
+    metric_values,
+    mock_story_date,
+    get_metric_resp,
 ):
-    mock_query_service.get_metric = AsyncMock(return_value={"id": "metric_1", "label": "Metric 1"})
+    mock_query_service.get_metric = AsyncMock(return_value=get_metric_resp)
     return RequiredPerformanceStoryBuilder(
         mock_query_service, mock_analysis_service, mock_analysis_manager, mock_db_session, mock_story_date
     )

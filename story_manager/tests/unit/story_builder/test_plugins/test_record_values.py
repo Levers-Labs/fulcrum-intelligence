@@ -11,9 +11,9 @@ from story_manager.story_builder.plugins.record_values import RecordValuesStoryB
 
 @pytest.fixture
 def record_values_story_builder(
-    mock_query_service, mock_analysis_service, mock_analysis_manager, mock_db_session, metric_values
+    mock_query_service, mock_analysis_service, mock_analysis_manager, mock_db_session, metric_values, get_metric_resp
 ):
-    mock_query_service.get_metric = AsyncMock(return_value={"id": "metric_1", "label": "Metric 1"})
+    mock_query_service.get_metric = AsyncMock(return_value=get_metric_resp)
     mock_query_service.get_metric_time_series = AsyncMock(return_value=metric_values)
     return RecordValuesStoryBuilder(mock_query_service, mock_analysis_service, mock_analysis_manager, mock_db_session)
 
