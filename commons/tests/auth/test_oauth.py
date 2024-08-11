@@ -117,11 +117,11 @@ async def test_get_app_user_success(oauth2_auth, monkeypatch):
 
     # Mocking httpx.AsyncClient().get behavior
     async def mock_get(*args, **kwargs):
-        return Response(status_code=200, json=expected_user_data)
+        response = Response(status_code=200, json=expected_user_data)
+        response._request = httpx.Request("GET", "http://backend")  # Set the request instance
+        return response
 
     monkeypatch.setattr(httpx.AsyncClient, "get", mock_get)
-
-    # Mocking httpx.AsyncClient().get behavior
     oauth2_auth.insights_backend_host = "http://backend"
     result = await oauth2_auth.get_app_user(user_id, token)
     assert result == expected_user_data

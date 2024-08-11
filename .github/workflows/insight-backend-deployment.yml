@@ -11,7 +11,7 @@ on:
   workflow_dispatch:
     inputs:
       environment:
-        description: 'Query Manager Deployment environment choices'
+        description: 'Insight Backend Deployment environment choices'
         type: choice
         required: true
         options:
