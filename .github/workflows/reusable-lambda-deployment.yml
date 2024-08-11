@@ -73,7 +73,7 @@ jobs:
 #        if: failure()  # Run this step only if previous steps failed
         run: |
           # Rollback to the previous Lambda version using alias
-          PREV_VERSION=$(aws lambda list-versions-by-function
+          PREV_VERSION=$(aws lambda list-versions-by-function \
                         --region ${{ secrets.AWS_REGION }} \
                         --function-name ${{ inputs.app_lambda_function_name }} \
                         --query 'Versions[-2].Version' --output text)
