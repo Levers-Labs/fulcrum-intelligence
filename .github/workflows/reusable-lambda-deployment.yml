@@ -61,7 +61,10 @@ jobs:
       - name: Publish New Version of Lambda Function
         run: |
             aws lambda wait function-updated --function-name ${{ inputs.app_lambda_function_name }}
-            aws lambda publish-version --function-name ${{ inputs.app_lambda_function_name }}
+            VERSION=$(aws lambda publish-version \
+            --function-name ${{ inputs.app_lambda_function_name }} \
+            --query 'Version' --output text)
+            echo "VERSION=$VERSION" >> $GITHUB_ENV
 
       - name: Test /health endpoint
         id: test
@@ -69,8 +72,16 @@ jobs:
           # Test the /health endpoint
           curl --fail ${{ inputs.health_endpoint }} || exit 1
 
+      - name: Move alias to New version
+        if: success()
+        run: |
+          aws lambda update-alias \
+          --function-name ${{ inputs.app_lambda_function_name }} \
+          --name live \
+          --function-version ${{ env.VERSION }}
+
       - name: Rollback if needed
-#        if: failure()  # Run this step only if previous steps failed
+        if: failure()
         run: |
           # Rollback to the previous Lambda version using alias
           PREV_VERSION=$(aws lambda list-versions-by-function \
