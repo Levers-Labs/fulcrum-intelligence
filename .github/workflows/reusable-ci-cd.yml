@@ -15,6 +15,10 @@ on:
         description: 'One of the app folders containing the Dockerfile'
         required: true
         type: string
+      health_endpoint:
+        description: 'endpoint to check the health of the server'
+        required: true
+        type: string
 
     secrets:
       AWS_REGION:
@@ -77,6 +81,7 @@ jobs:
       ecr_repo: ${{ inputs.ecr_repo }}
       app_lambda_function_name: ${{ inputs.app_lambda_function_name }}
       tag: ${{ needs.generate-tag.outputs.tag_id }}
+      health_endpoint: ${{ inputs.health_endpoint }}
     secrets:
       AWS_REGION: ${{ secrets.AWS_REGION }}
       DEV_DEPLOYMENT_ROLE: ${{ secrets.DEV_DEPLOYMENT_ROLE }}

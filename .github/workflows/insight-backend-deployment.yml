@@ -3,10 +3,10 @@ name: Deploy Insight Backend to AWS Lambda
 on:
   push:
     branches:
-      - main
-    paths:
-        - 'insights_backend/**'
-        - 'commons/**'
+      - LEV-406_backend_migration
+#    paths:
+#        - 'insights_backend/**'
+#        - 'commons/**'
 
   workflow_dispatch:
     inputs:
@@ -23,6 +23,7 @@ env:
   ecr_repo: "insights-backend"
   app_name: "insights_backend"
   app_lambda_function_prefix: "insights-backend"
+  health_endpoint: "https://dev-api.leverslabs.com/insights/v1/health"
 
 permissions:
   id-token: write
@@ -38,6 +39,7 @@ jobs:
       app_name: ${{ steps.set-vars.outputs.app_name }}
       app_lambda_function_name: ${{ steps.set-vars.outputs.app_lambda_function_name }}
       env: ${{ steps.set-vars.outputs.env }}
+      health_endpoint: ${{ steps.set-vars.outputs.health_endpoint}}
 
     steps:
       - name: set-vars
@@ -45,6 +47,7 @@ jobs:
         run: |
           echo "ecr_repo=$ecr_repo" >> $GITHUB_OUTPUT
           echo "app_name=$app_name" >> $GITHUB_OUTPUT
+          echo "health_endpoint=$health_endpoint" >> $GITHUB_OUTPUT
           if ${{ github.event.inputs.environment == 'PROD'}}; then
             echo "app_lambda_function_name=${app_lambda_function_prefix}-prod" >> $GITHUB_OUTPUT;
             echo "env=prod" >> $GITHUB_OUTPUT;
@@ -63,7 +66,7 @@ jobs:
         ecr_repo: ${{ needs.set-vars.outputs.ecr_repo }}
         app_name: ${{ needs.set-vars.outputs.app_name }}
         app_lambda_function_name: ${{ needs.set-vars.outputs.app_lambda_function_name }}
-
+        health_endpoint: ${{ needs.set-vars.outputs.health_endpoint }}
     secrets:
       ECR_REGISTRY: ${{ secrets.ECR_REGISTRY }}
       AWS_REGION: ${{ secrets.AWS_REGION }}
