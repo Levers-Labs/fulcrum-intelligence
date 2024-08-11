@@ -67,12 +67,12 @@ jobs:
       AWS_REGION: ${{ secrets.AWS_REGION }}
       DEV_DEPLOYMENT_ROLE: ${{ secrets.DEV_DEPLOYMENT_ROLE }}
 
-  db-migration:
-    uses: ./.github/workflows/reusable-migration.yml
-    with:
-      app_name: ${{ inputs.app_name }}
-    secrets:
-      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+#  db-migration:
+#    uses: ./.github/workflows/reusable-migration.yml
+#    with:
+#      app_name: ${{ inputs.app_name }}
+#    secrets:
+#      DATABASE_URL: ${{ secrets.DATABASE_URL }}
 
   deploy-image-on-lambda:
     needs: [build-image, generate-tag, db-migration]
