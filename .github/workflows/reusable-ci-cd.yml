@@ -81,7 +81,7 @@ jobs:
       DATABASE_URL: ${{ secrets.DATABASE_URL }}
 
   deploy-image-on-lambda:
-    if: ${{ inputs.migration == 'NO' }}
+    if: ${{  inputs.migration == '' || inputs.migration == 'NO' }}
     needs: [build-image, generate-tag]
     uses: ./.github/workflows/reusable-lambda-deployment.yml
     with:
