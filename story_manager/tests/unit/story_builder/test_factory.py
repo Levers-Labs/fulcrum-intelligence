@@ -33,7 +33,7 @@ def test_story_factory_get_story_builder_growth():
 def test_story_factory_get_story_builder_unsupported_group():
     with pytest.raises(ValueError) as excinfo:
         StoryFactory.get_story_builder("UNSUPPORTED_GROUP")
-    assert str(excinfo.value) == "No story builder found for story group UNSUPPORTED_GROUP"
+    assert str(excinfo.value) == "Unable to load story builder for story group UNSUPPORTED_GROUP"
 
 
 def test_story_factory_base_class():
