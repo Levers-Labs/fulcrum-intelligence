@@ -22,6 +22,7 @@ on:
         description: 'Migration is required'
         type: choice
         required: false
+        default: "NO"
         options:
           - YES
           - NO
