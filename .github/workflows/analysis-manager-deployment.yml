@@ -19,6 +19,14 @@ on:
           - DEV
           - STAGING
           - PROD
+      migration:
+        description: 'Migration is required'
+        type: choice
+        required: false
+        default: NO
+        options:
+          - YES
+          - NO
 
 env:
   ecr_repo: "analysis-manager"
@@ -68,7 +76,7 @@ jobs:
         app_name: ${{ needs.set-vars.outputs.app_name }}
         app_lambda_function_name: ${{ needs.set-vars.outputs.app_lambda_function_name }}
         health_endpoint: ${{ needs.set-vars.outputs.health_endpoint }}
-
+        migration: ${{ github.event.inputs.migration }}
     secrets:
       ECR_REGISTRY: ${{ secrets.ECR_REGISTRY }}
       AWS_REGION: ${{ secrets.AWS_REGION }}
