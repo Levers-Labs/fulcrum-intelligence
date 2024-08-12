@@ -19,6 +19,11 @@ on:
         description: 'endpoint to check the health of the server'
         required: true
         type: string
+      migration:
+        description: 'flag to identify if migration is required'
+        required: false
+        default: "NO"
+        type: string
 
     secrets:
       AWS_REGION:
@@ -68,6 +73,7 @@ jobs:
       DEV_DEPLOYMENT_ROLE: ${{ secrets.DEV_DEPLOYMENT_ROLE }}
 
   db-migration:
+    if: ${{ inputs.migration == 'YES' }}
     uses: ./.github/workflows/reusable-migration.yml
     with:
       app_name: ${{ inputs.app_name }}
@@ -75,7 +81,7 @@ jobs:
       DATABASE_URL: ${{ secrets.DATABASE_URL }}
 
   deploy-image-on-lambda:
-    needs: [build-image, generate-tag]
+    needs: [build-image, generate-tag, db-migration]
     uses: ./.github/workflows/reusable-lambda-deployment.yml
     with:
       ecr_repo: ${{ inputs.ecr_repo }}

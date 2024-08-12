@@ -22,6 +22,7 @@ env:
   ecr_repo: "query-manager"
   app_name: "query_manager"
   app_lambda_function_prefix: "query-manager"
+  health_endpoint: "https://dev-api.leverslabs.com/query/v1/health"
 
 permissions:
   id-token: write
@@ -37,6 +38,7 @@ jobs:
       app_name: ${{ steps.set-vars.outputs.app_name }}
       app_lambda_function_name: ${{ steps.set-vars.outputs.app_lambda_function_name }}
       env: ${{ steps.set-vars.outputs.env }}
+      health_endpoint: ${{ needs.set-vars.outputs.health_endpoint }}
 
     steps:
       - name: set-vars
@@ -44,6 +46,7 @@ jobs:
         run: |
           echo "ecr_repo=$ecr_repo" >> $GITHUB_OUTPUT
           echo "app_name=$app_name" >> $GITHUB_OUTPUT
+          echo "health_endpoint=$health_endpoint" >> $GITHUB_OUTPUT
           if ${{ github.event.inputs.environment == 'PROD'}}; then
             echo "app_lambda_function_name=${app_lambda_function_prefix}-prod" >> $GITHUB_OUTPUT;
             echo "env=prod" >> $GITHUB_OUTPUT;
@@ -62,6 +65,7 @@ jobs:
         ecr_repo: ${{ needs.set-vars.outputs.ecr_repo }}
         app_name: ${{ needs.set-vars.outputs.app_name }}
         app_lambda_function_name: ${{ needs.set-vars.outputs.app_lambda_function_name }}
+        health_endpoint: ${{ needs.set-vars.outputs.health_endpoint }}
 
     secrets:
       ECR_REGISTRY: ${{ secrets.ECR_REGISTRY }}
