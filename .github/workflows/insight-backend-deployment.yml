@@ -3,10 +3,10 @@ name: Deploy Insight Backend to AWS Lambda
 on:
   push:
     branches:
-      - main
-    paths:
-        - 'insights_backend/**'
-        - 'commons/**'
+      - LEV-406_backend_migration
+#    paths:
+#        - 'insights_backend/**'
+#        - 'commons/**'
 
   workflow_dispatch:
     inputs:
@@ -22,7 +22,6 @@ on:
         description: 'Migration is required'
         type: choice
         required: false
-        default: NO
         options:
           - YES
           - NO
