@@ -31,7 +31,7 @@ async def test_verify_with_valid_token_and_scopes(oauth2_auth, monkeypatch):
             external_id="user_id",
             type=UserType.APP,
             permissions=["read"],
-            app_user={"id": "user_id", "name": "John Doe"},
+            app_user_id=1,
         )
 
     # Replace the original methods with AsyncMock
