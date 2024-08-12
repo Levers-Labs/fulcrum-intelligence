@@ -45,7 +45,6 @@ class Settings(BaseSettings):
 
     BACKEND_CORS_ORIGINS: list[AnyHttpUrl | str] = []
     DSENSEI_BASE_URL: str = "http//localhost:5001"
-    INSIGHTS_BACKEND_SERVER_HOST: str | AnyHttpUrl
 
     AUTH0_API_AUDIENCE: str
     AUTH0_ISSUER: str
