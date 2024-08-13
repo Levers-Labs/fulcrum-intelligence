@@ -31,7 +31,6 @@ env:
   ecr_repo: "query-manager"
   app_name: "query_manager"
   app_lambda_function_prefix: "query-manager"
-  health_endpoint: "https://dev-api.leverslabs.com/query/v1/health"
 
 permissions:
   id-token: write
@@ -47,7 +46,7 @@ jobs:
       app_name: ${{ steps.set-vars.outputs.app_name }}
       app_lambda_function_name: ${{ steps.set-vars.outputs.app_lambda_function_name }}
       env: ${{ steps.set-vars.outputs.env }}
-      health_endpoint: ${{ needs.set-vars.outputs.health_endpoint }}
+      app_host: ${{ steps.set-vars.outputs.app_host }}
 
     steps:
       - name: set-vars
@@ -57,12 +56,15 @@ jobs:
           echo "app_name=$app_name" >> $GITHUB_OUTPUT
           echo "health_endpoint=$health_endpoint" >> $GITHUB_OUTPUT
           if ${{ github.event.inputs.environment == 'PROD'}}; then
+            echo "app_host=https://prod-${{ vars.QUERY_MANAGER_HOST }}"
             echo "app_lambda_function_name=${app_lambda_function_prefix}-prod" >> $GITHUB_OUTPUT;
             echo "env=prod" >> $GITHUB_OUTPUT;
           elif ${{ github.event.inputs.environment == 'STAGING' }}; then
+            echo "app_host=https://staging-${{ vars.QUERY_MANAGER_HOST }}"
             echo "app_lambda_function_name=${app_lambda_function_prefix}-staging" >> $GITHUB_OUTPUT;
             echo "env=staging" >> $GITHUB_OUTPUT;
           else
+            echo "app_host=https://dev-${{ vars.QUERY_MANAGER_HOST }}"
             echo "app_lambda_function_name=${app_lambda_function_prefix}-dev" >> $GITHUB_OUTPUT;
             echo "env=dev" >> $GITHUB_OUTPUT;
           fi
@@ -74,7 +76,7 @@ jobs:
         ecr_repo: ${{ needs.set-vars.outputs.ecr_repo }}
         app_name: ${{ needs.set-vars.outputs.app_name }}
         app_lambda_function_name: ${{ needs.set-vars.outputs.app_lambda_function_name }}
-        health_endpoint: ${{ needs.set-vars.outputs.health_endpoint }}
+        app_host: ${{ needs.set-vars.outputs.app_host }}
         migration: ${{ github.event.inputs.migration }}
     secrets:
       ECR_REGISTRY: ${{ secrets.ECR_REGISTRY }}

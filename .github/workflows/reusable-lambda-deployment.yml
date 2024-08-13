@@ -15,8 +15,8 @@ on:
         description: 'Dynamically generated tag, format curdate_curtime'
         required: true
         type: string
-      health_endpoint:
-        description: 'endpoint to check the health of the server'
+      app_host:
+        description: 'application host url'
         required: true
         type: string
 
@@ -70,7 +70,7 @@ jobs:
         id: test
         run: |
           # Test the /health endpoint
-          curl --fail ${{ inputs.health_endpoint }} || exit 1
+          curl --fail ${{ inputs.app_host }}/v1/health || exit 1
 
       - name: Move alias to New version
         if: success()
