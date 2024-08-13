@@ -33,7 +33,6 @@ def setup_env(session_monkeypatch):
     session_monkeypatch.setenv("AUTH0_API_AUDIENCE", "https://some_auth0_audience")
     session_monkeypatch.setenv("AUTH0_CLIENT_ID", "client_id")
     session_monkeypatch.setenv("AUTH0_CLIENT_SECRET", "client_secret")
-    session_monkeypatch.setenv("INSIGHTS_BACKEND_SERVER_HOST", "http://localhost:8004/v1/")
     yield
 
 

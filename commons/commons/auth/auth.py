@@ -1,14 +1,11 @@
 import logging
-import urllib
 from collections.abc import Callable
 from enum import Enum
 from typing import Annotated, Any, TypeVar
 
-import httpx
 import jwt
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer, SecurityScopes
-from pydantic import AnyHttpUrl
 
 from commons.models import BaseModel
 
@@ -26,7 +23,7 @@ class OAuth2User(BaseModel):
     type: UserType
     permissions: list[str]
     # for app user
-    app_user: dict | None = None
+    app_user_id: int | None = None
 
 
 class UnauthorizedException(HTTPException):
@@ -51,20 +48,17 @@ class Oauth2Auth:
         self,
         api_audience: str,
         issuer: str,
-        insights_backend_host: str | AnyHttpUrl | None = None,
         algorithms: list[str] | None = None,
     ) -> None:
         """
-        Initialize the Auth class.
+        initialize the Auth class.
 
         Args:
             api_audience (str): The API audience for OAuth2.
             issuer (str): The issuer URL for OAuth2.
-            insights_backend_host (str | AnyHttpUrl): The host URL for the insights backend.
         """
         self.api_audience = api_audience
         self.issuer = issuer
-        self.insights_backend_host = insights_backend_host
         self.jwks_client = self.get_jwk_client()
         self.algorithms = algorithms or ["RS256"]
 
@@ -190,43 +184,14 @@ class Oauth2Auth:
             )
         else:
             # Fetch user details from insights backend
-            user_data = await self.get_app_user(int(payload.get("userId", "user_id")), token)
+            user_id = int(payload.get("userId", "user_id"))
+            # raise error if user_id is not present in payload
+            if user_id == "user_id":
+                raise UnauthenticatedException(detail="Invalid User")
 
             return OAuth2User(
                 external_id=payload["sub"],
                 type=UserType.APP,
                 permissions=payload.get("scope", "").split(),
-                app_user=user_data,
+                app_user_id=user_id,
             )
-
-    async def get_app_user(self, user_id: int, token: str) -> dict[str, Any]:
-        """
-        Method to fetch the user from DB, whose ID is present in the JWT.
-
-        Args:
-            user_id (int): ID of the user.
-            token (str): JWT token.
-
-        Returns:
-            dict[str, Any]: The authenticated user data.
-
-        Raises:
-            UnauthenticatedException: If the user is invalid or not found.
-        """
-        if self.insights_backend_host is None:
-            raise UnauthenticatedException(detail="Insights backend host is not provided")
-
-        async with httpx.AsyncClient() as client:
-            headers = {"Authorization": f"Bearer {token}"}
-            response = await client.get(
-                urllib.parse.urljoin(  # type: ignore
-                    str(self.insights_backend_host),
-                    str(user_id),  # Convert user_id to string
-                ),
-                headers=headers,
-            )
-
-            user = response.json()
-            if user is None:
-                raise UnauthenticatedException(detail="Invalid User")
-            return user

@@ -47,11 +47,7 @@ async def get_analysis_manager_client() -> AnalysisManagerClient:
 
 def oauth2_auth() -> Oauth2Auth:
     settings = get_settings()
-    return Oauth2Auth(
-        issuer=settings.AUTH0_ISSUER,
-        api_audience=settings.AUTH0_API_AUDIENCE,
-        insights_backend_host=settings.INSIGHTS_BACKEND_SERVER_HOST,
-    )
+    return Oauth2Auth(issuer=settings.AUTH0_ISSUER, api_audience=settings.AUTH0_API_AUDIENCE)
 
 
 async def get_analysis_manager() -> AnalysisManager:

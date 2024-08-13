@@ -1,10 +1,8 @@
 from unittest.mock import AsyncMock, MagicMock, Mock
 
-import httpx
 import jwt
 import pytest
 from fastapi.security import HTTPAuthorizationCredentials, SecurityScopes
-from httpx import Response
 
 from commons.auth.auth import (
     Oauth2Auth,
@@ -16,7 +14,7 @@ from commons.auth.auth import (
 
 @pytest.fixture
 def oauth2_auth():
-    return Oauth2Auth(api_audience="audience", issuer="issuer", insights_backend_host="http://backend")
+    return Oauth2Auth(api_audience="audience", issuer="issuer")
 
 
 @pytest.mark.asyncio
@@ -33,7 +31,7 @@ async def test_verify_with_valid_token_and_scopes(oauth2_auth, monkeypatch):
             external_id="user_id",
             type=UserType.APP,
             permissions=["read"],
-            app_user={"id": "user_id", "name": "John Doe"},
+            app_user_id=1,
         )
 
     # Replace the original methods with AsyncMock
@@ -85,43 +83,3 @@ def test_verify_token_claims_missing_value(oauth2_auth):
 
     with pytest.raises(UnauthorizedException):
         oauth2_auth._verify_token_claims(payload, claim_name, expected_value)
-
-
-@pytest.mark.asyncio
-async def test_get_oauth_user(oauth2_auth):
-    machine_user_payload = {"sub": "some_id@clients"}
-    result = await oauth2_auth.get_oauth_user(machine_user_payload, "some_token")
-    assert result == OAuth2User(
-        external_id=machine_user_payload["sub"],
-        type=UserType.MACHINE,
-        permissions=[],
-    )
-
-    app_user_payload = {"sub": "some_id", "userId": 1}
-    oauth2_auth.get_app_user = AsyncMock(side_effect=lambda a, b: app_user_payload)
-
-    result = await oauth2_auth.get_oauth_user(app_user_payload, "some_token")
-    assert result == OAuth2User(
-        external_id=app_user_payload["sub"],
-        type=UserType.APP,
-        permissions=[],
-        app_user=app_user_payload,
-    )
-
-
-@pytest.mark.asyncio
-async def test_get_app_user_success(oauth2_auth, monkeypatch):
-    user_id = 123
-    token = "valid_token"  # noqa
-    expected_user_data = {"id": user_id, "name": "John Doe"}
-
-    # Mocking httpx.AsyncClient().get behavior
-    async def mock_get(*args, **kwargs):
-        return Response(status_code=200, json=expected_user_data)
-
-    monkeypatch.setattr(httpx.AsyncClient, "get", mock_get)
-
-    # Mocking httpx.AsyncClient().get behavior
-    oauth2_auth.insights_backend_host = "http://backend"
-    result = await oauth2_auth.get_app_user(user_id, token)
-    assert result == expected_user_data
