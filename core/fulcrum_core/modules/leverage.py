@@ -28,24 +28,22 @@ class LeverageCalculator:
         """
         equations = [f"{metric_json['metric_id']} = {metric_json['metric_expression'].get('expression_str', '')}"]
 
-        def recurse_expressions(expression: dict | None, parent_metric_id: str = None):  # type: ignore
+        def recurse_expressions(expression: dict | None, parent_metric_id: str | None = None):
             if expression is None:
-                return []  # noqa
+                return
             if "expression_str" in expression:
                 equations.append(f"{parent_metric_id} = {expression['expression_str']}")
-            if "operands" in expression:
-                for operand in expression["operands"]:
-                    if "expression" in operand:
-                        equations.append(f"{operand['metric_id']} = {operand['expression_str']}")
-                        recurse_expressions(operand["expression"], operand["metric_id"])
+            for operand in expression.get("operands", []):
+                if "expression" in operand:
+                    equations.append(f"{operand['metric_id']} = {operand['expression_str']}")
+                    recurse_expressions(operand["expression"], operand["metric_id"])
 
         expr = metric_json["metric_expression"]["expression"]
-        if expr is None:
-            return []
-        recurse_expressions(expr, metric_json["metric_id"])
+        if expr:
+            recurse_expressions(expr, metric_json["metric_id"])
         return [eq.replace("{", "").replace("}", "") for eq in equations]
 
-    def _create_parent_and_top_parent_dicts(self, metric_json: dict) -> (dict[str, str], dict[str, str]):  # type: ignore
+    def _create_parent_and_top_parent_dicts(self, metric_json: dict) -> tuple[dict[str, str], dict[str, str]]:
         """
         Create dictionaries for parent and top parent metrics.
         """
@@ -55,20 +53,16 @@ class LeverageCalculator:
         def find_parent_metrics(expression: dict | None, current_parent: str):
             if expression is None:
                 return
-            if "operator" in expression and "operands" in expression:
-                for operand in expression["operands"]:
-                    if "metric_id" in operand:
-                        metric_id = operand["metric_id"]
-                        parent_dict[metric_id] = current_parent
-                        if "expression" in operand:
-                            find_parent_metrics(operand["expression"], metric_id)
+            for operand in expression.get("operands", []):
+                if "metric_id" in operand:
+                    metric_id = operand["metric_id"]
+                    parent_dict[metric_id] = current_parent
+                    find_parent_metrics(operand.get("expression"), metric_id)
 
         top_metric_id = metric_json["metric_id"]
         find_parent_metrics(metric_json["metric_expression"]["expression"], top_metric_id)
 
-        for metric_id in parent_dict:
-            top_parent_dict[metric_id] = top_metric_id
-
+        top_parent_dict = {metric_id: top_metric_id for metric_id in parent_dict}
         return parent_dict, top_parent_dict
 
     def _compute_y(self, equation_str: str, values: dict) -> float:
@@ -130,11 +124,7 @@ class LeverageCalculator:
         top_parent_results = []
 
         def extract_rhs_equations():
-            rhs_equations = {}
-            for eq in self.equations_list:
-                lhs, rhs = eq.split("=")
-                rhs_equations[lhs.strip()] = rhs.strip()
-            return rhs_equations
+            return {lhs.strip(): rhs.strip() for eq in self.equations_list for lhs, rhs in [eq.split("=")]}
 
         def compute_percentage_diff(equation_str, current_values):
             without_date_values = {k: v for k, v in current_values.items() if k != "date"}
@@ -207,22 +197,19 @@ class LeverageCalculator:
             for result in top_parent_results
         }
 
-        final_results = []
-
-        for parent_result in parent_results:
-            key = (parent_result["date"], parent_result["variable"])
-            top_parent_diff = top_parent_lookup.get(key, None)
-
-            final_results.append(
-                {
-                    "date": parent_result["date"],
-                    "variable": parent_result["variable"],
-                    "parent_metric": parent_result["parent_metric"],
-                    "top_metric": self.top_parent,
-                    "parent_percentage_difference": parent_result["parent_percentage_difference"],
-                    "top_parent_percentage_difference": top_parent_diff,
-                }
-            )
+        final_results = [
+            {
+                "date": parent_result["date"],
+                "variable": parent_result["variable"],
+                "parent_metric": parent_result["parent_metric"],
+                "top_metric": self.top_parent,
+                "parent_percentage_difference": parent_result["parent_percentage_difference"],
+                "top_parent_percentage_difference": top_parent_lookup.get(
+                    (parent_result["date"], parent_result["variable"]), None
+                ),
+            }
+            for parent_result in parent_results
+        ]
 
         return final_results
 
@@ -247,12 +234,12 @@ class LeverageCalculator:
         """
 
         def recursive_build(expression: dict) -> list[dict]:
-            if expression is None or expression["type"] != "expression":
+            if expression is None or expression.get("type", "") != "expression":
                 return []
 
             components = []
             for operand in expression["operands"]:
-                if operand["type"] == "metric":
+                if operand.get("type", "") == "metric":
                     metric_id = operand["metric_id"]
                     metric_details = self.get_metric_details(metric_id, aggregated_df)
                     if metric_details:
