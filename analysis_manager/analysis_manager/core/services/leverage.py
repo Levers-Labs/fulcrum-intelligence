@@ -4,9 +4,7 @@ import pandas as pd
 
 from analysis_manager.core.models.leverage_id import Leverage, LeverageDetails
 from commons.clients.query_manager import QueryManagerClient
-from fulcrum_core import AnalysisManager
-from fulcrum_core.modules.leverage import LeverageCalculator
-
+from fulcrum_core import AnalysisManager, modules
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
@@ -38,7 +36,7 @@ class LeverageIdService:
         """
 
         # Initialize the LeverageCalculator with the metric data
-        calculator = LeverageCalculator()
+        calculator = modules.LeverageCalculator()
 
         # Run the calculator to get the results
         final_result = calculator.run(metric, values_df, max_values)
