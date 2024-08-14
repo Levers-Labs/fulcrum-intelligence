@@ -74,6 +74,7 @@ jobs:
 
   db-migration:
     if: ${{ inputs.migration == 'YES' }}
+    needs: [generate-tag]
     uses: ./.github/workflows/reusable-migration.yml
     with:
       app_name: ${{ inputs.app_name }}
