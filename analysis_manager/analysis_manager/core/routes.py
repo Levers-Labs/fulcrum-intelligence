@@ -2,6 +2,7 @@ import logging
 from datetime import date
 from typing import Annotated, Any
 
+import numpy as np
 import pandas as pd
 from fastapi import (
     APIRouter,
@@ -176,6 +177,7 @@ async def process_control(
         logger.error(f"Insufficient data for process control analysis: {e}")
         raise HTTPException(status_code=400, detail=e.message) from e
 
+    result_df.replace([np.inf, -np.inf], None, inplace=True)
     # convert the result to a list of dictionaries
     results = result_df.to_dict(orient="records")
     return results
