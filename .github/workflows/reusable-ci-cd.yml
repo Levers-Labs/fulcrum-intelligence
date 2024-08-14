@@ -73,7 +73,7 @@ jobs:
       DEV_DEPLOYMENT_ROLE: ${{ secrets.DEV_DEPLOYMENT_ROLE }}
 
   db-migration:
-    if: ${{ inputs.migration == 'YES' }}
+    if: ${{ inputs.migration == 'YES' || inputs.migration == true}}
     needs: [generate-tag]
     uses: ./.github/workflows/reusable-migration.yml
     with:
@@ -89,7 +89,7 @@ jobs:
       ECR_REGISTRY: ${{ secrets.ECR_REGISTRY }}
 
   deploy-image-on-lambda:
-    if: ${{  inputs.migration == '' || inputs.migration == 'NO' }}
+    if: ${{  inputs.migration == '' || inputs.migration == 'NO' || inputs.migration == false }}
     needs: [build-image, generate-tag]
     uses: ./.github/workflows/reusable-lambda-deployment.yml
     with:
