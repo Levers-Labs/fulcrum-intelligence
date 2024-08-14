@@ -26,6 +26,8 @@ async def test_get_story_group_meta_success(mocker, client):
     """
 
     class MockStoryBuilder(StoryBuilderBase):
+        group = StoryGroup.GROWTH_RATES
+        genre = StoryGenre.GROWTH
         supported_grains = [Granularity.DAY, Granularity.WEEK]
 
     # Mock the StoryFactory.get_story_builder method
