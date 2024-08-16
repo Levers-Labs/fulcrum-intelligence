@@ -8,6 +8,7 @@ import pytest
 from deepdiff import DeepDiff
 
 from analysis_manager.core.services.component_drift import ComponentDriftService
+from analysis_manager.core.services.leverage import LeverageIdService
 from commons.clients.query_manager import QueryManagerClient
 from fulcrum_core.modules import SegmentDriftEvaluator
 
@@ -637,3 +638,44 @@ async def test_influence_attribution_no_influenced_by(client, mocker, metric_sms
     # Assert
     assert response.status_code == 400
     assert response.json()["detail"] == "Metric is not influenced by any other metric."
+
+
+@pytest.mark.asyncio
+async def test_leverage_id_route(client, mocker, leverage_id_response, metric_expression):
+    # Mock the QueryManagerClient and LeverageIdService methods
+    mock_get_metric = AsyncMock(return_value=metric_expression)
+    mock_get_nested_expressions = AsyncMock(return_value=metric_expression["metric_expression"])
+    mock_extract_metric_ids = AsyncMock(
+        return_value=["NewBizDeals", "AcceptOpps", "OpenNewBizOpps", "SQORate", "SQOToWinRate"]
+    )
+    mock_get_metrics_max_values = AsyncMock(
+        return_value={"NewBizDeals": 100, "AcceptOpps": 80, "OpenNewBizOpps": 60, "SQORate": 50, "SQOToWinRate": 40}
+    )
+    mock_get_metrics_time_series_df = AsyncMock(
+        return_value=pd.DataFrame(
+            {
+                "date": pd.date_range("2024-02-01", periods=5, freq="MS"),
+                "NewBizDeals": [100, 200, 300, 400, 500],
+                "AcceptOpps": [80, 160, 240, 320, 400],
+                "OpenNewBizOpps": [60, 120, 180, 240, 300],
+                "SQORate": [50, 100, 150, 200, 250],
+                "SQOToWinRate": [40, 80, 120, 160, 200],
+            }
+        )
+    )
+    mock_calculate_leverage_id = AsyncMock(return_value=leverage_id_response)
+
+    mocker.patch.object(QueryManagerClient, "get_metric", mock_get_metric)
+    mocker.patch.object(LeverageIdService, "get_nested_expressions", mock_get_nested_expressions)
+    mocker.patch.object(LeverageIdService, "extract_metric_ids", mock_extract_metric_ids)
+    mocker.patch.object(QueryManagerClient, "get_metrics_max_values", mock_get_metrics_max_values)
+    mocker.patch.object(QueryManagerClient, "get_metrics_time_series_df", mock_get_metrics_time_series_df)
+    mocker.patch.object(LeverageIdService, "calculate_leverage_id", mock_calculate_leverage_id)
+
+    response = await client.post(
+        "/v1/analyze/leverage_id",
+        json={"metric_id": "NewBizDeals", "start_date": "2024-02-01", "end_date": "2024-03-01", "grain": "month"},
+    )
+
+    assert response.status_code == 200
+    assert response.json() == leverage_id_response

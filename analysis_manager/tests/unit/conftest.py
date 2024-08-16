@@ -1014,3 +1014,65 @@ def mock_drift_resp():
             },
         ],
     }
+
+
+@pytest.fixture(scope="session")
+def metric_expression():
+    return {
+        "metric_id": "NewBizDeals",
+        "type": "metric",
+        "period": 0,
+        "expression_str": "{AcceptOpps} * {SQOToWinRate}",
+        "expression": {
+            "type": "expression",
+            "operator": "*",
+            "operands": [
+                {
+                    "metric_id": "AcceptOpps",
+                    "type": "metric",
+                    "period": 0,
+                    "expression_str": "{OpenNewBizOpps} * {SQORate}",
+                    "expression": {
+                        "type": "expression",
+                        "operator": "*",
+                        "operands": [
+                            {"metric_id": "OpenNewBizOpps", "type": "metric", "period": 0},
+                            {"metric_id": "SQORate", "type": "metric", "period": 0},
+                        ],
+                    },
+                },
+                {"metric_id": "SQOToWinRate", "type": "metric", "period": 0},
+            ],
+        },
+    }
+
+
+@pytest.fixture(scope="session")
+def leverage_id_response():
+    return {
+        "metric_id": "NewBizDeals",
+        "leverage": {"pct_diff": 0, "pct_diff_root": 0},
+        "components": [
+            {
+                "metric_id": "AcceptOpps",
+                "leverage": {"pct_diff": 18.865, "pct_diff_root": 18.865},
+                "components": [
+                    {
+                        "metric_id": "OpenNewBizOpps",
+                        "leverage": {"pct_diff": 51.942, "pct_diff_root": 51.942},
+                        "components": [],
+                    },
+                    {
+                        "metric_id": "SQORate",
+                        "leverage": {"pct_diff": 43.868, "pct_diff_root": 43.868},
+                        "components": [],
+                    },
+                ],
+            },
+            {
+                "metric_id": "SQOToWinRate",
+                "leverage": {"pct_diff": 169.357, "pct_diff_root": 169.357},
+                "components": [],
+            },
+        ],
+    }
