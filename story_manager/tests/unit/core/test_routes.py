@@ -26,7 +26,14 @@ async def test_get_story_group_meta_success(mocker, client):
     """
 
     class MockStoryBuilder(StoryBuilderBase):
+        group = mock.MagicMock()
+        genre = mock.MagicMock()
+        group.name = "MOCK_GROUP"
+        genre.name = "MOCK_GENRE"
         supported_grains = [Granularity.DAY, Granularity.WEEK]
+
+        async def generate_stories(self, metric_id: str, grain: Granularity) -> list[dict]:
+            return []
 
     # Mock the StoryFactory.get_story_builder method
     mocker.patch.object(StoryFactory, "get_story_builder", return_value=MockStoryBuilder)
