@@ -21,7 +21,7 @@ from analysis_manager.core.dependencies import (
 )
 from analysis_manager.core.models import Component, ComponentDriftRequest
 from analysis_manager.core.models.correlate import CorrelateRead
-from analysis_manager.core.models.leverage_id import Leverage, LeverageRequest
+from analysis_manager.core.models.leverage_id import LeverageRequest, LeverageResponse
 from analysis_manager.core.schema import (
     CorrelateRequest,
     DescribeRequest,
@@ -424,7 +424,7 @@ async def influence_attribution(
 
 @router.post(
     "/analysis/leverage_id",
-    response_model=Leverage,
+    response_model=LeverageResponse,
     dependencies=[Security(oauth2_auth().verify, scopes=[ANALYSIS_MANAGER_ALL])],
 )
 async def leverage_id(
@@ -445,18 +445,39 @@ async def leverage_id(
     ],
 ) -> Any:
     """
-    Analyze Leverage ID for a given metric.
+    Analyze LeverageResponse ID for a given metric.
+
+    :param query_manager: Dependency injection for QueryManagerClient.
+    :param leverage_id_service: Dependency injection for LeverageIdService.
+    :param request: LeverageRequest object containing the request parameters.
+    :returns: LeverageResponse object containing the leverage analysis results.
+    :example:
+        request = LeverageRequest(
+            metric_id="NewBizDeals",
+            start_date="2024-02-01",
+            end_date="2024-03-01",
+            grain="month"
+        )
+        response = await leverage_id(query_manager, leverage_id_service, request)
     """
-    logger.debug(f"Leverage Id request: {request}")
+    logger.debug(f"LeverageResponse Id request: {request}")
+
+    # Fetch the metric details
     metric = await query_manager.get_metric(request.metric_id)
 
-    results = await query_manager.list_metrics()
-    all_metrix = [metric["metric_id"] for metric in results]
+    # Get the nested expressions for the metric
+    metric_expression = await leverage_id_service.get_nested_expressions(metric["metric_expression"])
 
-    all_values_df = await query_manager.get_metrics_time_series_df(
-        metric_ids=all_metrix, start_date=request.start_date, end_date=request.end_date, grain=request.grain
+    # Extract all unique metric IDs from the nested expression
+    metric_ids = leverage_id_service.extract_metric_ids(metric_expression)
+
+    # Fetch the maximum values for the metrics
+    max_values = await query_manager.get_metrics_max_values(metric_ids)
+
+    # Fetch the time series data for the metrics
+    values_df = await query_manager.get_metrics_time_series_df(
+        metric_ids=metric_ids, start_date=request.start_date, end_date=request.end_date, grain=request.grain
     )
 
-    max_values = await query_manager.get_metric_max_values()
-
-    return await leverage_id_service.calculate_leverage_id(metric, all_values_df, max_values)
+    # Calculate the leverage ID and return the result
+    return await leverage_id_service.calculate_leverage_id(metric, values_df, max_values)

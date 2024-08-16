@@ -264,12 +264,21 @@ class QueryManagerClient(AsyncHttpClient):
         data = await self.get_metric_values(metric_id, start_date, end_date, dimensions)
         return pd.DataFrame(data)
 
-    async def get_metric_max_values(self) -> dict[str, Any]:
+    async def get_metrics_max_values(self, metric_ids: list[str] | None = None) -> dict[str, Any]:
         """
         Get metric targets.
         metric_id: metric id
         """
 
-        results = await self.list_metrics()
-        max_values_dict = {metric["metric_id"]: metric["hypothetical_max"] for metric in results}
-        return max_values_dict
+        if metric_ids is None:
+            return {}
+
+        results = await self.list_metrics(metric_ids=metric_ids)
+
+        # Create a set for faster lookup
+        metric_id_set = set(metric_ids)
+        return {
+            metric["metric_id"]: metric["hypothetical_max"]
+            for metric in results
+            if metric["metric_id"] in metric_id_set and "hypothetical_max" in metric
+        }

@@ -3,7 +3,7 @@ from .component_drift import ComponentDriftEvaluator
 from .correlate import CorrelationAnalyzer
 from .describe import DescribeAnalyzer
 from .forecasting import SimpleForecast
-from .leverage import LeverageCalculator
+from .leverage_id import LeverageIdCalculator
 from .model import ModelAnalyzer
 from .process_control import ProcessControlAnalyzer
 from .segment_drift import SegmentDriftEvaluator
@@ -17,5 +17,5 @@ __all__ = [
     "CorrelationAnalyzer",
     "DescribeAnalyzer",
     "ModelAnalyzer",
-    "LeverageCalculator",
+    "LeverageIdCalculator",
 ]

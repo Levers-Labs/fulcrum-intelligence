@@ -2,30 +2,35 @@ import pandas as pd
 import pytest
 import sympy as sp
 
-from fulcrum_core.modules.leverage import LeverageCalculator
+from fulcrum_core.modules import LeverageIdCalculator
 
 
-@pytest.fixture(name="metric_json")
-def metric_json_fixture():
+@pytest.fixture(name="metric_expression")
+def metric_expression_fixture():
     return {
         "metric_id": "NewBizDeals",
-        "metric_expression": {
-            "expression_str": "AcceptOpps + SQOToWinRate",
-            "expression": {
-                "type": "expression",
-                "operator": "+",
-                "operands": [
-                    {"type": "metric", "metric_id": "AcceptOpps"},
-                    {"type": "metric", "metric_id": "SQOToWinRate"},
-                ],
-            },
+        "expression_str": "AcceptOpps + SQOToWinRate",
+        "expression": {
+            "type": "expression",
+            "operator": "+",
+            "operands": [
+                {"type": "metric", "metric_id": "AcceptOpps"},
+                {"type": "metric", "metric_id": "SQOToWinRate"},
+            ],
         },
     }
 
 
 @pytest.fixture(name="values_df")
 def values_df_fixture():
-    return pd.DataFrame({"date": ["2023-01-01", "2023-01-02"], "AcceptOpps": [100, 150], "SQOToWinRate": [50, 75]})
+    return pd.DataFrame(
+        {
+            "date": ["2023-01-01", "2023-01-02"],
+            "AcceptOpps": [100, 150],
+            "SQOToWinRate": [50, 75],
+            "NewBizDeals": [150, 225],
+        }
+    )
 
 
 @pytest.fixture(name="max_values")
@@ -34,38 +39,28 @@ def max_values_fixture():
 
 
 @pytest.fixture(name="calculator")
-def calculator_fixture():
-    return LeverageCalculator()
+def calculator_fixture(metric_expression, max_values):
+    return LeverageIdCalculator(metric_expression, max_values)
 
 
-def test_init(calculator):
-    assert calculator.metric_json is None
-    assert calculator.values_df is None
-    assert calculator.max_values is None
+def test_extract_expression(calculator):
+    equations_list = calculator._extract_expression()
+    assert "NewBizDeals = AcceptOpps + SQOToWinRate" in equations_list
 
 
-def test_extract_expression(calculator, metric_json):
-    equation = calculator._extract_expression(metric_json)
-    assert equation == ["NewBizDeals = AcceptOpps + SQOToWinRate"]
-
-
-def test_create_parent_and_top_parent_dicts(calculator, metric_json):
-    parent_dict, top_parent_dict = calculator._create_parent_and_top_parent_dicts(metric_json)
+def test_create_parent_and_root_dicts(calculator):
+    parent_dict, root_dict = calculator._create_parent_and_root_dicts()
     assert parent_dict == {"AcceptOpps": "NewBizDeals", "SQOToWinRate": "NewBizDeals"}
-    assert top_parent_dict == {"AcceptOpps": "NewBizDeals", "SQOToWinRate": "NewBizDeals"}
+    assert root_dict == {"AcceptOpps": "NewBizDeals", "SQOToWinRate": "NewBizDeals"}
 
 
-def test_compute_y(calculator, metric_json, values_df):
-    calculator.metric_json = metric_json
-    calculator.values_df = values_df
+def test_compute_y(calculator, values_df):
     calculator.var_symbols = {var: sp.symbols(var) for var in values_df.columns if var != "date"}
     y = calculator._compute_y("AcceptOpps + SQOToWinRate", {"AcceptOpps": 100, "SQOToWinRate": 50})
     assert y == 150
 
 
-def test_compute_ymax(calculator, metric_json, values_df, max_values):
-    calculator.metric_json = metric_json
-    calculator.values_df = values_df
+def test_compute_ymax(calculator, values_df, max_values):
     calculator.var_symbols = {var: sp.symbols(var) for var in values_df.columns if var != "date"}
     ymax = calculator._compute_ymax(
         "AcceptOpps + SQOToWinRate", {"AcceptOpps": 100, "SQOToWinRate": 50}, "AcceptOpps", max_values["AcceptOpps"]
@@ -73,39 +68,46 @@ def test_compute_ymax(calculator, metric_json, values_df, max_values):
     assert ymax == 250
 
 
-def test_analyze_parent(calculator, metric_json, values_df, max_values):
-    calculator.run(metric_json, values_df, max_values)
-    parent_results = calculator.analyze_parent()
+def test_analyze_parent(calculator, values_df):
+    parent_dict, _ = calculator._create_parent_and_root_dicts()
+    equations_list = calculator._extract_expression()
+    calculator.var_symbols = {var: sp.symbols(var) for var in values_df.columns if var != "date"}
+    parent_results = calculator.analyze_parent(parent_dict, equations_list, values_df)
     assert len(parent_results) == 4
 
 
-def test_analyze_top_parent(calculator, metric_json, values_df, max_values):
-    calculator.run(metric_json, values_df, max_values)
-    top_parent_results = calculator.analyze_top_parent()
-    assert len(top_parent_results) == 4
+def test_analyze_root(calculator, values_df):
+    equations_list = calculator._extract_expression()
+    calculator.var_symbols = {var: sp.symbols(var) for var in values_df.columns if var != "date"}
+    root_results = calculator.analyze_root(equations_list, values_df)
+    assert len(root_results) == 4
 
 
-def test_combine_results(calculator, metric_json, values_df, max_values):
-    calculator.run(metric_json, values_df, max_values)
-    parent_results = calculator.analyze_parent()
-    top_parent_results = calculator.analyze_top_parent()
-    final_results = calculator.combine_results(parent_results, top_parent_results)
+def test_combine_results(calculator, values_df):
+    parent_dict, _ = calculator._create_parent_and_root_dicts()
+    equations_list = calculator._extract_expression()
+    calculator.var_symbols = {var: sp.symbols(var) for var in values_df.columns if var != "date"}
+    parent_results = calculator.analyze_parent(parent_dict, equations_list, values_df)
+    root_results = calculator.analyze_root(equations_list, values_df)
+    final_results = calculator.combine_results(parent_results, root_results)
     assert len(final_results) == 4
 
 
-def test_get_metric_details(calculator, metric_json, values_df, max_values):
-    calculator.run(metric_json, values_df, max_values)
-    parent_results = calculator.analyze_parent()
-    top_parent_results = calculator.analyze_top_parent()
-    final_results = calculator.combine_results(parent_results, top_parent_results)
+def test_get_metric_details(calculator, values_df):
+    parent_dict, _ = calculator._create_parent_and_root_dicts()
+    equations_list = calculator._extract_expression()
+    calculator.var_symbols = {var: sp.symbols(var) for var in values_df.columns if var != "date"}
+    parent_results = calculator.analyze_parent(parent_dict, equations_list, values_df)
+    root_results = calculator.analyze_root(equations_list, values_df)
+    final_results = calculator.combine_results(parent_results, root_results)
     df = pd.DataFrame(final_results)
     aggregated_df = (
         df.groupby("variable")
         .agg(
             parent_metric=("parent_metric", "first"),
             top_metric=("top_metric", "first"),
-            parent_percentage_difference=("parent_percentage_difference", "mean"),
-            top_parent_percentage_difference=("top_parent_percentage_difference", "mean"),
+            pct_diff=("pct_diff", "mean"),
+            pct_diff_root=("pct_diff_root", "mean"),
         )
         .reset_index()
     )
@@ -114,28 +116,41 @@ def test_get_metric_details(calculator, metric_json, values_df, max_values):
     assert metric_details["parent_metric"] == "NewBizDeals"
 
 
-def test_build_output_structure(calculator, metric_json, values_df, max_values):
-    calculator.run(metric_json, values_df, max_values)
-    parent_results = calculator.analyze_parent()
-    top_parent_results = calculator.analyze_top_parent()
-    final_results = calculator.combine_results(parent_results, top_parent_results)
+def test_build_output_structure(calculator, values_df):
+    parent_dict, _ = calculator._create_parent_and_root_dicts()
+    equations_list = calculator._extract_expression()
+    calculator.var_symbols = {var: sp.symbols(var) for var in values_df.columns if var != "date"}
+    parent_results = calculator.analyze_parent(parent_dict, equations_list, values_df)
+    root_results = calculator.analyze_root(equations_list, values_df)
+    final_results = calculator.combine_results(parent_results, root_results)
     df = pd.DataFrame(final_results)
     aggregated_df = (
         df.groupby("variable")
         .agg(
             parent_metric=("parent_metric", "first"),
             top_metric=("top_metric", "first"),
-            parent_percentage_difference=("parent_percentage_difference", "mean"),
-            top_parent_percentage_difference=("top_parent_percentage_difference", "mean"),
+            pct_diff=("pct_diff", "mean"),
+            pct_diff_root=("pct_diff_root", "mean"),
         )
         .reset_index()
     )
     output = calculator.build_output_structure(aggregated_df)
     assert output["metric_id"] == "NewBizDeals"
-    assert output["components"][0]["metric_id"] == "AcceptOpps"
+    assert "leverage" in output
+    assert "pct_diff" in output["leverage"]
+    assert "pct_diff_root" in output["leverage"]
+    assert len(output["components"]) > 0
+    assert output["components"][0]["metric_id"] in ["AcceptOpps", "SQOToWinRate"]
+    assert "leverage" in output["components"][0]
 
 
-def test_run(calculator, metric_json, values_df, max_values):
-    output = calculator.run(metric_json, values_df, max_values)
+def test_analyze(calculator, values_df):
+    calculator.var_symbols = {var: sp.symbols(var) for var in values_df.columns if var != "date"}
+    output = calculator.analyze(values_df)
     assert output["metric_id"] == "NewBizDeals"
-    assert output["components"][0]["metric_id"] == "AcceptOpps"
+    assert "leverage" in output
+    assert "pct_diff" in output["leverage"]
+    assert "pct_diff_root" in output["leverage"]
+    assert len(output["components"]) > 0
+    assert output["components"][0]["metric_id"] in ["AcceptOpps", "SQOToWinRate"]
+    assert "leverage" in output["components"][0]

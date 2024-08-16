@@ -20,7 +20,7 @@ class LeverageDetails(BaseModel):
     pct_diff_root: float = Field(description="Percentage difference w.r.t. the root")
 
 
-class Leverage(BaseModel):
+class LeverageResponse(BaseModel):
     metric_id: str
     leverage: LeverageDetails
-    components: list[Leverage] | None = None
+    components: list[LeverageResponse] | None = None
