@@ -641,10 +641,10 @@ async def test_influence_attribution_no_influenced_by(client, mocker, metric_sms
 
 
 @pytest.mark.asyncio
-async def test_leverage_id_route(client, mocker, leverage_id_response, metric_expression):
+async def test_leverage_id_route(client, mocker, leverage_id_response, metric_expression, get_metric_response):
     # Mock the QueryManagerClient and LeverageIdService methods
-    mock_get_metric = AsyncMock(return_value=metric_expression)
-    mock_get_nested_expressions = AsyncMock(return_value=metric_expression["metric_expression"])
+    mock_get_metric = AsyncMock(return_value=get_metric_response)
+    mock_get_nested_expressions = AsyncMock(return_value=metric_expression)
     mock_extract_metric_ids = AsyncMock(
         return_value=["NewBizDeals", "AcceptOpps", "OpenNewBizOpps", "SQORate", "SQOToWinRate"]
     )

@@ -1076,3 +1076,69 @@ def leverage_id_response():
             },
         ],
     }
+
+
+@pytest.fixture()
+def get_metric_response():
+    return {
+        "metric_id": "NewBizDeals",
+        "label": "New Business Deals",
+        "abbreviation": "NewBizDeals",
+        "definition": "The count of New Business Opportunities that were generated in the period related to closing "
+        "deals.",
+        "unit_of_measure": "Quantity",
+        "unit": "n",
+        "terms": ["New Business Opportunities"],
+        "complexity": "Complex",
+        "metric_expression": {
+            "type": "metric",
+            "metric_id": "NewBizDeals",
+            "coefficient": 1,
+            "period": 0,
+            "expression_str": "{AcceptOpps} * {SQOToWinRate}",
+            "expression": {
+                "type": "expression",
+                "operator": "*",
+                "operands": [
+                    {
+                        "type": "metric",
+                        "metric_id": "AcceptOpps",
+                        "coefficient": 1,
+                        "period": 0,
+                        "expression_str": None,
+                        "expression": None,
+                        "power": 1,
+                    },
+                    {
+                        "type": "metric",
+                        "metric_id": "SQOToWinRate",
+                        "coefficient": 1,
+                        "period": 0,
+                        "expression_str": None,
+                        "expression": None,
+                        "power": 1,
+                    },
+                ],
+            },
+            "power": 1,
+        },
+        "periods": ["week", "month", "quarter"],
+        "grain_aggregation": "sum",
+        "aggregations": ["sum"],
+        "owned_by_team": ["Sales"],
+        "meta_data": {
+            "semantic_meta": {
+                "cube": "dim_opportunity",
+                "member": "new_biz_deals",
+                "member_type": "measure",
+                "time_dimension": {"cube": "dim_opportunity", "member": "close_date"},
+            }
+        },
+        "hypothetical_max": None,
+        "id": 1,
+        "outputs": [],
+        "inputs": [],
+        "influences": [],
+        "influencers": ["SQLs"],
+        "dimensions": [],
+    }
