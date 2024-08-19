@@ -643,15 +643,26 @@ async def test_influence_attribution_no_influenced_by(client, mocker, metric_sms
 @pytest.mark.asyncio
 async def test_leverage_id_route(client, mocker, leverage_id_response, metric_expression, get_metric_response):
     # Mock the QueryManagerClient and LeverageIdService methods
-    mock_get_metric = AsyncMock(return_value=get_metric_response)
-    mock_get_nested_expressions = AsyncMock(return_value=metric_expression)
-    mock_extract_metric_ids = AsyncMock(
-        return_value=["NewBizDeals", "AcceptOpps", "OpenNewBizOpps", "SQORate", "SQOToWinRate"]
+    mocker.patch.object(QueryManagerClient, "get_metric", new_callable=AsyncMock, return_value=get_metric_response)
+    mocker.patch.object(
+        LeverageIdService, "get_nested_expressions", new_callable=AsyncMock, return_value=metric_expression
     )
-    mock_get_metrics_max_values = AsyncMock(
-        return_value={"NewBizDeals": 100, "AcceptOpps": 80, "OpenNewBizOpps": 60, "SQORate": 50, "SQOToWinRate": 40}
+    mocker.patch.object(
+        LeverageIdService,
+        "extract_metric_ids",
+        new_callable=AsyncMock,
+        return_value=["NewBizDeals", "AcceptOpps", "OpenNewBizOpps", "SQORate", "SQOToWinRate"],
     )
-    mock_get_metrics_time_series_df = AsyncMock(
+    mocker.patch.object(
+        QueryManagerClient,
+        "get_metrics_max_values",
+        new_callable=AsyncMock,
+        return_value={"NewBizDeals": 100, "AcceptOpps": 80, "OpenNewBizOpps": 60, "SQORate": 50, "SQOToWinRate": 40},
+    )
+    mocker.patch.object(
+        QueryManagerClient,
+        "get_metrics_time_series_df",
+        new_callable=AsyncMock,
         return_value=pd.DataFrame(
             {
                 "date": pd.date_range("2024-02-01", periods=5, freq="MS"),
@@ -661,19 +672,14 @@ async def test_leverage_id_route(client, mocker, leverage_id_response, metric_ex
                 "SQORate": [50, 100, 150, 200, 250],
                 "SQOToWinRate": [40, 80, 120, 160, 200],
             }
-        )
+        ),
     )
-    mock_calculate_leverage_id = AsyncMock(return_value=leverage_id_response)
+    mocker.patch.object(
+        LeverageIdService, "calculate_leverage_id", new_callable=AsyncMock, return_value=leverage_id_response
+    )
 
-    mocker.patch.object(QueryManagerClient, "get_metric", mock_get_metric)
-    mocker.patch.object(LeverageIdService, "get_nested_expressions", mock_get_nested_expressions)
-    mocker.patch.object(LeverageIdService, "extract_metric_ids", mock_extract_metric_ids)
-    mocker.patch.object(QueryManagerClient, "get_metrics_max_values", mock_get_metrics_max_values)
-    mocker.patch.object(QueryManagerClient, "get_metrics_time_series_df", mock_get_metrics_time_series_df)
-    mocker.patch.object(LeverageIdService, "calculate_leverage_id", mock_calculate_leverage_id)
-
-    response = await client.post(
-        "/v1/analyze/leverage_id",
+    response = client.post(
+        "/v1/analyze/analysis/leverage_id",
         json={"metric_id": "NewBizDeals", "start_date": "2024-02-01", "end_date": "2024-03-01", "grain": "month"},
     )
 
