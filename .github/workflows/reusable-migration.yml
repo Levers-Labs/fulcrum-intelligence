@@ -19,8 +19,8 @@ on:
         description: 'Dynamically generated tag, format curdate_curtime'
         required: true
         type: string
-      app_host:
-        description: 'host url of the application'
+      migration:
+        description: 'migration flag, either true or false for migration'
         required: true
         type: string
 
@@ -41,6 +41,7 @@ on:
 jobs:
   migrate:
     runs-on: ubuntu-latest
+    if: ${{ inputs.migration == 'true' }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -49,6 +50,7 @@ jobs:
         uses: actions/setup-python@v3
         with:
           python-version: '3.10'
+
 
       - name: Install dependencies
         working-directory: ${{ inputs.app_name }}
@@ -64,15 +66,9 @@ jobs:
         run: |
           poetry run python manage.py db upgrade
 
-  deploy-image-on-lambda-with-migrations:
-    needs: [ migrate ]
-    uses: ./.github/workflows/reusable-lambda-deployment.yml
-    with:
-      ecr_repo: ${{ inputs.ecr_repo }}
-      app_lambda_function_name: ${{ inputs.app_lambda_function_name }}
-      tag: ${{ inputs.tag }}
-      app_host: ${{ inputs.app_host }}
-    secrets:
-      AWS_REGION: ${{ secrets.AWS_REGION }}
-      DEV_DEPLOYMENT_ROLE: ${{ secrets.DEV_DEPLOYMENT_ROLE }}
-      ECR_REGISTRY: ${{ secrets.ECR_REGISTRY }}
+  skip-message:
+    runs-on: ubuntu-latest
+    if: ${{ inputs.migration == 'false' }}
+    steps:
+      - name: Print skipping message
+        run: echo "Skipping migrations as migration is not required."
