@@ -56,15 +56,15 @@ jobs:
           echo "app_name=$app_name" >> $GITHUB_OUTPUT
           echo "health_endpoint=$health_endpoint" >> $GITHUB_OUTPUT
           if ${{ github.event.inputs.environment == 'PROD'}}; then
-            echo "app_host=https://prod-${{ vars.QUERY_MANAGER_HOST }}" >> $GITHUB_OUTPUT;
+            echo "app_host=https://${{ vars.PROD_QUERY_MANAGER_HOST }}" >> $GITHUB_OUTPUT;
             echo "app_lambda_function_name=${app_lambda_function_prefix}-prod" >> $GITHUB_OUTPUT;
             echo "env=prod" >> $GITHUB_OUTPUT;
           elif ${{ github.event.inputs.environment == 'STAGING' }}; then
-            echo "app_host=https://staging-${{ vars.QUERY_MANAGER_HOST }}" >> $GITHUB_OUTPUT;
+            echo "app_host=https://${{ vars.STAGING_QUERY_MANAGER_HOST }}" >> $GITHUB_OUTPUT;
             echo "app_lambda_function_name=${app_lambda_function_prefix}-staging" >> $GITHUB_OUTPUT;
             echo "env=staging" >> $GITHUB_OUTPUT;
           else
-            echo "app_host=https://dev-${{ vars.QUERY_MANAGER_HOST }}" >> $GITHUB_OUTPUT;
+            echo "app_host=https://${{ vars.DEV_QUERY_MANAGER_HOST }}" >> $GITHUB_OUTPUT;
             echo "app_lambda_function_name=${app_lambda_function_prefix}-dev" >> $GITHUB_OUTPUT;
             echo "env=dev" >> $GITHUB_OUTPUT;
           fi
