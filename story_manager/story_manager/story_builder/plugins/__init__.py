@@ -21,5 +21,5 @@ __all__ = [
     "RequiredPerformanceStoryBuilder",
     "SegmentDriftStoryBuilder",
     "SignificantSegmentStoryBuilder",
-    "InfluenceDriftStoryBuilder"
+    "InfluenceDriftStoryBuilder",
 ]
