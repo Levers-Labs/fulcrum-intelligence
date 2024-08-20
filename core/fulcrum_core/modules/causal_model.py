@@ -1,3 +1,4 @@
+import copy
 import logging
 import re
 from typing import Any
@@ -183,41 +184,64 @@ class CausalModelAnalyzer(BaseAnalyzer):
 
         return list(direct_columns), list(indirect_columns)
 
-    def effect_to_percentage(self, effect: float, total_absolute_effect: float) -> float:
-        """
-        Convert an effect value to a percentage of the total absolute effect.
+    def build_hierarchy(self, metric_id, flipped_dict):
+        components = []
+        if metric_id in flipped_dict:
+            for child_metric in flipped_dict[metric_id]:
+                components.append(self.build_hierarchy(child_metric, flipped_dict))
 
-        Args:
-            effect (float): The effect value.
-            total_absolute_effect (float): The total absolute effect value.
+        return {
+            "metric_id": metric_id,
+            "model": {"coefficient": 0, "coefficient_root": 0, "relative_impact": 0, "relative_impact_root": 0},
+            "components": components,
+        }
 
-        Returns:
-            float: The percentage effect value.
-        """
-        if total_absolute_effect == 0:
-            return 0
-        return (abs(effect) / total_absolute_effect) * 100
+    def find_metric(self, data, metric_id):
+        if data["metric_id"] == metric_id:
+            return data
+        for component in data["components"]:
+            result = self.find_metric(component, metric_id)
+            if result:
+                return result
+        return None
 
-    def normalize_effects_row(self, row: pd.Series, effects: list[str]) -> dict[str, float]:
-        """
-        Normalize the effects of a single row to percentages.
+    def calculate_total_sum(
+        self, metric_id, flipped_relation_dict, value_dict, result_output, outcome_column, total_sum
+    ):
+        if metric_id in flipped_relation_dict:
+            for m_id in flipped_relation_dict[metric_id]:
+                metric_info = self.find_metric(result_output, m_id)
+                coefficient = metric_info["model"]["coefficient"]
+                value = value_dict[m_id]
+                total_sum += coefficient * value
+                total_sum = self.calculate_total_sum(
+                    m_id, flipped_relation_dict, value_dict, result_output, outcome_column, total_sum
+                )
+        return total_sum
 
-        Args:
-            row (pd.Series): The input row.
-            effects (list[str]): List of effect column names.
+    def calculate_relative_impact(self, metric_id, flipped_relation_dict, value_dict, result_output):
+        coefficients_values = [
+            (self.find_metric(result_output, m_id)["model"]["coefficient"], value_dict[m_id])
+            for m_id in flipped_relation_dict[metric_id]
+        ]
+        sum_coefficients_values = sum(c * v for c, v in coefficients_values)
+        for m_id in flipped_relation_dict[metric_id]:
+            metric_info = self.find_metric(result_output, m_id)
+            coefficient = metric_info["model"]["coefficient"]
+            value = value_dict[m_id]
+            relative_impact = (coefficient * value) / sum_coefficients_values if sum_coefficients_values != 0 else 0
+            metric_info["model"]["relative_impact"] = relative_impact * 100
+            if metric_info["model"]["coefficient"] == metric_info["model"]["coefficient_root"]:
+                metric_info["model"]["relative_impact_root"] = relative_impact * 100
+            else:
+                total_sum = self.calculate_total_sum(
+                    m_id, flipped_relation_dict, value_dict, result_output, self.target_metric_id, 0
+                )
+                coefficient_root = metric_info["model"]["coefficient_root"]
+                relative_impact_root = (coefficient_root * value) / total_sum * 100 if total_sum != 0 else 0
+                metric_info["model"]["relative_impact_root"] = relative_impact_root
 
-        Returns:
-            dict[str, float]: Dictionary of normalized percentage effects.
-        """
-        total_absolute_effect = sum(abs(row[effect]) for effect in effects)
-        # if total absolute effect is zero, return zero for all effects
-        if total_absolute_effect == 0:
-            return {effect: 0 for effect in effects}
-        return {effect: (abs(row[effect]) / total_absolute_effect) * 100 for effect in effects}
-
-    def causal_analysis(
-        self, merged_df: pd.DataFrame, columns: list[str], graph_definition: str
-    ) -> tuple[pd.DataFrame, pd.DataFrame, str]:
+    def causal_analysis(self, merged_df: pd.DataFrame, columns: list[str], graph_definition: str) -> dict:
         """
         Perform causal analysis on the input data.
 
@@ -227,110 +251,125 @@ class CausalModelAnalyzer(BaseAnalyzer):
             graph_definition (str): The causal graph definition string.
 
         Returns:
-            tuple[pd.DataFrame, pd.DataFrame, str]: A tuple containing the contributions DataFrame,
-            natural effect DataFrame, and updated graph definition string.
+            dict: A dictionary containing the hierarchical result structure.
         """
-        factor_columns = [col for col in columns if col != self.target_metric_id]
-        # model definintion containing data, treatment variables which are factor columns, outcome and digraph
-        model = CausalModel(
-            data=merged_df,
-            # Exclude the target column from treatment
-            treatment=factor_columns,
-            outcome=self.target_metric_id,
-            graph=graph_definition,
-        )
+        try:
+            factor_columns = [col for col in merged_df.columns if col not in ["date", self.target_metric_id]]
+            outcome_column = self.target_metric_id
+            factor_columns.append(outcome_column)
+            normalized_factor_columns = {self.normalize_name(col): col for col in factor_columns}
+            graph_edges = graph_definition.split("digraph { ")[1].strip(" }").split("; ")
+            updated_edges = []
+            for edge in graph_edges:
+                if "->" in edge:
+                    src, dst = edge.split(" -> ")
+                    src_norm = self.normalize_name(src)
+                    dst_norm = self.normalize_name(dst)
+                    src_replaced = normalized_factor_columns.get(src_norm, src)
+                    dst_replaced = normalized_factor_columns.get(dst_norm, dst)
+                    updated_edges.append(f"{src_replaced} -> {dst_replaced}")
 
-        # Identifies effect and estimates coefficients
-        identified_estimand = model.identify_effect(proceed_when_unidentifiable=True)
-        causal_estimate = model.estimate_effect(identified_estimand, method_name="backdoor.linear_regression")
-        effect = causal_estimate.realized_estimand_expr
-        effect_summary = causal_estimate.estimator.model.params
+            updated_graph_definition = f"digraph {{ {'; '.join(updated_edges)} }}"
 
-        # Coefficients x1, x2 etc. are changed to original column names dynamically
-        factor_dict = {f"x{i + 1}": factor_columns[i] for i in range(len(factor_columns))}
+            relationships = re.findall(r"(\w+)\s*->\s*(\w+)", updated_graph_definition)
 
-        # Calculating direct effects of all columns to outcome
-        direct_effects = {}
-        for generic_name, original_name in factor_dict.items():
-            if generic_name not in effect_summary.index:
-                logger.warning(
-                    "Coefficient for %s (mapped from %s) not found in the model.", original_name, generic_name
+            nodes = sorted({node for relation in relationships for node in relation})
+
+            result = pd.DataFrame(0.0, index=nodes, columns=nodes)  # noqa
+
+            self.relation_dict: dict = {}
+            for source, target in relationships:
+                if source in self.relation_dict:
+                    self.relation_dict[source].append(target)
+                else:
+                    self.relation_dict[source] = [target]
+
+            flipped_relation_dict: dict = {}
+            for treatment, targets in self.relation_dict.items():
+                for target in targets:
+                    if target in flipped_relation_dict:
+                        flipped_relation_dict[target].append(treatment)
+                    else:
+                        flipped_relation_dict[target] = [treatment]
+
+            value_dict = {col: merged_df[col].mean() for col in merged_df.columns if col != "date"}
+
+            result_output = self.build_hierarchy(outcome_column, flipped_relation_dict)
+
+            target_columns = list(flipped_relation_dict.keys())
+
+            def update_result_output(result_output, metric_id, treatment, coefficient, key="coefficient"):
+                if result_output["metric_id"] == metric_id:
+                    for component in result_output["components"]:
+                        if component["metric_id"] == treatment:
+                            component["model"][key] = coefficient
+                            break
+                else:
+                    for component in result_output["components"]:
+                        update_result_output(component, metric_id, treatment, coefficient, key)
+
+            for outcome_column1 in target_columns:
+                treatment_columns = flipped_relation_dict[outcome_column1]
+                model1 = CausalModel(
+                    data=merged_df, treatment=treatment_columns, outcome=outcome_column1, graph=updated_graph_definition
                 )
-                continue
-            direct_effects[original_name] = effect_summary[generic_name]
+                identified_estimand1 = model1.identify_effect(proceed_when_unidentifiable=True)
+                causal_estimate1 = model1.estimate_effect(
+                    identified_estimand1, method_name="backdoor.linear_regression"
+                )
+                effect_summary1 = causal_estimate1.estimator.model.params
+                effect_names1 = effect_summary1.index[1:]
+                for treatment1, effect_name in zip(treatment_columns, effect_names1):
+                    coefficient = effect_summary1[effect_name]
+                    update_result_output(result_output, outcome_column1, treatment1, coefficient, key="coefficient")
 
-        # Seperating direct impact and indirect impact columns
-        direct_columns, indirect_columns = self.categorize_columns(graph_definition)
-        # sorting the columns based on the index of the column in the factor_columns list
-        direct_columns = sorted(direct_columns, key=lambda x: factor_columns.index(x))
-        indirect_columns = sorted(indirect_columns, key=lambda x: factor_columns.index(x))
+            direct_columns, indirect_columns = self.categorize_columns(updated_graph_definition)
+            direct_columns = sorted(direct_columns, key=lambda x: factor_columns.index(x))
+            indirect_columns = sorted(indirect_columns, key=lambda x: factor_columns.index(x))
 
-        # calculating Percentage effect ie. total absolute effect
-        total_absolute_effect = sum(abs(direct_effects[variable]) for variable in factor_columns)
+            for i in range(len(indirect_columns)):
+                model_in = CausalModel(
+                    data=merged_df,
+                    treatment=indirect_columns[i],
+                    outcome=outcome_column,
+                    graph=updated_graph_definition,
+                )
+                identified_estimand_in = model_in.identify_effect(
+                    estimand_type="nonparametric-nie", proceed_when_unidentifiable=True
+                )
+                causal_estimate_in = model_in.estimate_effect(
+                    identified_estimand_in, method_name="mediation.two_stage_regression"
+                )
+                coefficient_root = causal_estimate_in.value
+                update_result_output(
+                    result_output,
+                    self.relation_dict[indirect_columns[i]][0],
+                    indirect_columns[i],
+                    coefficient_root,
+                    key="coefficient_root",
+                )
 
-        normalized_percentage_impact = {
-            variable: self.effect_to_percentage(direct_effects[variable], total_absolute_effect)
-            for variable in factor_columns
-        }
+            def update_coefficient_root(data):
+                if "model" in data:
+                    if data["model"]["coefficient_root"] == 0 and data["model"]["coefficient"] != 0:
+                        data["model"]["coefficient_root"] = data["model"]["coefficient"]
 
-        impact_df = pd.DataFrame(normalized_percentage_impact, index=[0])
+                if "components" in data:
+                    for component in data["components"]:
+                        update_coefficient_root(component)
 
-        impact_df.columns = [f"{variable}_normalized_percentage" for variable in impact_df.columns]  # type: ignore
+            update_coefficient_root(result_output)
 
-        normalized_row_effects = merged_df.apply(lambda row: self.normalize_effects_row(row, factor_columns), axis=1)
+            updated_result_output = copy.deepcopy(result_output)
 
-        # Adding columns coefficient and percantage for each column
-        for effect in factor_columns:
-            merged_df["coefficient_" + effect] = direct_effects[effect]
+            for key in flipped_relation_dict:
+                self.calculate_relative_impact(key, flipped_relation_dict, value_dict, updated_result_output)
 
-        for effect in factor_columns:
-            merged_df[effect + "_percentage"] = normalized_row_effects.apply(lambda x: x[effect])  # noqa
+            return updated_result_output
 
-        natural_effect = pd.DataFrame()
-
-        # Calculating direct and indirect impacts of columns which have indirect impact on outcome
-        for i in range(len(indirect_columns)):
-            model_in = CausalModel(
-                data=merged_df,
-                treatment=indirect_columns[i],  # Exclude the outcome column from treatment
-                outcome=self.target_metric_id,
-                graph=graph_definition,
-            )
-            identified_estimand_nde = model_in.identify_effect(
-                estimand_type="nonparametric-nde", proceed_when_unidentifiable=True
-            )
-            identified_estimand_nie = model_in.identify_effect(
-                estimand_type="nonparametric-nie", proceed_when_unidentifiable=True
-            )
-            estimate_nde = model_in.estimate_effect(
-                identified_estimand_nde, method_name="mediation.two_stage_regression"
-            )
-            estimate_nie = model_in.estimate_effect(
-                identified_estimand_nie, method_name="mediation.two_stage_regression"
-            )
-
-            natural_effect[f"coefficient_NDE_{indirect_columns[i]}"] = [estimate_nde.value]
-            natural_effect[f"coefficient_NIE_{indirect_columns[i]}"] = [estimate_nie.value]
-
-            total_effect = abs(estimate_nde.value) + abs(estimate_nie.value)
-
-            if total_effect != 0:
-                natural_effect[f"NDE_{indirect_columns[i]}_percentage"] = [
-                    (abs(estimate_nde.value) / total_effect) * 100
-                ]
-                natural_effect[f"NIE_{indirect_columns[i]}_percentage"] = [
-                    (abs(estimate_nie.value) / total_effect) * 100
-                ]
-            else:
-                natural_effect[f"NDE_{indirect_columns[i]}_percentage"] = [0]
-                natural_effect[f"NIE_{indirect_columns[i]}_percentage"] = [0]
-
-        natural_effect = pd.concat([natural_effect, impact_df], axis=1)
-        # Dropping original columns
-        merged_df = merged_df.drop(factor_columns, axis=1)
-        merged_df = merged_df.drop(self.target_metric_id, axis=1)
-        merged_df = merged_df.drop("date", axis=1)
-        return merged_df, natural_effect, graph_definition
+        except Exception as e:
+            logger.error(f"Exception occurred: {e}")
+            return {}
 
     def prepare_output(
         self, contributions: pd.DataFrame, natural_effect: pd.DataFrame, graph: str
@@ -415,7 +454,7 @@ class CausalModelAnalyzer(BaseAnalyzer):
 
     def analyze(
         self, df: pd.DataFrame, input_dfs: list[pd.DataFrame], **kwargs  # type: ignore  # noqa
-    ) -> pd.DataFrame:
+    ) -> tuple[pd.DataFrame, pd.DataFrame]:
         """
         Analyze the input DataFrame using causal model analysis.
 
@@ -430,6 +469,39 @@ class CausalModelAnalyzer(BaseAnalyzer):
         merged_df = self.merge_dataframes([df] + input_dfs)
         merged_df = self.integrate_yearly_seasonality(merged_df)
         columns, graph_definition = self.build_causal_graph()
-        contributions, natural_effect, graph = self.causal_analysis(merged_df, columns, graph_definition)
-        coefficients, _ = self.prepare_output(contributions, natural_effect, graph)
-        return coefficients
+        result = self.causal_analysis(merged_df, columns, graph_definition)
+        contributions, natural_effect, graph = result["contributions"], result["natural_effect"], result["graph"]
+        coefficients, percentage = self.prepare_output(contributions, natural_effect, graph)
+        return coefficients, percentage
+
+    def merge_dataframes(self, dataframes: list[pd.DataFrame]) -> pd.DataFrame:
+        if len(dataframes) == 1:
+            df = dataframes[0]
+            df.columns = df.columns.str.strip()
+            df["date"] = pd.to_datetime(df.iloc[:, 0])
+            df.drop(columns=[df.columns[0]], inplace=True)
+            df = df[["date"] + list(df.columns[0:-1])]
+            df = self.integrate_yearly_seasonality(df)
+            return df
+
+        dfs = []
+        for df in dataframes:
+            df.columns = df.columns.str.strip()
+            df["date"] = pd.to_datetime(df.iloc[:, 0])
+            df.drop(columns=[df.columns[0]], inplace=True)
+            df = df[["date"] + [col for col in df.columns if col != "date"]]
+            dfs.append(df)
+
+        common_dates = dfs[0]["date"]
+        for df in dfs[1:]:
+            common_dates = common_dates[common_dates.isin(df["date"])]
+
+        dfs = [df[df["date"].isin(common_dates)] for df in dfs]
+        merged_df = dfs[0]
+        for df in dfs[1:]:
+            merged_df = merged_df.merge(df, on="date")
+        merged_df = self.integrate_yearly_seasonality(merged_df)
+        return merged_df
+
+    def normalize_name(self, name):
+        return name.replace("_", "").lower()
