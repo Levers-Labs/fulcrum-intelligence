@@ -79,4 +79,9 @@ STORY_GROUP_TIME_DURATIONS: dict[str, Any] = {
         Granularity.WEEK: {"min": 104, "input": 260, "output": 2},
         Granularity.MONTH: {"min": 24, "input": 60, "output": 2},
     },
+    StoryGroup.COMPONENT_DRIFT: {
+        Granularity.DAY: {"min": 2, "input": 2, "output": 2},
+        Granularity.WEEK: {"min": 2, "input": 2, "output": 2},
+        Granularity.MONTH: {"min": 2, "input": 2, "output": 2},
+    },
 }

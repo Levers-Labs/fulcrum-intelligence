@@ -12,6 +12,7 @@ class ErrorCode(str, Enum):
 
     METRIC_VALUE_NOT_FOUND = "metric_value_not_found"
     METRIC_NOT_FOUND = "metric_not_found"
+    DIMENSION_NOT_FOUND = "dimension_not_found"
     METRIC_METADATA_ERROR = "metric_metadata_error"
     METRIC_TARGET_ERROR = "metric_target_error"
 
@@ -41,6 +42,13 @@ class MetricNotFoundError(QueryManagerError):
         self.metric_id = metric_id
         detail = f"Metric '{metric_id}' not found."
         super().__init__(status_code=HTTP_404_NOT_FOUND, detail=detail, code=ErrorCode.METRIC_NOT_FOUND)
+
+
+class DimensionNotFoundError(QueryManagerError):
+    def __init__(self, dimension_id: str):
+        self.dimension_id = dimension_id
+        detail = f"Dimension '{dimension_id}' not found."
+        super().__init__(status_code=HTTP_404_NOT_FOUND, detail=detail, code=ErrorCode.DIMENSION_NOT_FOUND)
 
 
 def add_exception_handlers(app):

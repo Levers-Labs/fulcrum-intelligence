@@ -29,6 +29,8 @@ class Settings(BaseSettings):
     SECRET_KEY: str
     ENV: Environment = Environment.dev
     LOGGING_LEVEL: str = "INFO"
+    # App as URL prefix added for each microservice
+    URL_PREFIX: str = "/analysis"
 
     SERVER_HOST: str | AnyHttpUrl
     PAGINATION_PER_PAGE: int = 20
@@ -40,6 +42,11 @@ class Settings(BaseSettings):
 
     QUERY_MANAGER_SERVER_HOST: str | AnyHttpUrl
     DSENSEI_BASE_URL: str = "http://localhost:5001"
+
+    AUTH0_API_AUDIENCE: str
+    AUTH0_ISSUER: str
+    AUTH0_CLIENT_ID: str
+    AUTH0_CLIENT_SECRET: str
 
     @field_validator("BACKEND_CORS_ORIGINS", mode="before")
     @classmethod

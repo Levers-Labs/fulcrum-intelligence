@@ -1,5 +1,6 @@
 import importlib
 import logging
+import os
 
 import pytest
 from _pytest.monkeypatch import MonkeyPatch
@@ -15,6 +16,8 @@ logger = logging.getLogger(__name__)
 
 @pytest.fixture(scope="session")
 def postgres():
+    os.environ.setdefault("LC_CTYPE", "en_US.UTF-8")
+    os.environ.setdefault("LC_ALL", "en_US.UTF-8")
     with Postgresql() as postgres:
         yield postgres
 
@@ -62,6 +65,10 @@ def setup_env(session_monkeypatch, postgres):  # noqa
     session_monkeypatch.setenv("ANALYSIS_MANAGER_SERVER_HOST", "http://localhost:8000/v1/")
     session_monkeypatch.setenv("DATABASE_URL", db_async_uri)
     session_monkeypatch.setenv("DSENSEI_BASE_URL", "localhost:5001")
+    session_monkeypatch.setenv("AUTH0_API_AUDIENCE", "https://some_auth0_audience")
+    session_monkeypatch.setenv("AUTH0_ISSUER", "https://some_auth0_domain.com")
+    session_monkeypatch.setenv("AUTH0_CLIENT_ID", "client_id")
+    session_monkeypatch.setenv("AUTH0_CLIENT_SECRET", "client_secret")
     yield
 
 

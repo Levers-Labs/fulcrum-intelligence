@@ -55,6 +55,9 @@ class StoryType(str, Enum):
     WEAKER_INFLUENCE = "WEAKER_INFLUENCE"
     IMPROVING_INFLUENCE = "IMPROVING_INFLUENCE"
     WORSENING_INFLUENCE = "WORSENING_INFLUENCE"
+    # Component drift stories
+    IMPROVING_COMPONENT = "IMPROVING_COMPONENT"
+    WORSENING_COMPONENT = "WORSENING_COMPONENT"
 
 
 class StoryGroup(str, Enum):
@@ -76,6 +79,8 @@ class StoryGroup(str, Enum):
 
     REQUIRED_PERFORMANCE = "REQUIRED_PERFORMANCE"
     SIGNIFICANT_SEGMENTS = "SIGNIFICANT_SEGMENTS"
+
+    COMPONENT_DRIFT = "COMPONENT_DRIFT"
 
 
 class Position(str, Enum):
@@ -113,6 +118,25 @@ class Pressure(str, Enum):
     UPWARD = "upward"
     DOWNWARD = "downward"
     UNCHANGED = "unchanged"
+
+
+class Digest(str, Enum):
+    PORTFOLIO = "PORTFOLIO"
+    METRIC = "METRIC"
+
+
+class Section(str, Enum):
+    # Portfolio Sections
+    OVERVIEW = "OVERVIEW"
+    STATUS_CHANGES = "STATUS_CHANGES"
+    LIKELY_MISSES = "LIKELY_MISSES"
+    BIG_MOVES = "BIG_MOVES"
+    PROMISING_TRENDS = "PROMISING_TRENDS"
+    CONCERNING_TRENDS = "CONCERNING_TRENDS"
+    # Metric Sections
+    WHAT_IS_HAPPENING = "WHAT_IS_HAPPENING"
+    WHY_IS_IT_HAPPENING = "WHY_IS_IT_HAPPENING"
+    WHAT_HAPPENS_NEXT = "WHAT_HAPPENS_NEXT"
 
 
 GROUP_TO_STORY_TYPE_MAPPING = {
@@ -161,6 +185,7 @@ GROUP_TO_STORY_TYPE_MAPPING = {
         StoryType.TOP_4_SEGMENTS,
         StoryType.BOTTOM_4_SEGMENTS,
     ],
+    StoryGroup.COMPONENT_DRIFT: [StoryType.IMPROVING_COMPONENT, StoryType.WORSENING_COMPONENT],
     StoryGroup.INFLUENCE_DRIFT: [
         StoryType.STRONGER_INFLUENCE,
         StoryType.WEAKER_INFLUENCE,
@@ -346,6 +371,18 @@ STORY_TYPES_META: dict[str, dict[str, str]] = {
     StoryType.BOTTOM_4_SEGMENTS: {
         "title": "Prior {{grain}} worst performing segments",
         "detail": "The segments below had the lowest average values for {{metric.label}} over the past {{grain}}",
+    },
+    StoryType.IMPROVING_COMPONENT: {
+        "title": "Key Driver: Increase in {{component}}",
+        "detail": "The {{percentage_drift}}% increase in {{component}} over the past {{grain}} contributed {{"
+        "relative_impact}}% {{pressure}} pressure on {{metric.label}} and accounts for {{contribution}}% of "
+        "its overall change.",
+    },
+    StoryType.WORSENING_COMPONENT: {
+        "title": "Key Driver: Declining {{component}}",
+        "detail": "The {{percentage_drift}}% decrease in {{component}} over the past {{grain}} contributed {{"
+        "relative_impact}}% {{pressure}} pressure on {{metric.label}} and accounts for {{contribution}}% of "
+        "its overall change.",
     },
     StoryType.STRONGER_INFLUENCE: {
         "title": "Key Driver: Stronger influence of {{influence_metric.label}}",

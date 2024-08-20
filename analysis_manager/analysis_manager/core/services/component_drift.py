@@ -33,7 +33,7 @@ class ComponentDriftService:
         Returns:
             Component object containing the drift analysis results.
         """
-        output_metric_id: str = metric["id"]
+        output_metric_id: str = metric["metric_id"]
         # Get evaluation and comparison values for the input & output metrics
         values = await self.get_drift_input_values(
             metric,
@@ -56,7 +56,7 @@ class ComponentDriftService:
         # get all child component metric_ids
         input_metric_ids = [child_component["metric_id"] for child_component in component["components"]]
         input_metrics = await self.query_manager.list_metrics(metric_ids=input_metric_ids)
-        input_metrics_map = {input_metric["id"]: input_metric for input_metric in input_metrics}
+        input_metrics_map = {input_metric["metric_id"]: input_metric for input_metric in input_metrics}
 
         for input_component in component["components"]:
             input_metric_id = input_component["metric_id"]

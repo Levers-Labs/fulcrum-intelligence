@@ -1,101 +1,149 @@
 from copy import deepcopy
-from datetime import date
-from unittest.mock import AsyncMock, patch
+from datetime import date, datetime
+from unittest.mock import AsyncMock
 
 import pytest
 
 from commons.models.enums import Granularity
+from commons.utilities.pagination import PaginationParams
 from query_manager.core.dependencies import get_cube_client, get_query_client
+from query_manager.core.models import Dimension, Metric
 from query_manager.core.schemas import MetricDetail
-from query_manager.exceptions import MetricNotFoundError
+from query_manager.exceptions import DimensionNotFoundError, MetricNotFoundError
 
 
 @pytest.fixture
 async def query_client():
     cube_client = await get_cube_client()
-    client = await get_query_client(cube_client)
+    dimensions_crud = AsyncMock()
+    metrics_crud = AsyncMock()
+    client = await get_query_client(cube_client, dimensions_crud, metrics_crud)
     return client
 
 
-@pytest.mark.asyncio
-async def test_load_data(query_client):
-    query_client = await query_client
-    result = await query_client.load_data(query_client.metric_file_path)
-    assert len(result) > 0
+# @pytest.mark.asyncio
+# async def test_load_data(query_client):
+#     query_client = await query_client
+#     result = await query_client.load_data(query_client.metric_file_path)
+#     assert len(result) > 0
 
 
-@pytest.mark.asyncio
-async def test_load_data_exception(query_client):
-    query_client = await query_client
-    with patch("query_manager.services.query_client.aiofiles.open") as mock_open:
-        mock_open.side_effect = FileNotFoundError
-        with pytest.raises(FileNotFoundError):
-            await query_client.load_data(query_client.metric_file_path)
+# @pytest.mark.asyncio
+# async def test_load_data_exception(query_client):
+#     query_client = await query_client
+#     with patch("query_manager.services.query_client.aiofiles.open") as mock_open:
+#         mock_open.side_effect = FileNotFoundError
+#         with pytest.raises(FileNotFoundError):
+#             await query_client.load_data(query_client.metric_file_path)
 
 
 @pytest.mark.asyncio
 async def test_list_metrics(mocker, metric, query_client):
     query_client = await query_client
-    mock_load_data = AsyncMock(return_value=[metric])
-    mocker.patch.object(query_client, "load_data", mock_load_data)
 
-    result = await query_client.list_metrics()
+    mock_paginate = AsyncMock(return_value=([metric], 1))
+    mocker.patch.object(query_client.metric_crud, "paginate", mock_paginate)
+
+    params = PaginationParams(page=1, size=10)
+    result, count = await query_client.list_metrics(params=params)
     assert len(result) == 1
     assert result[0] == metric
+    assert count == 1
+
+    mock_paginate.assert_called_once_with(params, filter_params={})
 
 
 @pytest.mark.asyncio
 async def test_list_metrics_with_metric_id_filter(mocker, metric, query_client):
     query_client = await query_client
     metric2 = deepcopy(metric)
-    metric2["id"] = "metric_id2"
-    mock_load_data = AsyncMock(return_value=[metric, metric2])
-    mocker.patch.object(query_client, "load_data", mock_load_data)
+    metric2["id"] = 2
+    metric2["metric_id"] = "metric_id2"
+    mock_paginate = AsyncMock(return_value=([metric2], 1))
+    mocker.patch.object(query_client.metric_crud, "paginate", mock_paginate)
 
-    result = await query_client.list_metrics(metric_ids=["metric_id2"])
+    params = PaginationParams(page=1, size=10)
+    result, count = await query_client.list_metrics(metric_ids=["metric_id2"], params=params)
     assert len(result) == 1
     assert result[0] == metric2
+    assert count == 1
+
+    mock_paginate.assert_called_once_with(params, filter_params={"metric_ids": ["metric_id2"]})
 
 
 @pytest.mark.asyncio
 async def test_get_metric_details(mocker, metric, query_client):
     query_client = await query_client
-    mock_load_data = AsyncMock(return_value=[metric])
-    mocker.patch.object(query_client, "load_data", mock_load_data)
+    metric = Metric.parse_obj(metric)
+    mock_get_by_metric_id = AsyncMock(return_value=metric)
+    mocker.patch.object(query_client.metric_crud, "get_by_metric_id", mock_get_by_metric_id)
 
-    result = await query_client.get_metric_details(metric["id"])
+    result = await query_client.get_metric_details(metric.metric_id)
     assert result == metric
+
+    mock_get_by_metric_id.assert_called_once_with(metric.metric_id)
 
 
 @pytest.mark.asyncio
-async def test_get_metric_details_not_found(mocker, metric, query_client):
+async def test_get_metric_details_not_found(mocker, query_client):
     query_client = await query_client
-    mock_load_data = AsyncMock(return_value=[metric])
-    mocker.patch.object(query_client, "load_data", mock_load_data)
+    mock_get_by_metric_id = AsyncMock(side_effect=MetricNotFoundError("non_existent_metric_id"))
+    mocker.patch.object(query_client.metric_crud, "get_by_metric_id", mock_get_by_metric_id)
 
     with pytest.raises(MetricNotFoundError):
         await query_client.get_metric_details("non_existent_metric_id")
 
 
-@pytest.mark.asyncio
-async def test_list_dimensions(mocker, dimension, query_client):
-    query_client = await query_client
-    mock_load_data = AsyncMock(return_value=[dimension])
-    mocker.patch.object(query_client, "load_data", mock_load_data)
+@pytest.fixture
+def dimensions():
+    return Dimension(
+        id=1,
+        dimension_id="billing_plan",
+        label="Billing Plan",
+        reference="billing_plan",
+        definition="Billing Plan Definition",
+        metadata={"semantic_meta": {"cube": "cube1", "member": "billing_plan", "member_type": "dimension"}},
+        created_at=datetime(2024, 7, 24, 9, 54, 10, 411357),
+        updated_at=datetime(2024, 7, 24, 9, 54, 10, 411359),
+    )
 
-    result = await query_client.list_dimensions()
+
+@pytest.mark.asyncio
+async def test_list_dimensions(mocker, dimensions, query_client):
+    query_client = await query_client
+    mock_paginate = AsyncMock(return_value=([dimensions], 1))
+    mocker.patch.object(query_client.dimensions_crud, "paginate", mock_paginate)
+
+    params = PaginationParams(page=1, size=10)
+    result, count = await query_client.list_dimensions(params=params)
     assert len(result) == 1
-    assert result[0] == dimension
+    assert result[0] == dimensions
+    assert count == 1
+
+    mock_paginate.assert_called_once_with(params, filter_params={})
 
 
 @pytest.mark.asyncio
-async def test_get_dimension_details(mocker, dimension, query_client):
+async def test_get_dimension_details(mocker, dimensions, query_client):
     query_client = await query_client
-    mock_load_data = AsyncMock(return_value=[dimension])
-    mocker.patch.object(query_client, "load_data", mock_load_data)
 
-    result = await query_client.get_dimension_details(dimension["id"])
-    assert result == dimension
+    mock_get_by_dimension_id = AsyncMock(return_value=dimensions)
+    mocker.patch.object(query_client.dimensions_crud, "get_by_dimension_id", mock_get_by_dimension_id)
+
+    result = await query_client.get_dimension_details(dimensions.id)
+    assert result == dimensions
+
+    mock_get_by_dimension_id.assert_called_once_with(dimensions.id)
+
+
+@pytest.mark.asyncio
+async def test_get_dimension_details_not_found(mocker, query_client):
+    query_client = await query_client
+    mock_get_by_dimension_id = AsyncMock(side_effect=DimensionNotFoundError("non_existent_dimension_id"))
+    mocker.patch.object(query_client.dimensions_crud, "get_by_dimension_id", mock_get_by_dimension_id)
+
+    with pytest.raises(DimensionNotFoundError):
+        await query_client.get_dimension_details("non_existent_dimension_id")
 
 
 @pytest.mark.asyncio
@@ -107,13 +155,15 @@ async def test_get_dimension_members(mocker, dimension, query_client):
         query_client.cube_client, "load_dimension_members_from_cube", mock_load_dimension_members_from_cube
     )
 
-    mock_load_data = AsyncMock(return_value=[dimension])
-    mocker.patch.object(query_client, "load_data", mock_load_data)
-
     result = await query_client.get_dimension_members(dimension["id"])
     assert result == ["Enterprise", "Basic"]
 
     # no dimension match
+    mock_load_dimension_members_from_cube = AsyncMock(return_value=[])
+    mocker.patch.object(
+        query_client.cube_client, "load_dimension_members_from_cube", mock_load_dimension_members_from_cube
+    )
+
     result = await query_client.get_dimension_members("non_existent_dimension_id")
     assert result == []
 
@@ -177,14 +227,13 @@ async def test_get_metric_values_without_dimensions(mocker, metric, query_client
 
     assert len(result) == 1
     assert result[0] == {"date": "2022-01-01", "value": 200}
-    mock_load_metric_values_from_cube.assert_awaited_with(
-        MetricDetail.parse_obj(metric), None, date(2022, 1, 1), date(2022, 1, 31), []
-    )
+    mock_load_metric_values_from_cube.assert_awaited_with(metric, None, date(2022, 1, 1), date(2022, 1, 31), [])
 
 
 @pytest.mark.asyncio
 async def test_get_metric_values_with_dimensions(mocker, metric, query_client):
     query_client = await query_client
+    metric = MetricDetail.parse_obj(metric)
     # Mock response from cube for values with dimensions
     mock_load_metric_values_from_cube = AsyncMock(
         return_value=[{"date": "2022-01-01", "value": 100, "billing_plan": "Enterprise"}]
@@ -218,5 +267,5 @@ async def test_get_metric_values_for_month_grain(mocker, metric, query_client):
     assert result[0] == {"date": "2022-01-01", "value": 100}
     assert result[1] == {"date": "2022-01-02", "value": 200}
     mock_load_metric_values_from_cube.assert_awaited_with(
-        MetricDetail.parse_obj(metric), Granularity.MONTH, date(2022, 1, 1), date(2022, 2, 1), []
+        metric, Granularity.MONTH, date(2022, 1, 1), date(2022, 2, 1), []
     )

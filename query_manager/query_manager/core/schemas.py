@@ -1,114 +1,44 @@
 from __future__ import annotations
 
 import datetime
-from typing import Literal
 
-from pydantic import Extra, Field
+from pydantic import Field, field_validator
 
 from commons.models import BaseModel
 from commons.models.enums import Granularity
-from query_manager.core.enums import SemanticMemberType, TargetAim
+from query_manager.core.enums import TargetAim
+from query_manager.core.models import DimensionBase, MetricBase
 
 
-class SemanticMetaTimeDimension(BaseModel):
-    cube: str
-    member: str
+class DimensionCompact(DimensionBase):
+    id: int
 
 
-class SemanticMetaBase(BaseModel):
-    cube: str
-    member: str
-
-
-class SemanticMetaDimension(SemanticMetaBase):
-    member_type: Literal[SemanticMemberType.DIMENSION] = SemanticMemberType.DIMENSION
-
-
-class SemanticMetaMetric(SemanticMetaBase):
-    member_type: Literal[SemanticMemberType.MEASURE] = SemanticMemberType.MEASURE
-    time_dimension: SemanticMetaTimeDimension
-
-
-class MetricMetadata(BaseModel):
-    semantic_meta: SemanticMetaMetric
-
-
-class DimensionMetadata(BaseModel):
-    semantic_meta: SemanticMetaDimension
-
-
-class Dimension(BaseModel):
-    id: str
-    label: str
-    metadata: DimensionMetadata
-
-
-class DimensionDetail(Dimension):
-    reference: str
-    definition: str
-
-
-class MetricBase(BaseModel):
-    id: str
-    label: str
-    abbreviation: str
-    definition: str
-    unit_of_measure: str
-    unit: str
-    complexity: str
-    components: list[str] | None = None
-    terms: list[str] | None = None
-    metric_expression: MetricExpression | None = None
-    grain_aggregation: str | None = None
-    metadata: MetricMetadata
+class DimensionDetail(DimensionBase):
+    id: int
 
 
 class MetricList(MetricBase):
-    pass
-
-
-class MetricListResponse(BaseModel):
-    results: list[MetricList]
-
-
-class MetricExpression(BaseModel):
-    type: Literal["metric"] = "metric"
-    metric_id: str
-    coefficient: int | float = Field(1, description="Coefficient for the metric")
-    period: int = Field(0, description="Period for the metric, 0 denotes the current period")
-    expression_str: str = Field(None, description="Expression string for the metric")
-    expression: Expression | None = Field(None, description="Expression for the metric")
-    power: int | float = Field(1, description="Power for the metric")
-
-
-class ConstantExpression(BaseModel):
-    type: Literal["constant"] = "constant"
-    value: int | float
-
-
-class Expression(BaseModel):
-    type: Literal["expression"] = "expression"
-    operator: str
-    operands: list[MetricExpression | Expression | ConstantExpression]
+    id: int
 
 
 class MetricDetail(MetricBase):
-    output_of: list[str] | None = None
-    input_to: list[str] | None = None
-    influences: list[str] | None = None
-    influenced_by: list[str] | None = None
-    periods: list[str] | None = None
-    aggregations: list[str] | None = None
-    owned_by_team: list[str] | None = None
-    dimensions: list[Dimension] | None = None
+    id: int
+    outputs: list[str] | None = Field(default_factory=list)
+    inputs: list[str] | None = Field(default_factory=list)
+    influences: list[str] | None = Field(default_factory=list)
+    influencers: list[str] | None = Field(default_factory=list)
+    dimensions: list[DimensionDetail] | None = Field(default_factory=list)
 
-    def get_dimension(self, dimension_id: str) -> Dimension | None:
-        if self.dimensions is None:
-            return None
-        return next((dimension for dimension in self.dimensions if dimension.id == dimension_id), None)
+    @field_validator("inputs", "outputs", "influences", "influencers", mode="before")
+    @classmethod
+    def extract_metric_ids(cls, v):
+        if isinstance(v, list) and v and hasattr(v[0], "metric_id"):
+            return [metric.metric_id for metric in v]
+        return v
 
 
-class MetricValue(BaseModel, extra=Extra.allow):  # type: ignore
+class MetricValue(BaseModel, extra="allow"):  # type: ignore
     metric_id: str | None = None
     value: int | float
     date: datetime.date | None = None

@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
 
 from commons.middleware import process_time_log_middleware, request_id_middleware
-from commons.utilities.docs import setup_swagger_ui
+from commons.utilities.docs import custom_openapi, setup_swagger_ui
 from commons.utilities.logger import setup_rich_logger
 from query_manager.config import get_settings
 from query_manager.core.routes import router as core_router
@@ -18,14 +18,15 @@ def get_application() -> FastAPI:
         title="Query Manager",
         description="Query Manager for Fulcrum Intelligence",
         debug=settings.DEBUG,
-        root_path=settings.OPENAPI_PREFIX,  # type: ignore
+        root_path=settings.URL_PREFIX,
         docs_url=None,
         redoc_url=None,
     )
     _app.include_router(core_router, prefix="/v1")
     _app.include_router(health_check_router, prefix="/v1")
-    swagger_router = setup_swagger_ui("Query Manager", settings)
+    swagger_router = setup_swagger_ui("Query Manager", settings.URL_PREFIX)
     _app.include_router(swagger_router)
+    _app.openapi = custom_openapi(_app, settings)  # type: ignore
     _app.add_middleware(
         CORSMiddleware,
         allow_origins=[str(origin) for origin in settings.BACKEND_CORS_ORIGINS],

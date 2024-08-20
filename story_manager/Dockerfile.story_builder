@@ -1,0 +1,23 @@
+FROM python:3.10-slim
+
+# Install poetry
+RUN pip install --no-cache-dir --upgrade pip poetry
+
+# Create and use app directory
+WORKDIR /app
+
+# Copy the local package dependencies
+COPY ./commons /app/commons
+COPY ./core /app/core
+
+# Install dependencies
+COPY ./story_manager/pyproject.toml ./story_manager/poetry.lock* /app/story_manager/
+RUN poetry export -f requirements.txt --output requirements.txt --without-hashes -C story_manager
+RUN pip install --no-cache-dir --upgrade -r /app/requirements.txt
+
+# Copy code
+COPY story_manager/story_manager /app/story_manager
+COPY story_manager/manage.py /app/manage.py
+
+# Set the entrypoint to the CLI command
+ENTRYPOINT ["python", "/app/manage.py"]

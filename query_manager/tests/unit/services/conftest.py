@@ -22,5 +22,7 @@ async def parquet_service(mock_s3_client):
 
 @pytest.fixture
 async def query_client(mock_s3_client):
+    dimensions_crud = AsyncMock()
+    metrics_crud = AsyncMock()
     mock_s3_client = await mock_s3_client
-    return QueryClient(mock_s3_client)
+    return QueryClient(mock_s3_client, dimensions_crud, metrics_crud)

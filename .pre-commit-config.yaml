@@ -18,7 +18,7 @@ repos:
     hooks:
       - id: pyupgrade
         args: [ --py310-plus ]
-        exclude: '^(analysis_manager|story_manager)/manage\.py$'
+        exclude: '^(analysis_manager|query_manager|story_manager|insights_backend)/manage\.py$|^query_manager/core/models\.py$'
 
   - repo: local
     hooks:

@@ -28,7 +28,9 @@ class Settings(BaseSettings):
     DEBUG: bool = False
     SECRET_KEY: str
     ENV: Environment = Environment.dev
-    OPENAPI_PREFIX: str | None = None
+    # App as URL prefix added for each microservice
+    URL_PREFIX: str = "/query"
+
     LOGGING_LEVEL: str = "INFO"
 
     SERVER_HOST: str | AnyHttpUrl
@@ -40,6 +42,14 @@ class Settings(BaseSettings):
     AWS_REGION: str = "us-east-1"
 
     BACKEND_CORS_ORIGINS: list[AnyHttpUrl | str] = []
+
+    AUTH0_API_AUDIENCE: str
+    AUTH0_ISSUER: str
+    AUTH0_CLIENT_ID: str
+    AUTH0_CLIENT_SECRET: str
+
+    DATABASE_URL: str
+    SQLALCHEMY_ENGINE_OPTIONS: dict = {"pool_pre_ping": True, "pool_size": 5, "max_overflow": 80, "echo": True}
 
     @field_validator("BACKEND_CORS_ORIGINS", mode="before")
     @classmethod
