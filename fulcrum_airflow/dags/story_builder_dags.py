@@ -1,23 +1,24 @@
-import os
 from datetime import datetime
 from typing import Any
 
 import requests
 from airflow.decorators import dag, task
-from airflow.providers.docker.operators.docker import DockerOperator
+from airflow.models import Variable
+from airflow.operators.python import get_current_context
+from airflow.providers.amazon.aws.operators.ecs import EcsRunTaskOperator
 
 # Environment variables
-DEFAULT_SCHEDULE = os.getenv("DEFAULT_SCHEDULE", "0 0 * * *")  # daily 12:00 AM
-STORY_BUILDER_IMAGE = os.getenv("STORY_BUILDER_IMAGE", "story-builder-manager:latest")
-DOCKER_HOST = os.getenv("DOCKER_HOST")
-SERVER_HOST = os.getenv("SERVER_HOST", "http://localhost:8002")
-SECRET_KEY = os.environ["SECRET_KEY"]
-STORY_MANAGER_SERVER_HOST = os.environ["STORY_MANAGER_SERVER_HOST"]
-ANALYSIS_MANAGER_SERVER_HOST = os.environ["ANALYSIS_MANAGER_SERVER_HOST"]
-QUERY_MANAGER_SERVER_HOST = os.environ["QUERY_MANAGER_SERVER_HOST"]
-DSENSEI_BASE_URL = os.environ["DSENSEI_BASE_URL"]
-DATABASE_URL = os.environ["DATABASE_URL"]
-
+DEFAULT_SCHEDULE = Variable.get("DEFAULT_SCHEDULE", "0 0 * * *")
+STORY_BUILDER_IMAGE = Variable.get("STORY_BUILDER_IMAGE", "story-builder-manager:latest")
+DOCKER_HOST = Variable.get("DOCKER_HOST")
+SERVER_HOST = Variable.get("SERVER_HOST", "http://localhost:8002")
+SECRET_KEY = Variable.get("SECRET_KEY")
+STORY_MANAGER_SERVER_HOST = Variable.get("STORY_MANAGER_SERVER_HOST")
+ANALYSIS_MANAGER_SERVER_HOST = Variable.get("ANALYSIS_MANAGER_SERVER_HOST")
+QUERY_MANAGER_SERVER_HOST = Variable.get("QUERY_MANAGER_SERVER_HOST")
+DSENSEI_BASE_URL = Variable.get("DSENSEI_BASE_URL")
+DATABASE_URL = Variable.get("DATABASE_URL")
+START_DATE = Variable.get("STORY_GENERATION_START_DATE")
 
 STORY_GROUP_META = {
     "GROWTH_RATES": {"schedule_interval": DEFAULT_SCHEDULE},
@@ -34,100 +35,91 @@ STORY_GROUP_META = {
 }
 
 
-# Fetch a list of all metrics from the query manager
+def m2m_auth():
+    url = "https://insights-web-app.us.auth0.com/oauth/token"
+    headers = {"Content-Type": "application/json"}
+
+    data = {
+        "client_id": "Ihu4GZuicrFp3mlnTmZJJMBKxVQIYQop",
+        "client_secret": "0i_-sIBz21ctAeWwwHs1wrCl-CpijNuJ5lUB3h55ocB5r4N7BjXtM1jkTNfduFkN",
+        "grant_type": "client_credentials",
+    }
+    response = requests.post(url, headers=headers, json=data, timeout=30)
+    response_data = response.json()
+    return response_data["access_token"]
+
+
+headers = {"Authorization": f"Bearer {m2m_auth()}"}
+
+
 def fetch_all_metrics() -> list[str]:
-    """
-    Fetches a list of all metrics from the query manager.
-    """
-    # todo: add M2M auth
-    response = requests.get(f"{QUERY_MANAGER_SERVER_HOST.strip('/')}/metrics", timeout=30)
+    response = requests.get(f"{QUERY_MANAGER_SERVER_HOST.strip('/')}/metrics", headers=headers, timeout=30)
     response.raise_for_status()
     metrics_data = response.json()
+    for metric in metrics_data.get("results"):
+        metric["id"] = metric["metric_id"]
+
     return [metric["id"] for metric in metrics_data.get("results", [])]
 
 
-# Fetch group details (grains) for a given story group
 def fetch_group_meta(group: str) -> dict[str, Any]:
-    """
-    Fetches group details (grains) for a given story group using the get_story_group_meta endpoint.
-
-    Args:
-        group (str): The story group for which to fetch details.
-
-    Returns:
-        dict[str, Any]: A dictionary containing the group details, including supported grains.
-    """
-    # todo: add M2M auth
     url = f"{STORY_MANAGER_SERVER_HOST.strip('/')}/stories/groups/{group}"
-    response = requests.get(url, timeout=20)
+    response = requests.get(url, headers=headers, timeout=20)
     response.raise_for_status()
     return response.json()
 
 
-# Function to create a DAG for a given story group
 def create_story_group_dag(group: str, meta: dict[str, Any]) -> None:
-    """
-    creates an Airflow DAG for a given story group.
+    date_format = "%Y-%m-%d"
+    date_object = datetime.strptime(START_DATE, date_format)
 
-    Args:
-        group (str): The story group for which to create the DAG.
-        meta (dict[str, Any]): A dictionary containing the group metadata.
-    """
-    dag_id = f"GROUP_{group}_STORY_DAG"
-
-    @dag(dag_id=dag_id, start_date=datetime(2024, 7, 1), schedule_interval=meta["schedule_interval"], catchup=False)
+    @dag(dag_id="story_group_dag", start_date=date_object, schedule_interval=meta["schedule_interval"], catchup=False)
     def story_group_dag():
         @task(task_id="fetch_metric_ids")
         def fetch_metric_ids() -> list[str]:
-            """
-            Airflow task to fetch metrics.
-            """
             return fetch_all_metrics()
 
         @task(task_id="fetch_group_meta")
         def fetch_group_meta_task() -> list[str]:
-            """
-            Airflow task to fetch group details (grains) for the story group.
-            """
-            _meta = fetch_group_meta(group)
+            _meta = fetch_group_meta(group)  # Use a specific group or refactor as needed
             return _meta.get("grains", [])
 
         @task(task_id="prepare_story_builder_commands")
-        def prepare_story_builder_commands(_metrics: list[str], _grains: list[str]):
-            """
-            Airflow task to generate story tasks for each combination of metric and grain.
-
-            Args:
-                _metrics (list[str]): The list of metrics.
-                _grains (list[str]): The list of grains.
-            """
+        def prepare_story_builder_commands(_metrics: list[str], _grains: list[str]) -> list[str]:
             return [f"story generate {group} {metric_id} {grain}" for metric_id in _metrics for grain in _grains]
 
-        # Define the task dependencies
+        @task(task_id="run_ecs_tasks")
+        def run_ecs_tasks(commands: list[str]):
+            for idx, command in enumerate(commands):
+                EcsRunTaskOperator(
+                    task_id=f"run_ecs_task_{idx}",
+                    cluster="airflow-ecs-operator",
+                    task_definition="airflow-story-builder-task",
+                    launch_type="FARGATE",
+                    overrides={
+                        "containerOverrides": [
+                            {
+                                "name": "story-builder-manager",
+                                "command": command.split(" "),
+                            }
+                        ]
+                    },
+                    network_configuration={
+                        "awsvpcConfiguration": {
+                            "subnets": ["subnet-034a4d3dd0cccd058", "subnet-096d8d27095fad03c"],
+                            "assignPublicIp": "ENABLED",
+                        }
+                    },
+                    region_name="us-west-1",
+                ).execute(context=get_current_context())
+
         metrics = fetch_metric_ids()
         grains = fetch_group_meta_task()
         commands = prepare_story_builder_commands(metrics, grains)
-        # Run the story builder manager container with the commands
-        # All the commands are run in parallel
-        # The story builder manager container is run for each command
-        DockerOperator.partial(
-            task_id="generate_stories",
-            image=STORY_BUILDER_IMAGE,
-            docker_url=DOCKER_HOST,
-            network_mode="bridge",
-            auto_remove="success",
-            environment={
-                "SERVER_HOST": SERVER_HOST,
-                "SECRET_KEY": SECRET_KEY,
-                "ANALYSIS_MANAGER_SERVER_HOST": ANALYSIS_MANAGER_SERVER_HOST,
-                "QUERY_MANAGER_SERVER_HOST": QUERY_MANAGER_SERVER_HOST,
-                "DATABASE_URL": DATABASE_URL,
-            },
-        ).expand(command=commands)
+        run_ecs_tasks(commands)
 
     story_group_dag()
 
 
-# Create DAGs for all story groups
 for story_group, group_meta in STORY_GROUP_META.items():
     create_story_group_dag(story_group, group_meta)
