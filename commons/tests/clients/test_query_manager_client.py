@@ -411,20 +411,8 @@ async def test_get_expressions(mocker):
     get_metric_mock = AsyncMock(side_effect=mock_get_metric)
     mocker.patch.object(client, "get_metric", get_metric_mock)
 
-    expr = {
-        "metric_id": "parent_metric",
-        "type": "metric",
-        "expression": {
-            "operator": "+",
-            "operands": [
-                {"type": "metric", "metric_id": "child_metric1"},
-                {"type": "metric", "metric_id": "child_metric2"},
-            ],
-        },
-    }
-
     # Act
-    result, metric_ids = await client.get_expressions(expr, nested=True)
+    result, metric_ids = await client.get_expressions("parent_metric", nested=True)
 
     # Assert
     expected_result = {
@@ -451,4 +439,4 @@ async def test_get_expressions(mocker):
         },
     }
     assert result == expected_result
-    assert get_metric_mock.call_count == 2  # Called for parent and child metrics
+    assert get_metric_mock.call_count == 3  # Called for parent and child metrics

@@ -469,7 +469,7 @@ async def leverage_id(
     )
 
     # Initialize the LeverageIdCalculator with the metric expression and max values
-    leverage_calculator = LeverageIdCalculator(metric_expression, max_values)
+    leverage_calculator = LeverageIdCalculator(metric_expression, max_values)  # type: ignore
 
     # Run the leverage calculator with the time series data and get the result
     result = leverage_calculator.run(values_df)
