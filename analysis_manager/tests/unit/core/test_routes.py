@@ -685,3 +685,20 @@ async def test_leverage_id_route(client, mocker, leverage_id_response, metric_ex
 
     assert response.status_code == 200
     assert response.json() == leverage_id_response
+
+
+@pytest.mark.asyncio
+async def test_leverage_id_route_missing_expression(client, mocker):
+    # Mock the QueryManagerClient.get_metric to return a metric without an expression
+    mocker.patch.object(
+        QueryManagerClient, "get_metric", new_callable=AsyncMock, return_value={"metric_id": "NewBizDeals"}
+    )
+
+    # with pytest.raises(HTTPException) as exc_info:
+    response = client.post(
+        "/v1/analyze/analysis/leverage_id",
+        json={"metric_id": "NewBizDeals", "start_date": "2024-02-01", "end_date": "2024-03-01", "grain": "month"},
+    )
+
+    assert response.status_code == 404
+    assert response.json()["detail"] == "Metric expression not found for metric_id: NewBizDeals"

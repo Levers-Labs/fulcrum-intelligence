@@ -448,22 +448,22 @@ async def leverage_id(
     """
     logger.debug(f"LeverageResponse Id request: {request}")
 
-    # Fetch the metric details
+    # Fetch the metric details from the query manager
     metric = await query_manager.get_metric(request.metric_id)
 
+    # Extract the metric expression from the fetched metric details
     expr = metric.get("metric_expression", None)
     if expr is None:
-        return {}
+        # Raise an HTTP 404 error if the metric expression is not found
+        raise HTTPException(status_code=404, detail=f"Metric expression not found for metric_id: {request.metric_id}")
 
-    # Get the nested expressions for the metric
-    metric_expression, metric_ids = await query_manager.get_expressions(
-        metric.get("metric_expression", None), nested=True
-    )
+    # Get the nested expressions for the metric and the list of metric IDs involved
+    metric_expression, metric_ids = await query_manager.get_expressions(request.metric_id, nested=True)
 
-    # Fetch the maximum values for the metrics
+    # Fetch the maximum values for the metrics involved
     max_values = await query_manager.get_metrics_max_values(metric_ids)
 
-    # Fetch the time series data for the metrics
+    # Fetch the time series data for the metrics within the specified date range and grain
     values_df = await query_manager.get_metrics_time_series_df(
         metric_ids=metric_ids, start_date=request.start_date, end_date=request.end_date, grain=request.grain
     )
@@ -471,8 +471,8 @@ async def leverage_id(
     # Initialize the LeverageIdCalculator with the metric expression and max values
     leverage_calculator = LeverageIdCalculator(metric_expression, max_values)
 
-    # Run the calculator and get the result
+    # Run the leverage calculator with the time series data and get the result
     result = leverage_calculator.run(values_df)
 
-    # Calculate the leverage ID and return the result
+    # Return the calculated leverage ID result
     return result
