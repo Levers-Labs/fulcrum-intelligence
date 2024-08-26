@@ -60,9 +60,11 @@ class InfluenceDriftStoryBuilder(StoryBuilderBase):
             df=df, input_dfs=input_dfs, target_metric_id=metric_id, influencers=influencers
         )
         logger.info("Influence Drift analysis completed for latest_influence_drift: %s", latest_influence_drift)
+
         # Adjust the end date to one period before the latest date
         adjusted_df = df.iloc[:-1]
         adjusted_input_dfs = [df.iloc[:-1] for df in input_dfs]
+
         # Analyze influence drift till one period before the latest date
         previous_influence_drift = self.analysis_manager.influence_drift(
             df=adjusted_df, input_dfs=adjusted_input_dfs, target_metric_id=metric_id, influencers=influencers
@@ -77,7 +79,7 @@ class InfluenceDriftStoryBuilder(StoryBuilderBase):
         """
         Fetches time series data for a given influence and its children recursively.
 
-        :param influence: The influence for which time series data is fetched.
+        :param influencer:
         :param start_date: The start date of the time series data.
         :param end_date: The end date of the time series data.
         :param grain: The granularity of the time series data.

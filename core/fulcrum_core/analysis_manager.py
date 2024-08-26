@@ -553,8 +553,9 @@ class AnalysisManager:
                 f"Influence attribution only supported for linear models for now. Model type: {model_type}"
             )
 
+    @staticmethod
     def influence_drift(
-        self, df: pd.DataFrame, input_dfs: list[pd.DataFrame], target_metric_id: str, influencers: list[dict[str, Any]]
+        df: pd.DataFrame, input_dfs: list[pd.DataFrame], target_metric_id: str, influencers: list[dict[str, Any]]
     ) -> tuple[pd.DataFrame, pd.DataFrame]:
         """
         Analyze the influence drift using CausalModelAnalyzer.

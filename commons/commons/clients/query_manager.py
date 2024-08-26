@@ -276,7 +276,7 @@ class QueryManagerClient(AsyncHttpClient):
         # Retrieve the metric details for the given metric_id
         metric = await self.get_metric(metric_id)
         # Initialize a list to hold the influences of the metric
-        influencers = [{"metric_id": influencer_id} for influencer_id in metric["influenced_by"]]
+        influencers = [{"metric_id": influencer_id} for influencer_id in metric["influencers"]]
         # If there are influencers and include_indirect is True, recursively fetch indirect influencers
         if influencers and include_indirect:
             for influencer in influencers:

@@ -65,27 +65,43 @@ class CausalModelAnalyzer(BaseAnalyzer):
         if len(self.influencers) < 1:
             raise ValueError("Influencers list is empty. Please provide at least one influencer.")
 
+    # def integrate_yearly_seasonality(self, df: pd.DataFrame) -> pd.DataFrame:
+    #     """
+    #     Integrate yearly seasonality into the DataFrame.
+    #
+    #     Args:
+    #         df (pd.DataFrame): The input DataFrame.
+    #
+    #     Returns:
+    #         pd.DataFrame: The DataFrame with integrated yearly seasonality.
+    #     """
+    #     seasonal_df = df.copy(deep=True)
+    #     ps = SeasonalityAnalyzer(yearly_seasonality=True, weekly_seasonality=False)
+    #
+    #     seasonal_effects = pd.DataFrame({"date": seasonal_df["date"]})
+    #
+    #     temp_df = seasonal_df[["date", self.target_metric_id]].rename(columns={self.target_metric_id: "value"})
+    #     ps.fit(temp_df)
+    #     forecast = ps.predict(periods=0)
+    #     forecast.rename(columns={"ds": "date"}, inplace=True)
+    #     yearly_effect = forecast[["date", "yearly"]].rename(columns={"yearly": f"yearly_{self.target_metric_id}"})
+    #     seasonal_effects = seasonal_effects.merge(yearly_effect, on="date")
+    #
+    #     return seasonal_df.merge(seasonal_effects, on="date")
     def integrate_yearly_seasonality(self, df: pd.DataFrame) -> pd.DataFrame:
-        """
-        Integrate yearly seasonality into the DataFrame.
-
-        Args:
-            df (pd.DataFrame): The input DataFrame.
-
-        Returns:
-            pd.DataFrame: The DataFrame with integrated yearly seasonality.
-        """
         seasonal_df = df.copy(deep=True)
         ps = SeasonalityAnalyzer(yearly_seasonality=True, weekly_seasonality=False)
 
         seasonal_effects = pd.DataFrame({"date": seasonal_df["date"]})
 
-        temp_df = seasonal_df[["date", self.target_metric_id]].rename(columns={self.target_metric_id: "value"})
-        ps.fit(temp_df)
-        forecast = ps.predict(periods=0)
-        forecast.rename(columns={"ds": "date"}, inplace=True)
-        yearly_effect = forecast[["date", "yearly"]].rename(columns={"yearly": f"yearly_{self.target_metric_id}"})
-        seasonal_effects = seasonal_effects.merge(yearly_effect, on="date")
+        for column in seasonal_df.columns:
+            if column != "date":
+                temp_df = seasonal_df[["date", column]].rename(columns={column: "value"})
+                ps.fit(temp_df)
+                forecast = ps.predict(periods=0)
+                forecast.rename(columns={"ds": "date"}, inplace=True)
+                yearly_effect = forecast[["date", "yearly"]].rename(columns={"yearly": f"yearly_{column}"})
+                seasonal_effects = seasonal_effects.merge(yearly_effect, on="date")
 
         return seasonal_df.merge(seasonal_effects, on="date")
 
@@ -206,17 +222,29 @@ class CausalModelAnalyzer(BaseAnalyzer):
         return None
 
     def calculate_total_sum(
-        self, metric_id, flipped_relation_dict, value_dict, result_output, outcome_column, total_sum
+        self, metric_id, flipped_relation_dict, value_dict, result_output, outcome_column, total_sum=0
     ):
-        if metric_id in flipped_relation_dict:
-            for m_id in flipped_relation_dict[metric_id]:
-                metric_info = self.find_metric(result_output, m_id)
-                coefficient = metric_info["model"]["coefficient"]
-                value = value_dict[m_id]
-                total_sum += coefficient * value
-                total_sum = self.calculate_total_sum(
-                    m_id, flipped_relation_dict, value_dict, result_output, outcome_column, total_sum
-                )
+        for id_list in flipped_relation_dict.values():
+            if metric_id in id_list:
+                for child_metric_id in id_list:
+                    child_metric_info = self.find_metric(result_output, child_metric_id)
+                    coefficient_root = child_metric_info["model"]["coefficient_root"]
+                    value = value_dict[child_metric_id]
+                    total_sum += coefficient_root * value
+
+                if self.relation_dict[metric_id][0] == outcome_column:
+                    break
+                else:
+                    total_sum = self.calculate_total_sum(
+                        self.relation_dict[metric_id][0],
+                        flipped_relation_dict,
+                        value_dict,
+                        result_output,
+                        outcome_column,
+                        total_sum,
+                    )
+                    return total_sum
+
         return total_sum
 
     def calculate_relative_impact(self, metric_id, flipped_relation_dict, value_dict, result_output):
@@ -225,6 +253,7 @@ class CausalModelAnalyzer(BaseAnalyzer):
             for m_id in flipped_relation_dict[metric_id]
         ]
         sum_coefficients_values = sum(c * v for c, v in coefficients_values)
+
         for m_id in flipped_relation_dict[metric_id]:
             metric_info = self.find_metric(result_output, m_id)
             coefficient = metric_info["model"]["coefficient"]
@@ -452,54 +481,81 @@ class CausalModelAnalyzer(BaseAnalyzer):
 
         return coefficients, percentage
 
-    def analyze(
-        self, df: pd.DataFrame, input_dfs: list[pd.DataFrame], **kwargs  # type: ignore  # noqa
-    ) -> tuple[pd.DataFrame, pd.DataFrame]:
+    def analyze(self, df: pd.DataFrame, *args, **kwargs) -> dict[str, Any] | pd.DataFrame:
         """
         Analyze the input DataFrame using causal model analysis.
 
         Args:
             df (pd.DataFrame): The input DataFrame.
-            input_dfs (list[pd.DataFrame]): List of input DataFrames.
-            **kwargs: Additional keyword arguments.
+            *args: Variable length argument list.
+            **kwargs: Arbitrary keyword arguments.
 
         Returns:
-            tuple[pd.DataFrame, pd.DataFrame]: A tuple containing the coefficients and percentage impact DataFrames.
+            dict[str, Any] | pd.DataFrame: A dictionary containing the hierarchical result structure or a DataFrame.
         """
+        input_dfs = kwargs.get("input_dfs", [])
         merged_df = self.merge_dataframes([df] + input_dfs)
         merged_df = self.integrate_yearly_seasonality(merged_df)
         columns, graph_definition = self.build_causal_graph()
         result = self.causal_analysis(merged_df, columns, graph_definition)
-        contributions, natural_effect, graph = result["contributions"], result["natural_effect"], result["graph"]
-        coefficients, percentage = self.prepare_output(contributions, natural_effect, graph)
-        return coefficients, percentage
+        return result
+        # merged_df = self.merge_dataframes([df] + input_dfs)
+        # merged_df = self.integrate_yearly_seasonality(merged_df)
+        # columns, graph_definition = self.build_causal_graph()
+        # result = self.causal_analysis(merged_df, columns, graph_definition)
+        # contributions, natural_effect, graph = result["contributions"], result["natural_effect"], result["graph"]
+        # coefficients, percentage = self.prepare_output(contributions, natural_effect, graph)
+        # return coefficients, percentage
 
     def merge_dataframes(self, dataframes: list[pd.DataFrame]) -> pd.DataFrame:
         if len(dataframes) == 1:
             df = dataframes[0]
             df.columns = df.columns.str.strip()
-            df["date"] = pd.to_datetime(df.iloc[:, 0])
-            df.drop(columns=[df.columns[0]], inplace=True)
-            df = df[["date"] + list(df.columns[0:-1])]
-            df = self.integrate_yearly_seasonality(df)
-            return df
+
+            # Ensure 'date' and 'metric_id' columns exist
+            if "date" not in df.columns or "metric_id" not in df.columns:
+                raise ValueError("DataFrame must contain 'date' and 'metric_id' columns")
+
+            # Convert 'date' column to datetime
+            df["date"] = pd.to_datetime(df["date"])
+
+            # Pivot the DataFrame to have metrics as columns
+            df_pivoted = df.pivot(index="date", columns="metric_id", values="value").reset_index()
+            df_pivoted.columns.name = None  # Remove the name from the columns index
+
+            df_pivoted = self.integrate_yearly_seasonality(df_pivoted)
+            return df_pivoted
 
         dfs = []
         for df in dataframes:
             df.columns = df.columns.str.strip()
-            df["date"] = pd.to_datetime(df.iloc[:, 0])
-            df.drop(columns=[df.columns[0]], inplace=True)
-            df = df[["date"] + [col for col in df.columns if col != "date"]]
-            dfs.append(df)
 
-        common_dates = dfs[0]["date"]
+            # Ensure 'date' and 'metric_id' columns exist
+            if "date" not in df.columns or "metric_id" not in df.columns:
+                raise ValueError("DataFrame must contain 'date' and 'metric_id' columns")
+
+            # Convert 'date' column to datetime
+            df["date"] = pd.to_datetime(df["date"])
+
+            # Pivot the DataFrame to have metrics as columns
+            df_pivoted = df.pivot(index="date", columns="metric_id", values="value").reset_index()
+            df_pivoted.columns.name = None  # Remove the name from the columns index
+
+            dfs.append(df_pivoted)
+
+        # Find common dates across all DataFrames
+        common_dates = set(dfs[0]["date"])
         for df in dfs[1:]:
-            common_dates = common_dates[common_dates.isin(df["date"])]
+            common_dates &= set(df["date"])
 
+        # Filter DataFrames to include only common dates
         dfs = [df[df["date"].isin(common_dates)] for df in dfs]
+
+        # Merge all DataFrames
         merged_df = dfs[0]
         for df in dfs[1:]:
-            merged_df = merged_df.merge(df, on="date")
+            merged_df = merged_df.merge(df, on="date", how="outer")
+
         merged_df = self.integrate_yearly_seasonality(merged_df)
         return merged_df
 
