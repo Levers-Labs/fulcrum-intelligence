@@ -461,7 +461,7 @@ async def leverage_id(
     )
 
     # Fetch the maximum values for the metrics
-    max_values = await query_manager.get_metrics_max_values(metric_ids)
+    max_values = await query_manager.get_metrics_max_values(list(metric_ids))
 
     # Fetch the time series data for the metrics
     values_df = await query_manager.get_metrics_time_series_df(
