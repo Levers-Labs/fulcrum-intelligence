@@ -1,6 +1,6 @@
 import logging
 from datetime import date
-from typing import Annotated, Any
+from typing import Annotated, Any, Union
 
 import numpy as np
 import pandas as pd
@@ -15,7 +15,6 @@ from analysis_manager.config import settings
 from analysis_manager.core.dependencies import (
     AnalysisManagerDep,
     ComponentDriftServiceDep,
-    LeverageIdServiceDep,
     QueryManagerClientDep,
     oauth2_auth,
 )
@@ -37,6 +36,7 @@ from analysis_manager.core.schema import (
 )
 from commons.auth.scopes import ANALYSIS_MANAGER_ALL
 from fulcrum_core.execptions import InsufficientDataError
+from fulcrum_core.modules import LeverageIdCalculator
 
 router = APIRouter(prefix="/analyze", tags=["analyze"])
 logger = logging.getLogger(__name__)
@@ -424,12 +424,11 @@ async def influence_attribution(
 
 @router.post(
     "/analysis/leverage_id",
-    response_model=LeverageResponse,
+    response_model=Union[LeverageResponse, None],
     dependencies=[Security(oauth2_auth().verify, scopes=[ANALYSIS_MANAGER_ALL])],
 )
 async def leverage_id(
     query_manager: QueryManagerClientDep,
-    leverage_id_service: LeverageIdServiceDep,
     request: Annotated[
         LeverageRequest,
         Body(
@@ -446,30 +445,20 @@ async def leverage_id(
 ) -> Any:
     """
     Analyze LeverageResponse ID for a given metric.
-
-    :param query_manager: Dependency injection for QueryManagerClient.
-    :param leverage_id_service: Dependency injection for LeverageIdService.
-    :param request: LeverageRequest object containing the request parameters.
-    :returns: LeverageResponse object containing the leverage analysis results.
-    :example:
-        request = LeverageRequest(
-            metric_id="NewBizDeals",
-            start_date="2024-02-01",
-            end_date="2024-03-01",
-            grain="month"
-        )
-        response = await leverage_id(query_manager, leverage_id_service, request)
     """
     logger.debug(f"LeverageResponse Id request: {request}")
 
     # Fetch the metric details
     metric = await query_manager.get_metric(request.metric_id)
 
-    # Get the nested expressions for the metric
-    metric_expression = await leverage_id_service.get_nested_expressions(metric["metric_expression"])
+    expr = metric.get("metric_expression", None)
+    if expr is None:
+        return {}
 
-    # Extract all unique metric IDs from the nested expression
-    metric_ids = leverage_id_service.extract_metric_ids(metric_expression)
+    # Get the nested expressions for the metric
+    metric_expression, metric_ids = await query_manager.get_expressions(
+        metric.get("metric_expression", None), nested=True
+    )
 
     # Fetch the maximum values for the metrics
     max_values = await query_manager.get_metrics_max_values(metric_ids)
@@ -479,5 +468,11 @@ async def leverage_id(
         metric_ids=metric_ids, start_date=request.start_date, end_date=request.end_date, grain=request.grain
     )
 
+    # Initialize the LeverageIdCalculator with the metric expression and max values
+    leverage_calculator = LeverageIdCalculator(metric_expression, max_values)
+
+    # Run the calculator and get the result
+    result = leverage_calculator.run(values_df)
+
     # Calculate the leverage ID and return the result
-    return await leverage_id_service.calculate_leverage_id(metric, values_df, max_values)
+    return result

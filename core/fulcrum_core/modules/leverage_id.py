@@ -24,8 +24,8 @@ class LeverageIdCalculator(BaseAnalyzer):
         super().__init__(**kwargs)
         self.metric_expression = metric_expression
         self.max_values = max_values
-        self.root = metric_expression["metric_id"]
-        self.var_symbols: dict = {}
+        self.root_metric_id = metric_expression["metric_id"]
+        self.metric_symbols: dict = {}
 
     def analyze(self, df: pd.DataFrame, *args, **kwargs) -> dict[str, Any]:
         """
@@ -37,20 +37,20 @@ class LeverageIdCalculator(BaseAnalyzer):
         :returns: Dictionary containing the leverage ID results.
         """
         # Initialize variable symbols for sympy
-        self.var_symbols = {var: sp.symbols(var) for var in df.columns if var != "date"}
+        self.metric_symbols = {var: sp.symbols(var) for var in df.columns if var != "date"}
 
         # Extract equations from the metric expression
         equations_list = self._extract_expression()
 
-        # Create parent and root dictionaries
+        # Create parent and root_metric_id dictionaries
         parent_dict, root_dict = self._create_parent_and_root_dicts()
 
         logger.info(f"Extracted Equations List: {equations_list}")
-        logger.info(f"Variable Symbols: {self.var_symbols}")
+        logger.info(f"Variable Symbols: {self.metric_symbols}")
         logger.info(f"Parent Dict: {parent_dict}")
         logger.info(f"Top Parent Dict: {root_dict}")
 
-        # Analyze parent and root metrics
+        # Analyze parent and root_metric_id metrics
         parent_results = self.analyze_parent(parent_dict, equations_list, df)
         root_results = self.analyze_root(equations_list, df)
 
@@ -71,61 +71,77 @@ class LeverageIdCalculator(BaseAnalyzer):
         # Build the output structure
         return self.build_output_structure(aggregated_df)
 
-    def _extract_expression(self) -> list[str]:
+    def _construct_expression_str(self, expression: dict) -> str:
+        """
+        Construct the expression string from the operator and operands.
+
+        :param expression: Dictionary containing the expression details.
+        :returns: Constructed expression string.
+        """
+        operator = expression.get("operator", "")
+        operands = expression.get("operands", [])
+
+        operand_strs = []
+        for operand in operands:
+            if operand["type"] == "metric":
+                operand_strs.append(f"{{{operand['metric_id']}}}")
+            elif operand["type"] == "constant":
+                operand_strs.append(str(operand["value"]))
+
+        return f" {operator} ".join(operand_strs)
+
+    def _extract_expression(self, expression: dict | None = None, parent_metric_id: str | None = None) -> list[str]:
         """
         Extract equations from the metric expression.
 
+        :param expression: Dictionary containing the metric expression (default is None).
+        :param parent_metric_id: ID of the parent metric (default is None).
         :returns: List of equations as strings.
         """
-        # Initialize the list of equations with the root metric equation
-        equations = [f"{self.root} = {self.metric_expression.get('expression_str', '')}"]
+        if expression is None:
+            expression = self.metric_expression
+            parent_metric_id = self.root_metric_id
 
-        def recurse_expressions(expression: dict | None, parent_metric_id: str | None = None):
-            """
-            Recursively extract equations from nested expressions.
+        equations = []
 
-            :param expression: Dictionary containing the metric expression.
-            :param parent_metric_id: ID of the parent metric.
-            """
-            if not expression:
-                return
-            if "expression_str" in expression:
-                equations.append(f"{parent_metric_id} = {expression['expression_str']}")
-            for operand in expression.get("operands", []):
-                if "expression" in operand:
-                    equations.append(f"{operand['metric_id']} = {operand['expression_str']}")
-                    recurse_expressions(operand["expression"], operand["metric_id"])
+        if "expression" in expression:
+            constructed_expr = self._construct_expression_str(expression["expression"])
+            equations.append(f"{parent_metric_id} = {constructed_expr}")
 
-        # Start recursion with the root metric expression
-        recurse_expressions(self.metric_expression["expression"], self.root)
-        return [eq.replace("{", "").replace("}", "") for eq in equations]
+        for operand in expression.get("expression", {}).get("operands", []):
+            if "expression" in operand:
+                constructed_expr = self._construct_expression_str(operand["expression"])
+                equations.append(f"{operand['metric_id']} = {constructed_expr}")
+                equations.extend(self._extract_expression(operand, operand["metric_id"]))
+
+        # Remove curly braces from equations only at the top level of recursion
+        if parent_metric_id == self.root_metric_id:
+            return [eq.replace("{", "").replace("}", "") for eq in equations]
+        else:
+            return equations
 
     def _create_parent_and_root_dicts(self) -> tuple[dict[str, str], dict[str, str]]:
         """
-        Create dictionaries for parent and root metrics.
+        Create dictionaries for parent and root metrics using an iterative approach.
 
         :returns: Tuple containing parent dictionary and root dictionary.
         """
         parent_dict = {}
+        expression_stack = [(self.metric_expression["expression"], self.root_metric_id)]
 
-        def find_parent_metrics(expression: dict | None, current_parent: str):
-            """
-            Recursively find parent metrics and populate the parent dictionary.
+        while expression_stack:
+            expression, current_parent = expression_stack.pop()
 
-            :param expression: Dictionary containing the metric expression.
-            :param current_parent: ID of the current parent metric.
-            """
-            if not expression:
-                return
             for operand in expression.get("operands", []):
                 if "metric_id" in operand:
                     metric_id = operand["metric_id"]
                     parent_dict[metric_id] = current_parent
-                    find_parent_metrics(operand.get("expression"), metric_id)
 
-        # Start recursion with the root metric expression
-        find_parent_metrics(self.metric_expression["expression"], self.root)
-        return parent_dict, {metric_id: self.root for metric_id in parent_dict}
+                    if "expression" in operand:
+                        expression_stack.append((operand["expression"], metric_id))
+
+        root_dict = {metric_id: self.root_metric_id for metric_id in parent_dict}
+        return parent_dict, root_dict
 
     def _compute_y(self, equation_str: str, values: dict) -> float:
         """
@@ -135,26 +151,68 @@ class LeverageIdCalculator(BaseAnalyzer):
         :param values: Dictionary containing variable values.
         :returns: Computed value as float.
         """
-        # Convert the equation string to a sympy expression
-        equation = sp.sympify(equation_str, locals=self.var_symbols)
-        # Substitute the variable values into the equation and compute the result
-        return float(equation.subs({self.var_symbols[var]: value for var, value in values.items()}))
+        equation = sp.sympify(equation_str, locals=self.metric_symbols)
+        return float(equation.subs({self.metric_symbols[var]: value for var, value in values.items()}))
 
-    def _compute_ymax(self, equation_str: str, values: dict, var: str, max_value: float) -> float:
+    def _compute_percentage_diff(self, equation_str: str, current_values: dict, var: str) -> float:
         """
-        Compute the maximum value of the equation with given values and max value for a variable.
+        Compute the percentage difference for a given equation and variable values.
 
         :param equation_str: Equation as a string.
-        :param values: Dictionary containing variable values.
+        :param current_values: Dictionary containing variable values.
         :param var: Variable name as string.
-        :param max_value: Maximum value for the variable.
-        :returns: Computed maximum value as float.
+        :returns: Computed percentage difference as float.
         """
-        # Create a copy of the values dictionary and set the variable to its maximum value
-        max_var_values = values.copy()
-        max_var_values[var] = max_value
-        # Compute the result with the maximum value
-        return self._compute_y(equation_str, max_var_values)
+        y = self._compute_y(equation_str, current_values)
+        max_var_values = current_values.copy()
+        max_var_values[var] = self.max_values.get(var, 0)
+        ymax = self._compute_y(equation_str, max_var_values)
+        return (ymax - y) / y * 100 if y != 0 else float("inf")
+
+    def _analyze_metrics(
+        self, equations_list: list, values_df: pd.DataFrame, metrics_to_analyze: dict, is_root: bool
+    ) -> list[dict]:
+        """
+        Analyze metrics to calculate percentage differences.
+
+        :param equations_list: List of equations as strings.
+        :param values_df: DataFrame containing the values for the metrics.
+        :param metrics_to_analyze: Dictionary of metrics to analyze.
+        :param is_root: Boolean indicating if this is a root metric analysis.
+        :returns: List of dictionaries containing analysis results.
+        """
+        results = []
+        equation_dict = {eq.split(" = ")[0].strip(): eq.split(" = ")[1].strip() for eq in equations_list}
+
+        for _, row in values_df.iterrows():
+            current_values = row.drop("date").to_dict()
+            for var, parent_metric in metrics_to_analyze.items():
+                expr_str = equation_dict.get(parent_metric if not is_root else self.root_metric_id)
+                if expr_str:
+                    percentage_diff = self._compute_percentage_diff(expr_str, current_values, var)
+                    results.append(
+                        {
+                            "date": row["date"],
+                            "variable": var,
+                            f"{'root' if is_root else 'parent'}_metric": (
+                                parent_metric if not is_root else self.root_metric_id
+                            ),
+                            f"pct_diff{'_root' if is_root else ''}": float(percentage_diff),
+                        }
+                    )
+
+        return sorted(
+            results,
+            key=lambda x: (
+                x["date"],
+                (
+                    x[f"pct_diff{'_root' if is_root else ''}"]
+                    if x[f"pct_diff{'_root' if is_root else ''}"] is not None
+                    else float("inf")
+                ),
+            ),
+            reverse=True,
+        )
 
     def analyze_parent(self, parent_dict: dict, equations_list: list, values_df: pd.DataFrame) -> list[dict]:
         """
@@ -165,34 +223,7 @@ class LeverageIdCalculator(BaseAnalyzer):
         :param values_df: DataFrame containing the values for the metrics.
         :returns: List of dictionaries containing analysis results.
         """
-        parent_results = []
-        # Create a dictionary of equations for quick lookup
-        equation_dict = {eq.split(" = ")[0].strip(): eq.split(" = ")[1].strip() for eq in equations_list}
-
-        for var, parent_metric in parent_dict.items():
-            parent_expr_str = equation_dict.get(parent_metric)
-            if parent_expr_str:
-                for _, row in values_df.iterrows():
-                    current_values = row.drop("date").to_dict()
-                    y = self._compute_y(parent_expr_str, current_values)
-                    ymax = self._compute_ymax(parent_expr_str, current_values, var, self.max_values.get(var, 0))
-                    percentage_diff = (ymax - y) / y * 100 if y != 0 else float("inf")
-
-                    parent_results.append(
-                        {
-                            "date": row["date"],
-                            "variable": var,
-                            "parent_metric": parent_metric,
-                            "pct_diff": float(percentage_diff),
-                        }
-                    )
-
-        # Sort the results by date and percentage difference in descending order
-        return sorted(
-            parent_results,
-            key=lambda x: (x["date"], x["pct_diff"] if x["pct_diff"] is not None else float("inf")),
-            reverse=True,
-        )
+        return self._analyze_metrics(equations_list, values_df, parent_dict, False)
 
     def analyze_root(self, equations_list: list, values_df: pd.DataFrame) -> list[dict]:
         """
@@ -202,55 +233,8 @@ class LeverageIdCalculator(BaseAnalyzer):
         :param values_df: DataFrame containing the values for the metrics.
         :returns: List of dictionaries containing analysis results.
         """
-        root_results = []
-        # Create a dictionary of equations for quick lookup
-        equation_dict = {eq.split(" = ")[0].strip(): eq.split(" = ")[1].strip() for eq in equations_list}
-
-        def compute_percentage_diff(equation_str, current_values, var):
-            """
-            Compute the percentage difference for a given equation and variable values.
-
-            :param equation_str: Equation as a string.
-            :param current_values: Dictionary containing variable values.
-            :param var: Variable name as string.
-            :returns: Computed percentage difference as float.
-            """
-            y = self._compute_y(equation_str, current_values)
-            ymax = self._compute_ymax(equation_str, current_values, var, self.max_values.get(var, 0))
-            return (ymax - y) / y * 100 if y != 0 else float("inf")
-
-        for _, row in values_df.iterrows():
-            current_values = row.drop("date").to_dict()
-            visited_vars = set()
-            equations_to_process = [equation_dict[self.root]]
-
-            while equations_to_process:
-                current_eq = equations_to_process.pop(0)
-                equation_expr = sp.sympify(current_eq, locals=self.var_symbols)
-                symbols = equation_expr.free_symbols
-
-                for symbol in symbols:
-                    var = str(symbol)
-                    if var not in visited_vars and var != self.root:
-                        visited_vars.add(var)
-                        percentage_diff = compute_percentage_diff(current_eq, current_values, var)
-                        root_results.append(
-                            {
-                                "date": row["date"],
-                                "variable": var,
-                                "root_metric": self.root,
-                                "pct_diff_root": float(percentage_diff),
-                            }
-                        )
-                        if var in equation_dict:
-                            equations_to_process.append(equation_dict[var])
-
-        # Sort the results by date and percentage difference in descending order
-        return sorted(
-            root_results,
-            key=lambda x: (x["date"], x["pct_diff_root"] if x["pct_diff_root"] is not None else float("inf")),
-            reverse=True,
-        )
+        root_dict = {var: self.root_metric_id for var in values_df.columns if var != "date"}
+        return self._analyze_metrics(equations_list, values_df, root_dict, True)
 
     def combine_results(self, parent_results: list[dict], root_results: list[dict]) -> list[dict]:
         """
@@ -260,13 +244,11 @@ class LeverageIdCalculator(BaseAnalyzer):
         :param root_results: List of dictionaries containing root analysis results.
         :returns: List of combined analysis results.
         """
-        # Create a lookup dictionary for root results
         root_lookup = {(result["date"], result["variable"]): result["pct_diff_root"] for result in root_results}
-        # Combine parent results with corresponding root results
         return [
             {
                 **parent_result,
-                "top_metric": self.root,
+                "top_metric": self.root_metric_id,
                 "pct_diff_root": root_lookup.get((parent_result["date"], parent_result["variable"]), None),
             }
             for parent_result in parent_results
@@ -292,49 +274,44 @@ class LeverageIdCalculator(BaseAnalyzer):
             }
         return None
 
-    def build_output_structure(self, aggregated_df: pd.DataFrame) -> dict:
+    def build_output_structure(self, aggregated_df: pd.DataFrame, expression: dict | None = None) -> dict:
         """
-        Build the output structure for the leverage ID results.
+        Build the output structure for the leverage analysis results.
+
+        This method constructs a nested dictionary structure representing the leverage analysis results
+        for the given metric expression. It recursively processes the metric expression and its operands
+        to build a hierarchical representation of the leverage analysis.
 
         :param aggregated_df: Aggregated DataFrame containing analysis results.
-        :returns: Dictionary containing the output structure.
+        :param expression: Dictionary containing the metric expression details (default is None).
+        :returns: Dictionary representing the leverage analysis results.
         """
+        # If no specific expression is provided, use the root metric expression
+        if expression is None:
+            expression = self.metric_expression
 
-        def recursive_build(expression: dict) -> list[dict]:
-            """
-            Recursively build the output structure for nested expressions.
+        # Extract the metric ID from the expression
+        metric_id = expression.get("metric_id")
+        # Get the details of the metric from the aggregated DataFrame
+        metric_details = self.get_metric_details(metric_id, aggregated_df)  # type: ignore
 
-            :param expression: Dictionary containing the metric expression.
-            :returns: List of dictionaries representing the output structure.
-            """
-            if not expression or expression.get("type", "") != "expression":
-                return []
-
-            components = []
-            for operand in expression["operands"]:
-                if operand.get("type", "") == "metric":
-                    metric_id = operand["metric_id"]
-                    metric_details = self.get_metric_details(metric_id, aggregated_df)
-                    if metric_details:
-                        components.append(
-                            {
-                                "metric_id": metric_id,
-                                "leverage": {
-                                    "pct_diff": metric_details["pct_diff"],
-                                    "pct_diff_root": metric_details["pct_diff_root"],
-                                },
-                                "components": recursive_build(operand.get("expression", {})),
-                            }
-                        )
-            return components
-
-        # Get the details of the top metric
-        top_metric_details = self.get_metric_details(self.root, aggregated_df)
-        return {
-            "metric_id": self.root,
+        # Initialize the result dictionary with the metric ID and leverage details
+        result: dict = {
+            "metric_id": metric_id,
             "leverage": {
-                "pct_diff": top_metric_details["pct_diff"] if top_metric_details else 0,
-                "pct_diff_root": top_metric_details["pct_diff_root"] if top_metric_details else 0,
+                "pct_diff": metric_details["pct_diff"] if metric_details else 0.0,
+                "pct_diff_root": metric_details["pct_diff_root"] if metric_details else 0.0,
             },
-            "components": recursive_build(self.metric_expression["expression"]),
+            "components": [],
         }
+
+        # If the expression contains nested operands, process them recursively
+        if expression.get("expression"):
+            for operand in expression["expression"].get("operands", []):
+                if operand.get("type") == "metric":
+                    # Recursively build the output structure for each operand
+                    component = self.build_output_structure(aggregated_df, operand)
+                    if component:
+                        result["components"].append(component)  # type: ignore
+
+        return result

@@ -8,7 +8,8 @@ import pytest
 from deepdiff import DeepDiff
 
 from analysis_manager.core.services.component_drift import ComponentDriftService
-from analysis_manager.core.services.leverage import LeverageIdService
+
+# from analysis_manager.core.services.leverage import LeverageIdService
 from commons.clients.query_manager import QueryManagerClient
 from fulcrum_core.modules import SegmentDriftEvaluator
 
@@ -642,16 +643,13 @@ async def test_influence_attribution_no_influenced_by(client, mocker, metric_sms
 
 @pytest.mark.asyncio
 async def test_leverage_id_route(client, mocker, leverage_id_response, metric_expression, get_metric_response):
-    # Mock the QueryManagerClient and LeverageIdService methods
+    # Mock the QueryManagerClient methods
     mocker.patch.object(QueryManagerClient, "get_metric", new_callable=AsyncMock, return_value=get_metric_response)
     mocker.patch.object(
-        LeverageIdService, "get_nested_expressions", new_callable=AsyncMock, return_value=metric_expression
-    )
-    mocker.patch.object(
-        LeverageIdService,
-        "extract_metric_ids",
+        QueryManagerClient,
+        "get_expressions",
         new_callable=AsyncMock,
-        return_value=["NewBizDeals", "AcceptOpps", "OpenNewBizOpps", "SQORate", "SQOToWinRate"],
+        return_value=(metric_expression, ["NewBizDeals", "AcceptOpps", "OpenNewBizOpps", "SQORate", "SQOToWinRate"]),
     )
     mocker.patch.object(
         QueryManagerClient,
@@ -674,9 +672,11 @@ async def test_leverage_id_route(client, mocker, leverage_id_response, metric_ex
             }
         ),
     )
-    mocker.patch.object(
-        LeverageIdService, "calculate_leverage_id", new_callable=AsyncMock, return_value=leverage_id_response
-    )
+
+    # Mock LeverageIdCalculator
+    mock_leverage_calculator = mocker.Mock()
+    mock_leverage_calculator.run.return_value = leverage_id_response
+    mocker.patch("analysis_manager.core.routes.LeverageIdCalculator", return_value=mock_leverage_calculator)
 
     response = client.post(
         "/v1/analyze/analysis/leverage_id",

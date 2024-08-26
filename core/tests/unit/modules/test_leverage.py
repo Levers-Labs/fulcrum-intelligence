@@ -55,38 +55,30 @@ def test_create_parent_and_root_dicts(calculator):
 
 
 def test_compute_y(calculator, values_df):
-    calculator.var_symbols = {var: sp.symbols(var) for var in values_df.columns if var != "date"}
+    calculator.metric_symbols = {var: sp.symbols(var) for var in values_df.columns if var != "date"}
     y = calculator._compute_y("AcceptOpps + SQOToWinRate", {"AcceptOpps": 100, "SQOToWinRate": 50})
     assert y == 150
-
-
-def test_compute_ymax(calculator, values_df, max_values):
-    calculator.var_symbols = {var: sp.symbols(var) for var in values_df.columns if var != "date"}
-    ymax = calculator._compute_ymax(
-        "AcceptOpps + SQOToWinRate", {"AcceptOpps": 100, "SQOToWinRate": 50}, "AcceptOpps", max_values["AcceptOpps"]
-    )
-    assert ymax == 250
 
 
 def test_analyze_parent(calculator, values_df):
     parent_dict, _ = calculator._create_parent_and_root_dicts()
     equations_list = calculator._extract_expression()
-    calculator.var_symbols = {var: sp.symbols(var) for var in values_df.columns if var != "date"}
+    calculator.metric_symbols = {var: sp.symbols(var) for var in values_df.columns if var != "date"}
     parent_results = calculator.analyze_parent(parent_dict, equations_list, values_df)
     assert len(parent_results) == 4
 
 
 def test_analyze_root(calculator, values_df):
     equations_list = calculator._extract_expression()
-    calculator.var_symbols = {var: sp.symbols(var) for var in values_df.columns if var != "date"}
+    calculator.metric_symbols = {var: sp.symbols(var) for var in values_df.columns if var != "date"}
     root_results = calculator.analyze_root(equations_list, values_df)
-    assert len(root_results) == 4
+    assert len(root_results) == 6
 
 
 def test_combine_results(calculator, values_df):
     parent_dict, _ = calculator._create_parent_and_root_dicts()
     equations_list = calculator._extract_expression()
-    calculator.var_symbols = {var: sp.symbols(var) for var in values_df.columns if var != "date"}
+    calculator.metric_symbols = {var: sp.symbols(var) for var in values_df.columns if var != "date"}
     parent_results = calculator.analyze_parent(parent_dict, equations_list, values_df)
     root_results = calculator.analyze_root(equations_list, values_df)
     final_results = calculator.combine_results(parent_results, root_results)
@@ -96,7 +88,7 @@ def test_combine_results(calculator, values_df):
 def test_get_metric_details(calculator, values_df):
     parent_dict, _ = calculator._create_parent_and_root_dicts()
     equations_list = calculator._extract_expression()
-    calculator.var_symbols = {var: sp.symbols(var) for var in values_df.columns if var != "date"}
+    calculator.metric_symbols = {var: sp.symbols(var) for var in values_df.columns if var != "date"}
     parent_results = calculator.analyze_parent(parent_dict, equations_list, values_df)
     root_results = calculator.analyze_root(equations_list, values_df)
     final_results = calculator.combine_results(parent_results, root_results)
@@ -119,7 +111,7 @@ def test_get_metric_details(calculator, values_df):
 def test_build_output_structure(calculator, values_df):
     parent_dict, _ = calculator._create_parent_and_root_dicts()
     equations_list = calculator._extract_expression()
-    calculator.var_symbols = {var: sp.symbols(var) for var in values_df.columns if var != "date"}
+    calculator.metric_symbols = {var: sp.symbols(var) for var in values_df.columns if var != "date"}
     parent_results = calculator.analyze_parent(parent_dict, equations_list, values_df)
     root_results = calculator.analyze_root(equations_list, values_df)
     final_results = calculator.combine_results(parent_results, root_results)
@@ -145,7 +137,7 @@ def test_build_output_structure(calculator, values_df):
 
 
 def test_analyze(calculator, values_df):
-    calculator.var_symbols = {var: sp.symbols(var) for var in values_df.columns if var != "date"}
+    calculator.metric_symbols = {var: sp.symbols(var) for var in values_df.columns if var != "date"}
     output = calculator.analyze(values_df)
     assert output["metric_id"] == "NewBizDeals"
     assert "leverage" in output

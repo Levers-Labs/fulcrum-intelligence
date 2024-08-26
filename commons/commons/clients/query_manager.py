@@ -264,15 +264,11 @@ class QueryManagerClient(AsyncHttpClient):
         data = await self.get_metric_values(metric_id, start_date, end_date, dimensions)
         return pd.DataFrame(data)
 
-    async def get_metrics_max_values(self, metric_ids: list[str] | None = None) -> dict[str, Any]:
+    async def get_metrics_max_values(self, metric_ids: list[str]) -> dict[str, Any]:
         """
         Get metric targets.
         metric_id: metric id
         """
-
-        if metric_ids is None:
-            return {}
-
         results = await self.list_metrics(metric_ids=metric_ids)
 
         # Create a set for faster lookup
@@ -282,3 +278,55 @@ class QueryManagerClient(AsyncHttpClient):
             for metric in results
             if metric["metric_id"] in metric_id_set and "hypothetical_max" in metric
         }
+
+    async def get_expressions(
+        self, expr: dict[str, Any] | None, metric_ids: set = set(), nested: bool = False  # noqa
+    ) -> tuple[dict[str, Any], set]:
+        """
+        Get the nested expressions for a given metric expression.
+
+        :param expr: Dictionary containing the metric expression.
+        :param metric_ids: Set of metric IDs to keep track of all metrics involved.
+        :param nested: Flag to determine if nested expressions should be processed.
+        :returns: Dictionary containing the nested expressions and set of metric IDs.
+        """
+        if expr is None:
+            return {}, metric_ids
+
+        # Initialize the result with basic metric details
+        result = {
+            "metric_id": expr.get("metric_id"),
+            "type": expr.get("type", "metric"),
+            "period": expr.get("period", 0),
+        }
+
+        # Add the expression string if it exists
+        if "expression_str" in expr:
+            metric_ids.add(expr["metric_id"])
+            result["expression_str"] = expr["expression_str"]
+
+        # Process nested expressions only if the nested flag is True
+        if nested and "expression" in expr and expr["expression"]:
+            result["expression"] = {"type": "expression", "operator": expr["expression"]["operator"], "operands": []}
+
+            for operand in expr["expression"]["operands"]:
+                if operand["type"] == "metric":
+                    metric_ids.add(operand["metric_id"])
+                    # Fetch nested metric details
+                    nested_metric = await self.get_metric(operand["metric_id"])
+                    nested_expr = nested_metric.get("metric_expression", {})
+                    processed_nested_expr, nested_metric_ids = await self.get_expressions(
+                        nested_expr, metric_ids, nested
+                    )
+                    metric_ids.update(nested_metric_ids)
+                    if not processed_nested_expr:
+                        processed_nested_expr = {
+                            "metric_id": operand["metric_id"],
+                            "type": "metric",
+                            "period": operand.get("period", 0),
+                        }
+                    result["expression"]["operands"].append(processed_nested_expr)
+                else:
+                    result["expression"]["operands"].append(operand)
+
+        return result, metric_ids
