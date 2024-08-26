@@ -352,3 +352,103 @@ async def test_get_metric_values_df(mocker):
             ]
         )
     )
+
+
+@pytest.mark.asyncio
+async def test_get_metrics_max_values(mocker):
+    # Arrange
+    client = QueryManagerClient(base_url="https://example.com")
+    list_metrics_mock = AsyncMock(
+        return_value=[
+            {"metric_id": "metric1", "hypothetical_max": 100},
+            {"metric_id": "metric2", "hypothetical_max": 200},
+            {"metric_id": "metric3"},  # No hypothetical_max
+        ]
+    )
+    mocker.patch.object(client, "list_metrics", list_metrics_mock)
+    metric_ids = ["metric1", "metric2", "metric3"]
+
+    # Act
+    result = await client.get_metrics_max_values(metric_ids)
+
+    # Assert
+    assert result == {"metric1": 100, "metric2": 200}
+    list_metrics_mock.assert_called_once_with(metric_ids=metric_ids)
+
+
+@pytest.mark.asyncio
+async def test_get_expressions(mocker):
+    # Arrange
+    client = QueryManagerClient(base_url="https://example.com")
+
+    # Mock get_metric to return different results for different metrics
+    async def mock_get_metric(metric_id):
+        if metric_id == "parent_metric":
+            return {
+                "metric_id": "parent_metric",
+                "metric_expression": {
+                    "metric_id": "parent_metric",
+                    "type": "metric",
+                    "expression": {
+                        "operator": "+",
+                        "operands": [
+                            {"type": "metric", "metric_id": "child_metric1"},
+                            {"type": "metric", "metric_id": "child_metric2"},
+                        ],
+                    },
+                },
+            }
+        else:
+            return {
+                "metric_id": metric_id,
+                "metric_expression": {
+                    "metric_id": metric_id,
+                    "type": "metric",
+                    "expression_str": f"{metric_id}_expression",
+                },
+            }
+
+    get_metric_mock = AsyncMock(side_effect=mock_get_metric)
+    mocker.patch.object(client, "get_metric", get_metric_mock)
+
+    expr = {
+        "metric_id": "parent_metric",
+        "type": "metric",
+        "expression": {
+            "operator": "+",
+            "operands": [
+                {"type": "metric", "metric_id": "child_metric1"},
+                {"type": "metric", "metric_id": "child_metric2"},
+            ],
+        },
+    }
+
+    # Act
+    result, metric_ids = await client.get_expressions(expr, nested=True)
+
+    # Assert
+    expected_result = {
+        "metric_id": "parent_metric",
+        "type": "metric",
+        "period": 0,
+        "expression": {
+            "type": "expression",
+            "operator": "+",
+            "operands": [
+                {
+                    "metric_id": "child_metric1",
+                    "type": "metric",
+                    "period": 0,
+                    "expression_str": "child_metric1_expression",
+                },
+                {
+                    "metric_id": "child_metric2",
+                    "type": "metric",
+                    "period": 0,
+                    "expression_str": "child_metric2_expression",
+                },
+            ],
+        },
+    }
+    assert result == expected_result
+    assert get_metric_mock.call_count == 2  # Called for parent and child metrics

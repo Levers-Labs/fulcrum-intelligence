@@ -281,7 +281,7 @@ class QueryManagerClient(AsyncHttpClient):
 
     async def get_expressions(
         self, expr: dict[str, Any] | None, metric_ids: set = set(), nested: bool = False  # noqa
-    ) -> tuple[dict[str, Any], set]:
+    ) -> tuple[dict[str, Any], list]:
         """
         Get the nested expressions for a given metric expression.
 
@@ -291,7 +291,7 @@ class QueryManagerClient(AsyncHttpClient):
         :returns: Dictionary containing the nested expressions and set of metric IDs.
         """
         if expr is None:
-            return {}, metric_ids
+            return {}, list(metric_ids)
 
         # Initialize the result with basic metric details
         result = {
@@ -329,4 +329,4 @@ class QueryManagerClient(AsyncHttpClient):
                 else:
                     result["expression"]["operands"].append(operand)
 
-        return result, metric_ids
+        return result, list(metric_ids)
