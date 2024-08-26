@@ -276,14 +276,7 @@ class QueryManagerClient(AsyncHttpClient):
         :return: Dictionary where the keys are metric IDs and the values are their hypothetical maximum values.
         """
         results = await self.list_metrics(metric_ids=metric_ids)
-
-        # Create a set for faster lookup
-        metric_id_set = set(metric_ids)
-        return {
-            metric["metric_id"]: metric["hypothetical_max"]
-            for metric in results
-            if metric["metric_id"] in metric_id_set and "hypothetical_max" in metric
-        }
+        return {metric["metric_id"]: metric["hypothetical_max"] for metric in results if "hypothetical_max" in metric}
 
     async def get_expressions(self, metric_id: str, nested: bool = False) -> tuple[dict[str, Any] | None, list[str]]:
         """

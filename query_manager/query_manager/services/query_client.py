@@ -33,7 +33,14 @@ class QueryClient:
         :param metric_ids: Optional list of metric IDs to filter the results by.
         :return: A list of Metric objects with their dimensions and influences.
         """
-        filter_params = dict(metric_ids=metric_ids) if metric_ids else dict()
+        if not metric_ids:
+            results, count = await self.metric_crud.paginate(params, filter_params=dict())
+            return results, count
+
+        if "," in metric_ids[0]:
+            metric_ids = [metric_id.strip() for metric_id in metric_ids[0].split(",")]
+
+        filter_params = dict(metric_ids=metric_ids)
         results, count = await self.metric_crud.paginate(
             params,
             filter_params=filter_params,
