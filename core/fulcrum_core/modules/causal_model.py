@@ -65,43 +65,27 @@ class CausalModelAnalyzer(BaseAnalyzer):
         if len(self.influencers) < 1:
             raise ValueError("Influencers list is empty. Please provide at least one influencer.")
 
-    # def integrate_yearly_seasonality(self, df: pd.DataFrame) -> pd.DataFrame:
-    #     """
-    #     Integrate yearly seasonality into the DataFrame.
-    #
-    #     Args:
-    #         df (pd.DataFrame): The input DataFrame.
-    #
-    #     Returns:
-    #         pd.DataFrame: The DataFrame with integrated yearly seasonality.
-    #     """
-    #     seasonal_df = df.copy(deep=True)
-    #     ps = SeasonalityAnalyzer(yearly_seasonality=True, weekly_seasonality=False)
-    #
-    #     seasonal_effects = pd.DataFrame({"date": seasonal_df["date"]})
-    #
-    #     temp_df = seasonal_df[["date", self.target_metric_id]].rename(columns={self.target_metric_id: "value"})
-    #     ps.fit(temp_df)
-    #     forecast = ps.predict(periods=0)
-    #     forecast.rename(columns={"ds": "date"}, inplace=True)
-    #     yearly_effect = forecast[["date", "yearly"]].rename(columns={"yearly": f"yearly_{self.target_metric_id}"})
-    #     seasonal_effects = seasonal_effects.merge(yearly_effect, on="date")
-    #
-    #     return seasonal_df.merge(seasonal_effects, on="date")
     def integrate_yearly_seasonality(self, df: pd.DataFrame) -> pd.DataFrame:
+        """
+        Integrate yearly seasonality into the DataFrame.
+
+        Args:
+            df (pd.DataFrame): The input DataFrame.
+
+        Returns:
+            pd.DataFrame: The DataFrame with integrated yearly seasonality.
+        """
         seasonal_df = df.copy(deep=True)
         ps = SeasonalityAnalyzer(yearly_seasonality=True, weekly_seasonality=False)
 
         seasonal_effects = pd.DataFrame({"date": seasonal_df["date"]})
 
-        for column in seasonal_df.columns:
-            if column != "date":
-                temp_df = seasonal_df[["date", column]].rename(columns={column: "value"})
-                ps.fit(temp_df)
-                forecast = ps.predict(periods=0)
-                forecast.rename(columns={"ds": "date"}, inplace=True)
-                yearly_effect = forecast[["date", "yearly"]].rename(columns={"yearly": f"yearly_{column}"})
-                seasonal_effects = seasonal_effects.merge(yearly_effect, on="date")
+        temp_df = seasonal_df[["date", self.target_metric_id]].rename(columns={self.target_metric_id: "value"})
+        ps.fit(temp_df)
+        forecast = ps.predict(periods=0)
+        forecast.rename(columns={"ds": "date"}, inplace=True)
+        yearly_effect = forecast[["date", "yearly"]].rename(columns={"yearly": f"yearly_{self.target_metric_id}"})
+        seasonal_effects = seasonal_effects.merge(yearly_effect, on="date")
 
         return seasonal_df.merge(seasonal_effects, on="date")
 
