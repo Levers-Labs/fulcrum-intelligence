@@ -49,7 +49,8 @@ def test_extract_expression(calculator):
 
 
 def test_create_parent_and_root_dicts(calculator):
-    parent_dict, root_dict = calculator._create_parent_and_root_dicts()
+    equations_list = calculator._extract_expression()
+    parent_dict, root_dict = calculator._create_parent_and_root_dicts(equations_list)
     assert parent_dict == {"AcceptOpps": "NewBizDeals", "SQOToWinRate": "NewBizDeals"}
     assert root_dict == {"AcceptOpps": "NewBizDeals", "SQOToWinRate": "NewBizDeals"}
 
@@ -61,8 +62,8 @@ def test_compute_y(calculator, values_df):
 
 
 def test_analyze_parent(calculator, values_df):
-    parent_dict, _ = calculator._create_parent_and_root_dicts()
     equations_list = calculator._extract_expression()
+    parent_dict, _ = calculator._create_parent_and_root_dicts(equations_list)
     calculator.metric_symbols = {var: sp.symbols(var) for var in values_df.columns if var != "date"}
     parent_results = calculator.analyze_parent(parent_dict, equations_list, values_df)
     assert len(parent_results) == 4
@@ -76,8 +77,8 @@ def test_analyze_root(calculator, values_df):
 
 
 def test_combine_results(calculator, values_df):
-    parent_dict, _ = calculator._create_parent_and_root_dicts()
     equations_list = calculator._extract_expression()
+    parent_dict, _ = calculator._create_parent_and_root_dicts(equations_list)
     calculator.metric_symbols = {var: sp.symbols(var) for var in values_df.columns if var != "date"}
     parent_results = calculator.analyze_parent(parent_dict, equations_list, values_df)
     root_results = calculator.analyze_root(equations_list, values_df)
@@ -86,8 +87,8 @@ def test_combine_results(calculator, values_df):
 
 
 def test_get_metric_details(calculator, values_df):
-    parent_dict, _ = calculator._create_parent_and_root_dicts()
     equations_list = calculator._extract_expression()
+    parent_dict, _ = calculator._create_parent_and_root_dicts(equations_list)
     calculator.metric_symbols = {var: sp.symbols(var) for var in values_df.columns if var != "date"}
     parent_results = calculator.analyze_parent(parent_dict, equations_list, values_df)
     root_results = calculator.analyze_root(equations_list, values_df)
@@ -109,8 +110,8 @@ def test_get_metric_details(calculator, values_df):
 
 
 def test_build_output_structure(calculator, values_df):
-    parent_dict, _ = calculator._create_parent_and_root_dicts()
     equations_list = calculator._extract_expression()
+    parent_dict, _ = calculator._create_parent_and_root_dicts(equations_list)
     calculator.metric_symbols = {var: sp.symbols(var) for var in values_df.columns if var != "date"}
     parent_results = calculator.analyze_parent(parent_dict, equations_list, values_df)
     root_results = calculator.analyze_root(equations_list, values_df)
