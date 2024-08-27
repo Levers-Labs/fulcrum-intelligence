@@ -455,7 +455,7 @@ async def leverage_id(
     expr = metric.get("metric_expression", None)
     if expr is None:
         # Raise an HTTP 404 error if the metric expression is not found
-        raise HTTPException(status_code=404, detail=f"Metric expression not found for metric_id: {request.metric_id}")
+        raise HTTPException(status_code=400, detail=f"Metric expression not found for metric_id: {request.metric_id}")
 
     # Get the nested expressions for the metric and the list of metric IDs involved
     metric_expression, metric_ids = await query_manager.get_expressions(request.metric_id, nested=True)

@@ -45,12 +45,13 @@ async def test_list_metrics(mocker, metric, query_client):
     mocker.patch.object(query_client.metric_crud, "paginate", mock_paginate)
 
     params = PaginationParams(page=1, size=10)
-    result, count = await query_client.list_metrics(params=params)
+    result, count = await query_client.list_metrics(metric_ids=[metric["metric_id"]], params=params)
     assert len(result) == 1
     assert result[0] == metric
     assert count == 1
 
-    mock_paginate.assert_called_once_with(params, filter_params={})
+    filter_params = {"metric_ids": [metric["metric_id"]]}
+    mock_paginate.assert_called_once_with(params, filter_params=filter_params)
 
 
 @pytest.mark.asyncio

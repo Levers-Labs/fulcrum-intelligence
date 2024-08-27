@@ -418,21 +418,17 @@ async def test_get_expressions(mocker):
     expected_result = {
         "metric_id": "parent_metric",
         "type": "metric",
-        "period": 0,
         "expression": {
-            "type": "expression",
             "operator": "+",
             "operands": [
                 {
                     "metric_id": "child_metric1",
                     "type": "metric",
-                    "period": 0,
                     "expression_str": "child_metric1_expression",
                 },
                 {
                     "metric_id": "child_metric2",
                     "type": "metric",
-                    "period": 0,
                     "expression_str": "child_metric2_expression",
                 },
             ],

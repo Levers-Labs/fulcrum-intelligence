@@ -700,5 +700,5 @@ async def test_leverage_id_route_missing_expression(client, mocker):
         json={"metric_id": "NewBizDeals", "start_date": "2024-02-01", "end_date": "2024-03-01", "grain": "month"},
     )
 
-    assert response.status_code == 404
+    assert response.status_code == 400
     assert response.json()["detail"] == "Metric expression not found for metric_id: NewBizDeals"

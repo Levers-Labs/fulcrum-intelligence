@@ -1,4 +1,5 @@
 import logging
+import re
 from typing import Any
 
 import pandas as pd
@@ -43,7 +44,7 @@ class LeverageIdCalculator(BaseAnalyzer):
         equations_list = self._extract_expression()
 
         # Create parent and root_metric_id dictionaries
-        parent_dict, root_dict = self._create_parent_and_root_dicts()
+        parent_dict, root_dict = self._create_parent_and_root_dicts(equations_list)
 
         logger.info(f"Extracted Equations List: {equations_list}")
         logger.info(f"Variable Symbols: {self.metric_symbols}")
@@ -84,7 +85,7 @@ class LeverageIdCalculator(BaseAnalyzer):
         operand_strs = []
         for operand in operands:
             if operand["type"] == "metric":
-                operand_strs.append(f"{{{operand['metric_id']}}}")
+                operand_strs.append(operand["metric_id"])
             elif operand["type"] == "constant":
                 operand_strs.append(str(operand["value"]))
 
@@ -104,43 +105,41 @@ class LeverageIdCalculator(BaseAnalyzer):
 
         equations = []
 
-        if "expression" in expression:
+        if expression and "expression" in expression:
             constructed_expr = self._construct_expression_str(expression["expression"])
-            equations.append(f"{parent_metric_id} = {constructed_expr}")
+            if constructed_expr:
+                equations.append(f"{parent_metric_id} = {constructed_expr}")
 
-        for operand in expression.get("expression", {}).get("operands", []):
-            if "expression" in operand:
-                constructed_expr = self._construct_expression_str(operand["expression"])
-                equations.append(f"{operand['metric_id']} = {constructed_expr}")
-                equations.extend(self._extract_expression(operand, operand["metric_id"]))
+            for operand in expression["expression"].get("operands", []):
+                if operand.get("expression"):
+                    nested_equations = self._extract_expression(operand, operand["metric_id"])
+                    equations.extend(nested_equations)
 
-        # Remove curly braces from equations only at the top level of recursion
-        if parent_metric_id == self.root_metric_id:
-            return [eq.replace("{", "").replace("}", "") for eq in equations]
-        else:
-            return equations
+        return equations
 
-    def _create_parent_and_root_dicts(self) -> tuple[dict[str, str], dict[str, str]]:
+    def _create_parent_and_root_dicts(self, equations: list[str]) -> tuple[dict[str, str], dict[str, str]]:
         """
         Create dictionaries for parent and root metrics using an iterative approach.
 
         :returns: Tuple containing parent dictionary and root dictionary.
         """
         parent_dict = {}
-        expression_stack = [(self.metric_expression["expression"], self.root_metric_id)]
+        root_dict = {}
 
-        while expression_stack:
-            expression, current_parent = expression_stack.pop()
+        for equation in equations:
+            child, parent = equation.split(" = ")
+            child = child.strip()
+            parent_metrics = re.findall(r"\b(?![\d\W])\w+\b", parent)
+            # Find all words (metric IDs) in the parent expression
 
-            for operand in expression.get("operands", []):
-                if "metric_id" in operand:
-                    metric_id = operand["metric_id"]
-                    parent_dict[metric_id] = current_parent
+            for parent_metric in parent_metrics:
+                parent_dict[parent_metric] = child
+                root_dict[parent_metric] = self.root_metric_id
 
-                    if "expression" in operand:
-                        expression_stack.append((operand["expression"], metric_id))
+        # The root metric itself doesn't have a parent
+        if self.root_metric_id in parent_dict:
+            del parent_dict[self.root_metric_id]
 
-        root_dict = {metric_id: self.root_metric_id for metric_id in parent_dict}
         return parent_dict, root_dict
 
     def _compute_y(self, equation_str: str, values: dict) -> float:

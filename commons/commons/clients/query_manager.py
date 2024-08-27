@@ -296,49 +296,18 @@ class QueryManagerClient(AsyncHttpClient):
         if not expr:
             return None, [metric_id]
 
-        # Initialize the result dictionary with basic metric details
-        result = {
-            "metric_id": metric_id,
-            "type": expr.get("type", "metric"),
-            "period": expr.get("period", 0),
-        }
-
-        # List to keep track of all involved metric IDs
         involved_metrics = [metric_id]
 
-        # Add the expression string if it exists
-        if "expression_str" in expr:
-            result["expression_str"] = expr["expression_str"]
-
-        # If nested expressions are not required, return the result and involved metrics
         if not nested:
-            return result, involved_metrics
+            return expr, involved_metrics
 
-        # If there is no nested expression, return the result and involved metrics
-        if "expression" not in expr or not expr["expression"]:
-            return result, involved_metrics
-
-        # Initialize the expression part of the result
-        result["expression"] = {"type": "expression", "operator": expr["expression"]["operator"], "operands": []}
-
-        # Process each operand in the expression
-        for operand in expr["expression"]["operands"]:
-            if operand["type"] != "metric":
-                # If the operand is not a metric, add it directly to the operands list
-                result["expression"]["operands"].append(operand)
-                continue
-
-            # Recursively fetch nested expressions for metric operands
-            nested_expr, nested_metrics = await self.get_expressions(operand["metric_id"], nested)
-            involved_metrics.extend(nested_metrics)
-            result["expression"]["operands"].append(
-                nested_expr
-                or {
-                    "metric_id": operand["metric_id"],
-                    "type": "metric",
-                    "period": operand.get("period", 0),
-                }
-            )
+        if "expression" in expr and expr["expression"]:
+            for operand in expr["expression"]["operands"]:
+                if operand["type"] == "metric":
+                    nested_expr, nested_metrics = await self.get_expressions(operand["metric_id"], nested)
+                    involved_metrics.extend(nested_metrics)
+                    if nested_expr:
+                        operand.update(nested_expr)
 
         # Return the result and the list of all involved metric IDs
-        return result, list(set(involved_metrics))
+        return expr, list(set(involved_metrics))
