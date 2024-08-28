@@ -6,8 +6,9 @@ x-airflow-common:
     &airflow-common-env
     _AIRFLOW_WWW_USER_USERNAME: airflow
     _AIRFLOW_WWW_USER_PASSWORD: airflow
+    AIRFLOW__CORE__ENABLE_XCOM_PICKLING: 'true'
     AIRFLOW__CORE__EXECUTOR: LocalExecutor
-    AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://postgres:passwordpw@host.docker.internal:5432/airflow_db
+    AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://postgres:passwordpw@host.docker.internal:5432/fulcrum_db
     AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: 'true'
     AIRFLOW__CORE__LOAD_EXAMPLES: 'false'
     AIRFLOW_PROJ_DIR: .
@@ -15,14 +16,20 @@ x-airflow-common:
     AIRFLOW__SCHEDULER__ENABLE_HEALTH_CHECK: 'true'
     AIRFLOW__CORE__MAX_ACTIVE_RUNS_PER_DAG: '5'
     # app envs
+    AIRFLOW_ENV: local
     SERVER_HOST: http://localhost:8003/v1/
     SECRET_KEY: some-secret-key
     ANALYSIS_MANAGER_SERVER_HOST: http://host.docker.internal:8001/v1/
-    STORY_MANAGER_SERVER_HOST: http://host.docker.internal:8003/v1/
-    QUERY_MANAGER_SERVER_HOST: http://host.docker.internal:8002/v1/
+    STORY_MANAGER_SERVER_HOST: http://host.docker.internal:8002/v1/
+    QUERY_MANAGER_SERVER_HOST: http://host.docker.internal:8001/v1/
     DSENSEI_BASE_URL: http://host.docker.internal:5001
     DATABASE_URL: postgresql+asyncpg://postgres:passwordpw@host.docker.internal:5432/fulcrum_db
     DOCKER_HOST: unix://var/run/docker.sock
+    STORY_GENERATION_START_DATE: "2024-02-01"
+    AUTH0_API_AUDIENCE: https://fulcrum_api_identifier
+    AUTH0_ISSUER: https://insights-web-app.us.auth0.com/
+    AUTH0_CLIENT_ID: ${AUTH0_CLIENT_ID}
+    AUTH0_CLIENT_SECRET: ${AUTH0_CLIENT_SECRET}
     # WARNING: Use _PIP_ADDITIONAL_REQUIREMENTS option ONLY for a quick checks
     # for other purpose (development, test and especially production usage) build/extend Airflow image.
     _PIP_ADDITIONAL_REQUIREMENTS: ${_PIP_ADDITIONAL_REQUIREMENTS:-requests}
