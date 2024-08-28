@@ -34,7 +34,7 @@ async def test_story_manager_run_builder_for_metrics(story_manager, mock_query_s
     await story_manager._run_builder_for_metrics(mock_story_builder, metrics)
 
     expected_calls = [
-        ((metric["id"], grain), {}) for metric in metrics for grain in mock_story_builder.supported_grains
+        ((metric["metric_id"], grain), {}) for metric in metrics for grain in mock_story_builder.supported_grains
     ]
     assert mock_story_builder.run.call_args_list == expected_calls
 

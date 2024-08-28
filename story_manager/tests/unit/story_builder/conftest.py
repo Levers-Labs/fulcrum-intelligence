@@ -23,9 +23,9 @@ def mock_query_service():
         {"date": "2023-01-03", "value": 300},
     ]
     query_service.list_metrics.return_value = [
-        {"id": 1, "name": "metric1"},
-        {"id": 2, "name": "metric2"},
-        {"id": 3, "name": "metric3"},
+        {"id": 1, "name": "metric1", "metric_id": "metric1"},
+        {"id": 2, "name": "metric2", "metric_id": "metric2"},
+        {"id": 3, "name": "metric3", "metric_id": "metric3"},
     ]
     return query_service
 

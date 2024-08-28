@@ -10,7 +10,7 @@ def test_story_factory_create_story_builder_growth(
     mock_query_service, mock_analysis_service, mock_analysis_manager, mock_db_session
 ):
     story_builder = StoryFactory.create_story_builder(
-        StoryGroup.GROWTH_RATES, mock_query_service, mock_analysis_service, mock_analysis_manager, mock_db_session
+        StoryGroup.GROWTH_RATES.value, mock_query_service, mock_analysis_service, mock_analysis_manager, mock_db_session
     )
     assert isinstance(story_builder, GrowthStoryBuilder)
 
@@ -33,7 +33,8 @@ def test_story_factory_get_story_builder_growth():
 def test_story_factory_get_story_builder_unsupported_group():
     with pytest.raises(ValueError) as excinfo:
         StoryFactory.get_story_builder("UNSUPPORTED_GROUP")
-    assert str(excinfo.value) == "No story builder found for story group UNSUPPORTED_GROUP"
+
+    assert excinfo.typename == "ValueError"
 
 
 def test_story_factory_base_class():

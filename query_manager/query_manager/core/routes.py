@@ -42,9 +42,9 @@ async def list_metrics(
     client: QueryClientDep,
     params: Annotated[PaginationParams, Depends(PaginationParams)],
     metric_ids: Annotated[
-        list[str] | None,
+        list[str],
         Query(description="List of metric ids"),
-    ] = None,
+    ],
 ):
     """
     Retrieve a list of metrics.

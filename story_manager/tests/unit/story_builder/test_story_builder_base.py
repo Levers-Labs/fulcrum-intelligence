@@ -181,7 +181,7 @@ def test_get_current_period_range_from_today(story_builder, mock_story_date):
 def test_get_story_context(story_builder):
     # prepare
     grain = Granularity.DAY
-    metric = {"id": "metric1", "label": "Metric 1"}
+    metric = {"id": "metric1", "metric_id": "metric1", "label": "Metric 1"}
 
     # Act
     context = story_builder.get_story_context(grain, metric, key="value")
@@ -201,7 +201,7 @@ def test_render_story_texts(story_builder):
     # prepare
     story_type = StoryType.STABLE_TREND
     grain = Granularity.DAY
-    metric = {"id": "metric1", "label": "NewBizDeals"}
+    metric = {"id": "metric1", "metric_id": "metric1", "label": "NewBizDeals"}
     variables = {
         "avg_growth": 10,
         "trend_duration": 30,
@@ -235,7 +235,7 @@ def test_prepare_story_dict(story_builder, mock_story_date):
     story_builder.genre = StoryGenre.TRENDS
     story_type = StoryType.STABLE_TREND
     grain = Granularity.DAY
-    metric = {"id": "metric1", "label": "NewBizDeals"}
+    metric = {"id": "metric1", "metric_id": "metric1", "label": "NewBizDeals"}
     df = pd.DataFrame(
         {
             "value": [10, 20, 30, 40, 50],

@@ -8,6 +8,8 @@ import pytest
 from deepdiff import DeepDiff
 
 from analysis_manager.core.services.component_drift import ComponentDriftService
+
+# from analysis_manager.core.services.leverage import LeverageIdService
 from commons.clients.query_manager import QueryManagerClient
 from fulcrum_core.modules import SegmentDriftEvaluator
 
@@ -637,3 +639,66 @@ async def test_influence_attribution_no_influenced_by(client, mocker, metric_sms
     # Assert
     assert response.status_code == 400
     assert response.json()["detail"] == "Metric is not influenced by any other metric."
+
+
+@pytest.mark.asyncio
+async def test_leverage_id_route(client, mocker, leverage_id_response, metric_expression, get_metric_response):
+    # Mock the QueryManagerClient methods
+    mocker.patch.object(QueryManagerClient, "get_metric", new_callable=AsyncMock, return_value=get_metric_response)
+    mocker.patch.object(
+        QueryManagerClient,
+        "get_expressions",
+        new_callable=AsyncMock,
+        return_value=(metric_expression, ["NewBizDeals", "AcceptOpps", "OpenNewBizOpps", "SQORate", "SQOToWinRate"]),
+    )
+    mocker.patch.object(
+        QueryManagerClient,
+        "get_metrics_max_values",
+        new_callable=AsyncMock,
+        return_value={"NewBizDeals": 100, "AcceptOpps": 80, "OpenNewBizOpps": 60, "SQORate": 50, "SQOToWinRate": 40},
+    )
+    mocker.patch.object(
+        QueryManagerClient,
+        "get_metrics_time_series_df",
+        new_callable=AsyncMock,
+        return_value=pd.DataFrame(
+            {
+                "date": pd.date_range("2024-02-01", periods=5, freq="MS"),
+                "NewBizDeals": [100, 200, 300, 400, 500],
+                "AcceptOpps": [80, 160, 240, 320, 400],
+                "OpenNewBizOpps": [60, 120, 180, 240, 300],
+                "SQORate": [50, 100, 150, 200, 250],
+                "SQOToWinRate": [40, 80, 120, 160, 200],
+            }
+        ),
+    )
+
+    # Mock LeverageIdCalculator
+    mock_leverage_calculator = mocker.Mock()
+    mock_leverage_calculator.run.return_value = leverage_id_response
+    mocker.patch("analysis_manager.core.routes.LeverageIdCalculator", return_value=mock_leverage_calculator)
+
+    response = client.post(
+        "/v1/analyze/analysis/leverage_id",
+        json={"metric_id": "NewBizDeals", "start_date": "2024-02-01", "end_date": "2024-03-01", "grain": "month"},
+    )
+
+    assert response.status_code == 200
+    assert response.json() == leverage_id_response
+
+
+@pytest.mark.asyncio
+async def test_leverage_id_route_missing_expression(client, mocker):
+    # Mock the QueryManagerClient.get_metric to return a metric without an expression
+    mocker.patch.object(
+        QueryManagerClient, "get_metric", new_callable=AsyncMock, return_value={"metric_id": "NewBizDeals"}
+    )
+
+    # with pytest.raises(HTTPException) as exc_info:
+    response = client.post(
+        "/v1/analyze/analysis/leverage_id",
+        json={"metric_id": "NewBizDeals", "start_date": "2024-02-01", "end_date": "2024-03-01", "grain": "month"},
+    )
+
+    assert response.status_code == 400
+    assert response.json()["detail"] == "Metric expression not found for metric_id: NewBizDeals"
