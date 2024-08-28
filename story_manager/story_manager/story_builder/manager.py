@@ -78,7 +78,7 @@ class StoryManager:
                     continue
 
     @classmethod
-    async def run_builder_for_story_group(cls, group: StoryGroup, metric_id, grain: Granularity | None = None) -> None:
+    async def run_builder_for_story_group(cls, group: StoryGroup, metric_id, grain: Granularity):
         """
         Run the story generation builder for a specific story group.
 
@@ -111,14 +111,9 @@ class StoryManager:
         )
 
         # If a grain is provided, use it, otherwise use all supported grains
-        grains = [grain] if grain else story_builder.supported_grains
-
+        # grains = [grain] if grain else story_builder.supported_grains
         # Run the story builder for the metrics
-        for grain in grains:
-            logger.info(f"Generating stories for grain: {grain}")
-            try:
-                await story_builder.run(metric_id, grain)
-                logger.info(f"Stories generated for metric {metric_id} with grain {grain}")
-            except Exception as e:
-                logger.exception(f"Error generating stories for metric {metric_id} with grain {grain}: {str(e)}")
-                continue
+        # for grain in grains:
+        logger.info(f"Generating stories for grain: {grain}")
+        await story_builder.run(metric_id, grain)
+        logger.info(f"Stories generated for metric {metric_id} with grain {grain}")
