@@ -8,7 +8,7 @@ x-airflow-common:
     _AIRFLOW_WWW_USER_PASSWORD: airflow
     AIRFLOW__CORE__ENABLE_XCOM_PICKLING: 'true'
     AIRFLOW__CORE__EXECUTOR: LocalExecutor
-    AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://postgres:passwordpw@host.docker.internal:5432/fulcrum_db
+    AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://postgres:passwordpw@host.docker.internal:5432/airflow_db
     AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: 'true'
     AIRFLOW__CORE__LOAD_EXAMPLES: 'false'
     AIRFLOW_PROJ_DIR: .
@@ -19,9 +19,9 @@ x-airflow-common:
     AIRFLOW_ENV: local
     SERVER_HOST: http://localhost:8003/v1/
     SECRET_KEY: some-secret-key
-    ANALYSIS_MANAGER_SERVER_HOST: http://host.docker.internal:8001/v1/
-    STORY_MANAGER_SERVER_HOST: http://host.docker.internal:8002/v1/
-    QUERY_MANAGER_SERVER_HOST: http://host.docker.internal:8001/v1/
+    ANALYSIS_MANAGER_SERVER_HOST: http://host.docker.internal:8000/v1/
+    STORY_MANAGER_SERVER_HOST: http://host.docker.internal:8003/v1/
+    QUERY_MANAGER_SERVER_HOST: http://host.docker.internal:8002/v1/
     DSENSEI_BASE_URL: http://host.docker.internal:5001
     DATABASE_URL: postgresql+asyncpg://postgres:passwordpw@host.docker.internal:5432/fulcrum_db
     DOCKER_HOST: unix://var/run/docker.sock
@@ -32,7 +32,7 @@ x-airflow-common:
     AUTH0_CLIENT_SECRET: ${AUTH0_CLIENT_SECRET}
     # WARNING: Use _PIP_ADDITIONAL_REQUIREMENTS option ONLY for a quick checks
     # for other purpose (development, test and especially production usage) build/extend Airflow image.
-    _PIP_ADDITIONAL_REQUIREMENTS: ${_PIP_ADDITIONAL_REQUIREMENTS:-requests}
+    _PIP_ADDITIONAL_REQUIREMENTS: ${_PIP_ADDITIONAL_REQUIREMENTS:-requests apache-airflow-providers-amazon apache-airflow-providers-docker}
     # The following line can be used to set a custom config file, stored in the local config folder
     # If you want to use it, outcomment it and replace airflow.cfg with the name of your config file
     # AIRFLOW_CONFIG: '/opt/airflow/config/airflow.cfg'

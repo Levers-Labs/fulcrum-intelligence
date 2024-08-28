@@ -9,31 +9,35 @@ from airflow.providers.amazon.aws.operators.ecs import EcsRunTaskOperator
 from airflow.providers.docker.operators.docker import DockerOperator
 
 
-def get_config(key: str, default: str = "") -> str:
+def get_config(key: str, default: str | None = None) -> str:
     # Check if running locally or in production
     if os.getenv("AIRFLOW_ENV") == "local":
-        return os.getenv(key, default)
+        return os.getenv(key, default)  # type: ignore
     return Variable.get(key, default)
 
 
 # Fetch environment-specific settings
+# Common configurations
 ENV = get_config("AIRFLOW_ENV")
 DEFAULT_SCHEDULE = get_config("DEFAULT_SCHEDULE", "0 0 * * *")
-STORY_BUILDER_IMAGE = get_config("STORY_BUILDER_IMAGE", "story-builder-manager:latest")
-DOCKER_HOST = get_config("DOCKER_HOST", "")
-SERVER_HOST = get_config("SERVER_HOST", "http://localhost:8002")
 SECRET_KEY = get_config("SECRET_KEY")
 STORY_MANAGER_SERVER_HOST = get_config("STORY_MANAGER_SERVER_HOST")
 ANALYSIS_MANAGER_SERVER_HOST = get_config("ANALYSIS_MANAGER_SERVER_HOST")
 QUERY_MANAGER_SERVER_HOST = get_config("QUERY_MANAGER_SERVER_HOST")
 DSENSEI_BASE_URL = get_config("DSENSEI_BASE_URL")
 DATABASE_URL = get_config("DATABASE_URL")
-START_DATE = get_config("STORY_GENERATION_START_DATE")
-AUTH0_API_AUDIENCE = get_config("STORY_GENERATION_START_DATE")
+AUTH0_API_AUDIENCE = get_config("AUTH0_API_AUDIENCE")
 AUTH0_ISSUER = get_config("AUTH0_ISSUER")
 AUTH0_CLIENT_SECRET = get_config("AUTH0_CLIENT_SECRET")
 AUTH0_CLIENT_ID = get_config("AUTH0_CLIENT_ID")
-ECS_SUBNETS = get_config("ECS_SUBNETS").split(" ")
+
+# Local (Docker run) configurations
+STORY_BUILDER_IMAGE = get_config("STORY_BUILDER_IMAGE", "story-builder-manager:latest")
+DOCKER_HOST = get_config("DOCKER_HOST", "")
+SERVER_HOST = get_config("SERVER_HOST", "http://localhost:8002")
+
+# ECS configurations
+ECS_SUBNETS = get_config("ECS_SUBNETS").split(",") if get_config("ECS_SUBNETS") else None
 ECS_REGION = get_config("ECS_REGION")
 ECS_TASK_DEFINITION_NAME = get_config("ECS_TASK_DEFINITION_NAME")
 ECS_CLUSTER_NAME = get_config("ECS_CLUSTER_NAME")
@@ -86,10 +90,9 @@ def fetch_group_meta(group: str, auth_header: dict[str, str]) -> dict[str, Any]:
 
 
 def create_story_group_dag(group: str, meta: dict[str, Any]) -> None:
-    date_format = "%Y-%m-%d"
-    date_object = datetime.strptime(START_DATE, date_format)
+    dag_id = f"GROUP_{group}_STORY_DAG"
 
-    @dag(dag_id="story_group_dag", start_date=date_object, schedule_interval=meta["schedule_interval"], catchup=False)
+    @dag(dag_id=dag_id, start_date=datetime(2024, 7, 1), schedule_interval=meta["schedule_interval"], catchup=False)
     def story_group_dag():
         @task(task_id="get_auth_header")
         def get_auth_header():
@@ -113,7 +116,12 @@ def create_story_group_dag(group: str, meta: dict[str, Any]) -> None:
         grains = fetch_group_meta_task(auth_header)
         commands = prepare_story_builder_commands(metrics, grains)
 
+        # We have two options for running the story generation tasks:
+        # 1. Local development environment using Docker
+        # 2. Production environment using AWS ECS
+
         if ENV == "local":
+            # For local development, we use DockerOperator to run tasks in Docker containers
             DockerOperator.partial(
                 task_id="generate_stories",
                 image=STORY_BUILDER_IMAGE,
@@ -134,7 +142,7 @@ def create_story_group_dag(group: str, meta: dict[str, Any]) -> None:
             ).expand(command=commands)
 
         else:
-
+            # For production, we use ECS to run tasks in a managed container environment
             @task
             def prepare_ecs_overrides(commands: list[str]) -> list[dict]:
                 # Prepare the ECS overrides based on the commands
@@ -145,17 +153,13 @@ def create_story_group_dag(group: str, meta: dict[str, Any]) -> None:
 
             ecs_overrides = prepare_ecs_overrides(commands)
 
+            # Use EcsRunTaskOperator to run tasks on AWS ECS
             EcsRunTaskOperator.partial(
-                task_id="run_ecs_task",
+                task_id="generate_stories",
                 cluster=ECS_CLUSTER_NAME,
                 task_definition=ECS_TASK_DEFINITION_NAME,
                 launch_type="FARGATE",
-                network_configuration={
-                    "awsvpcConfiguration": {
-                        "subnets": ECS_SUBNETS,
-                        "assignPublicIp": "ENABLED",
-                    }
-                },
+                network_configuration={"awsvpcConfiguration": {"subnets": ECS_SUBNETS}},
                 region_name=ECS_REGION,
             ).expand(overrides=ecs_overrides)
 
