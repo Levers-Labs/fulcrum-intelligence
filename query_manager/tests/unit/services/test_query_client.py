@@ -7,8 +7,15 @@ import pytest
 from commons.models.enums import Granularity
 from commons.utilities.pagination import PaginationParams
 from query_manager.core.dependencies import get_cube_client, get_query_client
+from query_manager.core.enums import Complexity
 from query_manager.core.models import Dimension, Metric
-from query_manager.core.schemas import MetricDetail
+from query_manager.core.schemas import (
+    DimensionCreate,
+    DimensionUpdate,
+    MetricCreate,
+    MetricDetail,
+    MetricUpdate,
+)
 from query_manager.exceptions import DimensionNotFoundError, MetricNotFoundError
 
 
@@ -269,3 +276,117 @@ async def test_get_metric_values_for_month_grain(mocker, metric, query_client):
     mock_load_metric_values_from_cube.assert_awaited_with(
         metric, Granularity.MONTH, date(2022, 1, 1), date(2022, 2, 1), []
     )
+
+
+@pytest.mark.asyncio
+async def test_create_metric(mocker, query_client):
+    query_client = await query_client
+    metric_data = dict(
+        metric_id="new_metric",
+        label="New Metric",
+        abbreviation="NM",
+        unit_of_measure="Count",
+        unit="#",
+        terms=["term1", "term2"],
+        complexity=Complexity.ATOMIC,
+        metric_expression=None,
+        periods=[Granularity.DAY, Granularity.WEEK],
+        grain_aggregation="sum",
+        aggregations=["sum"],
+        owned_by_team=["team1"],
+        definition="New metric definition",
+        metadata={"some": "metadata"},
+    )
+    metric_create = MetricCreate(**metric_data)
+    expected_metric = Metric(id=1, **metric_data)
+
+    mock_create = AsyncMock(return_value=expected_metric)
+    mocker.patch.object(MetricCreate, "create", mock_create)
+
+    result = await query_client.create_metric(metric_create)
+
+    assert result == expected_metric
+    mock_create.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_update_metric(mocker, query_client, metric):
+    query_client = await query_client
+    metric = Metric.model_validate(metric)
+    update_data = MetricUpdate(label="Updated Metric")
+
+    expected_metric = Metric(**{**metric.dict(), "label": "Updated Metric"})
+    mock_update = AsyncMock(return_value=expected_metric)
+    mocker.patch.object(MetricUpdate, "update", mock_update)
+
+    result = await query_client.update_metric(metric.metric_id, update_data)
+
+    assert result == expected_metric
+    mock_update.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_update_metric_not_found(mocker, query_client):
+    query_client = await query_client
+    mock_get_by_metric_id = AsyncMock(return_value=None)
+    mocker.patch.object(query_client.metric_crud, "get_by_metric_id", mock_get_by_metric_id)
+
+    with pytest.raises(MetricNotFoundError):
+        await query_client.update_metric("non_existent_metric", MetricUpdate(label="Updated Metric"))
+
+
+@pytest.mark.asyncio
+async def test_create_dimension(mocker, query_client):
+    query_client = await query_client
+    dimension_data = DimensionCreate(
+        dimension_id="new_dimension",
+        label="New Dimension",
+        definition="New dimension definition",
+        reference="new_dimension",
+        meta_data={"semantic_meta": {"cube": "cube1", "member": "new_dimension", "member_type": "dimension"}},
+    )
+    expected_dimension = Dimension(id=1, **dimension_data.model_dump())
+
+    mock_create = AsyncMock(return_value=expected_dimension)
+    mocker.patch.object(DimensionCreate, "create", mock_create)
+
+    result = await query_client.create_dimension(dimension_data)
+
+    assert result == expected_dimension
+    mock_create.assert_called_once_with(query_client.dimensions_crud.session, dimension_data.model_dump())
+
+
+@pytest.mark.asyncio
+async def test_update_dimension(mocker, query_client, dimensions):
+    query_client = await query_client
+    update_data = DimensionUpdate(
+        label="Updated Dimension",
+        definition="New dimension definition",
+        reference="new_dimension",
+        meta_data={"semantic_meta": {"cube": "cube1", "member": "new_dimension", "member_type": "dimension"}},
+    )
+    expected_dimension = Dimension(**{**dimensions.dict(), "label": "Updated Dimension"})
+    mock_update = AsyncMock(return_value=expected_dimension)
+    mocker.patch.object(DimensionUpdate, "update", mock_update)
+
+    result = await query_client.update_dimension(dimensions.dimension_id, update_data)
+
+    assert result == expected_dimension
+    mock_update.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_update_dimension_not_found(mocker, query_client):
+    query_client = await query_client
+    mock_get_by_dimension_id = AsyncMock(return_value=None)
+    mocker.patch.object(query_client.dimensions_crud, "get_by_dimension_id", mock_get_by_dimension_id)
+
+    update_data = DimensionUpdate(
+        label="Updated Dimension",
+        definition="New dimension definition",
+        reference="new_dimension",
+        meta_data={"semantic_meta": {"cube": "cube1", "member": "new_dimension", "member_type": "dimension"}},
+    )
+
+    with pytest.raises(DimensionNotFoundError):
+        await query_client.update_dimension("non_existent_dimension", update_data)

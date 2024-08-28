@@ -181,3 +181,52 @@ class MetricUpdate(BaseModel):
         await db.commit()
         await db.refresh(instance)
         return instance
+
+
+class DimensionCreate(DimensionBase):
+    model_config = ConfigDict(from_attributes=True)  # type: ignore
+
+    @classmethod
+    async def create(cls, db: AsyncSession, validated_data: dict):
+        """
+        Create a new dimension.
+
+        Args:
+            db (AsyncSession): The database session.
+            validated_data (dict): The validated data for creating a dimension.
+
+        Returns:
+            Dimension: The created dimension.
+        """
+        dimension = Dimension(**validated_data)
+        db.add(dimension)
+        await db.commit()
+        await db.refresh(dimension)
+        return dimension
+
+
+class DimensionUpdate(DimensionBase):
+    dimension_id: str | None = None  # type: ignore
+    model_config = ConfigDict(from_attributes=True)  # type: ignore
+
+    @classmethod
+    async def update(cls, db: AsyncSession, instance: Dimension, validated_data: dict):
+        """
+        Update an existing dimension.
+
+        Args:
+            db (AsyncSession): The database session.
+            instance (Dimension): The dimension to update.
+            validated_data (dict): The validated data for updating a dimension.
+
+        Returns:
+            Dimension: The updated dimension.
+        """
+        # Pop the dimension_id from the validated data
+        validated_data.pop("dimension_id", None)
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+        db.add(instance)
+        await db.commit()
+        await db.refresh(instance)
+        return instance

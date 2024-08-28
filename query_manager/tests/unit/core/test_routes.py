@@ -1,7 +1,8 @@
 from unittest import mock
-from unittest.mock import AsyncMock
+from unittest.mock import ANY, AsyncMock
 
 import pytest
+from sqlalchemy.exc import IntegrityError
 
 from query_manager.core.enums import TargetAim
 from query_manager.core.models import Metric
@@ -11,7 +12,7 @@ from query_manager.core.schemas import (
     MetricDetail,
     MetricList,
 )
-from query_manager.exceptions import MetricNotFoundError
+from query_manager.exceptions import DimensionNotFoundError, MetricNotFoundError
 from query_manager.services.parquet import ParquetService
 from query_manager.services.query_client import QueryClient
 from query_manager.services.s3 import NoSuchKeyError
@@ -226,3 +227,50 @@ async def test_get_metric_targets_parquet(client, mocker):
     }
     mock_get_metric_targets.assert_awaited_once()
     mock_convert_and_upload.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_create_dimension(client, mocker, dimension):
+    # Mock the QueryClient's create_dimension method
+    mock_create_dimension = AsyncMock(return_value=DimensionDetail(**dimension))
+    mocker.patch.object(QueryClient, "create_dimension", mock_create_dimension)
+
+    dimension_data = {
+        "dimension_id": "new_dimension",
+        "label": "New Dimension",
+        "reference": "new_dimension_ref",
+        "definition": "New Dimension Definition",
+        "meta_data": {"semantic_meta": {"cube": "cube1", "member": "new_dimension", "member_type": "dimension"}},
+    }
+    response = client.post("/v1/dimensions", json=dimension_data)
+    assert response.status_code == 200
+    assert response.json() == DimensionDetail(**dimension).model_dump(mode="json")
+
+    # test with duplicate dimension_id
+    mock_create_dimension = AsyncMock(side_effect=IntegrityError("new_dimension", ANY, ANY))
+    mocker.patch.object(QueryClient, "create_dimension", mock_create_dimension)
+    response = client.post("/v1/dimensions", json=dimension_data)
+    assert response.status_code == 422
+    assert response.json()["detail"]["type"] == "already_exists"
+
+
+@pytest.mark.asyncio
+async def test_update_dimension(client, mocker, dimension):
+    # Mock the QueryClient's update_dimension method
+    dimension_id = dimension["dimension_id"]
+    updated_data = dimension.copy()
+    updated_data["label"] = "Updated Dimension"
+
+    mock_update_dimension = AsyncMock(return_value=DimensionDetail(**updated_data))
+    mocker.patch.object(QueryClient, "update_dimension", mock_update_dimension)
+
+    response = client.put(f"/v1/dimensions/{dimension_id}", json=updated_data)
+    assert response.status_code == 200
+    assert response.json() == DimensionDetail(**updated_data).model_dump(mode="json")
+
+    # test not found
+    mock_update_dimension = AsyncMock(side_effect=DimensionNotFoundError("test_dimension"))
+    mocker.patch.object(QueryClient, "update_dimension", mock_update_dimension)
+
+    response = client.put(f"/v1/dimensions/{dimension_id}", json=updated_data)
+    assert response.status_code == 404

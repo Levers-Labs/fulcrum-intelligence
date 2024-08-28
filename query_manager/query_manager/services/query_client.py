@@ -6,7 +6,12 @@ from commons.models.enums import Granularity
 from commons.utilities.pagination import PaginationParams
 from query_manager.core.crud import CRUDDimensions, CRUDMetric
 from query_manager.core.models import Dimension, Metric
-from query_manager.core.schemas import MetricCreate, MetricUpdate
+from query_manager.core.schemas import (
+    DimensionCreate,
+    DimensionUpdate,
+    MetricCreate,
+    MetricUpdate,
+)
 from query_manager.exceptions import DimensionNotFoundError, MetricNotFoundError
 from query_manager.services.cube import CubeClient
 
@@ -164,3 +169,22 @@ class QueryClient:
         """
         metric = await MetricCreate.create(self.metric_crud.session, metric_data.model_dump())
         return metric
+
+    async def create_dimension(self, dimension_data: DimensionCreate) -> Dimension:
+        """
+        Creates a new dimension with the given data.
+        """
+        dimension = await DimensionCreate.create(self.dimensions_crud.session, dimension_data.model_dump())
+        return dimension
+
+    async def update_dimension(self, dimension_id: str, dimension_data: DimensionUpdate) -> Dimension:
+        """
+        Updates an existing dimension with the given data.
+        """
+        dimension = await self.get_dimension_details(dimension_id)
+        if not dimension:
+            raise DimensionNotFoundError(dimension_id)
+        updated_dimension = await DimensionUpdate.update(
+            self.dimensions_crud.session, dimension, dimension_data.model_dump()
+        )
+        return updated_dimension
