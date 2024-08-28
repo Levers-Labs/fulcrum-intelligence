@@ -13,8 +13,10 @@ start_date = datetime(2024, 4, 17)
 
 
 @pytest.fixture
-def status_change_story_builder(mock_query_service, mock_analysis_service, mock_analysis_manager, mock_db_session):
-    mock_query_service.get_metric = AsyncMock(return_value={"id": "metric_1", "label": "Metric 1"})
+def status_change_story_builder(
+    mock_query_service, mock_analysis_service, mock_analysis_manager, mock_db_session, get_metric_resp
+):
+    mock_query_service.get_metric = AsyncMock(return_value=get_metric_resp)
     return StatusChangeStoryBuilder(mock_query_service, mock_analysis_service, mock_analysis_manager, mock_db_session)
 
 

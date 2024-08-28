@@ -263,3 +263,51 @@ class QueryManagerClient(AsyncHttpClient):
         """
         data = await self.get_metric_values(metric_id, start_date, end_date, dimensions)
         return pd.DataFrame(data)
+
+    async def get_metrics_max_values(self, metric_ids: list[str]) -> dict[str, Any]:
+        """
+        Get the maximum hypothetical values for a list of metric IDs.
+
+        This method fetches the list of metrics using the provided metric IDs and then extracts the
+        hypothetical maximum values for each metric. Only metrics that have a "hypothetical_max" value
+        will be included in the returned dictionary.
+
+        :param metric_ids: List of metric IDs to fetch the hypothetical maximum values for.
+        :return: Dictionary where the keys are metric IDs and the values are their hypothetical maximum values.
+        """
+        results = await self.list_metrics(metric_ids=metric_ids)
+        return {metric["metric_id"]: metric["hypothetical_max"] for metric in results if "hypothetical_max" in metric}
+
+    async def get_expressions(self, metric_id: str, nested: bool = False) -> tuple[dict[str, Any] | None, list[str]]:
+        """
+        Get the nested expressions for a given metric ID.
+
+        This method fetches the metric details for the given metric ID and extracts its expression.
+        If the nested flag is set to True, it will recursively fetch and process nested expressions
+        for any metrics involved in the main expression.
+
+        :param metric_id: ID of the metric to fetch expressions for.
+        :param nested: Flag to determine if nested expressions should be processed.
+        :returns: Tuple containing the nested expressions dictionary and list of involved metric IDs.
+        """
+        # Fetch the metric details
+        metric = await self.get_metric(metric_id)
+        expr = metric.get("metric_expression")
+        if not expr:
+            return None, [metric_id]
+
+        involved_metrics = [metric_id]
+
+        if not nested:
+            return expr, involved_metrics
+
+        if "expression" in expr and expr["expression"]:
+            for operand in expr["expression"]["operands"]:
+                if operand["type"] == "metric":
+                    nested_expr, nested_metrics = await self.get_expressions(operand["metric_id"], nested)
+                    involved_metrics.extend(nested_metrics)
+                    if nested_expr:
+                        operand.update(nested_expr)
+
+        # Return the result and the list of all involved metric IDs
+        return expr, list(set(involved_metrics))

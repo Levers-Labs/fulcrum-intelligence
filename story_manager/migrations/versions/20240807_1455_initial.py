@@ -1,8 +1,8 @@
 """Initial
 
-Revision ID: bc333b567708
+Revision ID: 950a7cb18abb
 Revises:
-Create Date: 2024-06-11 18:00:25.870522
+Create Date: 2024-08-07 14:55:35.677990
 
 """
 
@@ -14,7 +14,7 @@ from alembic import op
 from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
-revision: str = "bc333b567708"
+revision: str = "950a7cb18abb"
 down_revision: str | None = None
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
@@ -34,7 +34,7 @@ def upgrade() -> None:
                 "TRENDS",
                 "PERFORMANCE",
                 "BIG_MOVES",
-                "ROOT_CAUSE",
+                "ROOT_CAUSES",
                 name="storygenre",
                 schema="story_store",
                 inherit_schema=True,
@@ -52,7 +52,10 @@ def upgrade() -> None:
                 "LIKELY_STATUS",
                 "RECORD_VALUES",
                 "STATUS_CHANGE",
+                "SEGMENT_DRIFT",
                 "REQUIRED_PERFORMANCE",
+                "SIGNIFICANT_SEGMENTS",
+                "COMPONENT_DRIFT",
                 name="storygroup",
                 schema="story_store",
                 inherit_schema=True,
@@ -82,6 +85,14 @@ def upgrade() -> None:
                 "RECORD_LOW",
                 "LIKELY_ON_TRACK",
                 "LIKELY_OFF_TRACK",
+                "GROWING_SEGMENT",
+                "SHRINKING_SEGMENT",
+                "IMPROVING_SEGMENT",
+                "WORSENING_SEGMENT",
+                "TOP_4_SEGMENTS",
+                "BOTTOM_4_SEGMENTS",
+                "IMPROVING_COMPONENT",
+                "WORSENING_COMPONENT",
                 name="storytype",
                 schema="story_store",
                 inherit_schema=True,

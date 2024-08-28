@@ -23,9 +23,7 @@ class QueryClient:
         self.dimension_model = Dimension
         self.metric_model = Metric
 
-    async def list_metrics(
-        self, *, params: PaginationParams, metric_ids: list[str] | None = None
-    ) -> tuple[list[Metric], int]:
+    async def list_metrics(self, *, params: PaginationParams, metric_ids: list[str]) -> tuple[list[Metric], int]:
         """
         Fetches a list of all metrics with their associated dimensions and influences, optionally in a paginated manner.
 
@@ -33,7 +31,7 @@ class QueryClient:
         :param metric_ids: Optional list of metric IDs to filter the results by.
         :return: A list of Metric objects with their dimensions and influences.
         """
-        filter_params = dict(metric_ids=metric_ids) if metric_ids else dict()
+        filter_params = dict(metric_ids=metric_ids)
         results, count = await self.metric_crud.paginate(
             params,
             filter_params=filter_params,

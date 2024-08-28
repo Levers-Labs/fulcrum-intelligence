@@ -1,6 +1,6 @@
 import logging
 from datetime import date
-from typing import Annotated, Any
+from typing import Annotated, Any, Union
 
 import numpy as np
 import pandas as pd
@@ -20,6 +20,7 @@ from analysis_manager.core.dependencies import (
 )
 from analysis_manager.core.models import Component, ComponentDriftRequest
 from analysis_manager.core.models.correlate import CorrelateRead
+from analysis_manager.core.models.leverage_id import LeverageRequest, LeverageResponse
 from analysis_manager.core.schema import (
     CorrelateRequest,
     DescribeRequest,
@@ -35,6 +36,7 @@ from analysis_manager.core.schema import (
 )
 from commons.auth.scopes import ANALYSIS_MANAGER_ALL
 from fulcrum_core.execptions import InsufficientDataError
+from fulcrum_core.modules import LeverageIdCalculator
 
 router = APIRouter(prefix="/analyze", tags=["analyze"])
 logger = logging.getLogger(__name__)
@@ -418,3 +420,59 @@ async def influence_attribution(
         "expression": expression,
         "influence": influence,
     }
+
+
+@router.post(
+    "/analysis/leverage_id",
+    response_model=Union[LeverageResponse, None],
+    dependencies=[Security(oauth2_auth().verify, scopes=[ANALYSIS_MANAGER_ALL])],
+)
+async def leverage_id(
+    query_manager: QueryManagerClientDep,
+    request: Annotated[
+        LeverageRequest,
+        Body(
+            examples=[
+                {
+                    "metric_id": "NewBizDeals",
+                    "start_date": "2024-02-01",
+                    "end_date": "2024-03-01",
+                    "grain": "month",
+                }
+            ]
+        ),
+    ],
+) -> Any:
+    """
+    Analyze LeverageResponse ID for a given metric.
+    """
+    logger.debug(f"LeverageResponse Id request: {request}")
+
+    # Fetch the metric details from the query manager
+    metric = await query_manager.get_metric(request.metric_id)
+
+    # Extract the metric expression from the fetched metric details
+    expr = metric.get("metric_expression", None)
+    if expr is None:
+        # Raise an HTTP 404 error if the metric expression is not found
+        raise HTTPException(status_code=400, detail=f"Metric expression not found for metric_id: {request.metric_id}")
+
+    # Get the nested expressions for the metric and the list of metric IDs involved
+    metric_expression, metric_ids = await query_manager.get_expressions(request.metric_id, nested=True)
+
+    # Fetch the maximum values for the metrics involved
+    max_values = await query_manager.get_metrics_max_values(metric_ids)
+
+    # Fetch the time series data for the metrics within the specified date range and grain
+    values_df = await query_manager.get_metrics_time_series_df(
+        metric_ids=metric_ids, start_date=request.start_date, end_date=request.end_date, grain=request.grain
+    )
+
+    # Initialize the LeverageIdCalculator with the metric expression and max values
+    leverage_calculator = LeverageIdCalculator(metric_expression, max_values)  # type: ignore
+
+    # Run the leverage calculator with the time series data and get the result
+    result = leverage_calculator.run(values_df)
+
+    # Return the calculated leverage ID result
+    return result

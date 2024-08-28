@@ -40,7 +40,7 @@ async def test_list_metrics(client, mocker, metric):
     mock_list_metrics = AsyncMock(return_value=([Metric.parse_obj(metric)], 10))
     mocker.patch.object(QueryClient, "list_metrics", mock_list_metrics)
 
-    response = client.get("/v1/metrics")
+    response = client.get(f"/v1/metrics?metric_ids={mock_list_metrics}")
     assert response.status_code == 200
     assert response.json() == {
         "count": 10,

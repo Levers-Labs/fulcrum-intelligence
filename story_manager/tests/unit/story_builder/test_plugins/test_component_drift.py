@@ -10,9 +10,9 @@ from story_manager.story_builder.plugins import ComponentDriftStoryBuilder
 
 @pytest.fixture
 def mock_component_drift_story_builder(
-    mock_query_service, mock_analysis_service, mock_analysis_manager, mock_db_session
+    mock_query_service, mock_analysis_service, mock_analysis_manager, mock_db_session, get_metric_resp
 ):
-    mock_query_service.get_metric = AsyncMock(return_value={"id": "metric_1", "label": "Metric 1"})
+    mock_query_service.get_metric = AsyncMock(return_value=get_metric_resp)
     mock_analysis_service.get_component_drift = AsyncMock(
         return_value={
             "components": [

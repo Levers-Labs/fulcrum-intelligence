@@ -15,9 +15,9 @@ number_of_data_points = 90
 
 @pytest.fixture
 def goal_vs_actual_story_builder(
-    mock_query_service, mock_analysis_service, mock_analysis_manager, mock_db_session, metric_values
+    mock_query_service, mock_analysis_service, mock_analysis_manager, mock_db_session, metric_values, get_metric_resp
 ):
-    mock_query_service.get_metric = AsyncMock(return_value={"id": "metric_1", "label": "Metric 1"})
+    mock_query_service.get_metric = AsyncMock(return_value=get_metric_resp)
     return GoalVsActualStoryBuilder(mock_query_service, mock_analysis_service, mock_analysis_manager, mock_db_session)
 
 

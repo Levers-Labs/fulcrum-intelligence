@@ -67,12 +67,12 @@ class StoryManager:
         """
         total_metrics = len(metrics)
         for i, metric in enumerate(metrics, start=1):
-            metric_id = metric["id"]
+            metric_id = metric["metric_id"]
             logger.info(f"Processing metric {i}/{total_metrics}: ID: {metric_id}")
             for grain in story_builder.supported_grains:
                 logger.info(f"Generating stories for grain: {grain}")
                 try:
-                    await story_builder.run(metric["id"], grain)
+                    await story_builder.run(metric["metric_id"], grain)
                 except Exception as e:
                     logger.exception(f"Error generating stories for metric {metric_id} with grain {grain}: {str(e)}")
                     continue
