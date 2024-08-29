@@ -33,7 +33,8 @@ class CausalModelAnalyzer(BaseAnalyzer):
             for df in input_dfs:
                 if not all(col in df.columns for col in ["metric_id", "date", "value"]):
                     raise ValueError(
-                        "Invalid input dataframe. It should have 'metric_id', 'date', and 'value' columns.")
+                        "Invalid input dataframe. It should have 'metric_id', 'date', and 'value' columns."
+                    )
                 if df["metric_id"].nunique() > 1:
                     raise ValueError("Invalid input dataframe. 'metric_id' should be unique.")
         if len(self.influencers) < 1:
@@ -51,7 +52,8 @@ class CausalModelAnalyzer(BaseAnalyzer):
         ps.fit(temp_df)
         forecast = ps.predict(periods=0)
         yearly_effect = forecast[["ds", "yearly"]].rename(
-            columns={"ds": "date", "yearly": f"yearly_{self.target_metric_id}"})
+            columns={"ds": "date", "yearly": f"yearly_{self.target_metric_id}"}
+        )
 
         seasonal_df = seasonal_df.merge(yearly_effect, on="date", how="left")
         return seasonal_df
@@ -88,7 +90,7 @@ class CausalModelAnalyzer(BaseAnalyzer):
         normalized_outcome = outcome_column
 
         for column in all_columns:
-            if column != 'date':
+            if column != "date":
                 normalized_column = column
                 if normalized_column not in selected_columns_set:
                     additional_edges.append(f"{normalized_column} -> {normalized_outcome}")
@@ -108,8 +110,8 @@ class CausalModelAnalyzer(BaseAnalyzer):
         add_columns_from_hierarchy({"metric_id": self.target_metric_id, "influences": self.influencers})
 
         # Add columns from the actual DataFrame
-        if hasattr(self, 'df'):
-            all_columns.update(col for col in self.df.columns if col != 'date')
+        if hasattr(self, "df"):
+            all_columns.update(col for col in self.df.columns if col != "date")
 
         return list(all_columns)
 
@@ -123,7 +125,7 @@ class CausalModelAnalyzer(BaseAnalyzer):
         return prepared_data, list(prepared_data.columns), graph_edges
 
     def create_column_mapping(self, columns):
-        self.column_mapping = {self.normalize_name(col): col for col in columns if col != 'date'}
+        self.column_mapping = {self.normalize_name(col): col for col in columns if col != "date"}
         self.reverse_column_mapping = {v: k for k, v in self.column_mapping.items()}
 
     def build_causal_graph(self, graph_edges):
@@ -159,8 +161,9 @@ class CausalModelAnalyzer(BaseAnalyzer):
             if metric_info["model"]["coefficient"] == metric_info["model"]["coefficient_root"]:
                 metric_info["model"]["relative_impact_root"] = relative_impact * 100
             else:
-                total_sum = self.calculate_total_sum(m_id, flipped_relation_dict, value_dict, result_output,
-                                                     outcome_column)
+                total_sum = self.calculate_total_sum(
+                    m_id, flipped_relation_dict, value_dict, result_output, outcome_column
+                )
                 coefficient_root = metric_info["model"]["coefficient_root"]
                 relative_impact_root = (coefficient_root * value) / total_sum * 100 if total_sum != 0 else 0
                 metric_info["model"]["relative_impact_root"] = relative_impact_root
@@ -202,7 +205,7 @@ class CausalModelAnalyzer(BaseAnalyzer):
         try:
             data = prepared_data.copy()
             outcome_column = self.target_metric_id
-            factor_columns = [col for col in columns if col != outcome_column and col != 'date']
+            factor_columns = [col for col in columns if col != outcome_column and col != "date"]
             factor_columns.append(outcome_column)
 
             # Normalize column names and update graph definition
@@ -233,19 +236,17 @@ class CausalModelAnalyzer(BaseAnalyzer):
             # Estimate causal effects for all relationships
             for target in self.flipped_relation_dict:
                 treatments = self.flipped_relation_dict[target]
-                model = CausalModel(
-                    data=data,
-                    treatment=treatments,
-                    outcome=target,
-                    graph=updated_graph_definition
-                )
+                model = CausalModel(data=data, treatment=treatments, outcome=target, graph=updated_graph_definition)
                 identified_estimate = model.identify_effect(proceed_when_unidentifiable=True)
                 if identified_estimate is None:
                     continue
 
-                causal_estimate = model.estimate_effect(identified_estimate,
-                                                        method_name="backdoor.linear_regression")
-                if causal_estimate is None or causal_estimate.estimator is None or causal_estimate.estimator.model is None:
+                causal_estimate = model.estimate_effect(identified_estimate, method_name="backdoor.linear_regression")
+                if (
+                    causal_estimate is None
+                    or causal_estimate.estimator is None
+                    or causal_estimate.estimator.model is None
+                ):
                     continue
                 effect_summary = causal_estimate.estimator.model.params
                 if effect_summary is None:
@@ -261,10 +262,7 @@ class CausalModelAnalyzer(BaseAnalyzer):
 
             for indirect_column in indirect_columns:
                 model_in = CausalModel(
-                    data=data,
-                    treatment=indirect_column,
-                    outcome=outcome_column,
-                    graph=updated_graph_definition
+                    data=data, treatment=indirect_column, outcome=outcome_column, graph=updated_graph_definition
                 )
                 identified_estimate_in = model_in.identify_effect(
                     estimand_type="nonparametric-nie", proceed_when_unidentifiable=True
@@ -287,11 +285,9 @@ class CausalModelAnalyzer(BaseAnalyzer):
             # Calculate relative impacts
             updated_result_output = copy.deepcopy(result_output)
             for key in self.flipped_relation_dict:
-                updated_result_output = self.calculate_relative_impact(key,
-                                                                       self.flipped_relation_dict,
-                                                                       value_dict,
-                                                                       updated_result_output,
-                                                                       outcome_column)
+                updated_result_output = self.calculate_relative_impact(
+                    key, self.flipped_relation_dict, value_dict, updated_result_output, outcome_column
+                )
 
             return updated_result_output
 
@@ -401,4 +397,4 @@ class CausalModelAnalyzer(BaseAnalyzer):
         return direct_columns, indirect_columns
 
     def normalize_name(self, name):
-        return name.lower().replace('_', '').replace(' ', '')
+        return name.lower().replace("_", "").replace(" ", "")
