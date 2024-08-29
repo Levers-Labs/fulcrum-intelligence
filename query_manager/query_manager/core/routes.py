@@ -6,10 +6,12 @@ from fastapi import (
     APIRouter,
     Body,
     Depends,
+    HTTPException,
     Query,
     Request,
     Security,
 )
+from sqlalchemy.exc import IntegrityError
 
 from commons.auth.scopes import QUERY_MANAGER_ALL
 from commons.models.enums import Granularity
@@ -19,13 +21,17 @@ from query_manager.core.enums import OutputFormat
 from query_manager.core.models import Dimension, Metric
 from query_manager.core.schemas import (
     DimensionCompact,
+    DimensionCreate,
     DimensionDetail,
+    DimensionUpdate,
+    MetricCreate,
     MetricDetail,
     MetricList,
+    MetricUpdate,
     MetricValuesResponse,
     TargetListResponse,
 )
-from query_manager.exceptions import MetricNotFoundError
+from query_manager.exceptions import DimensionNotFoundError, MetricNotFoundError
 from query_manager.services.s3 import NoSuchKeyError
 
 logger = logging.getLogger(__name__)
@@ -66,6 +72,55 @@ async def get_metric(metric_id: str, client: QueryClientDep):
     return await client.get_metric_details(metric_id)
 
 
+@router.post(
+    "/metrics",
+    response_model=MetricDetail,
+    tags=["metrics"],
+    status_code=201,
+    dependencies=[Security(oauth2_auth().verify, scopes=[QUERY_MANAGER_ALL])],
+)
+async def create_metric(
+    metric_data: MetricCreate,
+    client: QueryClientDep,
+):
+    """
+    Create a new metric.
+    """
+    try:
+        created_metric = await client.create_metric(metric_data)
+        return created_metric
+    except IntegrityError as e:
+        raise HTTPException(
+            status_code=422,
+            detail={
+                "loc": ["body", "metric_id"],
+                "msg": f"Metric with id '{metric_data.metric_id}' already exists.",
+                "type": "already_exists",
+            },
+        ) from e
+
+
+@router.patch(
+    "/metrics/{metric_id}",
+    response_model=MetricDetail,
+    tags=["metrics"],
+    dependencies=[Security(oauth2_auth().verify, scopes=[QUERY_MANAGER_ALL])],
+)
+async def update_metric(
+    metric_id: str,
+    metric_data: MetricUpdate,
+    client: QueryClientDep,
+):
+    """
+    Update a metric by ID.
+    """
+    try:
+        updated_metric = await client.update_metric(metric_id, metric_data)
+        return updated_metric
+    except MetricNotFoundError as e:
+        raise HTTPException(status_code=404, detail=f"Metric with ID {metric_id} not found") from e
+
+
 @router.get(
     "/dimensions",
     response_model=Page[DimensionCompact],
@@ -83,6 +138,29 @@ async def list_dimensions(
     return Page[Dimension].create(items=results, total_count=count, params=params)
 
 
+@router.post(
+    "/dimensions",
+    response_model=DimensionDetail,
+    tags=["dimensions"],
+    dependencies=[Security(oauth2_auth().verify, scopes=[QUERY_MANAGER_ALL])],
+)
+async def create_dimension(dimension: DimensionCreate, client: QueryClientDep):
+    """
+    Create a new dimension.
+    """
+    try:
+        return await client.create_dimension(dimension)
+    except IntegrityError as e:
+        raise HTTPException(
+            status_code=422,
+            detail={
+                "loc": ["body", "dimension_id"],
+                "msg": f"Dimension with id '{dimension.dimension_id}' already exists.",
+                "type": "already_exists",
+            },
+        ) from e
+
+
 @router.get(
     "/dimensions/{dimension_id}",
     response_model=DimensionDetail,
@@ -94,6 +172,25 @@ async def get_dimension(dimension_id: str, client: QueryClientDep):
     Retrieve a dimension by ID.
     """
     return await client.get_dimension_details(dimension_id)
+
+
+@router.put(
+    "/dimensions/{dimension_id}",
+    response_model=DimensionDetail,
+    tags=["dimensions"],
+    dependencies=[Security(oauth2_auth().verify, scopes=[QUERY_MANAGER_ALL])],
+)
+async def update_dimension(dimension_id: str, dimension: DimensionUpdate, client: QueryClientDep):
+    """
+    Update an existing dimension.
+    """
+    try:
+        return await client.update_dimension(dimension_id, dimension)
+    except DimensionNotFoundError as e:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Dimension with id '{dimension_id}' not found.",
+        ) from e
 
 
 @router.get(
