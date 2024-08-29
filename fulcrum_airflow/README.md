@@ -27,6 +27,12 @@ DATABASE_URL=postgresql+asyncpg://postgres:passwordpw@host.docker.internal:5432/
 DOCKER_HOST=unix://var/run/docker.sock
 ```
 
+Also Keep a .env file in the same directory as docker-compose.yaml, this file should have auth0 creds
+```dotenv
+AUTH0_CLIENT_ID='------ client_id ------'
+AUTH0_CLIENT_SECRET='-------- client_secret -------'
+```
+
 ### Database Setup
 
 1. **Start PostgreSQL Database**:
@@ -34,6 +40,7 @@ DOCKER_HOST=unix://var/run/docker.sock
     ```sh
     docker run --name fulcrum_db -e POSTGRES_PASSWORD=passwordpw -e POSTGRES_DB=fulcrum_db -p 5432:5432 -d postgres
     ```
+   another database airflow_db is also required, do the same for it as well
 
 ### Building Story Builder Docker Image
 
