@@ -68,7 +68,7 @@ jobs:
 
   skip-message:
     runs-on: ubuntu-latest
-    if: ${{ inputs.migration == 'false' }}
+    if: ${{ inputs.migration == 'false' || inputs.migration == ''}}
     steps:
       - name: Print skipping message
         run: echo "Skipping migrations as migration is not required."
