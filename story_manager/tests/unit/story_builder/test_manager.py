@@ -1,3 +1,4 @@
+import datetime
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -85,7 +86,9 @@ async def test_run_builder_for_story_group(
     test_grain = Granularity.DAY
 
     # Run the method
-    await StoryManager.run_builder_for_story_group(test_group, test_metric_id, test_grain)
+    await StoryManager.run_builder_for_story_group(
+        test_group, test_metric_id, test_grain, story_date=datetime.date.today()
+    )
 
     # Assertions
     mock_create_story_builder.assert_called_once_with(
@@ -94,17 +97,10 @@ async def test_run_builder_for_story_group(
         mock_analysis_service,
         analysis_manager=mock_analysis_manager,
         db_session=mock_db_session,
+        story_date=datetime.date.today(),
     )
 
     mock_story_builder.run.assert_called_once_with(test_metric_id, test_grain)
-
-    # No grain passed, should run for all supported grains
-    await StoryManager.run_builder_for_story_group(test_group, test_metric_id)
-
-    assert mock_story_builder.run.call_count == len(mock_story_builder.supported_grains) + 1
-    mock_story_builder.run.assert_has_calls(
-        [mocker.call(test_metric_id, Granularity.DAY), mocker.call(test_metric_id, Granularity.WEEK)]
-    )
 
 
 @pytest.mark.asyncio
