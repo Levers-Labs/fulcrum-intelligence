@@ -132,8 +132,5 @@ async def test_run_builder_for_story_group_error_handling(
     test_metric_id = "test_metric_id"
 
     # Run the method
-    await StoryManager.run_builder_for_story_group(test_group, test_metric_id)
-
-    # Assertions
-    assert "Error generating stories for metric test_metric_id" in caplog.text
-    assert "Test error" in caplog.text
+    with pytest.raises(ValueError, match="Test error"):
+        await StoryManager.run_builder_for_story_group(test_group, test_metric_id, Granularity.DAY)
