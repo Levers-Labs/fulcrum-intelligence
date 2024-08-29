@@ -3,10 +3,10 @@ name: Deploy Insight Backend to AWS Lambda
 on:
   push:
     branches:
-      - main
-    paths:
-        - 'insights_backend/**'
-        - 'commons/**'
+      - LEV-418_CI_STORY_BUILDER
+#    paths:
+#        - 'insights_backend/**'
+#        - 'commons/**'
 
   workflow_dispatch:
     inputs:
