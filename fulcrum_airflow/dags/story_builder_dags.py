@@ -159,7 +159,7 @@ def create_story_group_dag(group: str, meta: dict[str, Any]) -> None:
                 cluster=ECS_CLUSTER_NAME,
                 task_definition=ECS_TASK_DEFINITION_NAME,
                 launch_type="FARGATE",
-                network_configuration={"awsvpcConfiguration": {"subnets": ECS_SUBNETS}},
+                network_configuration={"awsvpcConfiguration": {"subnets": ECS_SUBNETS, "assignPublicIp": "ENABLED"}},
                 region_name=ECS_REGION,
             ).expand(overrides=ecs_overrides)
 
