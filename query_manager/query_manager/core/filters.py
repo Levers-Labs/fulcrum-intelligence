@@ -7,4 +7,4 @@ class DimensionFilter(BaseFilter[Dimension]):
 
 
 class MetricFilter(BaseFilter[Metric]):
-    metric_ids: list[str] | None = FilterField(Metric, operator="in", default=None)  # type: ignore
+    metric_ids: list[str] | None = FilterField(Metric.metric_id, operator="in", default=None)  # type: ignore

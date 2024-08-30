@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import asyncio
 import importlib
+from datetime import date, datetime
 from pathlib import Path
 from typing import Annotated, Optional
 
@@ -166,7 +167,11 @@ def run_builder_for_group(
     grain: Annotated[
         Optional[Granularity],  # noqa
         typer.Argument(help="The grain for which the builder should be run."),
-    ] = None,
+    ],
+    story_date: Annotated[
+        str,
+        typer.Argument(help="The start date for story generation"),
+    ] = "",
 ):
     """
     Run the builder for a specific story group and metric.
@@ -175,7 +180,8 @@ def run_builder_for_group(
         f"Running builder for group {group} and metric {metric_id}",
         fg=typer.colors.GREEN,
     )
-    asyncio.run(StoryManager.run_builder_for_story_group(group, metric_id, grain=grain))
+    story_date = datetime.strptime(story_date, "%Y-%m-%d").date() if story_date else date.today()  # type: ignore
+    asyncio.run(StoryManager.run_builder_for_story_group(group, metric_id, grain=grain, story_date=story_date))  # type: ignore
     typer.secho(
         f"Execution for group {group} and metric {metric_id} finished",
         fg=typer.colors.GREEN,

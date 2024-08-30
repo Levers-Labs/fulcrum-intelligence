@@ -6,6 +6,12 @@ from commons.models.enums import Granularity
 from commons.utilities.pagination import PaginationParams
 from query_manager.core.crud import CRUDDimensions, CRUDMetric
 from query_manager.core.models import Dimension, Metric
+from query_manager.core.schemas import (
+    DimensionCreate,
+    DimensionUpdate,
+    MetricCreate,
+    MetricUpdate,
+)
 from query_manager.exceptions import DimensionNotFoundError, MetricNotFoundError
 from query_manager.services.cube import CubeClient
 
@@ -23,9 +29,7 @@ class QueryClient:
         self.dimension_model = Dimension
         self.metric_model = Metric
 
-    async def list_metrics(
-        self, *, params: PaginationParams, metric_ids: list[str] | None = None
-    ) -> tuple[list[Metric], int]:
+    async def list_metrics(self, *, params: PaginationParams, metric_ids: list[str]) -> tuple[list[Metric], int]:
         """
         Fetches a list of all metrics with their associated dimensions and influences, optionally in a paginated manner.
 
@@ -33,7 +37,7 @@ class QueryClient:
         :param metric_ids: Optional list of metric IDs to filter the results by.
         :return: A list of Metric objects with their dimensions and influences.
         """
-        filter_params = dict(metric_ids=metric_ids) if metric_ids else dict()
+        filter_params = dict(metric_ids=metric_ids)
         results, count = await self.metric_crud.paginate(
             params,
             filter_params=filter_params,
@@ -143,3 +147,42 @@ class QueryClient:
         return await self.cube_client.load_metric_targets_from_cube(
             metric, grain=grain, start_date=start_date, end_date=end_date
         )
+
+    async def update_metric(self, metric_id: str, metric_data: MetricUpdate) -> Metric:
+        """
+        Updates a metric with the given ID using the provided data.
+        """
+        metric = await self.metric_crud.get_by_metric_id(metric_id)
+        if not metric:
+            raise MetricNotFoundError(metric_id)
+
+        updated_metric = await MetricUpdate.update(
+            self.metric_crud.session, metric, metric_data.model_dump(exclude_unset=True)
+        )
+        return updated_metric
+
+    async def create_metric(self, metric_data: MetricCreate) -> Metric:
+        """
+        Creates a new metric with the given data.
+        """
+        metric = await MetricCreate.create(self.metric_crud.session, metric_data.model_dump())
+        return metric
+
+    async def create_dimension(self, dimension_data: DimensionCreate) -> Dimension:
+        """
+        Creates a new dimension with the given data.
+        """
+        dimension = await DimensionCreate.create(self.dimensions_crud.session, dimension_data.model_dump())
+        return dimension
+
+    async def update_dimension(self, dimension_id: str, dimension_data: DimensionUpdate) -> Dimension:
+        """
+        Updates an existing dimension with the given data.
+        """
+        dimension = await self.get_dimension_details(dimension_id)
+        if not dimension:
+            raise DimensionNotFoundError(dimension_id)
+        updated_dimension = await DimensionUpdate.update(
+            self.dimensions_crud.session, dimension, dimension_data.model_dump()
+        )
+        return updated_dimension

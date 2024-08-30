@@ -276,7 +276,7 @@ class AnalysisManager:
         """
         evaluator = ComponentDriftEvaluator(values)
         expression = evaluator.resolve_expression_values(metric_expression)
-        # Get the relative impact and marginal contribution of the root node
+        # Get the relative impact and marginal contribution of the root_metric_id node
         relative_impact_root = 1
         marginal_contribution_root = 1
         if parent_drift:

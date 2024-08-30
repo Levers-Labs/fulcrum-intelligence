@@ -91,6 +91,7 @@ def targets_df():
 def metric_details():
     return {
         "id": "NewBizDeals",
+        "metric_id": "NewBizDeals",
         "label": "New Business Deals",
         "abbreviation": "NewBizDeals",
         "definition": "The count of New Business Opportunities that were generated in the period related to closing "
@@ -246,3 +247,8 @@ def metric_details():
             },
         ],
     }
+
+
+@pytest.fixture()
+def get_metric_resp():
+    return {"id": 1, "metric_id": "metric_1", "label": "Metric 1"}

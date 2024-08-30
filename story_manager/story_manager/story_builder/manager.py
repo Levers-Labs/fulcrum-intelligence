@@ -1,4 +1,5 @@
 import logging
+from datetime import date
 
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -67,18 +68,20 @@ class StoryManager:
         """
         total_metrics = len(metrics)
         for i, metric in enumerate(metrics, start=1):
-            metric_id = metric["id"]
+            metric_id = metric["metric_id"]
             logger.info(f"Processing metric {i}/{total_metrics}: ID: {metric_id}")
             for grain in story_builder.supported_grains:
                 logger.info(f"Generating stories for grain: {grain}")
                 try:
-                    await story_builder.run(metric["id"], grain)
+                    await story_builder.run(metric["metric_id"], grain)
                 except Exception as e:
                     logger.exception(f"Error generating stories for metric {metric_id} with grain {grain}: {str(e)}")
                     continue
 
     @classmethod
-    async def run_builder_for_story_group(cls, group: StoryGroup, metric_id, grain: Granularity | None = None) -> None:
+    async def run_builder_for_story_group(
+        cls, group: StoryGroup, metric_id, grain: Granularity, story_date: date | None = None
+    ):
         """
         Run the story generation builder for a specific story group.
 
@@ -89,6 +92,7 @@ class StoryManager:
         :param group: The story group to run the builder for.
         :param metric_id: The metric id to run the builder for.
         :param grain: The grain to run the builder for.
+        :param story_date: The start date of data of story generation
         """
         # Get instances of the required services and database session
         query_service = await get_query_manager_client()
@@ -108,17 +112,10 @@ class StoryManager:
             analysis_service,
             analysis_manager=analysis_manager,
             db_session=db_session,
+            story_date=story_date,
         )
 
-        # If a grain is provided, use it, otherwise use all supported grains
-        grains = [grain] if grain else story_builder.supported_grains
-
         # Run the story builder for the metrics
-        for grain in grains:
-            logger.info(f"Generating stories for grain: {grain}")
-            try:
-                await story_builder.run(metric_id, grain)
-                logger.info(f"Stories generated for metric {metric_id} with grain {grain}")
-            except Exception as e:
-                logger.exception(f"Error generating stories for metric {metric_id} with grain {grain}: {str(e)}")
-                continue
+        logger.info(f"Generating stories for grain: {grain}")
+        await story_builder.run(metric_id, grain)
+        logger.info(f"Stories generated for metric {metric_id} with grain {grain}")

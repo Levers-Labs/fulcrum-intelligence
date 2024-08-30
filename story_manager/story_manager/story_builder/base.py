@@ -199,7 +199,7 @@ class StoryBuilderBase(ABC):
         story_texts = self._render_story_texts(story_type, grain=grain, metric=metric, **extra_context)
 
         return {
-            "metric_id": metric["id"],
+            "metric_id": metric["metric_id"],
             "genre": self.genre,
             "story_group": self.group,
             "story_type": story_type,

@@ -15,8 +15,10 @@ grain = Granularity.MONTH
 
 
 @pytest.fixture
-def long_range_story_builder(mock_query_service, mock_analysis_service, mock_analysis_manager, mock_db_session):
-    mock_query_service.get_metric = AsyncMock(return_value={"id": "metric_1", "label": "Metric 1"})
+def long_range_story_builder(
+    mock_query_service, mock_analysis_service, mock_analysis_manager, mock_db_session, get_metric_resp
+):
+    mock_query_service.get_metric = AsyncMock(return_value=get_metric_resp)
     return LongRangeStoryBuilder(mock_query_service, mock_analysis_service, mock_analysis_manager, mock_db_session)
 
 

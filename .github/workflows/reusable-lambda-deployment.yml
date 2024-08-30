@@ -15,6 +15,10 @@ on:
         description: 'Dynamically generated tag, format curdate_curtime'
         required: true
         type: string
+      app_host:
+        description: 'application host url'
+        required: true
+        type: string
 
     secrets:
       AWS_REGION:
@@ -53,3 +57,38 @@ jobs:
             --region ${{ secrets.AWS_REGION }} \
             --function-name ${{ inputs.app_lambda_function_name }} \
             --image-uri $IMAGE_URI
+
+      - name: Publish New Version of Lambda Function
+        run: |
+            aws lambda wait function-updated --function-name ${{ inputs.app_lambda_function_name }}
+            VERSION=$(aws lambda publish-version \
+            --function-name ${{ inputs.app_lambda_function_name }} \
+            --query 'Version' --output text)
+            echo "VERSION=$VERSION" >> $GITHUB_ENV
+
+      - name: Test /health endpoint
+        id: test
+        run: |
+          # Test the /health endpoint
+          curl --fail ${{ inputs.app_host }}/v1/health || exit 1
+
+      - name: Move alias to New version
+        if: success()
+        run: |
+          aws lambda update-alias \
+          --function-name ${{ inputs.app_lambda_function_name }} \
+          --name live \
+          --function-version ${{ env.VERSION }}
+
+      - name: Rollback if needed
+        if: failure()
+        run: |
+          # Rollback to the previous Lambda version using alias
+          PREV_VERSION=$(aws lambda list-versions-by-function \
+                        --region ${{ secrets.AWS_REGION }} \
+                        --function-name ${{ inputs.app_lambda_function_name }} \
+                        --query 'Versions[-2].Version' --output text)
+          aws lambda update-alias \
+          --region ${{ secrets.AWS_REGION }} \
+          --function-name ${{ inputs.app_lambda_function_name }} \
+          --name live --function-version $PREV_VERSION

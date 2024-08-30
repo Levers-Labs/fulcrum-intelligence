@@ -18,6 +18,14 @@ on:
           - DEV
           - STAGING
           - PROD
+      migration:
+        description: 'Migration is required'
+        type: choice
+        required: false
+        default: NO
+        options:
+          - YES
+          - NO
 
 env:
   ecr_repo: "insights-backend"
@@ -38,6 +46,7 @@ jobs:
       app_name: ${{ steps.set-vars.outputs.app_name }}
       app_lambda_function_name: ${{ steps.set-vars.outputs.app_lambda_function_name }}
       env: ${{ steps.set-vars.outputs.env }}
+      app_host: ${{ steps.set-vars.outputs.app_host }}
 
     steps:
       - name: set-vars
@@ -46,25 +55,30 @@ jobs:
           echo "ecr_repo=$ecr_repo" >> $GITHUB_OUTPUT
           echo "app_name=$app_name" >> $GITHUB_OUTPUT
           if ${{ github.event.inputs.environment == 'PROD'}}; then
+            echo "app_host=https://${{ vars.PROD_INSIGHT_BACKEND_HOST }}" >> $GITHUB_OUTPUT;
             echo "app_lambda_function_name=${app_lambda_function_prefix}-prod" >> $GITHUB_OUTPUT;
             echo "env=prod" >> $GITHUB_OUTPUT;
           elif ${{ github.event.inputs.environment == 'STAGING' }}; then
+            echo "app_host=https://${{ vars.STAGING_INSIGHT_BACKEND_HOST }}" >> $GITHUB_OUTPUT;
             echo "app_lambda_function_name=${app_lambda_function_prefix}-staging" >> $GITHUB_OUTPUT;
             echo "env=staging" >> $GITHUB_OUTPUT;
           else
+            echo "app_host=https://${{ vars.DEV_INSIGHT_BACKEND_HOST }}" >> $GITHUB_OUTPUT;
             echo "app_lambda_function_name=${app_lambda_function_prefix}-dev" >> $GITHUB_OUTPUT;
             echo "env=dev" >> $GITHUB_OUTPUT;
           fi
 
-  build_and_deploy:
+  build_migrate_deploy:
     needs: set-vars
     uses: ./.github/workflows/reusable-ci-cd.yml
     with:
         ecr_repo: ${{ needs.set-vars.outputs.ecr_repo }}
         app_name: ${{ needs.set-vars.outputs.app_name }}
         app_lambda_function_name: ${{ needs.set-vars.outputs.app_lambda_function_name }}
-
+        app_host: ${{ needs.set-vars.outputs.app_host }}
+        migration: ${{ github.event.inputs.migration }}
     secrets:
       ECR_REGISTRY: ${{ secrets.ECR_REGISTRY }}
       AWS_REGION: ${{ secrets.AWS_REGION }}
       DEV_DEPLOYMENT_ROLE: ${{ secrets.DEV_DEPLOYMENT_ROLE }}
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
