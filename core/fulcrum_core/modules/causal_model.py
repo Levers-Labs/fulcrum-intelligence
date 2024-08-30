@@ -117,53 +117,28 @@ class CausalModelAnalyzer(BaseAnalyzer):
         """
         Extracts columns and graph edges from the hierarchy of influencers.
 
-        This method processes the hierarchy of influencers to extract the relevant columns and graph edges
-        for building a causal graph. It starts from the target metric and traverses through its influences,
-        normalizing the metric names and collecting the necessary information.
-
         Parameters:
-        influencers (list): A list of influencer dictionaries, where each dictionary contains
-        'metric_id' and 'influences'.
+        influencers (list): A list of influencer dictionaries.
 
         Returns:
         tuple: A tuple containing a list of columns and a list of graph edges.
-
-        Notes:
-        - The 'influencers' parameter should be a list of dictionaries, each with 'metric_id'
-        and optionally 'influences'.
-        - The method normalizes metric names using the 'normalize_name' method.
-        - The method handles cases where the input structure may be malformed or incomplete.
         """
-        columns = set()
+        columns = {self.target_metric_id}
         graph_edges = []
-        # Initialize the processing queue with the target metric and its influencers
         nodes_to_process = [{"metric_id": self.target_metric_id, "influences": influencers}]
 
         while nodes_to_process:
             node = nodes_to_process.pop(0)
-            # Ensure the node is a dictionary and contains a 'metric_id'
-            if not isinstance(node, dict) or "metric_id" not in node:
-                continue
+            if isinstance(node, dict) and "metric_id" in node:
+                target_metric = node["metric_id"]
+                columns.add(target_metric)
 
-            # Normalize the target metric name and add it to the columns set
-            target_metric = self.normalize_name(node["metric_id"])
-            columns.add(target_metric)
-
-            # Check if the node has 'influences' and if it is a list
-            if "influences" not in node or not isinstance(node["influences"], list):
-                continue
-
-            for influence in node["influences"]:
-                # Ensure the influence is a dictionary and contains a 'metric_id'
-                if not isinstance(influence, dict) or "metric_id" not in influence:
-                    continue
-
-                # Normalize the source metric name, add it to the columns set, and create a graph edge
-                source_metric = influence["metric_id"]
-                columns.add(source_metric)
-                graph_edges.append(f"{self.normalize_name(source_metric)} -> {target_metric}")
-                # Add the influence to the processing queue
-                nodes_to_process.append(influence)
+                for influence in node.get("influences", []):
+                    if isinstance(influence, dict) and "metric_id" in influence:
+                        source_metric = influence["metric_id"]
+                        columns.add(source_metric)
+                        graph_edges.append(f"{source_metric} -> {target_metric}")
+                        nodes_to_process.append(influence)
 
         return list(columns), graph_edges
 
@@ -443,9 +418,9 @@ class CausalModelAnalyzer(BaseAnalyzer):
             factor_columns = [col for col in columns if col != self.target_metric_id and col != "date"]
             factor_columns.append(self.target_metric_id)
 
-            # Normalize column names and update the graph definition accordingly
-            normalized_factor_columns = {self.normalize_name(col): col for col in factor_columns}
-            updated_graph_definition = self._update_graph_definition(graph_definition, normalized_factor_columns)
+            # Get column names and update the graph definition accordingly
+            factor_columns_dict = {col: col for col in factor_columns}
+            updated_graph_definition = self._update_graph_definition(graph_definition, factor_columns_dict)
 
             # Extract relationships from the updated graph definition
             self._update_relationships(updated_graph_definition)
@@ -528,23 +503,24 @@ class CausalModelAnalyzer(BaseAnalyzer):
             logger.error(f"Exception occurred in causal_analysis method: {e}")
             return {"error": str(e)}
 
-    def _update_graph_definition(self, graph_definition: str, normalized_factor_columns: dict) -> str:
+    def _update_graph_definition(self, graph_definition: str, factor_columns_dict: dict) -> str:
         """
-        Updates the graph definition by replacing the source and destination nodes with their normalized counterparts.
+        Updates the graph definition by replacing the source and destination nodes with their
+        counterparts.
 
         Args:
             graph_definition (str): The original graph definition in DOT format.
-            normalized_factor_columns (dict): A dictionary mapping original node names to their normalized names.
+            factor_columns_dict (dict): A dictionary mapping original node names to their names.
 
         Returns:
-            str: The updated graph definition with normalized node names.
+            str: The updated graph definition with node names.
         """
         # Extract the edges from the graph definition
         graph_edges = graph_definition.split("digraph { ")[1].strip(" }").split("; ")
 
-        # Update the edges with normalized node names
+        # Update the edges
         updated_edges = [
-            f"{normalized_factor_columns.get(src, src)} -> {normalized_factor_columns.get(dst, dst)}"
+            f"{factor_columns_dict.get(src, src)} -> {factor_columns_dict.get(dst, dst)}"
             for edge in graph_edges
             if "->" in edge  # Ensure the edge contains a relationship
             for src, dst in [edge.split(" -> ")]  # Split the edge into source and destination nodes
@@ -699,6 +675,3 @@ class CausalModelAnalyzer(BaseAnalyzer):
             for source, target in re.findall(r"(\w+)\s*->\s*(\w+)", graph_definition)
             if target != self.target_metric_id
         ]
-
-    def normalize_name(self, name):
-        return name.lower().replace("_", "").replace(" ", "")

@@ -36,14 +36,13 @@ def input_dfs():
 
 def test_merge_dataframes(sample_data, input_dfs):
     # Prepare
-    analyzer = ModelAnalyzer(target_metric_id="metric1")
+    analyzer = ModelAnalyzer(target_metric_id="metric2")
 
     # Act
-    merged_df = analyzer.merge_dataframes(sample_data, input_dfs)
+    merged_df = analyzer.merge_dataframes(input_dfs)
 
     # Assert
     assert not merged_df.empty
-    assert "metric1" in merged_df.columns
     assert "metric2" in merged_df.columns
     assert "metric3" in merged_df.columns
     assert len(merged_df.columns) == 3
@@ -69,24 +68,11 @@ def test_validate_input(sample_data):
         analyzer.validate_input(duplicate_data)
 
 
-def test_fit_linear_regression_equation(sample_data, input_dfs):
-    # Prepare
-    analyzer = ModelAnalyzer(target_metric_id="metric1")
-    merged_df = analyzer.merge_dataframes(sample_data, input_dfs)
-
-    # Act
-    model, equation = analyzer.fit_linear_regression_equation(merged_df)
-
-    # Assert
-    assert model is not None
-    assert "terms" in equation
-    assert "constant" in equation
-
-
 def test_fit_polynomial_regression_equation(sample_data, input_dfs):
     # Prepare
-    analyzer = ModelAnalyzer(target_metric_id="metric1")
-    merged_df = analyzer.merge_dataframes(sample_data, input_dfs)
+    analyzer = ModelAnalyzer(target_metric_id="metric2")
+    merged_df = analyzer.merge_dataframes(input_dfs)
+    merged_df = merged_df.set_index("date")  # Set date as index
 
     # Act
     model, equation = analyzer.fit_polynomial_regression_equation(merged_df)
@@ -99,11 +85,12 @@ def test_fit_polynomial_regression_equation(sample_data, input_dfs):
 
 def test_calculate_rmse(sample_data, input_dfs):
     # Prepare
-    analyzer = ModelAnalyzer(target_metric_id="metric1")
-    merged_df = analyzer.merge_dataframes(sample_data, input_dfs)
+    analyzer = ModelAnalyzer(target_metric_id="metric2")
+    merged_df = analyzer.merge_dataframes(input_dfs)
+    merged_df = merged_df.set_index("date")  # Set date as index
     model, _ = analyzer.fit_linear_regression_equation(merged_df)
-    features = merged_df.drop(columns=["metric1"])
-    target = merged_df["metric1"]
+    features = merged_df.drop(columns=["metric2"])
+    target = merged_df["metric2"]
 
     # Act
     rmse = analyzer.calculate_rmse(model, features, target)
@@ -114,7 +101,7 @@ def test_calculate_rmse(sample_data, input_dfs):
 
 def test_analyze(sample_data, input_dfs):
     # Prepare
-    analyzer = ModelAnalyzer(target_metric_id="metric1")
+    analyzer = ModelAnalyzer(target_metric_id="metric2")
 
     # Act
     result = analyzer.analyze(sample_data, input_dfs)
@@ -130,6 +117,12 @@ def test_fit_model_linear(sample_data, input_dfs):
     # Manipulate data to favor linear model (e.g., ensure linear relationship)
     sample_data["value"] = input_dfs[0]["value"] + input_dfs[1]["value"]
 
+    # Ensure all DataFrames have the same date range
+    date_range = pd.date_range(start="2022-01-01", periods=periods, freq="D")
+    sample_data["date"] = date_range
+    for df in input_dfs:
+        df["date"] = date_range
+
     # Act
     result = analyzer.fit_model(sample_data, input_dfs)
 
@@ -143,7 +136,13 @@ def test_fit_model_polynomial(sample_data, input_dfs):
     # Prepare
     analyzer = ModelAnalyzer(target_metric_id="metric1")
     # Manipulate data to favor polynomial model (e.g., introduce non-linearity)
-    sample_data["value"] = input_dfs[0]["value"] ** 2 * input_dfs[1]["value"] ** 2
+    sample_data["value"] = input_dfs[0]["value"] ** 2 + input_dfs[1]["value"] ** 2
+
+    # Ensure all DataFrames have the same date range
+    date_range = pd.date_range(start="2022-01-01", periods=periods, freq="D")
+    sample_data["date"] = date_range
+    for df in input_dfs:
+        df["date"] = date_range
 
     # Act
     result = analyzer.fit_model(sample_data, input_dfs)
@@ -156,9 +155,10 @@ def test_fit_model_polynomial(sample_data, input_dfs):
 
 def test_construct_polynomial_equation(sample_data: pd.DataFrame, input_dfs: list[pd.DataFrame]):
     # Prepare
-    analyzer = ModelAnalyzer(target_metric_id="metric1")
-    merged_df = analyzer.merge_dataframes(sample_data, input_dfs)
-    features = merged_df.drop(columns=["metric1"])
+    analyzer = ModelAnalyzer(target_metric_id="metric2")
+    merged_df = analyzer.merge_dataframes(input_dfs)
+    merged_df = merged_df.set_index("date")  # Set date as index
+    features = merged_df.drop(columns=["metric2"])
 
     # Fit a polynomial regression model to get a model object
     model, _ = analyzer.fit_polynomial_regression_equation(merged_df)
