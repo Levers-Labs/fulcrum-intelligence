@@ -101,12 +101,25 @@ jobs:
       - name: Update ECS task definition
         id: update-task-def
         run: |
-          # Fetch the current task definition JSON
-          task_def_json=$(aws ecs describe-task-definition --region ${{ secrets.AWS_REGION }} --task-definition ${{ vars.ECS_TASK_DEFINITION }} --query "taskDefinition" --output json)
+          # Fetch the current task definition JSON while ignoring current arn:version and other current version related details,
+          task_def_json=$(aws ecs describe-task-definition \
+                          --region ${{ secrets.AWS_REGION }} \
+                          --task-definition ${{ vars.ECS_TASK_DEFINITION }} \
+                          --query "{
+                                    containerDefinitions: taskDefinition.containerDefinitions,
+                                    family: taskDefinition.family,
+                                    executionRoleArn: taskDefinition.executionRoleArn,
+                                    volumes: taskDefinition.volumes,
+                                    placementConstraints: taskDefinition.placementConstraints,
+                                    cpu: taskDefinition.cpu,
+                                    memory: taskDefinition.memory
+                                  }"
+                          --output json)
 
-          # Update the image in the task definition
-          new_task_def=$(echo "$task_def_json" | jq --arg new_image "${{ steps.build-app-image.image }}" \
-            '.containerDefinitions[0].image = $new_image | .containerDefinitions[0].image')
+          # Modify the task definition to update the image name with the provided full image
+          NEW_TASK_DEFINITION=$(echo "$TASK_DEFINITION" | sed "s|\"image\": \".*\"|\"image\": \"${{ steps.build-app-image.image }}\"|")
 
-          # Register the new task definition
-          aws ecs register-task-definition --cli-input-json "$task_def_json"
+          # Register the modified task definition
+          NEW_TASK_INFO=$(aws ecs register-task-definition \
+                          --region ${{ secrets.AWS_REGION }} \
+                          --cli-input-json "$NEW_TASK_DEFINITION")
