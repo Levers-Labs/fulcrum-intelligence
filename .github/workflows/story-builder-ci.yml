@@ -113,7 +113,7 @@ jobs:
                                     placementConstraints: taskDefinition.placementConstraints,
                                     cpu: taskDefinition.cpu,
                                     memory: taskDefinition.memory
-                                  }"
+                                  }" \
                           --output json)
 
           # Modify the task definition to update the image name with the provided full image
