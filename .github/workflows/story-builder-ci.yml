@@ -91,6 +91,13 @@ jobs:
     needs: build-app-image
 
     steps:
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-region: ${{ secrets.AWS_REGION }}
+          role-to-assume: ${{ secrets.DEV_DEPLOYMENT_ROLE }}
+          role-session-name: OIDCSession
+
       - name: Update ECS task definition
         id: update-task-def
         run: |

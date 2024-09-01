@@ -47,6 +47,7 @@ jobs:
       app_lambda_function_name: ${{ steps.set-vars.outputs.app_lambda_function_name }}
       env: ${{ steps.set-vars.outputs.env }}
       app_host: ${{ steps.set-vars.outputs.app_host }}
+      migration: ${{ steps.set-vars.outputs.migration }}
 
     steps:
       - name: set-vars
