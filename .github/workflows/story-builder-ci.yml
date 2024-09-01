@@ -54,6 +54,9 @@ jobs:
     runs-on: ubuntu-latest
     needs: [ set-vars, generate-tag ]
 
+    outputs:
+      image: ${{ steps.build-and-push.outputs.image }}
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
@@ -82,14 +85,12 @@ jobs:
 
           echo "Pushing Image to ECR"
           docker push $IMAGE
-          echo "image=$IMAGE" >> $GITHUB_OUTPUT
+          echo "image=${IMAGE}" >> $GITHUB_OUTPUT
 
-    outputs:
-      image: ${{ steps.build-and-push.outputs.image }}
 
   update-task-definition:
     runs-on: ubuntu-latest
-    needs: build-app-image
+    needs: [build-app-image]
 
     steps:
       - name: Configure AWS Credentials
