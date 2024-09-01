@@ -1,0 +1,105 @@
+name: Build and Upload Story Builder Image
+
+on:
+  push:
+    branches:
+      - LEV-418_CI_STORY_BUILDER
+#    paths:
+#        - 'story_manager/**'
+#        - 'commons/**'
+#        - 'core/**'
+
+  workflow_dispatch:
+
+env:
+  ecr_repo: "story-builder"
+  app_name: "story_manager"
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  set-vars:
+    name: set-vars
+    runs-on: ubuntu-latest
+
+    outputs:
+      ecr_repo: ${{ steps.set-vars.outputs.ecr_repo }}
+      app_name: ${{ steps.set-vars.outputs.app_name }}
+
+    steps:
+      - name: set-vars
+        id: set-vars
+        run: |
+          echo "ecr_repo=$ecr_repo" >> $GITHUB_OUTPUT
+          echo "app_name=$app_name" >> $GITHUB_OUTPUT
+
+  generate-tag:
+    name: generate-tag
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Branch
+        uses: actions/checkout@v3
+
+      - name: Generate TAG
+        id: generate-tag
+        run: |
+          COMMIT_HASH=$(git rev-parse HEAD)
+          echo "tag_id=${COMMIT_HASH}_$(date +%Y%m%d_%H%M%S)" >> $GITHUB_OUTPUT
+    outputs:
+      tag_id: ${{ steps.generate-tag.outputs.tag_id }}
+
+  build-app-image:
+    runs-on: ubuntu-latest
+    needs: [ set-vars, generate-tag ]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-region: ${{ secrets.AWS_REGION }}
+          role-to-assume: ${{ secrets.DEV_DEPLOYMENT_ROLE }}
+          role-session-name: OIDCSession
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v1
+
+      - name: build-and-push
+        working-directory: .
+        run: |
+          IMAGE_TAG="${{ secrets.ECR_REGISTRY }}/${{ needs.set-vars.outputs.ecr_repo }}:${{ needs.generate-tag.outputs.tag_id }}"
+
+          echo "Building and tagging the image"
+          docker build \
+          -t $IMAGE_TAG \
+          -f ${{ needs.set-vars.outputs.app_name }}/Dockerfile.story_builder .
+
+          echo "Pushing Image to ECR"
+          docker push $IMAGE_TAG
+          echo "image=$IMAGE_TAG" >> $GITHUB_OUTPUT
+
+    outputs:
+      image: ${{ steps.build-and-push.outputs.image }}
+
+  update-task-definition:
+    runs-on: ubuntu-latest
+    needs: build-app-image
+
+    steps:
+      - name: Update ECS task definition
+        id: update-task-def
+        run: |
+          # Fetch the current task definition JSON
+          task_def_json=$(aws ecs describe-task-definition --region ${{ secrets.AWS_REGION }} --task-definition ${{ vars.ECS_TASK_DEFINITION }} --query "taskDefinition" --output json)
+
+          # Update the image in the task definition
+          new_task_def=$(echo "$task_def_json" | jq --arg new_image "${{ steps.build-app-image.image }}" \
+            '.containerDefinitions[0].image = $new_image | .containerDefinitions[0].image')
+
+          # Register the new task definition
+          aws ecs register-task-definition --cli-input-json "$task_def_json"

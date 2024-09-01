@@ -3,10 +3,10 @@ name: Deploy Insight Backend to AWS Lambda
 on:
   push:
     branches:
-      - main
-    paths:
-        - 'insights_backend/**'
-        - 'commons/**'
+      - LEV-418_CI_STORY_BUILDER
+#    paths:
+#        - 'insights_backend/**'
+#        - 'commons/**'
 
   workflow_dispatch:
     inputs:
@@ -18,14 +18,14 @@ on:
           - DEV
           - STAGING
           - PROD
-      migration:
-        description: 'Migration is required'
-        type: choice
-        required: false
-        default: NO
-        options:
-          - YES
-          - NO
+#      migration:
+#        description: 'Migration is required'
+#        type: choice
+#        required: false
+#        default: NO
+#        options:
+#          - YES
+#          - NO
 
 env:
   ecr_repo: "insights-backend"
@@ -54,6 +54,7 @@ jobs:
         run: |
           echo "ecr_repo=$ecr_repo" >> $GITHUB_OUTPUT
           echo "app_name=$app_name" >> $GITHUB_OUTPUT
+          echo "migration=true" >> $GITHUB_OUTPUT
           if ${{ github.event.inputs.environment == 'PROD'}}; then
             echo "app_host=https://${{ vars.PROD_INSIGHT_BACKEND_HOST }}" >> $GITHUB_OUTPUT;
             echo "app_lambda_function_name=${app_lambda_function_prefix}-prod" >> $GITHUB_OUTPUT;
@@ -76,7 +77,7 @@ jobs:
         app_name: ${{ needs.set-vars.outputs.app_name }}
         app_lambda_function_name: ${{ needs.set-vars.outputs.app_lambda_function_name }}
         app_host: ${{ needs.set-vars.outputs.app_host }}
-        migration: ${{ github.event.inputs.migration }}
+        migration: ${{ needs.set-vars.outputs.migration }}
     secrets:
       ECR_REGISTRY: ${{ secrets.ECR_REGISTRY }}
       AWS_REGION: ${{ secrets.AWS_REGION }}
