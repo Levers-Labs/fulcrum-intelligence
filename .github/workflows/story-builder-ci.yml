@@ -117,7 +117,7 @@ jobs:
                           --output json)
 
           # Modify the task definition to update the image name with the provided full image
-          NEW_TASK_DEFINITION=$(echo "$TASK_DEFINITION" | sed "s|\"image\": \".*\"|\"image\": \"${{ steps.build-app-image.image }}\"|")
+          NEW_TASK_DEFINITION=$(echo "$TASK_DEFINITION" | sed "s|\"image\": \".*\"|\"image\": ${{ needs.build-app-image.outputs.image }}|")
 
           # Register the modified task definition
           NEW_TASK_INFO=$(aws ecs register-task-definition \
