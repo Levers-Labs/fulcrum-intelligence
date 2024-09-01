@@ -70,18 +70,19 @@ jobs:
         uses: aws-actions/amazon-ecr-login@v1
 
       - name: build-and-push
+        id: build-and-push
         working-directory: .
         run: |
-          IMAGE_TAG="${{ secrets.ECR_REGISTRY }}/${{ needs.set-vars.outputs.ecr_repo }}:${{ needs.generate-tag.outputs.tag_id }}"
+          IMAGE="${{ secrets.ECR_REGISTRY }}/${{ needs.set-vars.outputs.ecr_repo }}:${{ needs.generate-tag.outputs.tag_id }}"
 
           echo "Building and tagging the image"
           docker build \
-          -t $IMAGE_TAG \
+          -t $IMAGE \
           -f ${{ needs.set-vars.outputs.app_name }}/Dockerfile.story_builder .
 
           echo "Pushing Image to ECR"
-          docker push $IMAGE_TAG
-          echo "image=$IMAGE_TAG" >> $GITHUB_OUTPUT
+          docker push $IMAGE
+          echo "image=$IMAGE" >> $GITHUB_OUTPUT
 
     outputs:
       image: ${{ steps.build-and-push.outputs.image }}
