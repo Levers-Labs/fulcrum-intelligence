@@ -102,7 +102,7 @@ jobs:
         id: update-task-def
         run: |
           # Fetch the current task definition JSON while ignoring current arn:version and other current version related details,
-          task_def_json=$(aws ecs describe-task-definition \
+          TASK_DEFINITION=$(aws ecs describe-task-definition \
                           --region ${{ secrets.AWS_REGION }} \
                           --task-definition ${{ vars.ECS_TASK_DEFINITION }} \
                           --query "{
