@@ -103,7 +103,6 @@ jobs:
       - name: Update ECS task definition
         id: update-task-def
         run: |
-#          IMAGE=${{needs.build-app-image.outputs.image }}
           IMAGE="${{ secrets.ECR_REGISTRY }}/${{ needs.set-vars.outputs.ecr_repo }}:${{ needs.generate-tag.outputs.tag_id }}"
 
           # Fetch the current task definition JSON while ignoring current arn:version and other current version related details,
