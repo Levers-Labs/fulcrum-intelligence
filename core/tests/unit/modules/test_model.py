@@ -1,3 +1,5 @@
+from unittest.mock import patch
+
 import numpy as np
 import pandas as pd
 import pytest
@@ -99,55 +101,51 @@ def test_calculate_rmse(sample_data, input_dfs):
     assert rmse >= 0
 
 
-def test_analyze(sample_data, input_dfs):
+@patch.object(ModelAnalyzer, "merge_dataframes")
+def test_analyze(mock_merge, sample_data, input_dfs, mock_merged_df):
     # Prepare
     analyzer = ModelAnalyzer(target_metric_id="metric2")
+    mock_merge.return_value = mock_merged_df
 
     # Act
     result = analyzer.analyze(sample_data, input_dfs)
 
     # Assert
+    mock_merge.assert_called_once()
     assert "model" in result
     assert "equation" in result
 
 
-def test_fit_model_linear(sample_data, input_dfs):
+@patch.object(ModelAnalyzer, "merge_dataframes")
+def test_fit_model_linear(mock_merge, sample_data, input_dfs, mock_merged_df):
     # Prepare
-    analyzer = ModelAnalyzer(target_metric_id="metric1")
-    # Manipulate data to favor linear model (e.g., ensure linear relationship)
-    sample_data["value"] = input_dfs[0]["value"] + input_dfs[1]["value"]
+    analyzer = ModelAnalyzer(target_metric_id="metric2")
+    mock_merge.return_value = mock_merged_df
 
-    # Ensure all DataFrames have the same date range
-    date_range = pd.date_range(start="2022-01-01", periods=periods, freq="D")
-    sample_data["date"] = date_range
-    for df in input_dfs:
-        df["date"] = date_range
+    # Act
+    result = analyzer.analyze(sample_data, input_dfs)
+
+    # Assert
+    mock_merge.assert_called_once()
+    assert "model" in result
+    assert "equation" in result
+    assert isinstance(result["model"].steps[1][1], LinearRegression)
+
+
+@patch.object(ModelAnalyzer, "merge_dataframes")
+def test_fit_model_polynomial(mock_merge, sample_data, input_dfs, mock_merged_df):
+    # Prepare
+    analyzer = ModelAnalyzer(target_metric_id="metric2")
+    mock_merge.return_value = mock_merged_df
+
+    # Manipulate mock data to favor polynomial model
+    mock_merged_df["metric2"] = mock_merged_df["metric2"] ** 2 + mock_merged_df["metric3"] ** 2
 
     # Act
     result = analyzer.fit_model(sample_data, input_dfs)
 
     # Assert
-    assert "model" in result
-    assert "equation" in result
-    assert isinstance(result["model"], LinearRegression)
-
-
-def test_fit_model_polynomial(sample_data, input_dfs):
-    # Prepare
-    analyzer = ModelAnalyzer(target_metric_id="metric1")
-    # Manipulate data to favor polynomial model (e.g., introduce non-linearity)
-    sample_data["value"] = input_dfs[0]["value"] ** 2 + input_dfs[1]["value"] ** 2
-
-    # Ensure all DataFrames have the same date range
-    date_range = pd.date_range(start="2022-01-01", periods=periods, freq="D")
-    sample_data["date"] = date_range
-    for df in input_dfs:
-        df["date"] = date_range
-
-    # Act
-    result = analyzer.fit_model(sample_data, input_dfs)
-
-    # Assert
+    mock_merge.assert_called_once()
     assert "model" in result
     assert "equation" in result
     assert isinstance(result["model"], Pipeline)

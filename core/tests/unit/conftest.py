@@ -2,6 +2,7 @@ import json
 import pathlib
 from datetime import date
 
+import numpy as np
 import pandas as pd
 import pytest
 from config import Paths
@@ -893,3 +894,14 @@ def segment_drift_output():
             "region:Asia|stage_name:Procurement",
         ],
     }
+
+
+@pytest.fixture
+def mock_merged_df():
+    periods = 50
+    data = {
+        "date": pd.date_range(start="2022-01-01", periods=periods, freq="D"),
+        "metric2": np.random.randint(10, 20, periods),
+        "metric3": np.random.randint(30, 50, periods),
+    }
+    return pd.DataFrame(data).set_index("date")
