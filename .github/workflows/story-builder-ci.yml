@@ -121,7 +121,10 @@ jobs:
                           --output json)
 
           # Modify the task definition to update the image name with the provided full image
-          NEW_TASK_DEFINITION=$(echo "$TASK_DEFINITION" | sed "s|\"image\": \".*\"|\"image\": \"$IMAGE\"|")
+          NEW_TASK_DEFINITION=$(echo "$TASK_DEFINITION" | jq --arg new_image "$IMAGE" \
+                                '.containerDefinitions[0].image = $new_image |
+                                 .requiresCompatibilities = ["FARGATE"] |
+                                 .networkMode = "awsvpc"')
 
           # Register the modified task definition
           NEW_TASK_INFO=$(aws ecs register-task-definition \
