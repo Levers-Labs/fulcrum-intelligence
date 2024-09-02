@@ -90,7 +90,7 @@ jobs:
 
   update-task-definition:
     runs-on: ubuntu-latest
-    needs: [ build-app-image]
+    needs: [ set-vars, generate-tag, build-app-image ]
 
     steps:
       - name: Configure AWS Credentials
@@ -103,7 +103,9 @@ jobs:
       - name: Update ECS task definition
         id: update-task-def
         run: |
-          IMAGE=${{needs.build-app-image.outputs.image }}
+#          IMAGE=${{needs.build-app-image.outputs.image }}
+          IMAGE="${{ secrets.ECR_REGISTRY }}/${{ needs.set-vars.outputs.ecr_repo }}:${{ needs.generate-tag.outputs.tag_id }}"
+
           # Fetch the current task definition JSON while ignoring current arn:version and other current version related details,
           TASK_DEFINITION=$(aws ecs describe-task-definition \
                           --region ${{ secrets.AWS_REGION }} \
