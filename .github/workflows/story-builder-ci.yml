@@ -115,8 +115,7 @@ jobs:
                                     volumes: taskDefinition.volumes,
                                     placementConstraints: taskDefinition.placementConstraints,
                                     cpu: taskDefinition.cpu,
-                                    memory: taskDefinition.memory,
-                                    compatibilities: taskDefinition.compatibilities
+                                    memory: taskDefinition.memory
                                   }" \
                           --output json)
 
