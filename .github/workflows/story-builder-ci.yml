@@ -3,11 +3,11 @@ name: Build and Upload Story Builder Image
 on:
   push:
     branches:
-      - LEV-418_CI_STORY_BUILDER
-#    paths:
-#        - 'story_manager/**'
-#        - 'commons/**'
-#        - 'core/**'
+      - main
+    paths:
+        - 'story_manager/**'
+        - 'commons/**'
+        - 'core/**'
 
   workflow_dispatch:
 
