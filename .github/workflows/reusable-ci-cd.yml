@@ -22,8 +22,8 @@ on:
       migration:
         description: 'flag to identify if migration is required'
         required: false
-        default: "false"
-        type: string
+        default: false
+        type: boolean
 
     secrets:
       AWS_REGION:

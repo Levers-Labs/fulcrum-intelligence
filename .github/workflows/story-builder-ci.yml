@@ -3,11 +3,11 @@ name: Build and Upload Story Builder Image
 on:
   push:
     branches:
-      - LEV-418_CI_STORY_BUILDER
-#    paths:
-#        - 'story_manager/**'
-#        - 'commons/**'
-#        - 'core/**'
+      - main
+    paths:
+        - 'story_manager/**'
+        - 'commons/**'
+        - 'core/**'
 
   workflow_dispatch:
 
@@ -105,34 +105,3 @@ jobs:
           task-definition: ./fulcrum_airflow/deployment/ecs/${{ vars.ECS_TASK_DEFINITION }}.json
           container-name: "story-builder-manager"
           image: "${{ secrets.ECR_REGISTRY }}/${{ needs.set-vars.outputs.ecr_repo }}:${{ needs.generate-tag.outputs.tag_id }}"
-
-#      - name: Update ECS task definition
-#        id: update-task-def
-#        run: |
-#          IMAGE="${{ secrets.ECR_REGISTRY }}/${{ needs.set-vars.outputs.ecr_repo }}:${{ needs.generate-tag.outputs.tag_id }}"
-#
-#          # Fetch the current task definition JSON while ignoring current arn:version and other current version related details,
-#          TASK_DEFINITION=$(aws ecs describe-task-definition \
-#                          --region ${{ secrets.AWS_REGION }} \
-#                          --task-definition ${{ vars.ECS_TASK_DEFINITION }} \
-#                          --query "{
-#                                    containerDefinitions: taskDefinition.containerDefinitions,
-#                                    family: taskDefinition.family,
-#                                    executionRoleArn: taskDefinition.executionRoleArn,
-#                                    volumes: taskDefinition.volumes,
-#                                    placementConstraints: taskDefinition.placementConstraints,
-#                                    cpu: taskDefinition.cpu,
-#                                    memory: taskDefinition.memory
-#                                  }" \
-#                          --output json)
-#
-#          # Modify the task definition to update the image name with the provided full image
-#          NEW_TASK_DEFINITION=$(echo "$TASK_DEFINITION" | jq --arg new_image "$IMAGE" \
-#                                '.containerDefinitions[0].image = $new_image |
-#                                 .requiresCompatibilities = ["FARGATE"] |
-#                                 .networkMode = "awsvpc"')
-#
-#          # Register the modified task definition
-#          NEW_TASK_INFO=$(aws ecs register-task-definition \
-#                          --region ${{ secrets.AWS_REGION }} \
-#                          --cli-input-json "$NEW_TASK_DEFINITION")

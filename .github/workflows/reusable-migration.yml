@@ -22,7 +22,7 @@ on:
       migration:
         description: 'migration flag, either true or false for migration'
         required: true
-        type: string
+        type: boolean
 
     secrets:
       DATABASE_URL:
@@ -41,7 +41,7 @@ on:
 jobs:
   migrate:
     runs-on: ubuntu-latest
-    if: ${{ inputs.migration == 'true' }}
+    if: ${{ inputs.migration == true }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -68,7 +68,7 @@ jobs:
 
   skip-message:
     runs-on: ubuntu-latest
-    if: ${{ inputs.migration == 'false' || inputs.migration == ''}}
+    if: ${{ inputs.migration == false || inputs.migration == ''}}
     steps:
       - name: Print skipping message
         run: echo "Skipping migrations as migration is not required."
