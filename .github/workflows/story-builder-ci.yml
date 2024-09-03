@@ -50,7 +50,7 @@ jobs:
     outputs:
       tag_id: ${{ steps.generate-tag.outputs.tag_id }}
 
-  build-app-image:
+  build-and-push:
     runs-on: ubuntu-latest
     needs: [ set-vars, generate-tag ]
 
@@ -83,7 +83,7 @@ jobs:
           -t $IMAGE \
           -f ${{ needs.set-vars.outputs.app_name }}/Dockerfile.story_builder .
 
-          echo "image_url=${IMAGE}" >> $GITHUB_OUTPUT
+          echo "image_url=$IMAGE" >> $GITHUB_OUTPUT
           echo "Pushing Image to ECR"
           docker push $IMAGE
 
@@ -105,7 +105,7 @@ jobs:
         with:
           task-definition: ./fulcrum_airflow/deployment/ecs/${{ vars.ECS_TASK_DEFINITION }}.json
           container-name: "story-builder-manager"
-          image: ${{ needs.build-app-image.outputs.image_url }}
+          image: ${{ needs.build-and-push.outputs.image_url }}
 
 #      - name: Update ECS task definition
 #        id: update-task-def
