@@ -6,6 +6,8 @@ from pathlib import Path
 from pydantic import AnyHttpUrl, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+from commons.utilities.context import get_tenant_id
+
 
 class StrEnum(str, Enum):
     pass
@@ -71,6 +73,8 @@ def get_settings() -> Settings:
     :return: Settings
     """
     global _settings
+    _ = get_tenant_id()
+    # update the configs based on tenant id
     if _settings is None:
         _settings = Settings()  # type: ignore
     return _settings

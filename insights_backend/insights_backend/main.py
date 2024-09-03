@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
 
-from commons.middleware import process_time_log_middleware, request_id_middleware
+from commons.middleware import clear_tenant_id_middleware, process_time_log_middleware, request_id_middleware
 from commons.utilities.docs import custom_openapi, setup_swagger_ui
 from commons.utilities.logger import setup_rich_logger
 from insights_backend.config import get_settings
@@ -12,7 +12,6 @@ from insights_backend.health import router as health_check_router
 
 def get_application() -> FastAPI:
     settings = get_settings()
-
     _app = FastAPI(
         title="Insights Backend",
         description="Insights Backend for Fulcrum Intelligence",
@@ -38,7 +37,7 @@ def get_application() -> FastAPI:
 
     # add process time log middleware
     _app.add_middleware(BaseHTTPMiddleware, dispatch=process_time_log_middleware)
-
+    _app.add_middleware(BaseHTTPMiddleware, dispatch=clear_tenant_id_middleware)
     # setup logging
     setup_rich_logger(settings)
 

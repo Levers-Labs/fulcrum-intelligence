@@ -8,6 +8,7 @@ from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer, SecurityScopes
 
 from commons.models import BaseModel
+from commons.utilities.context import set_tenant_id
 
 F = TypeVar("F", bound=Callable[..., Any])
 logger = logging.getLogger(__name__)
@@ -137,6 +138,7 @@ class Oauth2Auth:
 
             self._verify_token_claims(payload, claims_key, security_scopes.scopes)
 
+        set_tenant_id(payload.get("tenant_id", str(1)))
         user = await self.get_oauth_user(payload, token.credentials)
         return user
 
