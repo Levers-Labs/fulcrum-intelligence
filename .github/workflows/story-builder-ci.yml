@@ -88,6 +88,9 @@ jobs:
     needs: [ set-vars, generate-tag, build-and-push ]
 
     steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v1
         with:
