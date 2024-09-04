@@ -141,6 +141,7 @@ jobs:
         run: |
           # Read the content of the JSON file
           TASK_DEFINITION_JSON=$(cat ${{ steps.render-task-definition.outputs.task-definition }})
+          echo $TASK_DEFINITION_JSON
           NEW_TASK_INFO=$(aws ecs register-task-definition \
           --region ${{ secrets.AWS_REGION }} \
           --cli-input-json "$TASK_DEFINITION_JSON")
