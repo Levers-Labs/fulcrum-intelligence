@@ -101,6 +101,22 @@ jobs:
           role-to-assume: ${{ secrets.DEV_DEPLOYMENT_ROLE }}
           role-session-name: OIDCSession
 
+      - name: configure aws credentials
+        uses: dkershner6/aws-ssm-getparameters-action@v1
+        with:
+            parameterPairs: "/${{ needs.set-vars.outputs.ssm_path }}/ANALYSIS_MANAGER_SERVER_HOST = ANALYSIS_MANAGER_SERVER_HOST,
+               /${{ needs.set-vars.outputs.ssm_path }}/AUTH0_API_AUDIENCE = AUTH0_API_AUDIENCE,
+               /${{ needs.set-vars.outputs.ssm_path }}/AUTH0_CLIENT_ID = AUTH0_CLIENT_ID,
+               /${{ needs.set-vars.outputs.ssm_path }}/AUTH0_CLIENT_SECRET = AUTH0_CLIENT_SECRET,
+               /${{ needs.set-vars.outputs.ssm_path }}/AUTH0_ISSUER = AUTH0_ISSUER,
+               /${{ needs.set-vars.outputs.ssm_path }}/DATABASE_URL = DATABASE_URL,
+               /${{ needs.set-vars.outputs.ssm_path }}/INSIGHTS_BACKEND_SERVER_HOST = INSIGHTS_BACKEND_SERVER_HOST,
+               /${{ needs.set-vars.outputs.ssm_path }}/QUERY_MANAGER_SERVER_HOST = QUERY_MANAGER_SERVER_HOST,
+               /${{ needs.set-vars.outputs.ssm_path }}/SECRET_KEY = SECRET_KEY,
+               /${{ needs.set-vars.outputs.ssm_path }}/SERVER_HOST = SERVER_HOST,
+               /${{ needs.set-vars.outputs.ssm_path }}/ECS_TASK_EXECUTION_ROLE_ARN = ECS_TASK_EXECUTION_ROLE_ARN"
+            withDecryption: "true"
+
       - name: Render ECS task definition with latest image id
         id: render-task-definition
         uses: aws-actions/amazon-ecs-render-task-definition@v1
@@ -108,15 +124,23 @@ jobs:
           task-definition: ./fulcrum_airflow/deployment/ecs/${{ vars.ECS_TASK_DEFINITION }}.json
           container-name: "story-builder-manager"
           image: "${{ secrets.ECR_REGISTRY }}/${{ needs.set-vars.outputs.ecr_repo }}:${{ needs.generate-tag.outputs.tag_id }}"
+          environment-variables: |
+            ANALYSIS_MANAGER_SERVER_HOST=${{ env.ANALYSIS_MANAGER_SERVER_HOST }}
+            AUTH0_API_AUDIENCE=${{ env.AUTH0_API_AUDIENCE }}
+            AUTH0_CLIENT_ID=${{ env.AUTH0_CLIENT_ID }}
+            AUTH0_CLIENT_SECRET=${{ env.AUTH0_CLIENT_SECRET }}
+            AUTH0_ISSUER=${{ env.AUTH0_ISSUER }}
+            DATABASE_URL=${{ env.DATABASE_URL }}
+            INSIGHTS_BACKEND_SERVER_HOST=${{ env.INSIGHTS_BACKEND_SERVER_HOST }}
+            QUERY_MANAGER_SERVER_HOST=${{ env.QUERY_MANAGER_SERVER_HOST }}
+            SECRET_KEY=${{ env.SECRET_KEY }}
+            SERVER_HOST=${{ env.SERVER_HOST }}
 
       - name: Update ECS task definition
         id: update-task-def
         run: |
           # Read the content of the JSON file
           TASK_DEFINITION_JSON=$(cat ${{ steps.render-task-definition.outputs.task-definition }})
-          echo $TASK_DEFINITION_JSON
           NEW_TASK_INFO=$(aws ecs register-task-definition \
           --region ${{ secrets.AWS_REGION }} \
-          --cli-input-json "$TASK_DEFINITION_JSON" \
-          --debug
-          )
+          --cli-input-json "$TASK_DEFINITION_JSON")
