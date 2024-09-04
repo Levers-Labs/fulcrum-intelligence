@@ -113,7 +113,8 @@ jobs:
                /${{ needs.set-vars.outputs.ssm_path }}/INSIGHTS_BACKEND_SERVER_HOST = INSIGHTS_BACKEND_SERVER_HOST,
                /${{ needs.set-vars.outputs.ssm_path }}/QUERY_MANAGER_SERVER_HOST = QUERY_MANAGER_SERVER_HOST,
                /${{ needs.set-vars.outputs.ssm_path }}/SECRET_KEY = SECRET_KEY,
-               /${{ needs.set-vars.outputs.ssm_path }}/SERVER_HOST = SERVER_HOST"
+               /${{ needs.set-vars.outputs.ssm_path }}/SERVER_HOST = SERVER_HOST,
+               /${{ needs.set-vars.outputs.ssm_path }}/ECS_TASK_EXECUTION_ROLE_ARN = ECS_TASK_EXECUTION_ROLE_ARN"
             withDecryption: "true"
 
       - name: Render ECS task definition with latest image id
@@ -123,6 +124,7 @@ jobs:
           task-definition: ./fulcrum_airflow/deployment/ecs/${{ vars.ECS_TASK_DEFINITION }}.json
           container-name: "story-builder-manager"
           image: "${{ secrets.ECR_REGISTRY }}/${{ needs.set-vars.outputs.ecr_repo }}:${{ needs.generate-tag.outputs.tag_id }}"
+          ecs_execution_role_arn: "${{ env.ECS_TASK_EXECUTION_ROLE_ARN }}"
           environment-variables: |
             ANALYSIS_MANAGER_SERVER_HOST=${{ env.ANALYSIS_MANAGER_SERVER_HOST }}
             AUTH0_API_AUDIENCE=${{ env.AUTH0_API_AUDIENCE }}
