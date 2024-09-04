@@ -138,6 +138,8 @@ jobs:
       - name: Update ECS task definition
         id: update-task-def
         run: |
+          # Read the content of the JSON file
+          TASK_DEFINITION_JSON=$(cat ${{ steps.render-task-definition.outputs.task-definition }})
           NEW_TASK_INFO=$(aws ecs register-task-definition \
           --region ${{ secrets.AWS_REGION }} \
-          --cli-input-json "${{ steps.render-task-definition.outputs.task-definition }}")
+          --cli-input-json "$TASK_DEFINITION_JSON")
