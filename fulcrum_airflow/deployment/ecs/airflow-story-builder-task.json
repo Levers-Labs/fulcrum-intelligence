@@ -1,6 +1,6 @@
 {
   "family": "airflow-story-builder-task",
-  "executionRoleArn": "{{ ecs_execution_role_arn }}",
+  "executionRoleArn": "",
   "networkMode": "awsvpc",
   "requiresCompatibilities": ["FARGATE"],
   "cpu": "1024",

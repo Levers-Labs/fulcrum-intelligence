@@ -124,7 +124,7 @@ jobs:
           task-definition: ./fulcrum_airflow/deployment/ecs/${{ vars.ECS_TASK_DEFINITION }}.json
           container-name: "story-builder-manager"
           image: "${{ secrets.ECR_REGISTRY }}/${{ needs.set-vars.outputs.ecr_repo }}:${{ needs.generate-tag.outputs.tag_id }}"
-          ecs_execution_role_arn: "${{ env.ECS_TASK_EXECUTION_ROLE_ARN }}"
+          execution-role-arn: "${{ env.ECS_TASK_EXECUTION_ROLE_ARN }}"
           environment-variables: |
             ANALYSIS_MANAGER_SERVER_HOST=${{ env.ANALYSIS_MANAGER_SERVER_HOST }}
             AUTH0_API_AUDIENCE=${{ env.AUTH0_API_AUDIENCE }}
