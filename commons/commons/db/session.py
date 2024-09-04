@@ -10,25 +10,19 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from commons.db.engine import get_async_engine, get_engine
 
-# def apply_global_filter(select_stmt: select) -> select:
-#     # print("\n\n\n\n\n", select_stmt, "\n\n\n\n")
-#     # if not hasattr(select_stmt, '_filter_applied'):
-#     # '_where_criteria', '_whereclause'
-#     # 'is_delete', 'is_derived_from', 'is_dml', 'is_insert', 'is_select'
-#     # 'filter_by', 'from_statement', 'froms'
-#     select_stmt = select_stmt.where(and_("id" == 1))
-#         # select_stmt._filter_applied = True
-#     return select_stmt
-
 
 def before_execute(conn, clauseelement, multiparams, params):
-    if clauseelement.is_select or clauseelement.is_delete:
+    if hasattr(clauseelement, "froms") and clauseelement.froms:
         table = clauseelement.froms[0]
-        id_column = table.columns.get("id")
-        clauseelement = clauseelement.where(id_column == 1)
+        if "tenant_id" in table.columns:
+            if clauseelement.is_select or clauseelement.is_delete:
+                table = clauseelement.froms[0]
+                if "tenant_id" in table.columns:
+                    id_column = table.columns.get("id")
+                    clauseelement = clauseelement.where(id_column == 1)  # add tenant id here
 
-    elif clauseelement.is_insert:
-        params["tenant_id"] = 2
+            elif clauseelement.is_insert:
+                params["tenant_id"] = 2  # add tenant id here
 
     return clauseelement, multiparams, params
 
