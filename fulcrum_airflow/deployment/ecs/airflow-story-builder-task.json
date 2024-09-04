@@ -12,7 +12,20 @@
             "cpu": 0,
             "portMappings": [],
             "essential": true,
-            "environment": [],
+            "environment": [
+              {
+                "name": "SECRET_KEY",
+                "valueFrom": {
+                  "ssmParameter": "/story-builder/workflow/SECRET_KEY"
+                }
+              },
+              {
+                "name": "DATABASE_URL",
+                "valueFrom": {
+                  "ssmParameter": "/story-builder/workflow/DATABASE_URL"
+                }
+              }
+            ],
             "logConfiguration": {
                 "logDriver": "awslogs",
                 "options": {
