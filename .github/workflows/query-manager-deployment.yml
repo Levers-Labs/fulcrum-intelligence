@@ -11,14 +11,6 @@ on:
           - DEV
           - PROD2
           - PROD
-      migration:
-        description: 'Migration is required'
-        type: choice
-        required: false
-        default: NO
-        options:
-          - YES
-          - NO
 
   push:
     branches:
@@ -47,6 +39,7 @@ jobs:
       app_lambda_function_name: ${{ steps.set-vars.outputs.app_lambda_function_name }}
       env: ${{ steps.set-vars.outputs.env }}
       app_host: ${{ steps.set-vars.outputs.app_host }}
+      migration: ${{ steps.set-vars.outputs.migration }}
 
     steps:
       - name: set-vars
@@ -55,6 +48,7 @@ jobs:
           echo "ecr_repo=$ecr_repo" >> $GITHUB_OUTPUT
           echo "app_name=$app_name" >> $GITHUB_OUTPUT
           echo "health_endpoint=$health_endpoint" >> $GITHUB_OUTPUT
+          echo "migration=true" >> $GITHUB_OUTPUT
           if ${{ github.event.inputs.environment == 'PROD'}}; then
             echo "app_host=https://${{ vars.PROD_QUERY_MANAGER_HOST }}" >> $GITHUB_OUTPUT;
             echo "app_lambda_function_name=${app_lambda_function_prefix}-prod" >> $GITHUB_OUTPUT;
