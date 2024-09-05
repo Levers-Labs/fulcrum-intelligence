@@ -61,6 +61,15 @@ class InfluenceDriftStoryBuilder(StoryBuilderBase):
 
         # Fetch the time series data for the metric within the specified date range and grain
         df = await self.query_service.get_metric_time_series_df(metric_id, start_date, end_date, grain=grain)
+        df_len = len(df)
+
+        # validate time series data has minimum required data points
+        time_durations = self.get_time_durations(grain)
+        if df_len < time_durations["min"]:
+            logger.warning(
+                "Discarding story generation for metric '%s' with grain '%s' due to insufficient data", metric_id, grain
+            )
+            return []
 
         # Fetch the influences for the metric, including indirect influences
         influencers = await self.query_service.get_influencers(metric_id, include_indirect=True)
@@ -119,23 +128,58 @@ class InfluenceDriftStoryBuilder(StoryBuilderBase):
             latest_strength, previous_strength = self._get_strength_values(latest, previous)
 
             # Calculate the change in influence for the current period
-            influence_change = self._calculate_influence_change(input_df, adjusted_input_df)
+            influence_deviation = self._calculate_influence_deviation(input_df, adjusted_input_df)
 
             # Fetch the metric details for the influence metric
             influence_metric = await self.query_service.get_metric(influence_metric_id)
 
-            # Create influence stories based on the calculated values and append to the stories list
-            stories.extend(
-                await self._create_influence_stories(
-                    grain,
-                    metric,
-                    input_df,
-                    latest_strength,
-                    previous_strength,
-                    influence_change,
-                    output_deviation,
-                    prev_output_deviation,
-                    influence_metric,
+            # Determine the type of influence relationship story based on the strength comparison
+            story_type = (
+                StoryType.STRONGER_INFLUENCE
+                if abs(latest_strength) > abs(previous_strength)
+                else StoryType.WEAKER_INFLUENCE
+            )
+            # Create and append the Stronger/Weaker Influence Relationship story
+            stories.append(
+                self.prepare_story_dict(
+                    story_type,
+                    grain=grain,
+                    metric=metric,
+                    df=df,
+                    current_value=df["value"].iloc[-1],
+                    influence_metric=influence_metric,
+                    output_metric=metric,
+                    influence_deviation=influence_deviation,
+                    movement=self.story_movement_map.get(story_type, None),
+                    pressure=self.story_pressure_map.get(story_type, None),
+                    prev_output_deviation=prev_output_deviation,
+                    output_deviation=output_deviation,
+                    latest_strength=latest_strength,
+                    previous_strength=previous_strength,
+                )
+            )
+
+            # Calculate the marginal contribution by multiplying the influence change with the latest strength
+            marginal_contribution = influence_deviation * latest_strength
+            # Determine the type of influence metric story based on the marginal contribution
+            story_type = StoryType.IMPROVING_INFLUENCE if marginal_contribution > 0 else StoryType.WORSENING_INFLUENCE
+            # Create and append the Improving/Worsening Influence Metric story
+            stories.append(
+                self.prepare_story_dict(
+                    story_type,
+                    grain=grain,
+                    metric=metric,
+                    df=df,
+                    current_value=df["value"].iloc[-1],
+                    influence_metric=influence_metric,
+                    output_metric=metric,
+                    influence_deviation=influence_deviation,
+                    movement=self.story_movement_map.get(story_type, None),
+                    pressure=self.story_pressure_map.get(story_type, None),
+                    prev_output_deviation=prev_output_deviation,
+                    output_deviation=output_deviation,
+                    latest_strength=latest_strength,
+                    previous_strength=previous_strength,
                 )
             )
 
@@ -209,7 +253,8 @@ class InfluenceDriftStoryBuilder(StoryBuilderBase):
         # Return the calculated output deviation and previous output deviation
         return output_deviation, prev_output_deviation
 
-    def _get_strength_values(self, latest: dict, previous: dict) -> tuple[float, float]:
+    @staticmethod
+    def _get_strength_values(latest: dict, previous: dict) -> tuple[float, float]:
         """
         Extract the relative impact values from the latest and previous model dictionaries.
 
@@ -223,7 +268,7 @@ class InfluenceDriftStoryBuilder(StoryBuilderBase):
         # Extract the relative impact value from the latest and previous model dictionaries
         return latest["model"]["relative_impact"], previous["model"]["relative_impact"]
 
-    def _calculate_influence_change(self, input_df: pd.DataFrame, adjusted_input_df: pd.DataFrame) -> float:
+    def _calculate_influence_deviation(self, input_df: pd.DataFrame, adjusted_input_df: pd.DataFrame) -> float:
         """
         Calculate the percentage change in influence between the input and adjusted input data frames.
 
@@ -239,137 +284,3 @@ class InfluenceDriftStoryBuilder(StoryBuilderBase):
         latest_value, previous_value = input_df["value"].iloc[-1], adjusted_input_df["value"].iloc[-1]
         # Calculate and return the percentage difference between the latest and previous values
         return self.analysis_manager.calculate_percentage_difference(latest_value, previous_value)
-
-    async def _create_influence_stories(
-        self,
-        grain: Granularity,
-        metric: dict,
-        input_df: pd.DataFrame,
-        latest_strength: float,
-        previous_strength: float,
-        influence_change: float,
-        output_deviation: float,
-        prev_output_deviation: float,
-        influence_metric: dict,
-    ) -> list[dict]:
-        """
-        Create influence stories based on the provided metrics and analysis results.
-
-        This method generates stories that describe the changes in influence relationships and their impact on
-        the output metric.
-        It creates two types of stories:
-        1. Stronger/Weaker Influence Relationship story: Indicates whether the influence relationship has become
-        stronger or weaker.
-        2. Improving/Worsening Influence Metric story: Indicates whether the influence metric has improved or
-        worsened based on the marginal contribution.
-
-        :param metric: A dictionary containing the metric details.
-        :param input_df: A pandas DataFrame containing the time series data for the metric.
-        :param latest_strength: The latest relative impact value of the influence.
-        :param previous_strength: The previous relative impact value of the influence.
-        :param influence_change: The percentage change in influence.
-        :param output_deviation: The percentage deviation of the output metric.
-        :param prev_output_deviation: The percentage deviation of the output metric in the previous period.
-        :param influence_metric: A dictionary containing the influence metric details.
-        :return: A list of dictionaries representing the generated influence stories.
-        """
-        stories = []
-
-        # Determine the type of influence relationship story based on the strength comparison
-        story_type = (
-            StoryType.STRONGER_INFLUENCE
-            if abs(latest_strength) > abs(previous_strength)
-            else StoryType.WEAKER_INFLUENCE
-        )
-        # Create and append the Stronger/Weaker Influence Relationship story
-        stories.append(
-            self._create_story(
-                story_type,
-                grain,
-                metric,
-                input_df,
-                influence_metric,
-                metric,
-                influence_change,
-                output_deviation,
-                prev_output_deviation,
-                latest_strength,
-                previous_strength,
-            )
-        )
-
-        # Calculate the marginal contribution by multiplying the influence change with the latest strength
-        marginal_contribution = influence_change * latest_strength
-        # Determine the type of influence metric story based on the marginal contribution
-        story_type = StoryType.IMPROVING_INFLUENCE if marginal_contribution > 0 else StoryType.WORSENING_INFLUENCE
-        # Create and append the Improving/Worsening Influence Metric story
-        stories.append(
-            self._create_story(
-                story_type,
-                grain,
-                metric,
-                input_df,
-                influence_metric,
-                metric,
-                influence_change,
-                output_deviation,
-                prev_output_deviation,
-                latest_strength,
-                previous_strength,
-            )
-        )
-
-        return stories
-
-    def _create_story(
-        self,
-        story_type: StoryType,
-        grain: Granularity,
-        metric: dict,
-        df: pd.DataFrame,
-        influence_metric: dict,
-        output_metric: dict,
-        influence_deviation: float,
-        output_deviation: float,
-        prev_output_deviation: float,
-        latest_strength: float,
-        previous_strength: float,
-    ) -> dict:
-        """
-        Create a story dictionary based on the provided parameters.
-
-        This method prepares a story dictionary that describes the changes in influence relationships and their impact
-        on the output metric.
-        It uses the provided parameters to populate the story details, including the type of story, metric details,
-        deviations, and strengths.
-
-        :param story_type: The type of the story to be created (e.g., Stronger Influence, Weaker Influence, Improving
-        Influence, Worsening Influence).
-        :param metric: A dictionary containing the metric details.
-        :param df: A pandas DataFrame containing the time series data for the metric.
-        :param influence_metric: A dictionary containing the influence metric details.
-        :param output_metric: A dictionary containing the output metric details.
-        :param influence_deviation: The percentage deviation of the influence metric.
-        :param output_deviation: The percentage deviation of the output metric.
-        :param prev_output_deviation: The percentage deviation of the output metric in the previous period.
-        :param latest_strength: The latest relative impact value of the influence.
-        :param previous_strength: The previous relative impact value of the influence.
-        :return: A dictionary representing the generated story.
-        """
-        # Prepare the story dictionary using the provided parameters
-        return self.prepare_story_dict(
-            story_type,
-            grain=grain,
-            metric=metric,
-            df=df,
-            current_value=df["value"].iloc[-1],
-            influence_metric=influence_metric,
-            output_metric=output_metric,
-            influence_deviation=influence_deviation,
-            movement=self.story_movement_map.get(story_type, None),
-            pressure=self.story_pressure_map.get(story_type, None),
-            prev_output_deviation=prev_output_deviation,
-            output_deviation=output_deviation,
-            latest_strength=latest_strength,
-            previous_strength=previous_strength,
-        )
