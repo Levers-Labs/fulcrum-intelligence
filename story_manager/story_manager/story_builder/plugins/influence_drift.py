@@ -106,8 +106,10 @@ class InfluenceDriftStoryBuilder(StoryBuilderBase):
         output_deviation, prev_output_deviation = self._calculate_output_deviation(df)
 
         # Iterate over the components of the latest and previous influence drift analysis
-        for latest, previous in zip(latest_influence_drift["components"], previous_influence_drift["components"]):
-            influence_metric_id = latest["metric_id"]
+        for latest, previous in zip(
+            latest_influence_drift["components"], previous_influence_drift["components"]
+        ):  # noqa
+            influence_metric_id = latest["metric_id"]  # type: ignore
 
             # Skip if the influence metric ID is not in the list of influencer metric IDs
             if influence_metric_id not in influencer_metric_ids:
@@ -125,7 +127,7 @@ class InfluenceDriftStoryBuilder(StoryBuilderBase):
             adjusted_input_df = input_df.iloc[:-1]
 
             # Get the strength values for the latest and previous periods
-            latest_strength, previous_strength = self._get_strength_values(latest, previous)
+            latest_strength, previous_strength = self._get_strength_values(latest, previous)  # type: ignore
 
             # Calculate the change in influence for the current period
             influence_deviation = self._calculate_influence_deviation(input_df, adjusted_input_df)
