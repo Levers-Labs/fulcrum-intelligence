@@ -54,7 +54,7 @@ class InfluenceDriftStoryBuilder(StoryBuilderBase):
 
         # Fetch metric details
         metric = await self.query_service.get_metric(metric_id)
-        logger.debug("Generating Influence Drift stories for metric: %s", metric)
+        logger.info("Generating Influence Drift stories for metric: %s", metric)
 
         # Get the time range for the input data based on the specified grain
         start_date, end_date = self._get_input_time_range(grain)
@@ -73,6 +73,7 @@ class InfluenceDriftStoryBuilder(StoryBuilderBase):
 
         # Fetch the influences for the metric, including indirect influences
         influencers = await self.query_service.get_influencers(metric_id, include_indirect=True)
+        logger.info("Fetched %d influencers for metric '%s'", len(influencers), metric_id)
 
         # Extract all influencer metric IDs from the nested influencers structure
         influencer_metric_ids = self._extract_influencer_metric_ids(influencers)
@@ -82,12 +83,13 @@ class InfluenceDriftStoryBuilder(StoryBuilderBase):
         for influencer in influencers:
             # Fetch time series data for each influence and its children recursively
             input_dfs.extend(await self.fetch_influence_time_series(influencer, start_date, end_date, grain))
+        logger.info("Prepared input data frames for %d influences", len(input_dfs))
 
         # Analyze influence drift for the latest data
         latest_influence_drift = self.analysis_manager.influence_drift(
             df=df, input_dfs=input_dfs, target_metric_id=metric_id, influencers=influencers
         )
-        logger.info("Influence Drift analysis completed for latest_influence_drift: %s", latest_influence_drift)
+        logger.info("Influence Drift analysis completed for latest data: %s", latest_influence_drift)
 
         # Adjust the end date to one period before the latest date for previous analysis
         adjusted_df = df.iloc[:-1]
@@ -97,13 +99,17 @@ class InfluenceDriftStoryBuilder(StoryBuilderBase):
         previous_influence_drift = self.analysis_manager.influence_drift(
             df=adjusted_df, input_dfs=adjusted_input_dfs, target_metric_id=metric_id, influencers=influencers
         )
-        logger.info("Previous Influence Drift analysis completed for metric: %s", previous_influence_drift)
+        logger.info("Previous Influence Drift analysis completed: %s", previous_influence_drift)
 
         # Merge all input data frames into a single DataFrame
         merged_input_df = pd.concat(input_dfs, ignore_index=True)  # noqa
+        logger.info("Merged input data frames into a single DataFrame")
 
         # Calculate the deviation in the output metric for the latest and previous periods
         output_deviation, prev_output_deviation = self._calculate_output_deviation(df)
+        logger.info(
+            "Calculated output deviation: %s, previous output deviation: %s", output_deviation, prev_output_deviation
+        )
 
         # Iterate over the components of the latest and previous influence drift analysis
         for latest, previous in zip(
@@ -160,6 +166,7 @@ class InfluenceDriftStoryBuilder(StoryBuilderBase):
                     previous_strength=previous_strength,
                 )
             )
+            logger.info("Appended %s story for influence metric '%s'", story_type, influence_metric_id)
 
             # Calculate the marginal contribution by multiplying the influence change with the latest strength
             marginal_contribution = influence_deviation * latest_strength
@@ -184,6 +191,7 @@ class InfluenceDriftStoryBuilder(StoryBuilderBase):
                     previous_strength=previous_strength,
                 )
             )
+            logger.info("Appended %s story for influence metric '%s'", story_type, influence_metric_id)
 
         return stories
 

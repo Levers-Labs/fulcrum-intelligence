@@ -1,5 +1,5 @@
-from datetime import date
-from unittest.mock import AsyncMock
+from datetime import date, datetime, timedelta
+from unittest.mock import AsyncMock, MagicMock
 
 import pandas as pd
 import pytest
@@ -13,24 +13,65 @@ number_of_data_points = 90
 
 
 @pytest.fixture
+def mock_data():
+    dates = [datetime(2023, 1, 1) + timedelta(days=i) for i in range(90)]
+    data = {
+        "date": dates,
+        "NewBizDeals": range(90),
+        "AcceptOpps": range(90, 180),
+        "OpenNewBizOpps": range(180, 270),
+        "SQORate": range(270, 360),
+        "SQOToWinRate": range(360, 450),
+    }
+    return pd.DataFrame(data)
+
+
+@pytest.fixture
 def influence_drift_story_builder(
-    mock_query_service, mock_analysis_service, mock_analysis_manager, mock_db_session, metric_values, get_metric_resp
+    mock_query_service, mock_analysis_service, mock_analysis_manager, mock_db_session, mock_data, get_metric_resp
 ):
     mock_query_service.get_metric = AsyncMock(return_value=get_metric_resp)
-    mock_query_service.get_metric_time_series_df = AsyncMock(return_value=pd.DataFrame(metric_values))
+    mock_query_service.get_metric_time_series_df = AsyncMock(return_value=mock_data)
     mock_query_service.get_influencers = AsyncMock(
-        return_value=[{"metric_id": "influence_1"}, {"metric_id": "influence_2"}]
+        return_value=[
+            {
+                "metric_id": "AcceptOpps",
+                "influences": [{"metric_id": "OpenNewBizOpps"}, {"metric_id": "SQORate"}],
+            },
+            {"metric_id": "SQOToWinRate"},
+        ]
     )
     return InfluenceDriftStoryBuilder(mock_query_service, mock_analysis_service, mock_analysis_manager, mock_db_session)
 
 
 @pytest.mark.asyncio
-async def test_generate_stories_stronger_influence(mocker, influence_drift_story_builder):
+async def test_generate_stories_stronger_influence(mocker, influence_drift_story_builder, mock_data):
+    # Prepare mock data
+
+    # Mock the influence_drift method to return different values for latest and previous
+    influence_drift_story_builder.analysis_manager.influence_drift.side_effect = [
+        {
+            "components": [
+                {"metric_id": "AcceptOpps", "model": {"relative_impact": 0.8}},
+                {"metric_id": "SQOToWinRate", "model": {"relative_impact": 0.7}},
+            ]
+        },
+        {
+            "components": [
+                {"metric_id": "AcceptOpps", "model": {"relative_impact": 0.7}},
+                {"metric_id": "SQOToWinRate", "model": {"relative_impact": 0.6}},
+            ]
+        },
+    ]
+
+    # Mock the calculate_percentage_difference method
+    influence_drift_story_builder.analysis_manager.calculate_percentage_difference = MagicMock(return_value=0.1)
+
     # Execute the method
-    result = await influence_drift_story_builder.generate_stories("metric_1", Granularity.DAY)
+    result = await influence_drift_story_builder.generate_stories("NewBizDeals", Granularity.DAY)
 
     # Assertions
-    assert len(result) == 4  # Two stories for each influence (Stronger/Weaker and Improving/Worsening)
+    assert len(result) == 4, f"Expected 4 stories, but got {len(result)}"
     assert result[0]["story_type"] == StoryType.STRONGER_INFLUENCE
     assert result[1]["story_type"] == StoryType.IMPROVING_INFLUENCE
     assert result[2]["story_type"] == StoryType.STRONGER_INFLUENCE
@@ -38,21 +79,44 @@ async def test_generate_stories_stronger_influence(mocker, influence_drift_story
 
 
 @pytest.mark.asyncio
-async def test_generate_stories_weaker_influence(mocker, influence_drift_story_builder):
+async def test_generate_stories_weaker_influence(mocker, influence_drift_story_builder, mock_data):
+    # Mock the influence_drift method to return different values for latest and previous
+    influence_drift_story_builder.analysis_manager.influence_drift.side_effect = [
+        {
+            "components": [
+                {"metric_id": "AcceptOpps", "model": {"relative_impact": 0.6}},
+                {"metric_id": "SQOToWinRate", "model": {"relative_impact": 0.5}},
+            ]
+        },
+        {
+            "components": [
+                {"metric_id": "AcceptOpps", "model": {"relative_impact": 0.7}},
+                {"metric_id": "SQOToWinRate", "model": {"relative_impact": 0.6}},
+            ]
+        },
+    ]
+
+    # Mock the calculate_percentage_difference method
+    influence_drift_story_builder.analysis_manager.calculate_percentage_difference = MagicMock(return_value=-0.1)
+
     # Execute the method
-    result = await influence_drift_story_builder.generate_stories("metric_1", Granularity.DAY)
+    result = await influence_drift_story_builder.generate_stories("NewBizDeals", Granularity.DAY)
 
     # Assertions
-    assert len(result) == 2  # One story for Weaker Influence and one for Worsening Influence
+    assert len(result) == 4, f"Expected 4 stories, but got {len(result)}"
     assert result[0]["story_type"] == StoryType.WEAKER_INFLUENCE
     assert result[1]["story_type"] == StoryType.WORSENING_INFLUENCE
+    assert result[2]["story_type"] == StoryType.WEAKER_INFLUENCE
+    assert result[3]["story_type"] == StoryType.WORSENING_INFLUENCE
 
 
 @pytest.mark.asyncio
-async def test_generate_stories_no_min_data_points(mocker, influence_drift_story_builder, metric_values):
+async def test_generate_stories_no_min_data_points(mocker, influence_drift_story_builder):
     # Prepare
     influence_drift_story_builder.query_service.get_metric_time_series_df = AsyncMock(
-        return_value=pd.DataFrame(metric_values[:5])
+        return_value=pd.DataFrame(
+            {"date": pd.date_range(start="2023-01-01", periods=5), "value": range(5), "metric_id": ["metric_1"] * 5}
+        )
     )
 
     # Act
@@ -134,7 +198,7 @@ def test_calculate_influence_deviation(influence_drift_story_builder, mocker):
 
 @pytest.mark.asyncio
 async def test_generate_stories_empty_influencers(influence_drift_story_builder):
-    influence_drift_story_builder.query_service.get_influencers = AsyncMock(return_value=[])
+    influence_drift_story_builder.query_service.get_influencers = AsyncMock(return_value=[{"metric_id": "metric_1"}])
 
     result = await influence_drift_story_builder.generate_stories("metric_1", Granularity.DAY)
 
@@ -151,7 +215,7 @@ async def test_generate_stories_no_data_for_influence(mocker, influence_drift_st
     )
 
     # Mock an empty DataFrame for the influence metric
-    empty_df = pd.DataFrame()
+    empty_df = pd.DataFrame({"metric_id": "metric_1", "influences": []})
     mocker.patch.object(pd, "concat", return_value=empty_df)
 
     result = await influence_drift_story_builder.generate_stories("metric_1", Granularity.DAY)
