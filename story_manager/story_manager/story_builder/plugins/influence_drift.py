@@ -100,7 +100,7 @@ class InfluenceDriftStoryBuilder(StoryBuilderBase):
         logger.info("Previous Influence Drift analysis completed for metric: %s", previous_influence_drift)
 
         # Merge all input data frames into a single DataFrame
-        merged_input_df = pd.concat(input_dfs, ignore_index=True)
+        merged_input_df = pd.concat(input_dfs, ignore_index=True)  # noqa
 
         # Calculate the deviation in the output metric for the latest and previous periods
         output_deviation, prev_output_deviation = self._calculate_output_deviation(df)

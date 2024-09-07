@@ -905,3 +905,22 @@ def mock_merged_df():
         "metric3": np.random.randint(30, 50, periods),
     }
     return pd.DataFrame(data).set_index("date")
+
+
+@pytest.fixture
+def mock_merged_df_influence_att():
+    periods = 50
+    date_range = pd.date_range(start="2022-01-01", periods=periods, freq="D")
+
+    np.random.seed(42)  # For reproducibility
+
+    data = {
+        "date": date_range,
+        "metric1": np.random.randint(50, 100, periods),
+        "metric2": np.random.randint(10, 20, periods),
+        "metric3": np.random.randint(30, 50, periods),
+    }
+
+    df = pd.DataFrame(data)
+    df["metric1"] = df["metric2"] + df["metric3"]  # Ensure linear relationship
+    return df.set_index("date")

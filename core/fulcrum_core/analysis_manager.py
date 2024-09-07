@@ -556,7 +556,7 @@ class AnalysisManager:
     @staticmethod
     def influence_drift(
         df: pd.DataFrame, input_dfs: list[pd.DataFrame], target_metric_id: str, influencers: list[dict[str, Any]]
-    ) -> tuple[pd.DataFrame, pd.DataFrame]:
+    ) -> pd.DataFrame:
         """
         Analyze the influence drift using CausalModelAnalyzer.
 
@@ -567,7 +567,7 @@ class AnalysisManager:
             influencers (list[dict[str, Any]]): List of influencers for analysis.
 
         Returns:
-            tuple[pd.DataFrame, pd.DataFrame]: A tuple containing the coefficients and percentage impact DataFrames.
+            pd.DataFrame: The coefficients DataFrame.
         """
         # Initialize CausalModelAnalyzer with target_metric_id and influences
         causal_model_analyzer = CausalModelAnalyzer(target_metric_id, influencers)

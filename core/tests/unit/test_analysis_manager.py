@@ -1,6 +1,6 @@
 import os
 from datetime import date
-from unittest.mock import ANY, AsyncMock
+from unittest.mock import ANY, AsyncMock, patch
 
 import numpy as np
 import pandas as pd
@@ -9,7 +9,7 @@ import pytest
 from fulcrum_core import AnalysisManager
 from fulcrum_core.enums import AggregationMethod, AggregationOption, MetricChangeDirection
 from fulcrum_core.execptions import AnalysisError
-from fulcrum_core.modules import SegmentDriftEvaluator
+from fulcrum_core.modules import ModelAnalyzer, SegmentDriftEvaluator
 
 
 def test_cal_average_growth():
@@ -334,28 +334,31 @@ def test_validate_request_data():
     assert str(exc_info.value) == "Provided metric column name must exist in data"
 
 
-def test_influence_attribution():
+@patch.object(ModelAnalyzer, "merge_dataframes")
+def test_influence_attribution(mock_merge, mock_merged_df_influence_att):
     # Prepare
     periods = 50
+    date_range = pd.date_range(start="2022-01-01", periods=periods, freq="D")
     sample_data = {
         "metric_id": ["metric1"] * periods,
-        "date": pd.date_range(start="2022-01-01", periods=periods, freq="D"),
+        "date": date_range,
         "value": np.random.randint(50, 100, periods),
     }
     out_df = pd.DataFrame(sample_data)
     data1 = {
         "metric_id": ["metric2"] * periods,
-        "date": pd.date_range(start="2022-01-01", periods=periods, freq="D"),
+        "date": date_range,
         "value": np.random.randint(10, 20, periods),
     }
     data2 = {
         "metric_id": ["metric3"] * periods,
-        "date": pd.date_range(start="2022-01-01", periods=periods, freq="D"),
+        "date": date_range,
         "value": np.random.randint(30, 50, periods),
     }
     input_dfs = [pd.DataFrame(data1), pd.DataFrame(data2)]
     # Manipulate data to favor linear model (e.g., ensure linear relationship)
     out_df["value"] = input_dfs[0]["value"] + input_dfs[1]["value"]
+    mock_merge.return_value = mock_merged_df_influence_att
     analysis_manager = AnalysisManager()
     values = [
         {"metric_id": "metric2", "evaluation_value": 15.0, "comparison_value": 10.0},
@@ -363,9 +366,13 @@ def test_influence_attribution():
     ]
 
     # Act
-    expression, component_drift = analysis_manager.influence_attribution(out_df, input_dfs, "metric1", values)
+    try:
+        expression, component_drift = analysis_manager.influence_attribution(out_df, input_dfs, "metric1", values)
+    except Exception as e:
+        pytest.fail(f"influence_attribution raised {type(e).__name__} unexpectedly: {e}")
 
     # Assert
+    mock_merge.assert_called_once()
     assert expression["expression_str"] == "metric2 + metric3"
     assert "components" in component_drift
     assert len(component_drift["components"]) == 2
@@ -373,32 +380,61 @@ def test_influence_attribution():
     assert "drift" in component_drift
 
 
-def test_influence_attribution_analysis_error():
+@patch.object(ModelAnalyzer, "merge_dataframes")
+def test_influence_attribution_analysis_error(mock_merge):
     # Prepare
     periods = 50
+    np.random.seed(42)  # For reproducibility
+    date_range = pd.date_range(start="2022-01-01", periods=periods, freq="D")
+
+    # Create non-linear relationships
+    metric2_values = np.random.randint(10, 20, periods)
+    metric3_values = np.random.randint(30, 50, periods)
+
+    # Use a polynomial relationship: metric1 = metric2^2 + metric3^3 + some noise
+    metric1_values = (metric2_values**2) + (metric3_values**3) + np.random.normal(0, 100, periods)
+
     sample_data = {
         "metric_id": ["metric1"] * periods,
-        "date": pd.date_range(start="2022-01-01", periods=periods, freq="D"),
-        "value": np.random.randint(50, 100, periods),
+        "date": date_range,
+        "value": metric1_values,
     }
     out_df = pd.DataFrame(sample_data)
+
     data1 = {
         "metric_id": ["metric2"] * periods,
-        "date": pd.date_range(start="2022-01-01", periods=periods, freq="D"),
-        "value": np.random.randint(10, 20, periods),
+        "date": date_range,
+        "value": metric2_values,
     }
     data2 = {
         "metric_id": ["metric3"] * periods,
-        "date": pd.date_range(start="2022-01-01", periods=periods, freq="D"),
-        "value": np.random.randint(30, 50, periods),
+        "date": date_range,
+        "value": metric3_values,
     }
     input_dfs = [pd.DataFrame(data1), pd.DataFrame(data2)]
+
+    # Create a merged DataFrame that reflects the non-linear relationship
+    mock_merged_df = pd.DataFrame(
+        {
+            "date": date_range,
+            "metric1": metric1_values,
+            "metric2": metric2_values,
+            "metric3": metric3_values,
+        }
+    ).set_index("date")
+
+    mock_merge.return_value = mock_merged_df
+
     values = [
         {"metric_id": "metric2", "evaluation_value": 15.0, "comparison_value": 10.0},
         {"metric_id": "metric3", "evaluation_value": 40.0, "comparison_value": 35.0},
     ]
-    out_df["value"] = input_dfs[0]["value"] * input_dfs[1]["value"]
 
     analysis_manager = AnalysisManager()
-    with pytest.raises(AnalysisError):
+
+    # Act and Assert
+    with pytest.raises(AnalysisError) as exc_info:
         analysis_manager.influence_attribution(out_df, input_dfs, "metric1", values)
+
+    # Additional assertion to check the error message
+    assert "Influence attribution only supported for linear models for now" in str(exc_info.value)
