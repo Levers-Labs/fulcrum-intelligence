@@ -38,9 +38,12 @@ def influence_drift_story_builder(
         return_value=[
             {
                 "metric_id": "AcceptOpps",
-                "influences": [{"metric_id": "OpenNewBizOpps"}, {"metric_id": "SQORate"}],
+                "influences": [
+                    {"metric_id": "OpenNewBizOpps", "influences": []},
+                    {"metric_id": "SQORate", "influences": []},
+                ],
             },
-            {"metric_id": "SQOToWinRate"},
+            {"metric_id": "SQOToWinRate", "influences": []},
         ]
     )
     return InfluenceDriftStoryBuilder(mock_query_service, mock_analysis_service, mock_analysis_manager, mock_db_session)
@@ -71,7 +74,7 @@ async def test_generate_stories_stronger_influence(mocker, influence_drift_story
     result = await influence_drift_story_builder.generate_stories("NewBizDeals", Granularity.DAY)
 
     # Assertions
-    assert len(result) == 4, f"Expected 4 stories, but got {len(result)}"
+    assert len(result) == 4
     assert result[0]["story_type"] == StoryType.STRONGER_INFLUENCE
     assert result[1]["story_type"] == StoryType.IMPROVING_INFLUENCE
     assert result[2]["story_type"] == StoryType.STRONGER_INFLUENCE
