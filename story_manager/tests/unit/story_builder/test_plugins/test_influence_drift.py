@@ -8,20 +8,22 @@ from commons.models.enums import Granularity
 from story_manager.core.enums import StoryType
 from story_manager.story_builder.plugins import InfluenceDriftStoryBuilder
 
-start_date = date(2023, 4, 7)
-number_of_data_points = 90
-
 
 @pytest.fixture
 def mock_data():
     dates = [datetime(2023, 1, 1) + timedelta(days=i) for i in range(90)]
     data = {
-        "date": dates,
-        "NewBizDeals": range(90),
-        "AcceptOpps": range(90, 180),
-        "OpenNewBizOpps": range(180, 270),
-        "SQORate": range(270, 360),
-        "SQOToWinRate": range(360, 450),
+        "date": dates * 5,
+        "metric_id": ["NewBizDeals"] * 90
+        + ["AcceptOpps"] * 90
+        + ["OpenNewBizOpps"] * 90
+        + ["SQORate"] * 90
+        + ["SQOToWinRate"] * 90,
+        "value": list(range(90))
+        + list(range(90, 180))
+        + list(range(180, 270))
+        + list(range(270, 360))
+        + list(range(360, 450)),
     }
     return pd.DataFrame(data)
 
@@ -46,8 +48,6 @@ def influence_drift_story_builder(
 
 @pytest.mark.asyncio
 async def test_generate_stories_stronger_influence(mocker, influence_drift_story_builder, mock_data):
-    # Prepare mock data
-
     # Mock the influence_drift method to return different values for latest and previous
     influence_drift_story_builder.analysis_manager.influence_drift.side_effect = [
         {
@@ -111,18 +111,38 @@ async def test_generate_stories_weaker_influence(mocker, influence_drift_story_b
 
 
 @pytest.mark.asyncio
-async def test_generate_stories_no_min_data_points(mocker, influence_drift_story_builder):
-    # Prepare
+async def test_generate_stories_empty_influencers(influence_drift_story_builder):
+    influence_drift_story_builder.query_service.get_influencers = AsyncMock(return_value=[])
     influence_drift_story_builder.query_service.get_metric_time_series_df = AsyncMock(
         return_value=pd.DataFrame(
-            {"date": pd.date_range(start="2023-01-01", periods=5), "value": range(5), "metric_id": ["metric_1"] * 5}
+            {
+                "date": pd.date_range(start="2023-01-01", periods=90),
+                "metric_id": ["NewBizDeals"] * 90,
+                "value": range(90),
+            }
         )
     )
 
-    # Act
-    result = await influence_drift_story_builder.generate_stories("metric_1", Granularity.DAY)
+    result = await influence_drift_story_builder.generate_stories("NewBizDeals", Granularity.DAY)
 
-    # Assert
+    assert len(result) == 0
+
+
+@pytest.mark.asyncio
+async def test_generate_stories_no_data_for_influence(mocker, influence_drift_story_builder):
+    mock_influence_drift = {"components": [{"metric_id": "influence_1", "model": {"relative_impact": 0.8}}]}
+    mocker.patch.object(
+        influence_drift_story_builder.analysis_manager,
+        "influence_drift",
+        side_effect=[mock_influence_drift, mock_influence_drift],
+    )
+
+    # Mock an empty DataFrame for the influence metric
+    empty_df = pd.DataFrame({"date": [], "metric_id": [], "value": []})
+    influence_drift_story_builder.query_service.get_metric_time_series_df = AsyncMock(return_value=empty_df)
+
+    result = await influence_drift_story_builder.generate_stories("NewBizDeals", Granularity.DAY)
+
     assert len(result) == 0
 
 
@@ -194,30 +214,3 @@ def test_calculate_influence_deviation(influence_drift_story_builder, mocker):
 
     assert result == 0.0909
     influence_drift_story_builder.analysis_manager.calculate_percentage_difference.assert_called_once_with(120, 110)
-
-
-@pytest.mark.asyncio
-async def test_generate_stories_empty_influencers(influence_drift_story_builder):
-    influence_drift_story_builder.query_service.get_influencers = AsyncMock(return_value=[{"metric_id": "metric_1"}])
-
-    result = await influence_drift_story_builder.generate_stories("metric_1", Granularity.DAY)
-
-    assert len(result) == 0
-
-
-@pytest.mark.asyncio
-async def test_generate_stories_no_data_for_influence(mocker, influence_drift_story_builder):
-    mock_influence_drift = {"components": [{"metric_id": "influence_1", "model": {"relative_impact": 0.8}}]}
-    mocker.patch.object(
-        influence_drift_story_builder.analysis_manager,
-        "influence_drift",
-        side_effect=[mock_influence_drift, mock_influence_drift],
-    )
-
-    # Mock an empty DataFrame for the influence metric
-    empty_df = pd.DataFrame({"metric_id": "metric_1", "influences": []})
-    mocker.patch.object(pd, "concat", return_value=empty_df)
-
-    result = await influence_drift_story_builder.generate_stories("metric_1", Granularity.DAY)
-
-    assert len(result) == 0
