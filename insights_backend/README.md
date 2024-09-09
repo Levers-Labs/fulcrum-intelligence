@@ -41,3 +41,22 @@ help you manage your project more easily. To get all available commands type thi
 ```shell
 python manage.py --help
 ```
+
+### Multitenancy Support
+
+To Enable the multitenancy Support, Kindly execute the following scripts in the Database for application schema.
+
+```
+DO $$
+    BEGIN
+    IF NOT EXISTS(SELECT * FROM pg_roles WHERE rolname = 'tenant_user') THEN
+            CREATE ROLE tenant_user;
+            GRANT USAGE ON SCHEMA {{ your schema }} TO tenant_user;
+            GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA {{ your schema }} TO tenant_user;
+            ALTER DEFAULT PRIVILEGES IN SCHEMA {{ your schema }} GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO tenant_user;
+            GRANT USAGE ON ALL SEQUENCES IN SCHEMA {{ your schema }} TO tenant_user;
+            ALTER DEFAULT PRIVILEGES IN SCHEMA {{ your schema }} GRANT USAGE ON SEQUENCES TO tenant_user;
+    END IF;
+    END
+$$
+```
