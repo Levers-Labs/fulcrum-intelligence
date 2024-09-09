@@ -22,7 +22,7 @@ on:
       migration:
         description: 'flag to identify if migration is required'
         required: false
-        default: "NO"
+        default: "false"
         type: string
 
     secrets:

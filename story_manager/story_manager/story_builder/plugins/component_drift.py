@@ -110,7 +110,7 @@ class ComponentDriftStoryBuilder(StoryBuilderBase):
                 story_type=top_components.at[index, "story_type"],
                 grain=grain,  # type: ignore
                 metric=metric,
-                df=df,
+                df=top_components.iloc[[index]],  # type: ignore
                 component=row["metric_id"],
                 pressure=top_components.at[index, "pressure"],
                 percentage_drift=abs(pct_drift_change),
