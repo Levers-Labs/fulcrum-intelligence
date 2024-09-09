@@ -1,4 +1,4 @@
-from datetime import date, datetime, timedelta
+from datetime import date
 from unittest.mock import AsyncMock, MagicMock
 
 import pandas as pd
@@ -10,68 +10,81 @@ from story_manager.story_builder.plugins import InfluenceDriftStoryBuilder
 
 
 @pytest.fixture
-def mock_data():
-    dates = [datetime(2023, 1, 1) + timedelta(days=i) for i in range(90)]
-    data = {
-        "date": dates * 5,
-        "metric_id": ["NewBizDeals"] * 90
-        + ["AcceptOpps"] * 90
-        + ["OpenNewBizOpps"] * 90
-        + ["SQORate"] * 90
-        + ["SQOToWinRate"] * 90,
-        "value": list(range(90))
-        + list(range(90, 180))
-        + list(range(180, 270))
-        + list(range(270, 360))
-        + list(range(360, 450)),
-    }
-    return pd.DataFrame(data)
+def mock_df():
+    return pd.DataFrame(
+        {
+            "metric_id": ["NewBizDeals"] * 24,
+            "value": [2, 1, 1, 4, 1, 4, 1, 0, 1, 1, 4, 2, 3, 2, 1, 3, 2, 1, 0, 2, 3, 1, 2, 1],
+            "date": pd.date_range(start="2020-01-01", periods=24, freq="MS"),
+        }
+    )
 
 
 @pytest.fixture
-def influence_drift_story_builder(
-    mock_query_service, mock_analysis_service, mock_analysis_manager, mock_db_session, mock_data, get_metric_resp
-):
-    mock_query_service.get_metric = AsyncMock(return_value=get_metric_resp)
-    mock_query_service.get_metric_time_series_df = AsyncMock(return_value=mock_data)
-    mock_query_service.get_influencers = AsyncMock(
-        return_value=[
-            {
-                "metric_id": "AcceptOpps",
-                "influences": [
-                    {"metric_id": "OpenNewBizOpps", "influences": []},
-                    {"metric_id": "SQORate", "influences": []},
-                ],
-            },
-            {"metric_id": "SQOToWinRate", "influences": []},
-        ]
+def mock_input_dfs():
+    df1 = pd.DataFrame(
+        {
+            "metric_id": ["SQLs"] * 24,
+            "value": list(range(1, 25)),
+            "date": pd.date_range(start="2020-01-01", periods=24, freq="MS"),
+        }
     )
+    df2 = pd.DataFrame(
+        {
+            "metric_id": ["NewProsps"] * 24,
+            "value": list(range(4, 28)),
+            "date": pd.date_range(start="2020-01-01", periods=24, freq="MS"),
+        }
+    )
+    return [df1, df2]
+
+
+@pytest.fixture
+def mock_influencers():
+    return [{"metric_id": "SQLs", "influencers": [{"metric_id": "NewProsps", "influencers": []}]}]
+
+
+@pytest.fixture
+def influence_drift_story_builder(mocker):
+    mock_query_service = AsyncMock()
+    mock_analysis_service = MagicMock()
+    mock_analysis_manager = MagicMock()
+    mock_db_session = MagicMock()
+
     return InfluenceDriftStoryBuilder(mock_query_service, mock_analysis_service, mock_analysis_manager, mock_db_session)
 
 
 @pytest.mark.asyncio
-async def test_generate_stories_stronger_influence(mocker, influence_drift_story_builder, mock_data):
-    # Mock the influence_drift method to return different values for latest and previous
+async def test_generate_stories_stronger_influence(
+    mocker, influence_drift_story_builder, mock_df, mock_input_dfs, mock_influencers
+):
+    # Mock necessary methods
+    influence_drift_story_builder.query_service.get_metric = AsyncMock(
+        return_value={"id": "NewBizDeals", "metric_id": "NewBizDeals", "label": "New Business Deals"}
+    )
+    influence_drift_story_builder.query_service.get_metric_time_series_df = AsyncMock(return_value=mock_df)
+    influence_drift_story_builder.query_service.get_influencers = AsyncMock(return_value=mock_influencers)
+    mocker.patch.object(influence_drift_story_builder, "fetch_influence_time_series", return_value=mock_input_dfs)
+
     influence_drift_story_builder.analysis_manager.influence_drift.side_effect = [
         {
             "components": [
-                {"metric_id": "AcceptOpps", "model": {"relative_impact": 0.8}},
-                {"metric_id": "SQOToWinRate", "model": {"relative_impact": 0.7}},
+                {"metric_id": "SQLs", "model": {"relative_impact": 0.8}},
+                {"metric_id": "NewProsps", "model": {"relative_impact": 0.7}},
             ]
         },
         {
             "components": [
-                {"metric_id": "AcceptOpps", "model": {"relative_impact": 0.7}},
-                {"metric_id": "SQOToWinRate", "model": {"relative_impact": 0.6}},
+                {"metric_id": "SQLs", "model": {"relative_impact": 0.7}},
+                {"metric_id": "NewProsps", "model": {"relative_impact": 0.6}},
             ]
         },
     ]
 
-    # Mock the calculate_percentage_difference method
     influence_drift_story_builder.analysis_manager.calculate_percentage_difference = MagicMock(return_value=0.1)
 
     # Execute the method
-    result = await influence_drift_story_builder.generate_stories("NewBizDeals", Granularity.DAY)
+    result = await influence_drift_story_builder.generate_stories("NewBizDeals", Granularity.MONTH)
 
     # Assertions
     assert len(result) == 4
@@ -82,31 +95,39 @@ async def test_generate_stories_stronger_influence(mocker, influence_drift_story
 
 
 @pytest.mark.asyncio
-async def test_generate_stories_weaker_influence(mocker, influence_drift_story_builder, mock_data):
-    # Mock the influence_drift method to return different values for latest and previous
+async def test_generate_stories_weaker_influence(
+    mocker, influence_drift_story_builder, mock_df, mock_input_dfs, mock_influencers
+):
+    # Mock necessary methods (similar to the previous test)
+    influence_drift_story_builder.query_service.get_metric = AsyncMock(
+        return_value={"id": "NewBizDeals", "metric_id": "NewBizDeals", "label": "New Business Deals"}
+    )
+    influence_drift_story_builder.query_service.get_metric_time_series_df = AsyncMock(return_value=mock_df)
+    influence_drift_story_builder.query_service.get_influencers = AsyncMock(return_value=mock_influencers)
+    mocker.patch.object(influence_drift_story_builder, "fetch_influence_time_series", return_value=mock_input_dfs)
+
     influence_drift_story_builder.analysis_manager.influence_drift.side_effect = [
         {
             "components": [
-                {"metric_id": "AcceptOpps", "model": {"relative_impact": 0.6}},
-                {"metric_id": "SQOToWinRate", "model": {"relative_impact": 0.5}},
+                {"metric_id": "SQLs", "model": {"relative_impact": 0.6}},
+                {"metric_id": "NewProsps", "model": {"relative_impact": 0.5}},
             ]
         },
         {
             "components": [
-                {"metric_id": "AcceptOpps", "model": {"relative_impact": 0.7}},
-                {"metric_id": "SQOToWinRate", "model": {"relative_impact": 0.6}},
+                {"metric_id": "SQLs", "model": {"relative_impact": 0.7}},
+                {"metric_id": "NewProsps", "model": {"relative_impact": 0.6}},
             ]
         },
     ]
 
-    # Mock the calculate_percentage_difference method
     influence_drift_story_builder.analysis_manager.calculate_percentage_difference = MagicMock(return_value=-0.1)
 
     # Execute the method
-    result = await influence_drift_story_builder.generate_stories("NewBizDeals", Granularity.DAY)
+    result = await influence_drift_story_builder.generate_stories("NewBizDeals", Granularity.MONTH)
 
     # Assertions
-    assert len(result) == 4, f"Expected 4 stories, but got {len(result)}"
+    assert len(result) == 4
     assert result[0]["story_type"] == StoryType.WEAKER_INFLUENCE
     assert result[1]["story_type"] == StoryType.WORSENING_INFLUENCE
     assert result[2]["story_type"] == StoryType.WEAKER_INFLUENCE
@@ -114,21 +135,20 @@ async def test_generate_stories_weaker_influence(mocker, influence_drift_story_b
 
 
 @pytest.mark.asyncio
-async def test_generate_stories_empty_influencers(influence_drift_story_builder):
-    influence_drift_story_builder.query_service.get_influencers = AsyncMock(return_value=[])
-    influence_drift_story_builder.query_service.get_metric_time_series_df = AsyncMock(
-        return_value=pd.DataFrame(
-            {
-                "date": pd.date_range(start="2023-01-01", periods=90),
-                "metric_id": ["NewBizDeals"] * 90,
-                "value": range(90),
-            }
-        )
+async def test_generate_stories_empty_influencers(influence_drift_story_builder, mock_df):
+    influence_drift_story_builder.query_service.get_metric = AsyncMock(
+        return_value={"id": "NewBizDeals", "metric_id": "NewBizDeals", "label": "New Business Deals"}
+    )
+    influence_drift_story_builder.query_service.get_metric_time_series_df = AsyncMock(return_value=mock_df)
+    influence_drift_story_builder.query_service.get_influencers = AsyncMock(
+        return_value=[{"metric_id": "NewBizDeals", "influencers": []}]
     )
 
-    result = await influence_drift_story_builder.generate_stories("NewBizDeals", Granularity.DAY)
+    # Execute the method
+    result = await influence_drift_story_builder.generate_stories("NewBizDeals", Granularity.MONTH)
 
-    assert len(result) == 0
+    # Assertions
+    assert result == []
 
 
 @pytest.mark.asyncio
