@@ -148,3 +148,40 @@ class BaseAnalyzer(ABC):
 
         logger.info("Analysis completed.")
         return result
+
+    def merge_dataframes(self, dfs: list[pd.DataFrame]) -> pd.DataFrame:
+        """
+        Merges multiple data files or dataframes based on the 'date' column and returns the merged dataframe.
+        The dataframes are expected to have a 'date' column and a 'value' column.
+        The 'value' column is renamed to the 'metric_id' column value.
+        """
+        # create copies of dataframes
+        dfs = [df.copy(deep=True) for df in dfs]
+        # Fetching common dates in all features
+        common_dates = dfs[0]["date"]
+        for _df in dfs[1:]:
+            common_dates = common_dates[common_dates.isin(_df["date"])]
+        # Renaming the value column to metric_id and dropping the metric_id column
+        # Keeping only those dates that are common
+        for _df in dfs:
+            # convert date column to datetime
+            _df["date"] = pd.to_datetime(_df["date"])
+            # convert value column to numeric
+            _df["value"] = pd.to_numeric(_df["value"], errors="coerce")
+            metric_id = _df["metric_id"].iloc[0]
+            _df.rename(columns={"value": metric_id}, inplace=True)
+            # drop metric_id column
+            _df.drop(columns=["metric_id"], inplace=True)
+            # Keeping only those dates that are common
+            _df = _df[_df["date"].isin(common_dates)]
+
+        # Merging all dataframes
+        merged_df = dfs[0]
+        for _df in dfs[1:]:
+            merged_df = merged_df.merge(_df, on="date")
+
+        # drop na
+        merged_df = merged_df.dropna()
+        # # drop date column
+        # merged_df = merged_df.drop("date", axis=1)
+        return merged_df

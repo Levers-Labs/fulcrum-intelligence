@@ -1,8 +1,8 @@
 """Initial
 
-Revision ID: 950a7cb18abb
+Revision ID: 341fea937737
 Revises:
-Create Date: 2024-08-07 14:55:35.677990
+Create Date: 2024-09-09 14:09:15.962714
 
 """
 
@@ -14,7 +14,7 @@ from alembic import op
 from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
-revision: str = "950a7cb18abb"
+revision: str = "341fea937737"
 down_revision: str | None = None
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
@@ -53,6 +53,7 @@ def upgrade() -> None:
                 "RECORD_VALUES",
                 "STATUS_CHANGE",
                 "SEGMENT_DRIFT",
+                "INFLUENCE_DRIFT",
                 "REQUIRED_PERFORMANCE",
                 "SIGNIFICANT_SEGMENTS",
                 "COMPONENT_DRIFT",
@@ -91,6 +92,10 @@ def upgrade() -> None:
                 "WORSENING_SEGMENT",
                 "TOP_4_SEGMENTS",
                 "BOTTOM_4_SEGMENTS",
+                "STRONGER_INFLUENCE",
+                "WEAKER_INFLUENCE",
+                "IMPROVING_INFLUENCE",
+                "WORSENING_INFLUENCE",
                 "IMPROVING_COMPONENT",
                 "WORSENING_COMPONENT",
                 name="storytype",
