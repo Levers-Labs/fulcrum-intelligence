@@ -12,11 +12,25 @@ from starlette import status
 
 from commons.auth.scopes import USER_READ, USER_WRITE
 from commons.db.crud import NotFoundError
+from commons.models.tenant import Tenant as TenantCreate
 from commons.utilities.pagination import PaginationParams
-from insights_backend.core.dependencies import UsersCRUDDep, oauth2_auth
-from insights_backend.core.models import User, UserCreate, UserList
+from insights_backend.core.dependencies import (
+    TenantConfigCRUDDep,
+    TenantCRUDDep,
+    UsersCRUDDep,
+    oauth2_auth,
+)
+from insights_backend.core.models import (
+    Tenant,
+    TenantConfig,
+    User,
+    UserCreate,
+    UserList,
+)
 
 user_router = APIRouter(prefix="/users", tags=["users"])
+tenant_router = APIRouter(prefix="/tenant", tags=["tenants"])
+tenant_config_router = APIRouter(prefix="/tenantConfig", tags=["tenant_config"])
 logger = logging.getLogger(__name__)
 
 
@@ -109,3 +123,35 @@ async def delete_user(user_id: int, user_crud_client: UsersCRUDDep):
         await user_crud_client.delete(id=user_id)
     except NotFoundError as e:
         raise HTTPException(status_code=404, detail="User not found") from e
+
+
+@tenant_router.post("/", response_model=Tenant)
+async def create_tenant(tenant: TenantCreate, tenant_crud_client: TenantCRUDDep) -> Tenant:
+    """
+    To create a new user in DB, this endpoint will be used by Auth0 for user registration.
+    """
+    try:
+        return await tenant_crud_client.create(obj_in=tenant)
+    except IntegrityError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e.orig)) from e
+
+
+@tenant_router.get("/{tenant_id}", response_model=Tenant)
+async def get_tenant(tenant_id: int, tenant_crud_client: TenantCRUDDep) -> Tenant:
+    """
+    Retrieve a user by ID.
+    """
+    try:
+        tenant: Tenant = await tenant_crud_client.get(tenant_id)
+    except NotFoundError as e:
+        raise HTTPException(status_code=404, detail="User not found") from e
+    return tenant
+
+
+@tenant_config_router.get("/{tenant_id}", response_model=TenantConfig)
+async def get_tenant_config(tenant_id: int, tenant_config_crud_client: TenantConfigCRUDDep) -> TenantConfig:
+    try:
+        config = await tenant_config_crud_client.get_config_by_tenant_id(tenant_id)
+    except NotFoundError as e:
+        raise HTTPException(status_code=404, detail="Tenant Config not found") from e
+    return config

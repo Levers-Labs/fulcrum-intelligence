@@ -26,6 +26,7 @@ def postgres():
 @pytest.fixture(scope="session")
 def mock_security(*args, **kwargs):
     return {
+        "tenant_id": 1,
         "name": "test_name",
         "email": "test_email@test.com",
         "provider": "google",
@@ -50,11 +51,33 @@ def setup_db(postgres):
     logger.info("Creating db schema and tables")
     with engine.connect() as conn:
         conn.execute(text("CREATE SCHEMA IF NOT EXISTS insights_store"))
+        conn.execute(
+            text(
+                """
+            DO $$
+            BEGIN
+            IF NOT EXISTS(SELECT * FROM pg_roles WHERE rolname = 'tenant_user') THEN
+                CREATE ROLE tenant_user;
+                GRANT USAGE ON SCHEMA insights_store TO tenant_user;
+                GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA insights_store TO tenant_user;
+                ALTER DEFAULT PRIVILEGES IN SCHEMA insights_store GRANT SELECT, INSERT, UPDATE, DELETE
+                ON TABLES TO tenant_user;
+                GRANT USAGE ON ALL SEQUENCES IN SCHEMA insights_store TO tenant_user;
+                ALTER DEFAULT PRIVILEGES IN SCHEMA insights_store GRANT USAGE ON SEQUENCES TO tenant_user;
+            END IF;
+            END
+            $$
+            """
+            )
+        )
         conn.commit()
+
     # create all models
     for model_path in MODEL_PATHS:
         importlib.import_module(model_path)
+
     SQLModel.metadata.create_all(engine)
+
     engine.dispose()
     yield db_sync_uri
 
@@ -124,6 +147,7 @@ def db_session(setup_env, postgres):
 @pytest.fixture
 def db_user_json():
     return {
+        "tenant_id": 1,
         "name": "test_name",
         "email": "test_email@test.com",
         "provider": "google",

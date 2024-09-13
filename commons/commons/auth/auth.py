@@ -4,7 +4,12 @@ from enum import Enum
 from typing import Annotated, Any, TypeVar
 
 import jwt
-from fastapi import Depends, HTTPException, status
+from fastapi import (
+    Depends,
+    HTTPException,
+    Request,
+    status,
+)
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer, SecurityScopes
 
 from commons.models import BaseModel
@@ -105,6 +110,7 @@ class Oauth2Auth:
 
     async def verify(
         self,
+        request: Request,
         security_scopes: SecurityScopes,
         token: Annotated[HTTPAuthorizationCredentials | None, Depends(HTTPBearer(auto_error=False))] = None,
     ) -> OAuth2User:
@@ -130,6 +136,12 @@ class Oauth2Auth:
 
         # verify the token
         payload = self.verify_jwt(token.credentials)
+
+        # verify tenant
+        if tenant_id := request.state.tenant_id:
+            self.verify_tenant(payload, tenant_id)
+            set_tenant_id(tenant_id)
+
         # Verify the scopes if route requires it
         if security_scopes.scopes:
             # in case of M2M app token permissions are present in scope key
@@ -138,9 +150,17 @@ class Oauth2Auth:
 
             self._verify_token_claims(payload, claims_key, security_scopes.scopes)
 
-        set_tenant_id(payload.get("tenant_id", str(1)))
         user = await self.get_oauth_user(payload, token.credentials)
         return user
+
+    def verify_tenant(self, payload: dict[str, Any], tenant_id: int):
+        """
+        Verify the tenant passed in request header
+        payload: token payload
+        tenant_id: tenant id passed in request header
+        """
+        if "tenant_id" not in payload or payload["tenant_id"] != tenant_id:
+            raise UnauthorizedException(detail="Invalid tenant id")
 
     def _verify_token_claims(self, payload: dict[str, Any], claim_name: str, expected_value: list[str]) -> None:
         """

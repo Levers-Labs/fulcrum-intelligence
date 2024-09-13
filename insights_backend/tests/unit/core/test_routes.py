@@ -17,7 +17,6 @@ mock.patch("fastapi.Security", MockSecurity).start()
 async def test_create_user(client, db_user_json):
     response = client.post("/v1/users/", json=db_user_json)
     db_user = response.json()
-
     assert response.status_code == status.HTTP_200_OK
 
     response = client.post("/v1/users/", json=db_user_json)

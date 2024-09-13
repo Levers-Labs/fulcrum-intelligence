@@ -1,9 +1,10 @@
 from datetime import datetime
 
 from pydantic import ConfigDict
-from sqlalchemy import text
+from sqlalchemy import event, text
 from sqlmodel import Field, SQLModel
 
+from commons.utilities.context import get_tenant_id
 from commons.utilities.date_utils import convert_datetime_to_utc
 
 
@@ -44,3 +45,22 @@ class BaseTimeStampedModel(BaseDBModel):
             "onupdate": text("current_timestamp(0)"),
         },
     )
+
+
+class BaseTenantModel(BaseDBModel):
+    """
+    Base class for all models containing tenant specific data
+    """
+
+    tenant_id: int | None = Field(default=None, foreign_key="insights_store.tenant.id")
+
+    @classmethod
+    def add_tenant_id(cls, mapper, connection, target):
+        tenant_id = get_tenant_id()
+        if not tenant_id:
+            raise ValueError("tenant_id cannot be blank or null")
+
+        target.tenant_id = tenant_id
+
+
+event.listen(BaseTenantModel, "before_insert", BaseTenantModel.add_tenant_id, propagate=True)
