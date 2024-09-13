@@ -562,11 +562,14 @@ asyncpg = {version = "^0.29.0", optional = true}
 fastapi = "^0.110.1"
 greenlet = {version = "^3.0.3", optional = true}
 httpx = "^0.27.0"
+pandas = "^2.2.1"
 psycopg2-binary = {version = "^2.9.9", optional = true}
 pydantic = {version = "^2.7.0", extras = ["dotenv", "email"]}
 pyjwt = "^2.8.0"
+requests = "^2.32.3"
 sqlalchemy = {version = "^2.0.29", optional = true}
 sqlmodel = {version = "^0.0.16", optional = true}
+types-requests = "^2.32.0.20240712"
 
 [package.extras]
 db = ["alembic (>=1.13.1,<2.0.0)", "asyncpg (>=0.29.0,<0.30.0)", "greenlet (>=3.0.3,<4.0.0)", "psycopg2-binary (>=2.9.9,<3.0.0)", "sqlalchemy (>=2.0.29,<3.0.0)", "sqlmodel (>=0.0.16,<0.0.17)"]
@@ -1765,13 +1768,13 @@ files = [
 
 [[package]]
 name = "requests"
-version = "2.31.0"
+version = "2.32.3"
 description = "Python HTTP for Humans."
 optional = false
-python-versions = ">=3.7"
+python-versions = ">=3.8"
 files = [
-    {file = "requests-2.31.0-py3-none-any.whl", hash = "sha256:58cd2187c01e70e6e26505bca751777aa9f2ee0b7f4300988b709f44e013003f"},
-    {file = "requests-2.31.0.tar.gz", hash = "sha256:942c5a758f98d790eaed1a29cb6eefc7ffb0d1cf7af05c3d2791656dbd6ad1e1"},
+    {file = "requests-2.32.3-py3-none-any.whl", hash = "sha256:70761cfe03c773ceb22aa2f671b4757976145175cdfca038c02654d061d6dcc6"},
+    {file = "requests-2.32.3.tar.gz", hash = "sha256:55365417734eb18255590a9ff9eb97e9e1da868d4ccd6402399eaf68af20a760"},
 ]
 
 [package.dependencies]
@@ -2010,6 +2013,20 @@ files = [
     {file = "types-aiofiles-23.2.0.20240311.tar.gz", hash = "sha256:208e6b090de732739ef74ab8f133c954479c8e77e614f276f9e475a0cc986430"},
     {file = "types_aiofiles-23.2.0.20240311-py3-none-any.whl", hash = "sha256:ed10a8002d88c94220597b77304cf1a1d8cf489c7143fc3ffa2c96488b20fec7"},
 ]
+
+[[package]]
+name = "types-requests"
+version = "2.32.0.20240907"
+description = "Typing stubs for requests"
+optional = false
+python-versions = ">=3.8"
+files = [
+    {file = "types-requests-2.32.0.20240907.tar.gz", hash = "sha256:ff33935f061b5e81ec87997e91050f7b4af4f82027a7a7a9d9aaea04a963fdf8"},
+    {file = "types_requests-2.32.0.20240907-py3-none-any.whl", hash = "sha256:1d1e79faeaf9d42def77f3c304893dea17a97cae98168ac69f3cb465516ee8da"},
+]
+
+[package.dependencies]
+urllib3 = ">=2"
 
 [[package]]
 name = "typing-extensions"

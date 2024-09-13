@@ -1,0 +1,73 @@
+{
+  "family": "airflow-story-builder-task",
+  "executionRoleArn": "arn:aws:iam::${ACCOUNT_ID}:role/ecsTaskExecutionRole",
+  "networkMode": "awsvpc",
+  "requiresCompatibilities": ["FARGATE"],
+  "cpu": "1024",
+  "memory": "3072",
+  "containerDefinitions": [
+        {
+            "name": "story-builder-manager",
+            "image": "{{ image }}",
+            "cpu": 0,
+            "portMappings": [],
+            "essential": true,
+            "secrets": [
+              {
+                "name": "ANALYSIS_MANAGER_SERVER_HOST",
+                "valueFrom": "arn:aws:ssm:${REGION}:${ACCOUNT_ID}:parameter/story-builder/workflow/ANALYSIS_MANAGER_SERVER_HOST"
+              },
+              {
+              "name": "AUTH0_API_AUDIENCE",
+              "valueFrom": "arn:aws:ssm:${REGION}:${ACCOUNT_ID}:parameter/story-builder/workflow/AUTH0_API_AUDIENCE"
+              },
+              {
+              "name": "AUTH0_CLIENT_ID",
+              "valueFrom": "arn:aws:ssm:${REGION}:${ACCOUNT_ID}:parameter/story-builder/workflow/AUTH0_CLIENT_ID"
+              },
+              {
+              "name": "AUTH0_CLIENT_SECRET",
+              "valueFrom": "arn:aws:ssm:${REGION}:${ACCOUNT_ID}:parameter/story-builder/workflow/AUTH0_CLIENT_SECRET"
+              },
+              {
+              "name": "AUTH0_ISSUER",
+              "valueFrom": "arn:aws:ssm:${REGION}:${ACCOUNT_ID}:parameter/story-builder/workflow/AUTH0_ISSUER"
+              },
+              {
+              "name": "DATABASE_URL",
+              "valueFrom": "arn:aws:ssm:${REGION}:${ACCOUNT_ID}:parameter/story-builder/workflow/DATABASE_URL"
+              },
+              {
+              "name": "INSIGHTS_BACKEND_SERVER_HOST",
+              "valueFrom": "arn:aws:ssm:${REGION}:${ACCOUNT_ID}:parameter/story-builder/workflow/INSIGHTS_BACKEND_SERVER_HOST"
+              },
+              {
+              "name": "QUERY_MANAGER_SERVER_HOST",
+              "valueFrom": "arn:aws:ssm:${REGION}:${ACCOUNT_ID}:parameter/story-builder/workflow/QUERY_MANAGER_SERVER_HOST"
+              },
+              {
+              "name": "SECRET_KEY",
+              "valueFrom": "arn:aws:ssm:${REGION}:${ACCOUNT_ID}:parameter/story-builder/workflow/SECRET_KEY"
+              },
+              {
+              "name": "SERVER_HOST",
+              "valueFrom": "arn:aws:ssm:${REGION}:${ACCOUNT_ID}:parameter/story-builder/workflow/SERVER_HOST"
+              }
+            ],
+            "environment": [],
+            "logConfiguration": {
+                "logDriver": "awslogs",
+                "options": {
+                    "awslogs-group": "/ecs/airflow-story-builder-task",
+                    "mode": "non-blocking",
+                    "awslogs-create-group": "true",
+                    "max-buffer-size": "25m",
+                    "awslogs-region": "us-west-1",
+                    "awslogs-stream-prefix": "ecs"
+                },
+                "secretOptions": []
+            },
+            "systemControls": []
+        }
+    ]
+}

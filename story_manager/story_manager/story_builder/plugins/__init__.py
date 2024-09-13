@@ -1,6 +1,7 @@
 from .component_drift import ComponentDriftStoryBuilder
 from .goal_vs_actual import GoalVsActualStoryBuilder
 from .growth_rates import GrowthStoryBuilder
+from .influence_drift import InfluenceDriftStoryBuilder
 from .long_range import LongRangeStoryBuilder
 from .record_values import RecordValuesStoryBuilder
 from .required_performance import RequiredPerformanceStoryBuilder
@@ -21,5 +22,6 @@ __all__ = [
     "RequiredPerformanceStoryBuilder",
     "SegmentDriftStoryBuilder",
     "SignificantSegmentStoryBuilder",
+    "InfluenceDriftStoryBuilder",
     "ComponentDriftStoryBuilder",
 ]
