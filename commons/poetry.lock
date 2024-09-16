@@ -620,7 +620,6 @@ files = [
 numpy = [
     {version = ">=1.22.4", markers = "python_version < \"3.11\""},
     {version = ">=1.23.2", markers = "python_version == \"3.11\""},
-    {version = ">=1.26.0", markers = "python_version >= \"3.12\""},
 ]
 python-dateutil = ">=2.8.2"
 pytz = ">=2020.1"
@@ -1105,5 +1104,5 @@ db = ["alembic", "asyncpg", "greenlet", "psycopg2-binary", "sqlalchemy", "sqlmod
 
 [metadata]
 lock-version = "2.0"
-python-versions = "^3.10"
-content-hash = "58dc29af346eafa1e971bfbe63d488a8889c2be15fddb3e89c597d42f4aaeaf6"
+python-versions = ">=3.10,<3.12"
+content-hash = "95c56940f28ed7aacc6606e59bed7d3504be088ad4cb4bcbf5a210e23919822c"

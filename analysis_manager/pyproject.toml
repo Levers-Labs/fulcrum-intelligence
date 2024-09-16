@@ -5,7 +5,7 @@ description = "Analysis Manager for fulcrum intelligence"
 authors = ["leverslabs"]
 
 [tool.poetry.dependencies]
-python = "^3.10"
+python = ">=3.10,<3.12"
 fastapi = "^0.110.1"
 uvicorn = "^0.27.1"
 gunicorn = "^21.2.0"
