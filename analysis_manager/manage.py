@@ -10,14 +10,9 @@ import uvicorn
 from alembic import command
 from alembic.config import Config
 from alembic.util import CommandError
-from dotenv import load_dotenv
 
 from analysis_manager.config import get_settings
 from analysis_manager.db.config import MODEL_PATHS
-
-# Load environment variables at the very beginning
-env_path = Path(__file__).parent / ".env"
-load_dotenv(dotenv_path=env_path)
 
 cli = typer.Typer()
 db_cli = typer.Typer()
