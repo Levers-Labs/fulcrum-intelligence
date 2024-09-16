@@ -19,6 +19,7 @@ networkx = "3.2.1"
 dowhy = "^0.11.1"
 prophet = "^1.1.5"
 sympy = "^1.13.1"
+matplotlib = "^3.9.2"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
