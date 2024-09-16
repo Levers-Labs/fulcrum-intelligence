@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
 
-from analysis_manager.config import settings
+from analysis_manager.config import get_settings
 from analysis_manager.core.routes import router as core_router
 from analysis_manager.health import router as health_check_router
 from commons.middleware import process_time_log_middleware, request_id_middleware
@@ -11,6 +11,7 @@ from commons.utilities.logger import setup_rich_logger
 
 
 def get_application() -> FastAPI:
+    settings = get_settings()
     _app = FastAPI(
         title="Analysis Manager",
         description="Analysis Manager for Fulcrum Intelligence",

@@ -8,11 +8,12 @@ from sqlalchemy.orm import sessionmaker
 from sqlmodel import Session, create_engine
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from analysis_manager.config import settings
+from analysis_manager.config import get_settings
 
 # Used to load models for migrations migrations
 MODEL_PATHS = ["analysis_manager.core.models"]
 
+settings = get_settings()
 engine = create_engine(str(settings.DATABASE_URL), **settings.SQLALCHEMY_ENGINE_OPTIONS)
 async_engine = create_async_engine(str(settings.DATABASE_URL), **settings.SQLALCHEMY_ENGINE_OPTIONS)
 

@@ -4,7 +4,7 @@ from typing import Annotated
 
 from fastapi import Depends
 
-from analysis_manager.config import settings
+from analysis_manager.config import get_settings
 from analysis_manager.core.services.component_drift import ComponentDriftService
 from commons.auth.auth import Oauth2Auth
 from commons.clients.auth import ClientCredsAuth
@@ -13,6 +13,7 @@ from fulcrum_core.analysis_manager import AnalysisManager
 
 
 async def get_query_manager_client() -> QueryManagerClient:
+    settings = get_settings()
     return QueryManagerClient(
         settings.QUERY_MANAGER_SERVER_HOST,
         auth=ClientCredsAuth(
@@ -29,6 +30,7 @@ async def get_analysis_manager() -> AnalysisManager:
 
 
 def oauth2_auth() -> Oauth2Auth:
+    settings = get_settings()
     return Oauth2Auth(issuer=settings.AUTH0_ISSUER, api_audience=settings.AUTH0_API_AUDIENCE)
 
 
