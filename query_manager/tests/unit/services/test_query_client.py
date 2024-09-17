@@ -57,7 +57,7 @@ async def test_list_metrics(mocker, metric, query_client):
     assert result[0] == metric
     assert count == 1
 
-    filter_params = {"metric_ids": [metric["metric_id"]]}
+    filter_params = {"metric_ids": [metric["metric_id"]], "metric_label": None}
     mock_paginate.assert_called_once_with(params, filter_params=filter_params)
 
 
@@ -76,7 +76,7 @@ async def test_list_metrics_with_metric_id_filter(mocker, metric, query_client):
     assert result[0] == metric2
     assert count == 1
 
-    mock_paginate.assert_called_once_with(params, filter_params={"metric_ids": ["metric_id2"]})
+    mock_paginate.assert_called_once_with(params, filter_params={"metric_ids": ["metric_id2"], "metric_label": None})
 
 
 @pytest.mark.asyncio
@@ -391,3 +391,39 @@ async def test_update_dimension_not_found(mocker, query_client):
 
     with pytest.raises(DimensionNotFoundError):
         await query_client.update_dimension("non_existent_dimension", update_data)
+
+
+@pytest.mark.asyncio
+async def test_list_metrics_with_metric_label_filter(mocker, metric, query_client):
+    query_client = await query_client
+    metric2 = deepcopy(metric)
+    metric2["id"] = 2
+    metric2["metric_id"] = "metric_id2"
+    mock_paginate = AsyncMock(return_value=([metric2], 1))
+    mocker.patch.object(query_client.metric_crud, "paginate", mock_paginate)
+
+    params = PaginationParams(page=1, size=10)
+    result, count = await query_client.list_metrics(metric_ids=None, metric_label="metric_id2", params=params)
+    assert len(result) == 1
+    assert result[0] == metric2
+    assert count == 1
+
+    mock_paginate.assert_called_once_with(params, filter_params={"metric_ids": None, "metric_label": "metric_id2"})
+
+
+@pytest.mark.asyncio
+async def test_list_metrics_with_fuzzy_label_search(mocker, metric, query_client):
+    query_client = await query_client
+    metric2 = deepcopy(metric)
+    metric2["id"] = 2
+    metric2["metric_id"] = "metric_id2"
+    mock_paginate = AsyncMock(return_value=([metric2], 1))
+    mocker.patch.object(query_client.metric_crud, "paginate", mock_paginate)
+
+    params = PaginationParams(page=1, size=10)
+    result, count = await query_client.list_metrics(metric_ids=None, metric_label="met", params=params)
+    assert len(result) == 1
+    assert result[0] == metric2
+    assert count == 1
+
+    mock_paginate.assert_called_once_with(params, filter_params={"metric_ids": None, "metric_label": "met"})
