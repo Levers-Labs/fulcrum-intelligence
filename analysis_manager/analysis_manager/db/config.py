@@ -13,19 +13,19 @@ from analysis_manager.config import get_settings
 # Used to load models for migrations migrations
 MODEL_PATHS = ["analysis_manager.core.models"]
 
-settings = get_settings()
-engine = create_engine(str(settings.DATABASE_URL), **settings.SQLALCHEMY_ENGINE_OPTIONS)
-async_engine = create_async_engine(str(settings.DATABASE_URL), **settings.SQLALCHEMY_ENGINE_OPTIONS)
-
 
 # sync session
 def get_session() -> Generator[Session, None, None]:
+    settings = get_settings()
+    engine = create_engine(str(settings.DATABASE_URL), **settings.SQLALCHEMY_ENGINE_OPTIONS)
     with Session(engine) as session:
         yield session
 
 
 # async session
 async def get_async_session() -> AsyncGenerator[AsyncSession, None]:
+    settings = get_settings()
+    async_engine = create_async_engine(str(settings.DATABASE_URL), **settings.SQLALCHEMY_ENGINE_OPTIONS)
     async_session = async_scoped_session(
         sessionmaker(bind=async_engine, autocommit=False, autoflush=False, class_=AsyncSession), scopefunc=current_task  # type: ignore[call-overload]
     )
