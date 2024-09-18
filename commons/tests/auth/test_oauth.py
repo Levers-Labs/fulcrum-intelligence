@@ -21,10 +21,12 @@ def oauth2_auth():
 async def test_verify_with_valid_token_and_scopes(oauth2_auth, monkeypatch):
     token_credentials = HTTPAuthorizationCredentials(scheme="Bearer", credentials="valid_token")
     security_scopes = SecurityScopes(scopes=["read"])
+    mock_request = Mock()
+    mock_request.state.tenant_id = 1
 
     # Mock the return values of verify_jwt and get_oauth_user
     def mock_verify_jwt(token):
-        return {"sub": "userId", "permissions": ["read"]}
+        return {"sub": "userId", "permissions": ["read"], "tenant_id": 1}
 
     async def mock_get_oauth_user(payload, token):
         return OAuth2User(
@@ -32,6 +34,7 @@ async def test_verify_with_valid_token_and_scopes(oauth2_auth, monkeypatch):
             type=UserType.APP,
             permissions=["read"],
             app_user_id=1,
+            tenant_id=1,
         )
 
     # Replace the original methods with AsyncMock
@@ -39,7 +42,7 @@ async def test_verify_with_valid_token_and_scopes(oauth2_auth, monkeypatch):
     monkeypatch.setattr(oauth2_auth, "get_oauth_user", AsyncMock(side_effect=mock_get_oauth_user))
 
     # Call the method under test
-    result = await oauth2_auth.verify(security_scopes, token_credentials)
+    result = await oauth2_auth.verify(request=mock_request, security_scopes=security_scopes, token=token_credentials)
 
     # Assert the returned OAuth2User object
     assert isinstance(result, OAuth2User)
