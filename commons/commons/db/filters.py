@@ -60,7 +60,7 @@ class FilterField(FieldInfo):
             if self.operator == "like":
                 return query.where(self.field.like(value))
             if self.operator == "ilike":
-                return query.where(self.field.ilike(value))
+                return query.where(self.field.ilike(f"%{value}%"))
             if self.operator == "in":
                 return query.where(self.field.in_(value))
             if self.operator == "not_in":
