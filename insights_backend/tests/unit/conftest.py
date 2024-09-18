@@ -77,6 +77,18 @@ def setup_db(postgres):
         importlib.import_module(model_path)
 
     SQLModel.metadata.create_all(engine)
+    with engine.connect() as conn:
+        # Insert a record into a specific table, replace `table_name` and column names with actual values
+        conn.execute(
+            text(
+                """
+                INSERT INTO insights_store.tenant (tenant_name)
+                VALUES (:tenant)
+                """
+            ),
+            {"tenant": "test_tenant"},
+        )
+        conn.commit()
 
     engine.dispose()
     yield db_sync_uri

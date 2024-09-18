@@ -144,7 +144,7 @@ async def get_tenant(tenant_id: int, tenant_crud_client: TenantCRUDDep) -> Tenan
     try:
         tenant: Tenant = await tenant_crud_client.get(tenant_id)
     except NotFoundError as e:
-        raise HTTPException(status_code=404, detail="User not found") from e
+        raise HTTPException(status_code=404, detail="Tenant not found") from e
     return tenant
 
 
@@ -155,3 +155,14 @@ async def get_tenant_config(tenant_id: int, tenant_config_crud_client: TenantCon
     except NotFoundError as e:
         raise HTTPException(status_code=404, detail="Tenant Config not found") from e
     return config
+
+
+@tenant_router.delete("/{tenant_id}")  # type: ignore
+async def delete_tenant(tenant_id: int, tenant_crud_client: TenantCRUDDep):
+    """
+    Retrieve a user by ID.
+    """
+    try:
+        await tenant_crud_client.delete(id=tenant_id)
+    except NotFoundError as e:
+        raise HTTPException(status_code=404, detail="Tenant not found") from e

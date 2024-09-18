@@ -24,13 +24,13 @@ class CRUDUser(CRUDBase[User, UserCreate, UserCreate, None]):  # type: ignore
         return result.scalar_one_or_none()
 
 
-class CRUDTenant(CRUDBase[Tenant, TenantCreate, TenantCreate, None]):
+class CRUDTenant(CRUDBase[Tenant, TenantCreate, TenantCreate, None]):  # type: ignore
     """
     CRUD for Tenant
     """
 
 
-class CRUDTenantConfig(CRUDBase[TenantConfig, TenantConfigCreate, TenantConfigCreate, None]):
+class CRUDTenantConfig(CRUDBase[TenantConfig, TenantConfigCreate, TenantConfigCreate, None]):  # type: ignore
     """
     CRUD for Tenant Config
     """

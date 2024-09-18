@@ -3,6 +3,8 @@ from unittest import mock
 import pytest
 from starlette import status
 
+from commons.utilities.context import set_tenant_id
+
 
 class MockSecurity:
     def __init__(self, *args, **kwargs):
@@ -11,6 +13,7 @@ class MockSecurity:
 
 
 mock.patch("fastapi.Security", MockSecurity).start()
+set_tenant_id(1)
 
 
 @pytest.mark.asyncio
@@ -81,3 +84,29 @@ def test_update_user(db_user_json, client):
 def test_list_user(client):
     response = client.get("/v1/users/")
     assert response.status_code == status.HTTP_200_OK
+
+
+@pytest.mark.asyncio
+async def test_create_tenant(client, db_user_json):
+    response = client.post("/v1/tenant/", json={"tenant_name": "tenant"})
+    db_tenant = response.json()
+    assert response.status_code == status.HTTP_200_OK
+
+    response = client.post("/v1/tenant/", json={"tenant_name": "tenant"})
+    assert response.status_code == status.HTTP_400_BAD_REQUEST
+    client.delete(f"/v1/tenant/{db_tenant['id']}")
+
+
+@pytest.mark.asyncio
+async def test_get_tenant(client, db_user_json):
+    response = client.post("/v1/tenant/", json={"tenant_name": "tenant"})
+    db_tenant = response.json()
+
+    response = client.get(f"/v1/tenant/{db_tenant['id']}")
+    tenant = response.json()
+    assert response.status_code == status.HTTP_200_OK
+    assert tenant == db_tenant
+
+    response = client.get("/v1/tenant/0")
+    assert response.status_code == status.HTTP_404_NOT_FOUND
+    client.delete(f"/v1/tenant/{db_tenant['id']}")

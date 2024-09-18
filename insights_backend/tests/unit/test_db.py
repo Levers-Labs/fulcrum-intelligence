@@ -1,3 +1,5 @@
+from unittest.mock import AsyncMock
+
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import Session
@@ -12,7 +14,15 @@ def mock_sync_session(mocker):
 
 @pytest.fixture
 def mock_async_session(mocker):
-    return mocker.patch("insights_backend.db.config._get_async_session", return_value=AsyncSession())
+    # Create a mock instance of AsyncSession
+    async_session_mock = AsyncMock(spec=AsyncSession)
+
+    # Create an asynchronous generator that yields the mock AsyncSession
+    async def async_generator():
+        yield AsyncSession()
+
+    mocker.patch("insights_backend.db.config._get_async_session", return_value=async_generator())
+    return async_session_mock
 
 
 def test_get_session(mock_sync_session):
@@ -24,7 +34,7 @@ def test_get_session(mock_sync_session):
 
 
 @pytest.mark.asyncio
-async def test_get_async_session(mock_sync_session):
+async def test_get_async_session(mock_async_session):
     session_generator = get_async_session()
     session = await session_generator.__anext__()
 
