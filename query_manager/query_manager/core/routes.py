@@ -50,7 +50,7 @@ async def list_metrics(
     metric_ids: Annotated[
         list[str],
         Query(description="List of metric ids"),
-    ],
+    ] = None,  # type: ignore
 ):
     """
     Retrieve a list of metrics.
