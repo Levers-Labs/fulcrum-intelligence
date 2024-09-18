@@ -49,6 +49,8 @@ def setup_db(postgres):
     engine = create_engine(db_sync_uri)
     # create schema
     logger.info("Creating db schema and tables")
+
+    # for multitenancy support, we need tenant_user role, creating that role and granting privileges to that role.
     with engine.connect() as conn:
         conn.execute(text("CREATE SCHEMA IF NOT EXISTS insights_store"))
         conn.execute(
@@ -78,7 +80,7 @@ def setup_db(postgres):
 
     SQLModel.metadata.create_all(engine)
     with engine.connect() as conn:
-        # Insert a record into a specific table, replace `table_name` and column names with actual values
+        # Insert a record in tenant table, which is required for user model testing.
         conn.execute(
             text(
                 """
