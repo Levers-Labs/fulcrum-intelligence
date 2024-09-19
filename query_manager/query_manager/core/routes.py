@@ -47,6 +47,7 @@ router = APIRouter(prefix="")
 async def list_metrics(
     client: QueryClientDep,
     params: Annotated[PaginationParams, Depends(PaginationParams)],
+    metric_label: str = None,  # type: ignore
     metric_ids: Annotated[
         list[str],
         Query(description="List of metric ids"),
@@ -55,7 +56,7 @@ async def list_metrics(
     """
     Retrieve a list of metrics.
     """
-    results, count = await client.list_metrics(metric_ids=metric_ids, params=params)
+    results, count = await client.list_metrics(metric_ids=metric_ids, metric_label=metric_label, params=params)
     return Page[Metric].create(items=results, total_count=count, params=params)
 
 
