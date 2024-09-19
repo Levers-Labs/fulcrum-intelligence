@@ -2,7 +2,9 @@ from commons.models import BaseModel
 
 
 class Tenant(BaseModel):
-    tenant_name: str
+    name: str
+    description: str
+    domains: list[str]
 
 
 class TenantConfig(BaseModel):

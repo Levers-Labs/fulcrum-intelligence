@@ -4,16 +4,11 @@ from enum import Enum
 from typing import Annotated, Any, TypeVar
 
 import jwt
-from fastapi import (
-    Depends,
-    HTTPException,
-    Request,
-    status,
-)
+from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer, SecurityScopes
 
 from commons.models import BaseModel
-from commons.utilities.context import set_tenant_id
+from commons.utilities.context import get_tenant_id
 
 F = TypeVar("F", bound=Callable[..., Any])
 logger = logging.getLogger(__name__)
@@ -110,7 +105,6 @@ class Oauth2Auth:
 
     async def verify(
         self,
-        request: Request,
         security_scopes: SecurityScopes,
         token: Annotated[HTTPAuthorizationCredentials | None, Depends(HTTPBearer(auto_error=False))] = None,
     ) -> OAuth2User:
@@ -138,9 +132,11 @@ class Oauth2Auth:
         payload = self.verify_jwt(token.credentials)
 
         # verify tenant
-        if tenant_id := request.state.tenant_id:
-            self.verify_tenant(payload, tenant_id)
-            set_tenant_id(tenant_id)
+        tenant_id = get_tenant_id()
+        if not tenant_id:
+            raise UnauthorizedException(detail="Invalid tenant id")
+
+        self.verify_tenant(payload, int(tenant_id))
 
         # Verify the scopes if route requires it
         if security_scopes.scopes:
@@ -206,9 +202,9 @@ class Oauth2Auth:
             )
         else:
             # Fetch user details from insights backend
-            user_id = int(payload.get("userId", "user_id"))
+            user_id = int(payload.get("userId", "-1"))
             # raise error if user_id is not present in payload
-            if user_id == "user_id":
+            if user_id == -1:
                 raise UnauthenticatedException(detail="Invalid User")
 
             return OAuth2User(

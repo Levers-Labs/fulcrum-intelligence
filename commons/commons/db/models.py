@@ -52,7 +52,7 @@ class BaseTenantModel(BaseDBModel):
     Base class for all models containing tenant specific data
     """
 
-    tenant_id: int | None = Field(default=None, foreign_key="insights_store.tenant.id")
+    tenant_id: int = Field(default=None, foreign_key="insights_store.tenant.id", nullable=False)
 
     @classmethod
     def add_tenant_id(cls, mapper, connection, target):
@@ -60,7 +60,14 @@ class BaseTenantModel(BaseDBModel):
         if not tenant_id:
             raise ValueError("tenant_id cannot be blank or null")
 
-        target.tenant_id = tenant_id
+        target.tenant_id = int(tenant_id)
+
+
+class BaseTenantTimeStampedModel(BaseTimeStampedModel, BaseTenantModel):
+    """
+    Base class for all models containing tenant specific data
+    """
 
 
 event.listen(BaseTenantModel, "before_insert", BaseTenantModel.add_tenant_id, propagate=True)
+event.listen(BaseTenantModel, "before_insert", BaseTenantTimeStampedModel.add_tenant_id, propagate=True)

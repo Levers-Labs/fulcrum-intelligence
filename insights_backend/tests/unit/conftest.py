@@ -84,11 +84,11 @@ def setup_db(postgres):
         conn.execute(
             text(
                 """
-                INSERT INTO insights_store.tenant (tenant_name)
-                VALUES (:tenant)
+                INSERT INTO insights_store.tenant (name, description, domains)
+                VALUES (:tenant, :description, :domains)
                 """
             ),
-            {"tenant": "test_tenant"},
+            {"tenant": "test_tenant", "description": "some desc", "domains": '["abc.com", "cds.com"]'},
         )
         conn.commit()
 

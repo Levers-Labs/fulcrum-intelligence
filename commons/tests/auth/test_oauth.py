@@ -7,9 +7,11 @@ from fastapi.security import HTTPAuthorizationCredentials, SecurityScopes
 from commons.auth.auth import (
     Oauth2Auth,
     OAuth2User,
+    UnauthenticatedException,
     UnauthorizedException,
     UserType,
 )
+from commons.utilities.context import set_tenant_id
 
 
 @pytest.fixture
@@ -21,8 +23,6 @@ def oauth2_auth():
 async def test_verify_with_valid_token_and_scopes(oauth2_auth, monkeypatch):
     token_credentials = HTTPAuthorizationCredentials(scheme="Bearer", credentials="valid_token")
     security_scopes = SecurityScopes(scopes=["read"])
-    mock_request = Mock()
-    mock_request.state.tenant_id = 1
 
     # Mock the return values of verify_jwt and get_oauth_user
     def mock_verify_jwt(token):
@@ -41,8 +41,9 @@ async def test_verify_with_valid_token_and_scopes(oauth2_auth, monkeypatch):
     monkeypatch.setattr(oauth2_auth, "verify_jwt", Mock(side_effect=mock_verify_jwt))
     monkeypatch.setattr(oauth2_auth, "get_oauth_user", AsyncMock(side_effect=mock_get_oauth_user))
 
+    set_tenant_id("1")
     # Call the method under test
-    result = await oauth2_auth.verify(request=mock_request, security_scopes=security_scopes, token=token_credentials)
+    result = await oauth2_auth.verify(security_scopes=security_scopes, token=token_credentials)
 
     # Assert the returned OAuth2User object
     assert isinstance(result, OAuth2User)
@@ -86,3 +87,39 @@ def test_verify_token_claims_missing_value(oauth2_auth):
 
     with pytest.raises(UnauthorizedException):
         oauth2_auth._verify_token_claims(payload, claim_name, expected_value)
+
+
+@pytest.mark.asyncio
+async def test_get_oauth_user_machine_user(oauth2_auth):
+    payload = {"sub": "client@clients", "scope": "read write"}
+    token = "dummy_token"  # noqa : S105
+
+    user = await oauth2_auth.get_oauth_user(payload, token)
+
+    assert isinstance(user, OAuth2User)
+    assert user.external_id == payload["sub"]
+    assert user.type == UserType.MACHINE
+    assert user.permissions == ["read", "write"]
+
+
+@pytest.mark.asyncio
+async def test_get_oauth_user_app_user(oauth2_auth):
+    payload = {"sub": "user@example.com", "userId": 123, "scope": "read"}
+    token = "dummy_token"  # noqa : S105
+
+    user = await oauth2_auth.get_oauth_user(payload, token)
+
+    assert isinstance(user, OAuth2User)
+    assert user.external_id == payload["sub"]
+    assert user.type == UserType.APP
+    assert user.permissions == ["read"]
+    assert user.app_user_id == 123
+
+
+@pytest.mark.asyncio
+async def test_get_oauth_user_invalid_user_id(oauth2_auth):
+    payload = {"sub": "user@example.com", "scope": "read"}
+    token = "dummy_token"  # noqa : S105
+
+    with pytest.raises(UnauthenticatedException, match="Invalid User"):
+        await oauth2_auth.get_oauth_user(payload, token)

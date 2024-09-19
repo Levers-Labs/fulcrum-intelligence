@@ -3,7 +3,7 @@ from unittest.mock import AsyncMock, patch
 import pytest
 from fastapi import Request, Response
 
-from commons.middleware import process_time_log_middleware, request_id_middleware
+from commons.middleware import context_middleware, process_time_log_middleware, request_id_middleware
 
 
 @pytest.mark.asyncio
@@ -76,3 +76,20 @@ async def test_process_time_log_middleware():
             result.status_code,
             "0.5",
         )
+
+
+@pytest.mark.asyncio
+async def test_context_middleware():
+    # Create a mock request object
+    headers = [("X-Tenant-Id", "1")]
+    request = Request(scope={"type": "http", "headers": headers})
+    request.state._state = {}
+
+    # Mock the call_next function which calls the next middleware or endpoint
+    call_next = AsyncMock(return_value=Response())
+
+    # Call the middleware
+    await context_middleware(request, call_next)
+
+    # Assert call_next was called
+    call_next.assert_called_once_with(request)
