@@ -13,19 +13,40 @@ logger = logging.getLogger(__name__)
 
 
 class SalienceEvaluator:
+    """
+    A class to evaluate the salience of a story based on its type, granularity, and provided variables.
+    """
 
     def __init__(self, story_type: StoryType, grain: Granularity, variables: dict[str, Any]):
+        """
+        Initialize the SalienceEvaluator with the given story type, granularity, and variables.
 
+        :param story_type: The type of the story.
+        :param grain: The granularity of the story.
+        :param variables: A dictionary of variables to be used in the heuristic expression.
+        """
         self.story_type = story_type
         self.grain = grain
         self.variables = variables
 
     def render_expression(self, expression: str) -> str:
+        """
+        Render the heuristic expression using the provided variables.
+
+        :param expression: The heuristic expression template as a string.
+        :return: The rendered expression as a string.
+        """
         template = Template(expression)
         return template.render(self.variables)
 
     @staticmethod
     def evaluate_expression(expression: str) -> bool:
+        """
+        Evaluate the rendered heuristic expression.
+
+        :param expression: The rendered heuristic expression as a string.
+        :return: The result of the evaluation as a boolean.
+        """
         try:
             return eval(expression)  # noqa
         except Exception as ex:
@@ -33,13 +54,24 @@ class SalienceEvaluator:
             return False
 
     async def evaluate_salience(self) -> bool:
+        """
+        Evaluate the salience of the story by fetching the heuristic expression from the database,
+        rendering it with the provided variables, and evaluating the rendered expression.
+
+        :return: The result of the salience evaluation as a boolean.
+        """
         async for session in get_async_session():
+            # Get the CRUDHeuristic dependency
             heuristic_crud = CRUDHeuristicDep(HeuristicExpression, session)
+            # Fetch the heuristic expression template from the database
             expression_template = await heuristic_crud.get_heuristic_expression(
                 story_type=self.story_type, grain=self.grain
             )
+            # If no expression template is found, return True
             if not expression_template:
                 return True
+            # Render the expression template with the provided variables
             rendered_expression = self.render_expression(expression_template)
+            # Evaluate the rendered expression
             return self.evaluate_expression(rendered_expression)
         return True

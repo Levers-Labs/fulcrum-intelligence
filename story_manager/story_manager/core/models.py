@@ -72,14 +72,28 @@ class Story(StorySchemaBaseModel, table=True):  # type: ignore
     async def set_salience(self) -> None:
         """
         Automatically update the salience of the story based on the heuristic expressions.
+
+        This method uses the SalienceEvaluator class to determine if the story is salient.
+        It fetches the heuristic expression from the database, renders it with the provided variables,
+        and evaluates the rendered expression to update the 'is_salient' attribute of the story.
         """
         from story_manager.story_builder.salience import SalienceEvaluator
 
+        # Create an instance of SalienceEvaluator with the story's type, granularity, and variables
         evaluator = SalienceEvaluator(self.story_type, self.grain, self.variables)
+
+        # Evaluate the salience of the story and update the 'is_salient' attribute
         self.is_salient = await evaluator.evaluate_salience()
 
 
 class HeuristicExpression(StorySchemaBaseModel, table=True):
+    """
+    HeuristicExpression model
+
+    This model represents the heuristic expressions used to evaluate the salience of stories.
+    Each heuristic expression is associated with a specific story type and granularity.
+    """
+
     story_type: StoryType = Field(sa_column=Column(String(255), nullable=False))
     grain: Granularity = Field(sa_column=Column(String(255), nullable=False))
     expression: str | None = Field(sa_column=Column(String(255), nullable=True))  # type: ignore
