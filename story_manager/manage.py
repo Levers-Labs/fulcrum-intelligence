@@ -220,5 +220,21 @@ def info():
     typer.secho(title + app_health + "\n" + envs)
 
 
+@cli.command("heuristic-insert")
+def heuristic_insert():
+    """Upsert metadata from JSON files into the database."""
+    import asyncio
+
+    from story_manager.scripts.insert_heuristics import main as insert_main
+
+    typer.secho("Starting salience heuristic expressions insert...", fg=typer.colors.BLUE)
+    try:
+        asyncio.run(insert_main())
+        typer.secho("Salience heuristic insert expressions completed successfully!", fg=typer.colors.GREEN)
+    except Exception as e:
+        typer.secho(f"Error during salience heuristic expressions insert: {str(e)}", fg=typer.colors.RED)
+        raise typer.Exit(code=1) from e
+
+
 if __name__ == "__main__":
     cli()

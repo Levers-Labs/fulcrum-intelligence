@@ -271,8 +271,13 @@ class StoryBuilderBase(ABC):
         logger.info(f"Persisting {len(stories)} stories in the database")
         logger.info(f"stories: {stories}")
 
-        # perform the necessary data transformations
-        story_objs: list[Story] = [Story.parse_obj(story_dict) for story_dict in stories]
+        # perform the necessary data transformations and set salience flag
+        story_objs: list[Story] = []
+        for story_dict in stories:
+            story = Story.parse_obj(story_dict)
+            await story.set_salience()
+            story_objs.append(story)
+
         self.db_session.add_all(story_objs)
         await self.db_session.commit()
         logger.info("Stories persisted successfully")

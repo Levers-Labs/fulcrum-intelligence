@@ -3,10 +3,13 @@ from typing import Any
 
 from pydantic import model_validator
 from sqlalchemy import (
+    Boolean,
     Column,
     DateTime,
     Enum,
+    String,
     Text,
+    UniqueConstraint,
 )
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlmodel import Field
@@ -45,6 +48,7 @@ class Story(StorySchemaBaseModel, table=True):  # type: ignore
     variables: dict = Field(default_factory=dict, sa_type=JSONB)
     series: list = Field(default_factory=list, sa_type=JSONB)
     story_date: datetime = Field(sa_column=Column(DateTime, nullable=False, index=True))
+    is_salient: bool = Field(default=False, sa_column=Column(Boolean, default=False))
 
     @model_validator(mode="before")
     @classmethod
@@ -64,3 +68,23 @@ class Story(StorySchemaBaseModel, table=True):  # type: ignore
             raise ValueError(f"Invalid type '{story_type}' for group '{group}'")
 
         return data
+
+    async def set_salience(self) -> None:
+        """
+        Automatically update the salience of the story based on the heuristic expressions.
+        """
+        from story_manager.story_builder.salience import SalienceEvaluator
+
+        evaluator = SalienceEvaluator(self.story_type, self.grain, self.variables)
+        self.is_salient = await evaluator.evaluate_salience()
+
+
+class HeuristicExpression(StorySchemaBaseModel, table=True):
+    story_type: StoryType = Field(sa_column=Column(String(255), nullable=False))
+    grain: Granularity = Field(sa_column=Column(String(255), nullable=False))
+    expression: str | None = Field(sa_column=Column(String(255), nullable=True))  # type: ignore
+
+    __table_args__ = (
+        UniqueConstraint("story_type", "grain", name="uix_story_type_grain"),  # type: ignore
+        {"schema": "story_store"},
+    )
