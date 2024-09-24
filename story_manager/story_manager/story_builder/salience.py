@@ -53,7 +53,7 @@ class SalienceEvaluator:
             logger.error(f"Error evaluating expression: {ex}")
             return False
 
-    async def evaluate_salience(self) -> bool:
+    async def evaluate_salience(self):
         """
         Evaluate the salience of the story by fetching the heuristic expression from the database,
         rendering it with the provided variables, and evaluating the rendered expression.
@@ -61,17 +61,19 @@ class SalienceEvaluator:
         :return: The result of the salience evaluation as a boolean.
         """
         async for session in get_async_session():
-            # Get the CRUDHeuristic dependency
-            heuristic_crud = CRUDHeuristicDep(HeuristicExpression, session)
-            # Fetch the heuristic expression template from the database
-            expression_template = await heuristic_crud.get_heuristic_expression(
-                story_type=self.story_type, grain=self.grain
-            )
-            # If no expression template is found, return True
-            if not expression_template:
-                return True
-            # Render the expression template with the provided variables
-            rendered_expression = self.render_expression(expression_template)
-            # Evaluate the rendered expression
-            return self.evaluate_expression(rendered_expression)
-        return True
+            try:
+                # Get the CRUDHeuristic dependency
+                heuristic_crud = CRUDHeuristicDep(HeuristicExpression, session)
+                # Fetch the heuristic expression template from the database
+                expression_template = await heuristic_crud.get_heuristic_expression(
+                    story_type=self.story_type, grain=self.grain
+                )
+                # If no expression template is found, return True
+                if not expression_template:
+                    return True
+                # Render the expression template with the provided variables
+                rendered_expression = self.render_expression(expression_template)
+                # Evaluate the rendered expression
+                return self.evaluate_expression(rendered_expression)
+            finally:
+                await session.close()

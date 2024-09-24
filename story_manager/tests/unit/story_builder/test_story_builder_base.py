@@ -1,5 +1,6 @@
+import asyncio
 from datetime import date, datetime
-from unittest.mock import ANY, patch
+from unittest.mock import ANY, AsyncMock, patch
 
 import pandas as pd
 import pytest
@@ -37,12 +38,17 @@ async def test_story_builder_run_unsupported_grain(story_builder):
 
 
 @pytest.mark.asyncio
-async def test_story_builder_run_success(story_builder, mock_db_session, mock_stories):
-    with patch.object(story_builder, "generate_stories", return_value=mock_stories):
-        await story_builder.run("metric1", "day")
-        assert mock_db_session.add_all.called
-        assert len(mock_db_session.add_all.call_args[0][0]) == 2  # Two stories should be added
-        assert mock_db_session.commit.called
+async def test_story_builder_run_success(event_loop, story_builder, mock_db_session, mock_stories):
+    # Ensure the test uses the provided event loop
+    asyncio.set_event_loop(event_loop)
+
+    # Mock the set_salience method
+    with patch("story_manager.core.models.Story.set_salience", new_callable=AsyncMock):
+        with patch.object(story_builder, "generate_stories", return_value=mock_stories):
+            await story_builder.run("metric1", Granularity.DAY)
+            assert mock_db_session.add_all.called
+            assert len(mock_db_session.add_all.call_args[0][0]) == 2  # Two stories should be added
+            assert mock_db_session.commit.called
 
 
 @pytest.mark.asyncio
@@ -66,20 +72,31 @@ async def test_story_builder_get_time_series_data(story_builder, mock_query_serv
 
 @pytest.mark.asyncio
 async def test_persist_stories(
-    story_builder, mock_query_service, mock_analysis_service, mock_analysis_manager, mock_db_session, mock_stories
+    event_loop,
+    story_builder,
+    mock_query_service,
+    mock_analysis_service,
+    mock_analysis_manager,
+    mock_db_session,
+    mock_stories,
 ):
-    await story_builder.persist_stories(mock_stories)
+    # Ensure the test uses the provided event loop
+    asyncio.set_event_loop(event_loop)
 
-    assert mock_db_session.add_all.called
-    assert len(mock_db_session.add_all.call_args[0][0]) == 2  # Two stories should be added
-    assert mock_db_session.commit.called
+    # Mock the set_salience method
+    with patch("story_manager.core.models.Story.set_salience", new_callable=AsyncMock):
+        await story_builder.persist_stories(mock_stories)
 
-    added_stories = mock_db_session.add_all.call_args[0][0]
-    for story_dict, story_obj in zip(mock_stories, added_stories):
-        assert story_obj.metric_id == story_dict["metric_id"]
-        assert story_obj.genre == story_dict["genre"]
-        assert story_obj.story_group == story_dict["story_group"]
-        assert story_obj.story_type == story_dict["story_type"]
+        assert mock_db_session.add_all.called
+        assert len(mock_db_session.add_all.call_args[0][0]) == 2  # Two stories should be added
+        assert mock_db_session.commit.called
+
+        added_stories = mock_db_session.add_all.call_args[0][0]
+        for story_dict, story_obj in zip(mock_stories, added_stories):
+            assert story_obj.metric_id == story_dict["metric_id"]
+            assert story_obj.genre == story_dict["genre"]
+            assert story_obj.story_group == story_dict["story_group"]
+            assert story_obj.story_type == story_dict["story_type"]
 
 
 def test_get_current_period_range_day(story_builder):
