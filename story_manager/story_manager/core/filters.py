@@ -13,7 +13,7 @@ from story_manager.core.enums import (
     StoryType,
 )
 from story_manager.core.mappings import FILTER_MAPPING
-from story_manager.core.models import HeuristicExpression, Story
+from story_manager.core.models import Story, StoryConfig
 
 
 class StoryFilter(BaseFilter[Story]):
@@ -89,6 +89,6 @@ class StoryFilter(BaseFilter[Story]):
         return super().apply_filters(query, values)
 
 
-class HeuristicExpressionFilter(BaseFilter[HeuristicExpression]):
-    story_type: StoryType | None = FilterField(HeuristicExpression.story_type, operator="eq", default=None)  # type: ignore
-    grain: Granularity | None = FilterField(HeuristicExpression.grain, operator="eq", default=None)  # type:ignore
+class StoryConfigFilter(BaseFilter[StoryConfig]):
+    story_type: StoryType | None = FilterField(StoryConfig.story_type, operator="eq", default=None)  # type: ignore
+    grain: Granularity | None = FilterField(StoryConfig.grain, operator="eq", default=None)  # type:ignore

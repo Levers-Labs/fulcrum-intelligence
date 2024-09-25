@@ -48,7 +48,7 @@ class Story(StorySchemaBaseModel, table=True):  # type: ignore
     variables: dict = Field(default_factory=dict, sa_type=JSONB)
     series: list = Field(default_factory=list, sa_type=JSONB)
     story_date: datetime = Field(sa_column=Column(DateTime, nullable=False, index=True))
-    is_salient: bool = Field(default=False, sa_column=Column(Boolean, default=False))
+    is_salient: bool = Field(default=True, sa_column=Column(Boolean, default=False))
 
     @model_validator(mode="before")
     @classmethod
@@ -74,8 +74,8 @@ class Story(StorySchemaBaseModel, table=True):  # type: ignore
         Automatically update the salience of the story based on the heuristic expressions.
 
         This method uses the SalienceEvaluator class to determine if the story is salient.
-        It fetches the heuristic expression from the database, renders it with the provided variables,
-        and evaluates the rendered expression to update the 'is_salient' attribute of the story.
+        It fetches the heuristic heuristic_expression from the database, renders it with the provided variables,
+        and evaluates the rendered heuristic_expression to update the 'is_salient' attribute of the story.
         """
         from story_manager.story_builder.salience import SalienceEvaluator
 
@@ -86,19 +86,16 @@ class Story(StorySchemaBaseModel, table=True):  # type: ignore
         self.is_salient = await evaluator.evaluate_salience()
 
 
-class HeuristicExpression(StorySchemaBaseModel, table=True):
+class StoryConfig(StorySchemaBaseModel, table=True):
     """
-    HeuristicExpression model
-
-    This model represents the heuristic expressions used to evaluate the salience of stories.
-    Each heuristic expression is associated with a specific story type and granularity.
+    StoryConfig model
     """
 
     story_type: StoryType = Field(sa_column=Column(String(255), nullable=False))
     grain: Granularity = Field(sa_column=Column(String(255), nullable=False))
-    expression: str | None = Field(sa_column=Column(String(255), nullable=True))  # type: ignore
+    heuristic_expression: str | None = Field(sa_column=Column(String(255), nullable=True))  # type: ignore
 
     __table_args__ = (
-        UniqueConstraint("story_type", "grain", name="uix_story_type_grain"),  # type: ignore
+        UniqueConstraint("story_type", "grain", name="uix_story_types_grain"),  # type: ignore
         {"schema": "story_store"},
     )

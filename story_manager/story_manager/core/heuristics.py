@@ -5,7 +5,7 @@ from story_manager.core.enums import StoryType
 
 # This dictionary maps each StoryType to its corresponding heuristic expressions for different granularities.
 # The heuristic expressions are used to evaluate the salience of a story based on the provided variables.
-# Each expression is a Jinja2 template string that will be rendered with the actual values of the variables.
+# Each heuristic_expression is a Jinja2 template string that will be rendered with the actual values of the variables.
 
 STORY_TYPE_HEURISTIC_MAPPING: dict[str, Any] = {
     StoryType.LIKELY_OFF_TRACK: {

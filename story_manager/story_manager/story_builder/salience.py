@@ -4,9 +4,9 @@ from typing import Any
 from jinja2 import Template
 
 from commons.models.enums import Granularity
-from story_manager.core.dependencies import CRUDHeuristicDep
+from story_manager.core.dependencies import CRUDStoryConfigDep
 from story_manager.core.enums import StoryType
-from story_manager.core.models import HeuristicExpression
+from story_manager.core.models import StoryConfig
 from story_manager.db.config import get_async_session
 
 logger = logging.getLogger(__name__)
@@ -23,7 +23,7 @@ class SalienceEvaluator:
 
         :param story_type: The type of the story.
         :param grain: The granularity of the story.
-        :param variables: A dictionary of variables to be used in the heuristic expression.
+        :param variables: A dictionary of variables to be used in the heuristic heuristic_expression.
         """
         self.story_type = story_type
         self.grain = grain
@@ -31,10 +31,10 @@ class SalienceEvaluator:
 
     def render_expression(self, expression: str) -> str:
         """
-        Render the heuristic expression using the provided variables.
+        Render the heuristic heuristic_expression using the provided variables.
 
-        :param expression: The heuristic expression template as a string.
-        :return: The rendered expression as a string.
+        :param expression: The heuristic heuristic_expression template as a string.
+        :return: The rendered heuristic_expression as a string.
         """
         template = Template(expression)
         return template.render(self.variables)
@@ -42,15 +42,15 @@ class SalienceEvaluator:
     @staticmethod
     def evaluate_expression(expression: str) -> bool:
         """
-        Evaluate the rendered heuristic expression.
+        Evaluate the rendered heuristic heuristic_expression.
 
-        :param expression: The rendered heuristic expression as a string.
+        :param expression: The rendered heuristic heuristic_expression as a string.
         :return: The result of the evaluation as a boolean.
         """
         try:
             return eval(expression)  # noqa
         except Exception as ex:
-            logger.error(f"Error evaluating expression: {ex}")
+            logger.error(f"Error evaluating heuristic_expression: {ex}")
             return False
 
     async def evaluate_salience(self):
@@ -62,10 +62,10 @@ class SalienceEvaluator:
         """
         async for session in get_async_session():
             try:
-                # Get the CRUDHeuristic dependency
-                heuristic_crud = CRUDHeuristicDep(HeuristicExpression, session)
+                # Get the CRUDStoryConfig dependency
+                story_config_crud = CRUDStoryConfigDep(StoryConfig, session)
                 # Fetch the heuristic expression template from the database
-                expression_template = await heuristic_crud.get_heuristic_expression(
+                expression_template = await story_config_crud.get_heuristic_expression(
                     story_type=self.story_type, grain=self.grain
                 )
                 # If no expression template is found, return True

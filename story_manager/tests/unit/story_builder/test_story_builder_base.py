@@ -1,6 +1,11 @@
 import asyncio
 from datetime import date, datetime
-from unittest.mock import ANY, AsyncMock, patch
+from unittest.mock import (
+    ANY,
+    AsyncMock,
+    MagicMock,
+    patch,
+)
 
 import pandas as pd
 import pytest
@@ -330,3 +335,35 @@ def test_get_input_time_range(story_builder):
     # Assert
     assert start_date == expected_start_date
     assert end_date == expected_end_date
+
+
+@pytest.mark.asyncio
+async def test_set_stories_salience(event_loop, story_builder, mock_db_session, mock_stories):
+    # Ensure the test uses the provided event loop
+    asyncio.set_event_loop(event_loop)
+
+    # Create mock Story objects
+    mock_story_objs = [MagicMock() for _ in mock_stories]
+
+    # Mock the refresh and set_salience methods
+    for mock_story in mock_story_objs:
+        mock_story.set_salience = AsyncMock()
+
+    # Mock the db_session.refresh method
+    mock_db_session.refresh = AsyncMock()
+
+    # Call the set_stories_salience method
+    await story_builder.set_stories_salience(mock_story_objs)
+
+    # Assert that db_session.refresh was called for each story
+    assert mock_db_session.refresh.call_count == len(mock_story_objs)
+
+    # Assert that set_salience was called for each story
+    for mock_story in mock_story_objs:
+        mock_story.set_salience.assert_called_once()
+
+    # Assert that db_session.add_all was called with the story objects
+    mock_db_session.add_all.assert_called_once_with(mock_story_objs)
+
+    # Assert that db_session.commit was called
+    mock_db_session.commit.assert_called_once()
