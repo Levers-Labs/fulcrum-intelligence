@@ -13,7 +13,7 @@ def add_rls_policies(
     """
     Adds row-level security (RLS) policies to tables with a `tenant_id` column.
     """
-    typer.secho("Adding rls policies", fg=typer.colors.GREEN)
+
     if not scripts or not scripts[-1].upgrade_ops:  # type: ignore
         return
 
@@ -32,6 +32,7 @@ def add_rls_policies(
 
     # Add RLS policies for each table
     for table_name in rls_table_set:
+        typer.secho(f"Adding rls policies for {table_name}", fg=typer.colors.GREEN)
         # to enable row level security
         rls_sql = f"ALTER TABLE {table_name} ENABLE ROW LEVEL SECURITY;"
 

@@ -88,7 +88,7 @@ def test_list_user(client):
 
 def test_get_tenant(client):
     response = client.get("/v1/tenants/me")
-    assert response.status_code == status.HTTP_404_NOT_FOUND
+    assert response.status_code == status.HTTP_200_OK
 
 
 def test_get_tenant_config(client):

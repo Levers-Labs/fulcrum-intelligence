@@ -15,6 +15,7 @@ class Tenant(BaseDBModel, table=True):  # type: ignore
     name: str = Field(sa_column=Column(String(255), index=True, unique=True))
     description: str = Field(sa_column=Column(String(255), nullable=True))
     domains: list[str] = Field(sa_column=Column(JSON))
+    external_org_id: str = Field(sa_column=Column(String(255), index=True, unique=True))
 
 
 class TenantConfig(InsightsSchemaBaseModel, table=True):  # type: ignore

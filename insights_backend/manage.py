@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import importlib
+import json
 from pathlib import Path
 from typing import Annotated, Optional
 
@@ -11,7 +12,10 @@ import uvicorn
 from alembic import command
 from alembic.config import Config
 from alembic.util import CommandError
+from sqlalchemy import text
+from sqlalchemy.orm import sessionmaker
 
+from commons.db.engine import get_engine
 from commons.utilities.migration_utils import add_rls_policies
 from insights_backend.config import get_settings
 from insights_backend.db.config import MODEL_PATHS
@@ -179,6 +183,58 @@ def info():
     envs = "\n".join([f"{key}={value}" for key, value in settings.dict().items()])
     title = typer.style("===> APP INFO <==============\n", fg=typer.colors.BLUE)
     typer.secho(title + app_health + "\n" + envs)
+
+
+@cli.command("add_tenant")
+def insert_row(
+    tenant_info: Annotated[
+        str,
+        typer.Argument(
+            help="""
+                            Json of tenant data, it should be of the form
+                            '{"name": "name of the tenant",
+                              "description": "description of tenant",
+                              "domains": ["domains list"]
+                              "external_id": "auth0 org id of the tenant"
+                              }'
+                            """
+        ),
+    ]
+):
+    """
+    Helps to add a tenant,
+    We just have the pass the json of the tenant as follows \n
+    poetry run python manage.py add_tenant
+    '{"name": "name of the tenant",
+      "description": "description of tenant",
+      "domains": ["domain1", "domain2", "domain3"],
+      "external_id": "auth0 org id of the tenant"
+    }'
+    """
+
+    settings = get_settings()
+    tenant_info = json.loads(tenant_info)
+    database_url = settings.DATABASE_URL.replace("postgresql+asyncpg://", "postgresql://")
+    engine = get_engine(database_url)
+    session_local = sessionmaker(bind=engine)
+
+    with session_local() as session:
+        insert_query = text(
+            """
+            INSERT INTO insights_store.tenant (name, description, domains, external_ord_id)
+            VALUES (:name, :description, to_json(:domains))
+            """
+        )
+        session.execute(
+            insert_query,
+            {
+                "name": tenant_info["name"],  # type: ignore
+                "description": tenant_info["name"],  # type: ignore
+                "domains": tenant_info["domains"],  # type: ignore
+                "auth0_org_id": tenant_info["external_id"],  # type: ignore
+            },
+        )
+        session.commit()
 
 
 if __name__ == "__main__":
