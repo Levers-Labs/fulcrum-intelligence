@@ -6,7 +6,7 @@ from fastapi import APIRouter, Response, status
 from pydantic import BaseModel
 from sqlalchemy import select
 
-from analysis_manager.config import settings
+from analysis_manager.config import get_settings
 from analysis_manager.db.config import AsyncSessionDep
 
 router = APIRouter()
@@ -27,6 +27,7 @@ async def check_health(response: Response, session: AsyncSessionDep):
     """Check availability of several's service to get an idea of the api health."""
     logger.info("Health Check⛑")
     health = APIHealth()
+    settings = get_settings()
 
     # database check
     try:

@@ -11,7 +11,7 @@ from fastapi import (
     Security,
 )
 
-from analysis_manager.config import settings
+from analysis_manager.config import get_settings
 from analysis_manager.core.dependencies import (
     AnalysisManagerDep,
     ComponentDriftServiceDep,
@@ -301,6 +301,7 @@ async def segment_drift(
 ):
     logger.debug(f"Segment drift request: {drift_req}")
 
+    settings = get_settings()
     if len(drift_req.dimensions) == 0:
         raise HTTPException(status_code=400, detail="at least one dimension is required")
 
