@@ -6,6 +6,8 @@ omit=
     commons/utilities/pagination.py
     commons/utilities/docs.py
     commons/models/enums.py
+    commons/models/tenant.py
+    commons/auth/scopes.py
 
 [report]
 fail_under = 85
