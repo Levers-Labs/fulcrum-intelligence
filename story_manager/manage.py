@@ -220,8 +220,8 @@ def info():
     typer.secho(title + app_health + "\n" + envs)
 
 
-@cli.command("update-story-config")
-def update_story_config():
+@cli.command("upsert-story-config")
+def upsert_story_config():
     """
     Update the story configuration by running the update_story_config script.
 
@@ -230,11 +230,11 @@ def update_story_config():
     """
     import asyncio
 
-    from story_manager.scripts.update_story_config import main as update_config
+    from story_manager.scripts.upsert_story_config import main as upsert_config
 
     typer.secho("Starting story config update...", fg=typer.colors.BLUE)
     try:
-        asyncio.run(update_config())
+        asyncio.run(upsert_config())
         typer.secho("Story config update completed successfully!", fg=typer.colors.GREEN)
     except Exception as e:
         typer.secho(f"Error during story config update: {str(e)}", fg=typer.colors.RED)

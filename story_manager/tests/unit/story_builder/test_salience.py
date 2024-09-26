@@ -8,14 +8,21 @@ from story_manager.story_builder.salience import SalienceEvaluator
 
 
 @pytest.fixture
-def evaluator():
-    variables = {"var1": 10, "var2": 20}
-    return SalienceEvaluator(StoryType.STABLE_TREND, Granularity.DAY, variables)
+def mock_session():
+    session = MagicMock()
+    session.close = AsyncMock()  # Ensure close is awaitable
+    return session
+
+
+@pytest.fixture
+def evaluator(mock_session):
+    return SalienceEvaluator(StoryType.STABLE_TREND, Granularity.DAY, mock_session)
 
 
 def test_render_expression(evaluator):
+    variables = {"var1": 10, "var2": 20}
     expression = "{{ var1 }} + {{ var2 }}"
-    rendered = evaluator.render_expression(expression)
+    rendered = evaluator.render_expression(expression, variables)
     assert rendered == "10 + 20"
 
 
@@ -46,30 +53,23 @@ def test_evaluate_expression():
 
 
 @pytest.mark.asyncio
-async def test_evaluate_salience(evaluator):
-    mock_session = MagicMock()
-    mock_session.close = AsyncMock()  # Ensure close is awaitable
+async def test_evaluate_salience(evaluator, mock_session):
+    variables = {"var1": 10, "var2": 20}
     mock_crud = MagicMock()
     mock_crud.get_heuristic_expression = AsyncMock(return_value="{{ var1 }} + {{ var2 }} == 30")
 
-    async def mock_get_async_session():
-        yield mock_session
-
-    with patch("story_manager.story_builder.salience.get_async_session", mock_get_async_session):
-        with patch("story_manager.story_builder.salience.CRUDStoryConfigDep", return_value=mock_crud):
-            result = await evaluator.evaluate_salience()
-            assert result is True
+    with patch("story_manager.story_builder.salience.CRUDStoryConfigDep", return_value=mock_crud):
+        result = await evaluator.evaluate_salience(variables)
+        assert result is True
 
     mock_crud.get_heuristic_expression = AsyncMock(return_value="{{ var1 }} + {{ var2 }} == 25")
 
-    with patch("story_manager.story_builder.salience.get_async_session", mock_get_async_session):
-        with patch("story_manager.story_builder.salience.CRUDStoryConfigDep", return_value=mock_crud):
-            result = await evaluator.evaluate_salience()
-            assert result is False
+    with patch("story_manager.story_builder.salience.CRUDStoryConfigDep", return_value=mock_crud):
+        result = await evaluator.evaluate_salience(variables)
+        assert result is False
 
     mock_crud.get_heuristic_expression = AsyncMock(return_value=None)
 
-    with patch("story_manager.story_builder.salience.get_async_session", mock_get_async_session):
-        with patch("story_manager.story_builder.salience.CRUDStoryConfigDep", return_value=mock_crud):
-            result = await evaluator.evaluate_salience()
-            assert result is True
+    with patch("story_manager.story_builder.salience.CRUDStoryConfigDep", return_value=mock_crud):
+        result = await evaluator.evaluate_salience(variables)
+        assert result is True

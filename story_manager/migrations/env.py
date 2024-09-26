@@ -36,7 +36,7 @@ schema = "story_store"
 
 
 def include_object(object, name, type_, reflected, compare_to):
-    if type_ == "table" and object.schema != schema:
+    if type_ in ["table", "seq"] and object.schema != schema:
         return False
     return True
 

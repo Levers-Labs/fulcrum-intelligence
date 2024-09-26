@@ -13,8 +13,8 @@ from story_manager.core.models import StoryConfig
 logger = logging.getLogger(__name__)
 
 
-async def update_story_config(session: AsyncSession) -> None:
-    logger.info("Updating Story Config with Salience Heuristic Expressions")
+async def upsert_story_config(session: AsyncSession) -> None:
+    logger.info("Running Story Config Upsert with Salience Heuristic Expressions")
     for story_type, grains in STORY_TYPE_HEURISTIC_MAPPING.items():
         for grain, expr in grains.items():
             stmt = (
@@ -24,7 +24,7 @@ async def update_story_config(session: AsyncSession) -> None:
             )
             await session.execute(stmt)
     await session.commit()
-    logger.info("Story Config Update Completed")
+    logger.info("Story Config Upsert Completed")
 
 
 async def main() -> None:
@@ -35,7 +35,7 @@ async def main() -> None:
     engine = create_async_engine(settings.DATABASE_URL)
     async_session = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)  # type: ignore
     async with async_session() as session:
-        await update_story_config(session)
+        await upsert_story_config(session)
 
 
 # Usage example:

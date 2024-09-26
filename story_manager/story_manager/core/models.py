@@ -77,13 +77,18 @@ class Story(StorySchemaBaseModel, table=True):  # type: ignore
         It fetches the heuristic heuristic_expression from the database, renders it with the provided variables,
         and evaluates the rendered heuristic_expression to update the 'is_salient' attribute of the story.
         """
+        from story_manager.db.config import get_async_session
         from story_manager.story_builder.salience import SalienceEvaluator
 
-        # Create an instance of SalienceEvaluator with the story's type, granularity, and variables
-        evaluator = SalienceEvaluator(self.story_type, self.grain, self.variables)
+        session = await get_async_session().__anext__()
+        try:
+            # Create an instance of SalienceEvaluator with the story's type, granularity, variables, and session
+            evaluator = SalienceEvaluator(self.story_type, self.grain, session)
 
-        # Evaluate the salience of the story and update the 'is_salient' attribute
-        self.is_salient = await evaluator.evaluate_salience()
+            # Evaluate the salience of the story and update the 'is_salient' attribute
+            self.is_salient = await evaluator.evaluate_salience(self.variables)
+        finally:
+            await session.close()
 
 
 class StoryConfig(StorySchemaBaseModel, table=True):
