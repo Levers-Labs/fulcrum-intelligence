@@ -2,6 +2,7 @@ import logging
 from typing import Any
 
 from jinja2 import Template
+from sqlmodel.ext.asyncio.session import AsyncSession
 
 from commons.models.enums import Granularity
 from story_manager.core.dependencies import CRUDStoryConfigDep
@@ -16,13 +17,12 @@ class SalienceEvaluator:
     A class to evaluate the salience of a story based on its type, granularity, and provided variables.
     """
 
-    def __init__(self, story_type: StoryType, grain: Granularity, session):
+    def __init__(self, story_type: StoryType, grain: Granularity, session: AsyncSession):
         """
         Initialize the SalienceEvaluator with the given story type, granularity, variables, and session.
 
         :param story_type: The type of the story.
         :param grain: The granularity of the story.
-        :param variables: A dictionary of variables to be used in the heuristic heuristic_expression.
         :param session: The database session to be used.
         """
         self.story_type = story_type
@@ -58,6 +58,7 @@ class SalienceEvaluator:
         Evaluate the salience of the story by fetching the heuristic expression from the database,
         rendering it with the provided variables, and evaluating the rendered expression.
 
+        :param variables: A dictionary of variables to be used in the heuristic expression.
         :return: The result of the salience evaluation as a boolean.
         """
         # Get the CRUDStoryConfig dependency

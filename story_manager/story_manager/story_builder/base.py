@@ -290,7 +290,7 @@ class StoryBuilderBase(ABC):
 
         for story in story_objs:
             await self.db_session.refresh(story)
-            await story.set_salience()
+            await story.set_salience(self.db_session)
 
         self.db_session.add_all(story_objs)
         await self.db_session.commit()
