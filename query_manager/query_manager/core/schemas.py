@@ -49,7 +49,7 @@ class MetricDetail(MetricBase):
 
 class MetricValue(BaseModel, extra="allow"):  # type: ignore
     metric_id: str | None = None
-    value: int | float
+    value: int | float | None = None
     date: datetime.date | None = None
 
 

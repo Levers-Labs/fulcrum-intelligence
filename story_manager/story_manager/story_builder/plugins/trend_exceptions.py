@@ -80,6 +80,9 @@ class TrendExceptionsStoryBuilder(StoryBuilderBase):
         ref_data = pc_df.iloc[-1]
 
         story_type = None
+        if ref_data["value"] is None:
+            return stories
+
         if ref_data["value"] > ref_data["ucl"]:
             deviation = self.analysis_manager.calculate_percentage_difference(
                 ref_data["value"].item(), ref_data["ucl"].item()
