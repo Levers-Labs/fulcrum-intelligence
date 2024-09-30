@@ -13,7 +13,7 @@ from story_manager.core.enums import (
     StoryType,
 )
 from story_manager.core.mappings import FILTER_MAPPING
-from story_manager.core.models import Story
+from story_manager.core.models import Story, StoryConfig
 
 
 class StoryFilter(BaseFilter[Story]):
@@ -26,6 +26,7 @@ class StoryFilter(BaseFilter[Story]):
     grains: list[Granularity] | None = FilterField(Story.grain, operator="in", default=None)  # type: ignore
     digest: Digest | None = FilterField(None, default=None)  # type: ignore
     section: Section | None = FilterField(None, default=None)  # type: ignore
+    is_salient: bool | None = FilterField(Story.is_salient, operator="eq", default=None)  # type: ignore
 
     @classmethod
     def apply_filters(cls, query: Select, values: dict[str, Any]) -> Select:
@@ -86,3 +87,8 @@ class StoryFilter(BaseFilter[Story]):
 
             # Call the parent class's apply_filters method with the updated values
         return super().apply_filters(query, values)
+
+
+class StoryConfigFilter(BaseFilter[StoryConfig]):
+    story_type: StoryType | None = FilterField(StoryConfig.story_type, operator="eq", default=None)  # type: ignore
+    grain: Granularity | None = FilterField(StoryConfig.grain, operator="eq", default=None)  # type:ignore
