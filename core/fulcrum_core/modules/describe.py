@@ -49,6 +49,8 @@ class DescribeAnalyzer(BaseAnalyzer):
         start_date = pd.to_datetime(start_date)
         end_date = pd.to_datetime(end_date)
         response: list[dict[str, Any]] = []
+        aggregation_function = "mean" if aggregation_function.lower() == "avg" else aggregation_function
+
         # for each dimension member, calculate the descriptive statistics
         for dimension in dimensions:
             # group by on that dimension, date, metric_id

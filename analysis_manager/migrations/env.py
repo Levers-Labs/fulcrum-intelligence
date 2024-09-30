@@ -35,6 +35,12 @@ target_metadata.naming_convention = {
 schema = "analysis_store"
 
 
+def include_object(object, name, type_, reflected, compare_to):
+    if type_ in ["table", "seq"] and object.schema != schema:
+        return False
+    return True
+
+
 def run_migrations_offline() -> None:
     """Run migrations in 'offline' mode.
 
@@ -55,6 +61,7 @@ def run_migrations_offline() -> None:
         dialect_opts={"paramstyle": "named"},
         version_table_schema=schema,
         include_schemas=True,
+        include_object=include_object,
     )
 
     with context.begin_transaction():
@@ -67,6 +74,7 @@ def do_run_migrations(connection: Connection) -> None:
         target_metadata=target_metadata,
         version_table_schema=schema,
         include_schemas=True,
+        include_object=include_object,
     )
     # create schema if not exists
     connection.execute(text(f"CREATE SCHEMA IF NOT EXISTS {schema}"))

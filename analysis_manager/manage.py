@@ -11,7 +11,7 @@ from alembic import command
 from alembic.config import Config
 from alembic.util import CommandError
 
-from analysis_manager.config import settings
+from analysis_manager.config import get_settings
 from analysis_manager.db.config import MODEL_PATHS
 
 cli = typer.Typer()
@@ -132,6 +132,7 @@ def run_prod_server():
     from gunicorn import util
     from gunicorn.app.base import Application
 
+    settings = get_settings()
     config_file = str(settings.PATHS.ROOT_DIR.joinpath("gunicorn.conf.py").resolve(strict=True))
 
     class APPServer(Application):
@@ -151,6 +152,7 @@ def run_prod_server():
 @cli.command("start-app")
 def start_app(app_name: str):
     """Create a new fastapi component, similar to django startapp"""
+    settings = get_settings()
     package_name = app_name.lower().strip().replace(" ", "_").replace("-", "_")
     app_dir = settings.PATHS.BASE_DIR / package_name
     files = {
@@ -187,6 +189,7 @@ def shell():
 @cli.command()
 def info():
     """Show project health and settings."""
+    settings = get_settings()
     with httpx.Client(base_url=settings.SERVER_HOST) as client:
         try:
             resp = client.get("/health", follow_redirects=True)

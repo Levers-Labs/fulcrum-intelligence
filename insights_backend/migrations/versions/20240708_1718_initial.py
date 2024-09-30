@@ -1,6 +1,6 @@
 """initial
 
-Revision ID: 4af59eef819b
+Revision ID: 667aa2fdc83a
 Revises:
 Create Date: 2024-07-08 17:18:51.441652
 
@@ -13,7 +13,7 @@ import sqlmodel
 from alembic import op
 
 # revision identifiers, used by Alembic.
-revision: str = "4af59eef819b"
+revision: str = "667aa2fdc83a"
 down_revision: str | None = None
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
