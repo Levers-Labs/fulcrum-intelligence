@@ -34,7 +34,7 @@ AUTH0_CLIENT_ID = get_config("AUTH0_CLIENT_ID")
 # Local (Docker run) configurations
 STORY_BUILDER_IMAGE = get_config("STORY_BUILDER_IMAGE", "story-builder-manager:latest")
 DOCKER_HOST = get_config("DOCKER_HOST", "")
-SERVER_HOST = get_config("SERVER_HOST", "http://localhost:8002")
+SERVER_HOST = get_config("SERVER_HOST", "http://localhost:8003")
 
 # ECS configurations
 ECS_SUBNETS = get_config("ECS_SUBNETS").split(",") if get_config("ECS_SUBNETS") else None
@@ -75,11 +75,9 @@ def fetch_all_metrics(auth_header: dict[str, str]) -> list[str]:
 
     response = requests.get(f"{QUERY_MANAGER_SERVER_HOST.strip('/')}/metrics", headers=auth_header, timeout=30)
     response.raise_for_status()
-    metrics_data = response.json()
-    for metric in metrics_data.get("results"):
-        metric["id"] = metric["metric_id"]
+    metrics_data = response.json().get("results", [])
 
-    return [metric["id"] for metric in metrics_data.get("results", [])]
+    return [metric["metric_id"] for metric in metrics_data]
 
 
 def fetch_group_meta(group: str, auth_header: dict[str, str]) -> dict[str, Any]:
@@ -92,7 +90,7 @@ def fetch_group_meta(group: str, auth_header: dict[str, str]) -> dict[str, Any]:
 def create_story_group_dag(group: str, meta: dict[str, Any]) -> None:
     dag_id = f"GROUP_{group}_STORY_DAG"
 
-    @dag(dag_id=dag_id, start_date=datetime(2024, 7, 1), schedule_interval=meta["schedule_interval"], catchup=False)
+    @dag(dag_id=dag_id, start_date=datetime(2024, 9, 26), schedule_interval=meta["schedule_interval"], catchup=False)
     def story_group_dag():
         @task(task_id="get_auth_header")
         def get_auth_header():
