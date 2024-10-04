@@ -11,7 +11,11 @@ import uvicorn
 from alembic import command
 from alembic.config import Config
 from alembic.util import CommandError
+from sqlalchemy.ext.asyncio import create_async_engine
+from sqlalchemy.orm import sessionmaker
+from sqlmodel.ext.asyncio.session import AsyncSession
 
+from commons.utilities.migration_utils import add_rls_policies
 from insights_backend.config import get_settings
 from insights_backend.db.config import MODEL_PATHS
 
@@ -104,6 +108,7 @@ def create_alembic_revision(
             version_path=version_path,
             rev_id=rev_id,
             depends_on=depends_on,
+            process_revision_directives=add_rls_policies,
         )
     except CommandError as exc:
         typer.secho(f"Error: {exc}", fg=typer.colors.RED, bold=True)
@@ -177,6 +182,30 @@ def info():
     envs = "\n".join([f"{key}={value}" for key, value in settings.dict().items()])
     title = typer.style("===> APP INFO <==============\n", fg=typer.colors.BLUE)
     typer.secho(title + app_health + "\n" + envs)
+
+
+@cli.command("onboard-tenant")
+def onboard_tenant(
+    file_path: Annotated[str, typer.Argument(help="Path to the JSON file containing tenant data")],
+):
+    """Onboard a new tenant using data from a JSON file."""
+    import asyncio
+
+    from insights_backend.core.scripts.onboard_tenant import onboard_tenant
+
+    async def run_onboard():
+        settings = get_settings()
+        engine = create_async_engine(settings.DATABASE_URL)
+        async_session = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)  # type: ignore
+        async with async_session() as session:
+            try:
+                await onboard_tenant(session, file_path)
+                typer.secho("Tenant onboarded successfully", fg=typer.colors.GREEN)
+            except Exception as exc:
+                typer.secho(f"Error onboarding tenant: {str(exc)}", fg=typer.colors.RED)
+                raise typer.Exit(code=1) from exc
+
+    asyncio.run(run_onboard())
 
 
 if __name__ == "__main__":

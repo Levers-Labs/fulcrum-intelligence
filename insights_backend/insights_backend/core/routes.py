@@ -15,6 +15,7 @@ from commons.db.crud import NotFoundError
 from commons.utilities.pagination import PaginationParams
 from insights_backend.core.dependencies import UsersCRUDDep, oauth2_auth
 from insights_backend.core.models import User, UserCreate, UserList
+from insights_backend.core.models.users import UserRead
 
 user_router = APIRouter(prefix="/users", tags=["users"])
 logger = logging.getLogger(__name__)
@@ -22,10 +23,10 @@ logger = logging.getLogger(__name__)
 
 @user_router.post(
     "/",
-    response_model=User,
+    response_model=UserRead,
     dependencies=[Security(oauth2_auth().verify, scopes=[USER_WRITE])],  # type: ignore
 )
-async def create_user(user: UserCreate, user_crud_client: UsersCRUDDep) -> User:
+async def create_user(user: UserCreate, user_crud_client: UsersCRUDDep):
     """
     To create a new user in DB, this endpoint will be used by Auth0 for user registration.
     """
@@ -37,15 +38,15 @@ async def create_user(user: UserCreate, user_crud_client: UsersCRUDDep) -> User:
 
 @user_router.get(
     "/{user_id}",
-    response_model=User,
+    response_model=UserRead,
     dependencies=[Security(oauth2_auth().verify, scopes=[])],  # type: ignore
 )
-async def get_user(user_id: int, user_crud_client: UsersCRUDDep) -> User:
+async def get_user(user_id: int, user_crud_client: UsersCRUDDep):
     """
     Retrieve a user by ID.
     """
     try:
-        user: User = await user_crud_client.get(user_id)
+        user = await user_crud_client.get(user_id)
     except NotFoundError as e:
         raise HTTPException(status_code=404, detail="User not found") from e
     return user
@@ -53,10 +54,10 @@ async def get_user(user_id: int, user_crud_client: UsersCRUDDep) -> User:
 
 @user_router.get(
     "/user-by-email/{email}",
-    response_model=User,
+    response_model=UserRead,
     dependencies=[Security(oauth2_auth().verify, scopes=[USER_READ])],  # type: ignore
 )
-async def get_user_by_email(email: str, user_crud_client: UsersCRUDDep) -> User:
+async def get_user_by_email(email: str, user_crud_client: UsersCRUDDep):
     """
     Retrieve a user by email.
     """
@@ -68,10 +69,10 @@ async def get_user_by_email(email: str, user_crud_client: UsersCRUDDep) -> User:
 
 @user_router.put(
     "/{user_id}",
-    response_model=User,
+    response_model=UserRead,
     dependencies=[Security(oauth2_auth().verify, scopes=[USER_WRITE])],  # type: ignore
 )
-async def update_user(user_id: int, user: UserCreate, user_crud_client: UsersCRUDDep) -> User:
+async def update_user(user_id: int, user: UserCreate, user_crud_client: UsersCRUDDep):
     """
     Update a user by ID.
     """
@@ -96,7 +97,7 @@ async def list_users(
     Retrieve all the users in DB.
     """
     count = await user_crud_client.total_count()
-    results: list[User] = [User.from_orm(user) for user in await user_crud_client.list_results(params=params)]
+    results: list[UserRead] = [UserRead.from_orm(user) for user in await user_crud_client.list_results(params=params)]
     return UserList(results=results, count=count)
 
 

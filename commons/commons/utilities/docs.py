@@ -3,6 +3,8 @@ from fastapi.openapi.docs import get_swagger_ui_html
 from fastapi.openapi.utils import get_openapi
 from pydantic_settings import BaseSettings
 
+from commons.auth.constants import TENANT_ID_HEADER
+
 
 def setup_swagger_ui(title: str, root_path: str):
     router = APIRouter(prefix="")
@@ -48,6 +50,18 @@ def custom_openapi(app: FastAPI, settings: BaseSettings):
         # Adding AuthServer security schema for all the routes of app, else they aren't working with client cred auth
         for _, path_config in openapi_schema["paths"].items():
             for _, method_config in path_config.items():
+                # adding tenant id as a required parameter for all the routes
+                # to support multi-tenancy
+                parameters = method_config.setdefault("parameters", [])
+                parameters.append(
+                    {
+                        "name": TENANT_ID_HEADER,
+                        "in": "header",
+                        "required": True,
+                        "schema": {"type": "integer"},
+                        "description": "Tenant ID for multi-tenancy support",
+                    }
+                )
                 if "security" in method_config:
                     method_config["security"].append({"AuthServer": []})
 
