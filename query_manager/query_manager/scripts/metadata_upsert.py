@@ -3,18 +3,20 @@ import json
 import logging
 
 from sqlalchemy.dialects.postgresql import insert
-from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
-from sqlalchemy.orm import selectinload, sessionmaker
+from sqlalchemy.orm import selectinload
 
+from commons.utilities.context import set_tenant_id
 from query_manager.config import get_settings
 from query_manager.core.models import Dimension, Metric
+from query_manager.db.config import get_async_session
 
 # Set up logging
 logger = logging.getLogger(__name__)
 
 
-async def upsert_data(session: AsyncSession, dimensions_file_path: str, metrics_file_path: str) -> None:
+async def upsert_data(session: AsyncSession, dimensions_file_path: str, metrics_file_path: str, tenant_id: int) -> None:
     """
     upsert dimensions and metrics data from JSON files into the database.
 
@@ -22,6 +24,7 @@ async def upsert_data(session: AsyncSession, dimensions_file_path: str, metrics_
         session (AsyncSession): The database session.
         dimensions_file_path (str): Path to the dimensions JSON file.
         metrics_file_path (str): Path to the metrics JSON file.
+        tenant_id (int): The tenant identifier.
     """
     # Upsert Dimensions
     with open(dimensions_file_path) as f:
@@ -35,8 +38,8 @@ async def upsert_data(session: AsyncSession, dimensions_file_path: str, metrics_
             "definition": dim_data.get("definition"),
             "meta_data": dim_data["metadata"],
         }
-        stmt = insert(Dimension).values(dimension_id=dim_data["id"], **defaults)
-        stmt = stmt.on_conflict_do_update(index_elements=["dimension_id"], set_=defaults)
+        stmt = insert(Dimension).values(dimension_id=dim_data["id"], tenant_id=tenant_id, **defaults)
+        stmt = stmt.on_conflict_do_update(index_elements=["dimension_id", "tenant_id"], set_=defaults)
         await session.execute(stmt)
         if i % 10 == 0 or i == len(dimensions_data):
             logger.info(f"Processed {i}/{len(dimensions_data)} dimensions")
@@ -68,8 +71,8 @@ async def upsert_data(session: AsyncSession, dimensions_file_path: str, metrics_
             "owned_by_team": metric_data.get("owned_by_team") or [],
             "meta_data": metric_data["metadata"],
         }
-        stmt = insert(Metric).values(metric_id=metric_data["id"], **defaults)
-        stmt = stmt.on_conflict_do_update(index_elements=["metric_id"], set_=defaults)
+        stmt = insert(Metric).values(metric_id=metric_data["id"], tenant_id=tenant_id, **defaults)
+        stmt = stmt.on_conflict_do_update(index_elements=["metric_id", "tenant_id"], set_=defaults)
         await session.execute(stmt)
         if i % 10 == 0 or i == len(metrics_data):
             logger.info(f"Processed {i}/{len(metrics_data)} metrics")
@@ -102,19 +105,33 @@ async def upsert_data(session: AsyncSession, dimensions_file_path: str, metrics_
     logger.info("Metric dimensions update completed")
 
 
-async def main() -> None:
+async def main(tenant_id: int) -> None:
     """
     Main function to run the upsert process.
+
+    Args:
+        tenant_id (int): The tenant identifier.
     """
     settings = get_settings()
-    engine = create_async_engine(settings.DATABASE_URL)
-    async_session = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)  # type: ignore
+    # Set tenant id context in the db session
+    logger.info("Setting tenant context, Tenant ID: %s", tenant_id)
+    set_tenant_id(tenant_id)
+
+    db_session = await get_async_session()
+    if db_session is None:
+        logger.error("Failed to get database session")
+        return
     dimensions_file_path = settings.PATHS.BASE_DIR / "data/dimensions.json"
     metrics_file_path = settings.PATHS.BASE_DIR / "data/metrics.json"
-    async with async_session() as session:
-        await upsert_data(session, str(dimensions_file_path), str(metrics_file_path))
+    await upsert_data(db_session, str(dimensions_file_path), str(metrics_file_path), tenant_id)
 
 
 # Usage example:
 if __name__ == "__main__":
-    asyncio.run(main())
+    import argparse
+
+    parser = argparse.ArgumentParser(description="Upsert metadata for a specific tenant.")
+    parser.add_argument("tenant_id", type=str, help="The tenant ID for which to upsert the metadata.")
+    args = parser.parse_args()
+
+    asyncio.run(main(int(args.tenant_id)))

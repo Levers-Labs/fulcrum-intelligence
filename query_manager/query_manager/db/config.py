@@ -20,12 +20,20 @@ def get_session() -> Generator[Session, None, None]:
 
 
 # async session
-async def get_async_session() -> AsyncGenerator[AsyncSession, None]:
+async def get_async_session_gen() -> AsyncGenerator[AsyncSession, None]:
     settings = get_settings()
     async for session in _get_async_session(settings.DATABASE_URL, settings.SQLALCHEMY_ENGINE_OPTIONS):  # type: ignore
         yield session
 
 
+async def get_async_session() -> AsyncSession | None:
+    db_session = None
+    async for _db_session in get_async_session_gen():
+        db_session = _db_session
+        continue
+    return db_session
+
+
 # Session Dependency
 SessionDep = Annotated[Session, Depends(get_session)]
-AsyncSessionDep = Annotated[AsyncSession, Depends(get_async_session)]
+AsyncSessionDep = Annotated[AsyncSession, Depends(get_async_session_gen)]

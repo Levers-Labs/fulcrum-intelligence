@@ -92,6 +92,10 @@ def db_session(postgres):
     with Session(engine) as session:
         # Start a transaction
         with session.begin():
+            tenant_id = 1
+            # Set tenant id context in the db session
+            query = text(f"SET app.current_tenant={tenant_id};")
+            session.execute(query)
             yield session  # Provide the session to the test
 
     # Close the engine
@@ -105,6 +109,10 @@ async def async_db_session(postgres):
 
     # Create a new async session
     async with AsyncSession(engine) as session:
+        tenant_id = 1
+        # Set tenant id context in the db session
+        query = text(f"SET app.current_tenant={tenant_id};")
+        await session.execute(query)
         yield session
 
     # Close the engine
@@ -115,6 +123,7 @@ async def async_db_session(postgres):
 def dimension():
     return {
         "id": 1,
+        "tenant_id": 1,
         "dimension_id": "billing_plan",
         "label": "Billing Plan",
         "reference": "billing_plan",
@@ -129,6 +138,7 @@ def dimension():
 def metric(dimension):
     return {
         "id": 1,
+        "tenant_id": 1,
         "metric_id": "metric1",
         "label": "Metric 1",
         "abbreviation": "M1",

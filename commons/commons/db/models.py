@@ -52,7 +52,7 @@ class BaseTenantModel(BaseDBModel):
     Base class for all models containing tenant specific data
     """
 
-    tenant_id: int = Field(default=None, foreign_key="insights_store.tenant.id", nullable=False)
+    tenant_id: int = Field(index=True, nullable=False, sa_column_kwargs={"index": True})
 
     @classmethod
     def add_tenant_id(cls, mapper, connection, target):  # pylint: disable=unused-argument

@@ -4,6 +4,7 @@ import pytest
 from sqlalchemy import select
 
 from commons.models.enums import Granularity
+from commons.utilities.context import set_tenant_id
 from query_manager.core.enums import Complexity
 from query_manager.core.models import Dimension, Metric
 from query_manager.core.schemas import (
@@ -18,6 +19,7 @@ from query_manager.core.schemas import (
 async def test_dimension_create(async_db_session):
     # Prepare test data
     dimension_data = {
+        "tenant_id": 1,
         "dimension_id": "test_dimension",
         "label": "Test Dimension",
         "definition": "A test dimension",
@@ -29,6 +31,8 @@ async def test_dimension_create(async_db_session):
             },
         },
     }
+    # set tenant_id
+    set_tenant_id(1)
 
     # Call the create method
     async for session in async_db_session:
@@ -52,6 +56,7 @@ async def test_dimension_update(async_db_session):
     async for session in async_db_session:
         # Prepare test data
         dimension_data = {
+            "tenant_id": 1,
             "dimension_id": "test_dimension_update",
             "label": "Test Dimension",
             "reference": "test_dimension",
@@ -64,6 +69,8 @@ async def test_dimension_update(async_db_session):
                 },
             },
         }
+        # set tenant_id
+        set_tenant_id(1)
 
         update_data = deepcopy(dimension_data)
 
@@ -93,6 +100,7 @@ async def test_metric_create(async_db_session):
     async for session in async_db_session:
         # Prepare test data
         metric_data = {
+            "tenant_id": 1,
             "metric_id": "test_metric",
             "label": "Test Metric",
             "abbreviation": "TM",
@@ -119,6 +127,9 @@ async def test_metric_create(async_db_session):
                 },
             },
         }
+
+        # set tenant_id
+        set_tenant_id(1)
 
         # Call the create method
         result = await MetricCreate.create(session, metric_data)
@@ -156,6 +167,7 @@ async def test_metric_update(async_db_session):
     async for session in async_db_session:
         # Prepare test data
         metric_data = {
+            "tenant_id": 1,
             "metric_id": "test_metric_update",
             "label": "Test Metric",
             "abbreviation": "TM",
@@ -182,6 +194,8 @@ async def test_metric_update(async_db_session):
                 },
             },
         }
+        # set tenant_id
+        set_tenant_id(1)
 
         instance = Metric(**metric_data)
         session.add(instance)
