@@ -1,11 +1,6 @@
 import asyncio
 from datetime import date, datetime
-from unittest.mock import (
-    ANY,
-    AsyncMock,
-    MagicMock,
-    patch,
-)
+from unittest.mock import ANY, AsyncMock, patch
 
 import pandas as pd
 import pytest
@@ -47,8 +42,8 @@ async def test_story_builder_run_success(event_loop, story_builder, mock_db_sess
     # Ensure the test uses the provided event loop
     asyncio.set_event_loop(event_loop)
 
-    # Mock the set_salience method
-    with patch("story_manager.core.models.Story.set_salience", new_callable=AsyncMock):
+    # Mock the set_heuristics method
+    with patch("story_manager.core.models.Story.set_heuristics", new_callable=AsyncMock):
         with patch.object(story_builder, "generate_stories", return_value=mock_stories):
             await story_builder.run("metric1", Granularity.DAY)
             assert mock_db_session.add_all.called
@@ -88,8 +83,8 @@ async def test_persist_stories(
     # Ensure the test uses the provided event loop
     asyncio.set_event_loop(event_loop)
 
-    # Mock the set_salience method
-    with patch("story_manager.core.models.Story.set_salience", new_callable=AsyncMock):
+    # Mock the set_heuristics method
+    with patch("story_manager.core.models.Story.set_heuristics", new_callable=AsyncMock):
         await story_builder.persist_stories(mock_stories)
 
         assert mock_db_session.add_all.called
@@ -338,29 +333,31 @@ def test_get_input_time_range(story_builder):
 
 
 @pytest.mark.asyncio
-async def test_set_stories_salience(event_loop, story_builder, mock_db_session, mock_stories):
+async def test_set_story_heuristics(event_loop, story_builder, mock_db_session, mock_stories):
     # Ensure the test uses the provided event loop
     asyncio.set_event_loop(event_loop)
 
     # Create mock Story objects
-    mock_story_objs = [MagicMock() for _ in mock_stories]
+    mock_story_objs = [AsyncMock() for _ in mock_stories]
 
-    # Mock the refresh and set_salience methods
+    # Mock the refresh and set_heuristics methods
     for mock_story in mock_story_objs:
-        mock_story.set_salience = AsyncMock()
+        mock_story.set_heuristics = AsyncMock()
 
-    # Mock the db_session.refresh method
+    # Mock the db_session methods
     mock_db_session.refresh = AsyncMock()
+    mock_db_session.add_all = AsyncMock()
+    mock_db_session.commit = AsyncMock()
 
-    # Call the set_stories_salience method
-    await story_builder.set_stories_salience(mock_story_objs)
+    # Call the set_story_heuristics method
+    await story_builder.set_story_heuristics(mock_story_objs)
 
     # Assert that db_session.refresh was called for each story
     assert mock_db_session.refresh.call_count == len(mock_story_objs)
 
-    # Assert that set_salience was called for each story
+    # Assert that set_heuristics was called for each story
     for mock_story in mock_story_objs:
-        mock_story.set_salience.assert_called_once()
+        mock_story.set_heuristics.assert_called_once()
 
     # Assert that db_session.add_all was called with the story objects
     mock_db_session.add_all.assert_called_once_with(mock_story_objs)

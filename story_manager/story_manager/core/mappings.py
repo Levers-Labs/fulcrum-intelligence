@@ -1,3 +1,6 @@
+from typing import Any
+
+from commons.models.enums import Granularity
 from story_manager.core.enums import (
     Digest,
     Section,
@@ -54,4 +57,169 @@ FILTER_MAPPING = {
     },
     # What Happens Next section deals with likely status
     (Digest.METRIC, Section.WHAT_HAPPENS_NEXT): {"story_groups": [StoryGroup.LIKELY_STATUS]},
+}
+
+# This dictionary maps each StoryType to its corresponding heuristic expressions for different granularities.
+# The heuristic expressions are used to evaluate the salience of a story based on the provided variables.
+# Each heuristic_expression is a Jinja2 template string that will be rendered with the actual values of the variables.
+
+STORY_TYPE_HEURISTIC_MAPPING: dict[str, Any] = {
+    StoryType.LIKELY_OFF_TRACK: {
+        Granularity.DAY: {"salient_expression": "{{deviation}} >= 5", "cool_off_duration": None},
+        Granularity.WEEK: {"salient_expression": "{{deviation}} >= 5", "cool_off_duration": None},
+        Granularity.MONTH: {"salient_expression": "{{deviation}} >= 5", "cool_off_duration": None},
+    },
+    StoryType.LIKELY_ON_TRACK: {
+        Granularity.DAY: {"salient_expression": "{{deviation}} >= 5", "cool_off_duration": None},
+        Granularity.WEEK: {"salient_expression": "{{deviation}} >= 5", "cool_off_duration": None},
+        Granularity.MONTH: {"salient_expression": "{{deviation}} >= 5", "cool_off_duration": None},
+    },
+    StoryType.REQUIRED_PERFORMANCE: {
+        Granularity.DAY: {"salient_expression": "{{required_growth}} >= 1", "cool_off_duration": 7},
+        Granularity.WEEK: {"salient_expression": "{{required_growth}} >= 5", "cool_off_duration": None},
+        Granularity.MONTH: {"salient_expression": "{{required_growth}} >= 5", "cool_off_duration": None},
+    },
+    StoryType.HOLD_STEADY: {
+        Granularity.DAY: {"salient_expression": "{{req_duration}} >= 6", "cool_off_duration": 7},
+        Granularity.WEEK: {"salient_expression": "{{req_duration}} >= 3", "cool_off_duration": None},
+        Granularity.MONTH: {"salient_expression": "{{req_duration}} >= 3", "cool_off_duration": None},
+    },
+    StoryType.ACCELERATING_GROWTH: {
+        Granularity.DAY: {"salient_expression": "({{current_growth}} - {{avg_growth}}) > 2", "cool_off_duration": 3},
+        Granularity.WEEK: {
+            "salient_expression": "({{current_growth}} - {{avg_growth}}) > 5",
+            "cool_off_duration": None,
+        },
+        Granularity.MONTH: {
+            "salient_expression": "({{current_growth}} - {{avg_growth}}) > 5",
+            "cool_off_duration": None,
+        },
+    },
+    StoryType.SLOWING_GROWTH: {
+        Granularity.DAY: {"salient_expression": "({{avg_growth}} - {{current_growth}}) > 2", "cool_off_duration": 3},
+        Granularity.WEEK: {
+            "salient_expression": "({{avg_growth}} - {{current_growth}}) > 5",
+            "cool_off_duration": None,
+        },
+        Granularity.MONTH: {
+            "salient_expression": "({{avg_growth}} - {{current_growth}}) > 5",
+            "cool_off_duration": None,
+        },
+    },
+    StoryType.IMPROVING_PERFORMANCE: {
+        Granularity.DAY: {
+            "salient_expression": "({{avg_growth}} > 2) and ({{overall_growth}} > 5)",
+            "cool_off_duration": 7,
+        },
+        Granularity.WEEK: {
+            "salient_expression": "({{avg_growth}} > 2) and ({{overall_growth}} > 5)",
+            "cool_off_duration": 2,
+        },
+        Granularity.MONTH: {
+            "salient_expression": "({{avg_growth}} > 2) and ({{overall_growth}} > 5)",
+            "cool_off_duration": 2,
+        },
+    },
+    StoryType.WORSENING_PERFORMANCE: {
+        Granularity.DAY: {
+            "salient_expression": "({{avg_growth}} > 2) and ({{overall_growth}} > 5)",
+            "cool_off_duration": 7,
+        },
+        Granularity.WEEK: {
+            "salient_expression": "({{avg_growth}} > 2) and ({{overall_growth}} > 5)",
+            "cool_off_duration": 2,
+        },
+        Granularity.MONTH: {
+            "salient_expression": "({{avg_growth}} > 2) and ({{overall_growth}} > 5)",
+            "cool_off_duration": 2,
+        },
+    },
+    StoryType.STABLE_TREND: {
+        Granularity.DAY: {"salient_expression": "{{trend_duration}} > 14", "cool_off_duration": 7},
+        Granularity.WEEK: {"salient_expression": "{{trend_duration}} > 5", "cool_off_duration": 2},
+        Granularity.MONTH: {"salient_expression": "{{trend_duration}} > 5", "cool_off_duration": 2},
+    },
+    StoryType.PERFORMANCE_PLATEAU: {
+        Granularity.DAY: {"salient_expression": None, "cool_off_duration": 7},
+        Granularity.WEEK: {"salient_expression": None, "cool_off_duration": 2},
+        Granularity.MONTH: {"salient_expression": None, "cool_off_duration": 2},
+    },
+    StoryType.GROWING_SEGMENT: {
+        Granularity.DAY: {"salient_expression": "{{slice_share_change_percentage}} >= 5", "cool_off_duration": 7},
+        Granularity.WEEK: {"salient_expression": "{{slice_share_change_percentage}} >= 5", "cool_off_duration": None},
+        Granularity.MONTH: {"salient_expression": "{{slice_share_change_percentage}} >= 5", "cool_off_duration": None},
+    },
+    StoryType.SHRINKING_SEGMENT: {
+        Granularity.DAY: {"salient_expression": "{{slice_share_change_percentage}} >= 5", "cool_off_duration": 7},
+        Granularity.WEEK: {"salient_expression": "{{slice_share_change_percentage}} >= 5", "cool_off_duration": None},
+        Granularity.MONTH: {"salient_expression": "{{slice_share_change_percentage}} >= 5", "cool_off_duration": None},
+    },
+    StoryType.IMPROVING_SEGMENT: {
+        Granularity.DAY: {"salient_expression": "{{pressure_change}} >= 5", "cool_off_duration": None},
+        Granularity.WEEK: {"salient_expression": "{{pressure_change}} >= 5", "cool_off_duration": None},
+        Granularity.MONTH: {"salient_expression": "{{pressure_change}} >= 5", "cool_off_duration": None},
+    },
+    StoryType.WORSENING_SEGMENT: {
+        Granularity.DAY: {"salient_expression": "{{pressure_change}} >= 5", "cool_off_duration": None},
+        Granularity.WEEK: {"salient_expression": "{{pressure_change}} >= 5", "cool_off_duration": None},
+        Granularity.MONTH: {"salient_expression": "{{pressure_change}} >= 5", "cool_off_duration": None},
+    },
+    StoryType.IMPROVING_COMPONENT: {
+        Granularity.DAY: {"salient_expression": "{{contribution}} >= 5", "cool_off_duration": None},
+        Granularity.WEEK: {"salient_expression": "{{contribution}} >= 5", "cool_off_duration": None},
+        Granularity.MONTH: {"salient_expression": "{{contribution}} >= 5", "cool_off_duration": None},
+    },
+    StoryType.WORSENING_COMPONENT: {
+        Granularity.DAY: {"salient_expression": "{{contribution}} >= 5", "cool_off_duration": None},
+        Granularity.WEEK: {"salient_expression": "{{contribution}} >= 5", "cool_off_duration": None},
+        Granularity.MONTH: {"salient_expression": "{{contribution}} >= 5", "cool_off_duration": None},
+    },
+    StoryType.STRONGER_INFLUENCE: {
+        Granularity.DAY: {
+            "salient_expression": "({{output_deviation}} - {{prev_output_deviation}}) >= 5",
+            "cool_off_duration": None,
+        },
+        Granularity.WEEK: {
+            "salient_expression": "({{output_deviation}} - {{prev_output_deviation}}) >= 5",
+            "cool_off_duration": None,
+        },
+        Granularity.MONTH: {
+            "salient_expression": "({{output_deviation}} - {{prev_output_deviation}}) >= 5",
+            "cool_off_duration": None,
+        },
+    },
+    StoryType.WEAKER_INFLUENCE: {
+        Granularity.DAY: {
+            "salient_expression": "({{prev_output_deviation}} - {{output_deviation}}) >= 5",
+            "cool_off_duration": None,
+        },
+        Granularity.WEEK: {
+            "salient_expression": "({{prev_output_deviation}} - {{output_deviation}}) >= 5",
+            "cool_off_duration": None,
+        },
+        Granularity.MONTH: {
+            "salient_expression": "({{prev_output_deviation}} - {{output_deviation}}) >= 5",
+            "cool_off_duration": None,
+        },
+    },
+    StoryType.IMPROVING_INFLUENCE: {
+        Granularity.DAY: {"salient_expression": "{{output_deviation}} >= 10", "cool_off_duration": None},
+        Granularity.WEEK: {"salient_expression": "{{output_deviation}} >= 10", "cool_off_duration": None},
+        Granularity.MONTH: {"salient_expression": "{{output_deviation}} >= 10", "cool_off_duration": None},
+    },
+    StoryType.WORSENING_INFLUENCE: {
+        Granularity.DAY: {"salient_expression": "{{output_deviation}} >= 10", "cool_off_duration": None},
+        Granularity.WEEK: {"salient_expression": "{{output_deviation}} >= 10", "cool_off_duration": None},
+        Granularity.MONTH: {"salient_expression": "{{output_deviation}} >= 10", "cool_off_duration": None},
+    },
+    StoryType.RECORD_HIGH: {
+        Granularity.DAY: {"salient_expression": None, "cool_off_duration": 3},
+        Granularity.WEEK: {"salient_expression": None, "cool_off_duration": None},
+        Granularity.MONTH: {"salient_expression": None, "cool_off_duration": None},
+    },
+    StoryType.RECORD_LOW: {
+        Granularity.DAY: {"salient_expression": None, "cool_off_duration": 3},
+        Granularity.WEEK: {"salient_expression": None, "cool_off_duration": None},
+        Granularity.MONTH: {"salient_expression": None, "cool_off_duration": None},
+    },
 }

@@ -49,7 +49,9 @@ class Story(StorySchemaBaseModel, table=True):  # type: ignore
     variables: dict = Field(default_factory=dict, sa_type=JSONB)
     series: list = Field(default_factory=list, sa_type=JSONB)
     story_date: datetime = Field(sa_column=Column(DateTime, nullable=False, index=True))
-    is_salient: bool = Field(default=True, sa_column=Column(Boolean, default=False))
+    is_salient: bool = Field(default=True, sa_column=Column(Boolean, default=True))
+    in_cool_off: bool = Field(default=False, sa_column=Column(Boolean, default=False))
+    render_story: bool = Field(default=True, sa_column=Column(Boolean, default=True))
 
     @model_validator(mode="before")
     @classmethod
@@ -70,20 +72,24 @@ class Story(StorySchemaBaseModel, table=True):  # type: ignore
 
         return data
 
-    async def set_salience(self, session: AsyncSession) -> None:
+    async def set_heuristics(self, session: AsyncSession) -> None:
         """
         Automatically update the salience of the story based on the heuristic expressions.
 
-        This method uses the SalienceEvaluator class to determine if the story is salient.
-        It fetches the heuristic heuristic_expression from the database, renders it with the provided variables,
-        and evaluates the rendered heuristic_expression to update the 'is_salient' attribute of the story.
+        This method uses the StoryHeuristicEvaluator class to determine if the story is salient.
+        It fetches the heuristic expression from the database, renders it with the provided variables,
+        and evaluates the rendered expression to update the 'is_salient', 'in_cool_off',
+        and 'render_story' attributes of the story.
+
+        :param session: The database session used to fetch heuristic expressions and evaluate the story.
         """
-        from story_manager.story_builder.salience import SalienceEvaluator
+        from story_manager.core.heuristics import StoryHeuristicEvaluator
 
-        evaluator = SalienceEvaluator(self.story_type, self.grain, session)
+        # Create an instance of StoryHeuristicEvaluator with the story's type, grain, and session
+        evaluator = StoryHeuristicEvaluator(self.story_type, self.grain, session)
 
-        # Evaluate the salience of the story and update the 'is_salient' attribute
-        self.is_salient = await evaluator.evaluate_salience(self.variables)
+        # Evaluate the salience of the story and update the 'is_salient', 'in_cool_off', and 'render_story' attributes
+        self.is_salient, self.in_cool_off, self.render_story = await evaluator.evaluate(self.variables)
 
 
 class StoryConfig(StorySchemaBaseModel, table=True):
@@ -94,6 +100,7 @@ class StoryConfig(StorySchemaBaseModel, table=True):
     story_type: StoryType = Field(sa_column=Column(String(255), nullable=False))
     grain: Granularity = Field(sa_column=Column(String(255), nullable=False))
     heuristic_expression: str | None = Field(sa_column=Column(String(255), nullable=True))  # type: ignore
+    cool_off_duration: int | None = Field(nullable=True)  # type: ignore
 
     __table_args__ = (
         UniqueConstraint("story_type", "grain", name="uix_story_types_grain"),  # type: ignore
