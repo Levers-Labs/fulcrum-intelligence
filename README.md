@@ -45,6 +45,25 @@ AUTH0_CLIENT_ID= // The auth0 client id
 AUTH0_CLIENT_SECRET= // The auth0 client secret
 ```
 
+### Multitenancy Support
+
+To Enable the multitenancy Support, Kindly execute the following scripts in the Database for each application schema.
+
+```
+DO $$
+    BEGIN
+    IF NOT EXISTS(SELECT * FROM pg_roles WHERE rolname = 'tenant_user') THEN
+            CREATE ROLE tenant_user;
+            GRANT USAGE ON SCHEMA {{ your schema }} TO tenant_user;
+            GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA {{ your schema }} TO tenant_user;
+            ALTER DEFAULT PRIVILEGES IN SCHEMA {{ your schema }} GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO tenant_user;
+            GRANT USAGE ON ALL SEQUENCES IN SCHEMA {{ your schema }} TO tenant_user;
+            ALTER DEFAULT PRIVILEGES IN SCHEMA {{ your schema }} GRANT USAGE ON SEQUENCES TO tenant_user;
+    END IF;
+    END
+$$
+```
+
 #### Analysis Manager `.env` File
 
 Navigate to the `analysis_manager` directory and create a `.env` file with the following variables:
