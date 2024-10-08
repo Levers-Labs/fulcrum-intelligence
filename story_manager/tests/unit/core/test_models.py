@@ -82,7 +82,7 @@ async def test_set_heuristics_salient():
 
     assert story.is_salient is True
     assert story.in_cool_off is False
-    assert story.render_story is True
+    assert story.is_heuristic is True
     mock_evaluator.evaluate.assert_called_once_with(story.variables)
 
 
@@ -111,7 +111,7 @@ async def test_set_heuristics_not_salient():
 
     assert story.is_salient is False
     assert story.in_cool_off is False
-    assert story.render_story is False
+    assert story.is_heuristic is False
     mock_evaluator.evaluate.assert_called_once_with(story.variables)
 
 
@@ -140,7 +140,7 @@ async def test_set_heuristics_in_cool_off():
 
     assert story.is_salient is True
     assert story.in_cool_off is True
-    assert story.render_story is False
+    assert story.is_heuristic is False
     mock_evaluator.evaluate.assert_called_once_with(story.variables)
 
 
@@ -169,7 +169,7 @@ async def test_set_heuristics_just_entering_cool_off():
 
     assert story.is_salient is True
     assert story.in_cool_off is True
-    assert story.render_story is False
+    assert story.is_heuristic is False
     mock_evaluator.evaluate.assert_called_once_with(story.variables)
 
 
@@ -198,7 +198,7 @@ async def test_set_heuristics_just_exiting_cool_off():
 
     assert story.is_salient is True
     assert story.in_cool_off is False
-    assert story.render_story is True
+    assert story.is_heuristic is True
     mock_evaluator.evaluate.assert_called_once_with(story.variables)
 
 
@@ -227,7 +227,7 @@ async def test_set_heuristics_edge_of_cool_off():
 
     assert story.is_salient is True
     assert story.in_cool_off is False
-    assert story.render_story is True
+    assert story.is_heuristic is True
     mock_evaluator.evaluate.assert_called_once_with(story.variables)
 
 
@@ -263,9 +263,9 @@ async def test_set_heuristics_multiple_stories_in_cool_off():
             await story.set_heuristics(mock_session)
 
     assert all(story.is_salient for story in stories)
-    assert stories[0].in_cool_off is True and stories[0].render_story is False
-    assert stories[1].in_cool_off is True and stories[1].render_story is False
-    assert stories[2].in_cool_off is False and stories[2].render_story is True
+    assert stories[0].in_cool_off is True and stories[0].is_heuristic is False
+    assert stories[1].in_cool_off is True and stories[1].is_heuristic is False
+    assert stories[2].in_cool_off is False and stories[2].is_heuristic is True
 
     assert mock_evaluator.evaluate.call_count == 3
     for _, story in enumerate(stories):

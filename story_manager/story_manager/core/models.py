@@ -51,7 +51,7 @@ class Story(StorySchemaBaseModel, table=True):  # type: ignore
     story_date: datetime = Field(sa_column=Column(DateTime, nullable=False, index=True))
     is_salient: bool = Field(default=True, sa_column=Column(Boolean, default=True))
     in_cool_off: bool = Field(default=False, sa_column=Column(Boolean, default=False))
-    render_story: bool = Field(default=True, sa_column=Column(Boolean, default=True))
+    is_heuristic: bool = Field(default=True, sa_column=Column(Boolean, default=True))
 
     @model_validator(mode="before")
     @classmethod
@@ -79,7 +79,7 @@ class Story(StorySchemaBaseModel, table=True):  # type: ignore
         This method uses the StoryHeuristicEvaluator class to determine if the story is salient.
         It fetches the heuristic expression from the database, renders it with the provided variables,
         and evaluates the rendered expression to update the 'is_salient', 'in_cool_off',
-        and 'render_story' attributes of the story.
+        and 'is_heuristic' attributes of the story.
 
         :param session: The database session used to fetch heuristic expressions and evaluate the story.
         """
@@ -88,8 +88,8 @@ class Story(StorySchemaBaseModel, table=True):  # type: ignore
         # Create an instance of StoryHeuristicEvaluator with the story's type, grain, and session
         evaluator = StoryHeuristicEvaluator(self.story_type, self.grain, session)
 
-        # Evaluate the salience of the story and update the 'is_salient', 'in_cool_off', and 'render_story' attributes
-        self.is_salient, self.in_cool_off, self.render_story = await evaluator.evaluate(self.variables)
+        # Evaluate the salience of the story and update the 'is_salient', 'in_cool_off', and 'is_heuristic' attributes
+        self.is_salient, self.in_cool_off, self.is_heuristic = await evaluator.evaluate(self.variables)
 
 
 class StoryConfig(StorySchemaBaseModel, table=True):

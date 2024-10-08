@@ -9,6 +9,7 @@ from commons.models.enums import Granularity
 from story_manager.core.dependencies import CRUDStoryConfigDep, CRUDStoryDep
 from story_manager.core.enums import StoryType
 from story_manager.core.models import Story, StoryConfig
+from story_manager.story_builder.utils import calculate_periods_count
 
 logger = logging.getLogger(__name__)
 
@@ -31,52 +32,58 @@ class StoryHeuristicEvaluator:
         self.grain = grain
         self.session = session
         self.story_config_crud = CRUDStoryConfigDep(StoryConfig, self.session)
+        self.story_config = None
         self.story_crud = CRUDStoryDep(Story, self.session)
 
     async def evaluate(self, variables: dict[str, Any]) -> tuple[bool, bool, bool]:
         """
         Evaluate the story based on defined heuristics.
 
-        This method evaluates the story's salience and cool-off period based on the provided variables.
+        This method evaluates the story's salience and cool-off period using the provided variables.
         It first checks if the story is salient using the heuristic expression, and then determines if the
         story is within the cool-off period.
 
         :param variables: A dictionary of variables to be used in the heuristic evaluation.
-        :return: A tuple of (is_salient: bool, in_cool_off: bool, render_story: bool).
+        :return: A tuple containing:
+            - is_salient (bool): Indicates if the story is salient.
+            - in_cool_off (bool): Indicates if the story is within the cool-off period.
+            - is_heuristic (bool): Indicates if the story should be rendered based on heuristics.
         """
-        # Evaluate if the story is salient based on the heuristic expression
+        await self._set_story_config()
+
+        if not self.story_config:
+            return True, False, True
+
+        # Check if the story is salient based on the heuristic expression
         is_salient = await self._evaluate_salience(variables)
 
-        # Evaluate if the story is within the cool-off period and if it should be rendered
-        in_cool_off, render_story = await self._evaluate_cool_off(is_salient)
+        # Check if the story is within the cool-off period and if it should be rendered
+        in_cool_off, is_heuristic = await self._evaluate_cool_off(is_salient)
 
-        return is_salient, in_cool_off, render_story
+        return is_salient, in_cool_off, is_heuristic
 
     async def _evaluate_salience(self, variables: dict[str, Any]) -> bool:
         """
-        Evaluate the salience of the story based on the heuristic expression.
+        Determine if the story is salient based on the heuristic expression.
 
-        This method retrieves the heuristic expression from the story configuration and renders it
-        with the provided variables. It then evaluates the rendered expression to determine if the
+        This method fetches the heuristic expression from the story configuration and substitutes
+        the provided variables into it. It then evaluates the resulting expression to decide if the
         story is salient.
 
         :param variables: A dictionary of variables to be used in the heuristic evaluation.
         :return: A boolean indicating if the story is salient.
         """
-        # Retrieve the heuristic expression template from the story configuration
-        expression_template, _ = await self.story_config_crud.get_story_config(
-            story_type=self.story_type, grain=self.grain
-        )
+        # Fetch the heuristic expression from the story configuration
+        expression_template = self.story_config.heuristic_expression  # type: ignore
 
-        # If no heuristic expression is defined, consider the story as salient
-        if not expression_template:
-            return True
-
-        # Render the heuristic expression with the provided variables
+        # Substitute the provided variables into the heuristic expression
         rendered_expression = self._render_expression(expression_template, variables)
 
-        # Evaluate the rendered expression to determine if the story is salient
+        # Evaluate the resulting expression to determine if the story is salient
         return self._evaluate_expression(rendered_expression)
+
+    async def _set_story_config(self):
+        self.story_config = await self.story_config_crud.get_story_config(story_type=self.story_type, grain=self.grain)
 
     @staticmethod
     def _render_expression(expression: str, variables: dict[str, Any]) -> str:
@@ -113,58 +120,41 @@ class StoryHeuristicEvaluator:
         """
         Evaluate the cool-off period for the story.
 
-        This method checks if the story is within the cool-off period based on the last rendered story's date
+        This method checks if the story is within the cool-off period based on the latest heuristic story's date
         and the cool-off duration defined in the story configuration. It returns a tuple indicating whether the
-        story is in the cool-off period and whether the story should be rendered.
+        story is in the cool-off period and whether the story should be considered heuristic.
 
         :param is_salient: A boolean indicating if the story is salient.
-        :return: A tuple (in_cool_off: bool, render_story: bool).
+        :return: A tuple (in_cool_off: bool, is_heuristic: bool).
         """
-        # Retrieve the cool-off duration from the story configuration
-        _, cool_off_duration = await self.story_config_crud.get_story_config(
-            story_type=self.story_type, grain=self.grain
-        )
 
-        # If no cool-off duration is defined, return False for in_cool_off and the value of is_salient for render_story
+        if not is_salient:
+            return False, is_salient
+
+        cool_off_duration = self.story_config.cool_off_duration  # type: ignore
+
+        # If no cool-off duration is defined, return False for in_cool_off and the value of is_salient for is_heuristic
         if cool_off_duration is None:
             return False, is_salient
 
         current_date = datetime.now()
 
-        # Fetch the last rendered story before the current date
-        last_rendered_story = await self.story_crud.get_last_rendered_story(self.story_type, self.grain, current_date)
+        # Fetch the latest heuristic story before the current date
+        latest_heuristic_story = await self.story_crud.get_latest_story(
+            story_type=self.story_type, grain=self.grain, story_date=current_date, is_heuristic=True
+        )
 
-        # If no previous story is found, return False for in_cool_off and the value of is_salient for render_story
-        if not last_rendered_story:
+        # If no previous story is found, return False for in_cool_off and the value of is_salient for is_heuristic
+        if not latest_heuristic_story:
             return False, is_salient
 
-        # Calculate the time difference between the current date and the last rendered story's date
-        time_since_last_render = self._calculate_time_difference(current_date, last_rendered_story.story_date)
+        # Calculate the number of periods between the current date and the latest heuristic story's date
+        period_count = calculate_periods_count(current_date, latest_heuristic_story.story_date, self.grain)
 
         # Determine if the story is in the cool-off period
-        in_cool_off = time_since_last_render < cool_off_duration
+        in_cool_off = period_count < cool_off_duration
 
-        # Determine if the story should be rendered
-        render_story = is_salient and not in_cool_off
+        # Determine if the story should be considered heuristic
+        is_heuristic = is_salient and not in_cool_off
 
-        return in_cool_off, render_story
-
-    def _calculate_time_difference(self, current_date: datetime, last_render_date: datetime) -> int:
-        """
-        Calculate the time difference between the current date and the last render date based on the grain.
-
-        :param current_date: The current date.
-        :param last_render_date: The date of the last rendered story.
-        :return: The time difference in the appropriate units (days, weeks, or months).
-        """
-        if self.grain == Granularity.DAY:
-            # Calculate the difference in days
-            return (current_date.date() - last_render_date.date()).days
-        elif self.grain == Granularity.WEEK:
-            # Calculate the difference in weeks
-            return (current_date.date() - last_render_date.date()).days // 7
-        elif self.grain == Granularity.MONTH:
-            # Calculate the difference in months
-            return (current_date.year - last_render_date.year) * 12 + current_date.month - last_render_date.month
-
-        return 0
+        return in_cool_off, is_heuristic

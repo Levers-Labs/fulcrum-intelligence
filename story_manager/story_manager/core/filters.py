@@ -26,7 +26,7 @@ class StoryFilter(BaseFilter[Story]):
     grains: list[Granularity] | None = FilterField(Story.grain, operator="in", default=None)  # type: ignore
     digest: Digest | None = FilterField(None, default=None)  # type: ignore
     section: Section | None = FilterField(None, default=None)  # type: ignore
-    is_salient: bool | None = FilterField(Story.is_salient, operator="eq", default=None)  # type: ignore
+    is_heuristic: bool | None = FilterField(Story.is_heuristic, operator="eq", default=None)  # type: ignore
 
     @classmethod
     def apply_filters(cls, query: Select, values: dict[str, Any]) -> Select:
