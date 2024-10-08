@@ -1,5 +1,5 @@
-from commons.db.models import BaseTimeStampedModel
+from commons.db.models import BaseTimeStampedTenantModel
 
 
-class AnalysisSchemaBaseModel(BaseTimeStampedModel):
+class AnalysisSchemaBaseModel(BaseTimeStampedTenantModel):
     __table_args__ = {"schema": "analysis_store"}

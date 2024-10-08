@@ -6,7 +6,7 @@ from analysis_manager.config import get_settings
 from analysis_manager.core.routes import router as core_router
 from analysis_manager.exceptions import add_exception_handlers
 from analysis_manager.health import router as health_check_router
-from commons.middleware import process_time_log_middleware, request_id_middleware
+from commons.middleware import process_time_log_middleware, request_id_middleware, tenant_context_middleware
 from commons.utilities.docs import custom_openapi, setup_swagger_ui
 from commons.utilities.logger import setup_rich_logger
 
@@ -38,6 +38,9 @@ def get_application() -> FastAPI:
 
     # add process time log middleware
     _app.add_middleware(BaseHTTPMiddleware, dispatch=process_time_log_middleware)
+
+    # add tenant context middleware
+    _app.add_middleware(BaseHTTPMiddleware, dispatch=tenant_context_middleware)
 
     # setup logging
     setup_rich_logger(settings)
