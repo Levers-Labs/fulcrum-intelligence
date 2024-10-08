@@ -12,6 +12,8 @@ from httpx import (
 )
 from pydantic import AnyHttpUrl
 
+from commons.auth.auth import UnauthorizedException
+from commons.utilities.context import get_tenant_id
 from commons.utilities.json_utils import serialize_json
 
 
@@ -39,37 +41,37 @@ class AsyncHttpClient:
         path = str(base_url).rstrip("/") + "/" + endpoint.lstrip("/")
         return path
 
-    async def _make_request(self, method: str, endpoint: str, **kwargs) -> Response:
+    def _add_tenant_id_to_headers(self, headers: dict[str, Any]) -> dict[str, Any]:
         """
-        make an asynchronous HTTP request to the specified endpoint.
+        Fetch the tenant ID and add it to the headers.
 
         Args:
-            method (str): The HTTP method for the request (e.g., 'GET', 'POST').
-            endpoint (str): The endpoint URL relative to the base URL.
-            **kwargs: Additional keyword arguments to pass to the underlying HTTP client.
+            headers (dict[str, Any]): The original headers.
 
         Returns:
-            Response: The Response object returned by the HTTP client.
+            dict[str, Any]: The headers with the tenant ID added.
 
         Raises:
-            HttpClientError: If an error occurs during the request or response handling.
-                - If the response status code is 401 (Unauthorized):
-                    - If the error description indicates an expired token, raises an HttpClientError
-                      with the message "Token is expired".
-                    - Otherwise, raises an HttpClientError with the message "Authentication failed".
-                - If the response status code is 404 (Not Found), raises an HttpClientError with the
-                  message "Resource not found".
-                - if the response status code is 422 (Unprocessable Entity), raises an HttpClientError
-                  with the message "Invalid input".
-                - for any other HTTP error, raise an HttpClientError with the error message.
-            HttpClientError: If an invalid URL is provided or if the request times out.
-
-        Example:
-            response = await _make_request('GET', '/users', params={'page': 1})
-            print(response.json())
+            UnauthorizedException: If the tenant ID is not found.
         """
-        # set 1 min timeout if not provided
+        tenant_id = get_tenant_id()
+        if not tenant_id:
+            raise UnauthorizedException(detail="Tenant ID not found in context")
+
+        headers["X-Tenant-Id"] = str(tenant_id)
+        return headers
+
+    async def _make_request(self, method: str, endpoint: str, **kwargs) -> Response:
+        """
+        Make an asynchronous HTTP request to the specified endpoint.
+        """
+        # Set 1 min timeout if not provided
         kwargs.setdefault("timeout", 60)
+
+        # Add tenant ID to headers
+        headers = kwargs.get("headers", {})
+        kwargs["headers"] = self._add_tenant_id_to_headers(headers)
+
         async with AsyncClient(auth=self.auth) as client:
             url = self._get_url(self.base_url, endpoint)
             try:

@@ -10,14 +10,17 @@ from fastapi import (
 from sqlalchemy.exc import IntegrityError
 from starlette import status
 
-from commons.auth.scopes import USER_READ, USER_WRITE
+from commons.auth.scopes import TENANT_READ, USER_READ, USER_WRITE
 from commons.db.crud import NotFoundError
+from commons.models.tenant import TenantConfig
+from commons.utilities.context import get_tenant_id
 from commons.utilities.pagination import PaginationParams
-from insights_backend.core.dependencies import UsersCRUDDep, oauth2_auth
+from insights_backend.core.dependencies import TenantsCRUDDep, UsersCRUDDep, oauth2_auth
 from insights_backend.core.models import User, UserCreate, UserList
 from insights_backend.core.models.users import UserRead
 
 user_router = APIRouter(prefix="/users", tags=["users"])
+router = APIRouter(tags=["tenants"])
 logger = logging.getLogger(__name__)
 
 
@@ -110,3 +113,24 @@ async def delete_user(user_id: int, user_crud_client: UsersCRUDDep):
         await user_crud_client.delete(id=user_id)
     except NotFoundError as e:
         raise HTTPException(status_code=404, detail="User not found") from e
+
+
+# Tenant Routes
+@router.get(
+    "/tenant/config",
+    response_model=TenantConfig,
+    dependencies=[Security(oauth2_auth().verify, scopes=[TENANT_READ])],  # type: ignore
+)
+async def get_tenant_config(tenant_id: Annotated[int, Depends(get_tenant_id)], tenant_crud_client: TenantsCRUDDep):
+    """
+    Retrieve the configuration for the current tenant.
+    """
+    try:
+        config = await tenant_crud_client.get_tenant_config(tenant_id)
+    except NotFoundError as e:
+        raise HTTPException(status_code=404, detail="Tenant not found") from e
+
+    if not config:
+        raise HTTPException(status_code=404, detail="Tenant configuration not found")
+
+    return config

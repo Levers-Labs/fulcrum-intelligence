@@ -43,6 +43,8 @@ class Settings(BaseSettings):
 
     BACKEND_CORS_ORIGINS: list[AnyHttpUrl | str] = []
 
+    INSIGHTS_BACKEND_SERVER_HOST: str | AnyHttpUrl
+
     AUTH0_API_AUDIENCE: str
     AUTH0_ISSUER: str
     AUTH0_CLIENT_ID: str

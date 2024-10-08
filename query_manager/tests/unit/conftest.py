@@ -59,6 +59,7 @@ def setup_env(session_monkeypatch, postgres):
 
     logger.info("Setting up test environment")
     session_monkeypatch.setenv("SERVER_HOST", "http://localhost:8001")
+    session_monkeypatch.setenv("INSIGHTS_BACKEND_SERVER_HOST", "http://localhost:8004/insights/v1")
     session_monkeypatch.setenv("DEBUG", "true")
     session_monkeypatch.setenv("ENV", "dev")
     session_monkeypatch.setenv("SECRET_KEY", "secret")

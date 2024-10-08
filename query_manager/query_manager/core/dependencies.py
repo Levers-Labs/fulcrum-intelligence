@@ -3,6 +3,8 @@ from typing import Annotated
 from fastapi import Depends
 
 from commons.auth.auth import Oauth2Auth
+from commons.clients.auth import ClientCredsAuth
+from commons.clients.insight_backend import InsightBackendClient
 from query_manager.config import get_settings
 from query_manager.core.crud import CRUDDimensions, CRUDMetric
 from query_manager.core.models import Dimension, Metric
@@ -21,13 +23,32 @@ async def get_s3_client() -> S3Client:
 S3ClientDep = Annotated[S3Client, Depends(get_s3_client)]
 
 
-async def get_cube_client() -> CubeClient:
+async def get_insights_backend_client() -> InsightBackendClient:
     settings = get_settings()
-    return CubeClient(
-        str(settings.CUBE_API_URL),
-        auth_type=CubeJWTAuthType.SECRET_KEY,
-        auth_options={"secret_key": settings.SECRET_KEY},
+    return InsightBackendClient(
+        settings.INSIGHTS_BACKEND_SERVER_HOST,
+        auth=ClientCredsAuth(
+            auth0_issuer=settings.AUTH0_ISSUER,
+            client_id=settings.AUTH0_CLIENT_ID,
+            client_secret=settings.AUTH0_CLIENT_SECRET,
+            api_audience=settings.AUTH0_API_AUDIENCE,
+        ),
     )
+
+
+InsightBackendClientDep = Annotated[InsightBackendClient, Depends(get_insights_backend_client)]
+
+
+async def get_cube_client(insights_backend_client: InsightBackendClientDep) -> CubeClient:
+    tenant_config = await insights_backend_client.get_tenant_config()
+    cube_connection_config = tenant_config["cube_connection_config"]
+    auth_type = CubeJWTAuthType(cube_connection_config["cube_auth_type"])
+    auth_options = (
+        dict(secret_key=cube_connection_config["cube_auth_secret_key"])
+        if auth_type == CubeJWTAuthType.SECRET_KEY
+        else dict(token=cube_connection_config["cube_auth_token"])
+    )
+    return CubeClient(cube_connection_config["cube_api_url"], auth_type=auth_type, auth_options=auth_options)
 
 
 CubeClientDep = Annotated[CubeClient, Depends(get_cube_client)]

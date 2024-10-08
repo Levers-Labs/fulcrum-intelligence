@@ -6,7 +6,7 @@ from commons.middleware import process_time_log_middleware, request_id_middlewar
 from commons.utilities.docs import custom_openapi, setup_swagger_ui
 from commons.utilities.logger import setup_rich_logger
 from insights_backend.config import get_settings
-from insights_backend.core.routes import user_router as core_router
+from insights_backend.core.routes import router, user_router
 from insights_backend.health import router as health_check_router
 
 
@@ -21,7 +21,8 @@ def get_application() -> FastAPI:
         docs_url=None,
         redoc_url=None,
     )
-    _app.include_router(core_router, prefix="/v1")
+    _app.include_router(user_router, prefix="/v1")
+    _app.include_router(router, prefix="/v1")
     _app.include_router(health_check_router, prefix="/v1")
     swagger_router = setup_swagger_ui("Insights Backend", settings.URL_PREFIX)
     _app.include_router(swagger_router)
