@@ -51,9 +51,6 @@ class StoryHeuristicEvaluator:
         """
         await self._set_story_config()
 
-        if not self.story_config:
-            return True, False, True
-
         # Check if the story is salient based on the heuristic expression
         is_salient = await self._evaluate_salience(variables)
 
@@ -73,6 +70,9 @@ class StoryHeuristicEvaluator:
         :param variables: A dictionary of variables to be used in the heuristic evaluation.
         :return: A boolean indicating if the story is salient.
         """
+        if not self.story_config:
+            return True
+
         # Fetch the heuristic expression from the story configuration
         expression_template = self.story_config.heuristic_expression  # type: ignore
 
@@ -128,7 +128,7 @@ class StoryHeuristicEvaluator:
         :return: A tuple (in_cool_off: bool, is_heuristic: bool).
         """
 
-        if not is_salient:
+        if not is_salient and not self.story_config:
             return False, is_salient
 
         cool_off_duration = self.story_config.cool_off_duration  # type: ignore
