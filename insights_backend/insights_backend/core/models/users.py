@@ -19,16 +19,25 @@ class User(UserBase, InsightsSchemaBaseModel, table=True):  # type: ignore
     provider: AuthProviders | None = Field(sa_column=Column(Enum(AuthProviders, name="provider", inherit_schema=True)))
 
 
+class UserUpdate(BaseModel):
+    name: str
+    email: EmailStr
+    external_user_id: str | None = None
+    profile_picture: str | None = None
+
+
 class UserCreate(BaseModel):
     name: str
     provider: AuthProviders | None
     email: EmailStr
+    tenant_org_id: str
     external_user_id: str | None = None
     profile_picture: str | None = None
 
 
 class UserRead(UserBase):
     id: int
+    tenant_id: int
 
 
 class UserList(BaseModel):

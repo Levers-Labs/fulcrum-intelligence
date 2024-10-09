@@ -160,7 +160,7 @@ class Oauth2Auth:
         request: request object
         """
         current_route = request.url.path.removeprefix(request.base_url.path)
-        if current_route in TENANT_VERIFICATION_BYPASS_ENDPOINTS:
+        if current_route.strip("/") in TENANT_VERIFICATION_BYPASS_ENDPOINTS:
             logger.info(f"Skipping tenant verification for route: {current_route}")
             return
         # Verify tenant id is present in context

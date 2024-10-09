@@ -18,8 +18,9 @@ from commons.auth.scopes import (
 )
 from commons.db.crud import NotFoundError
 from commons.models.tenant import TenantConfig
-from commons.utilities.context import get_tenant_id
+from commons.utilities.context import get_tenant_id, set_tenant_id
 from commons.utilities.pagination import PaginationParams
+from insights_backend.core.crud import TenantCRUD
 from insights_backend.core.dependencies import TenantsCRUDDep, UsersCRUDDep, oauth2_auth
 from insights_backend.core.models import (
     TenantList,
@@ -28,11 +29,20 @@ from insights_backend.core.models import (
     UserCreate,
     UserList,
 )
-from insights_backend.core.models.users import UserRead
+from insights_backend.core.models.users import UserRead, UserUpdate
 
 user_router = APIRouter(prefix="/users", tags=["users"])
 router = APIRouter(tags=["tenants"])
 logger = logging.getLogger(__name__)
+
+
+async def handle_tenant_context_from_org_id(org_id: str, tenant_crud_client: TenantCRUD):
+    # Get tenant id using tenant org id
+    tenant = await tenant_crud_client.get_tenant_by_external_id(org_id)
+    if not tenant:
+        raise HTTPException(status_code=422, detail=f"Tenant not found for org id: {org_id}")
+    # Set tenant id in context
+    set_tenant_id(tenant.id)
 
 
 @user_router.post(
@@ -40,10 +50,12 @@ logger = logging.getLogger(__name__)
     response_model=UserRead,
     dependencies=[Security(oauth2_auth().verify, scopes=[USER_WRITE])],  # type: ignore
 )
-async def create_user(user: UserCreate, user_crud_client: UsersCRUDDep):
+async def create_user(user: UserCreate, user_crud_client: UsersCRUDDep, tenant_crud_client: TenantsCRUDDep):
     """
     To create a new user in DB, this endpoint will be used by Auth0 for user registration.
     """
+    # Handle tenant context from org id
+    await handle_tenant_context_from_org_id(user.tenant_org_id, tenant_crud_client)
     try:
         return await user_crud_client.create(obj_in=user)
     except IntegrityError as e:
@@ -86,7 +98,7 @@ async def get_user_by_email(email: str, user_crud_client: UsersCRUDDep):
     response_model=UserRead,
     dependencies=[Security(oauth2_auth().verify, scopes=[USER_WRITE])],  # type: ignore
 )
-async def update_user(user_id: int, user: UserCreate, user_crud_client: UsersCRUDDep):
+async def update_user(user_id: int, user: UserUpdate, user_crud_client: UsersCRUDDep):
     """
     Update a user by ID.
     """
