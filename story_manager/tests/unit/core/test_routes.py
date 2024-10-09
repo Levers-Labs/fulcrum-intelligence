@@ -80,6 +80,9 @@ async def test_get_stories(db_session, client):
             detail_template="The {{pop}} growth rate for {{metric.label}} is slowing down. It is currently {{"
             "current_growth}}% and down from the {{reference_growth}}% average over the past {{"
             "reference_period_days}} {{grain}}s.",
+            is_salient=False,
+            in_cool_off=False,
+            is_heuristic=False,
         ),
         Story(
             genre=StoryGenre.GROWTH,
@@ -95,7 +98,9 @@ async def test_get_stories(db_session, client):
             detail_template="The {{pop}} growth rate for {{metric.label}} is speeding up. It is currently {{"
             "current_growth}}% and up from the {{reference_growth}}% average over the past {{"
             "reference_period_days}} {{days}}s.",
-            is_published=True,
+            is_salient=False,
+            in_cool_off=False,
+            is_heuristic=False,
         ),
         Story(
             genre=StoryGenre.GROWTH,
@@ -111,6 +116,9 @@ async def test_get_stories(db_session, client):
             detail_template="The {{pop}} growth rate for {{metric.label}} is slowing down. It is currently {{"
             "current_growth}}% and down from the {{reference_growth}}% average over the past {{"
             "reference_period_days}} {{grain}}s.",
+            is_salient=False,
+            in_cool_off=False,
+            is_heuristic=False,
         ),
         Story(
             genre=StoryGenre.TRENDS,
@@ -126,6 +134,9 @@ async def test_get_stories(db_session, client):
             detail_template="The {{pop}} growth rate for {{metric.label}} is slowing down. It is currently {{"
             "current_growth}}% and down from the {{reference_growth}}% average over the past {{"
             "reference_period_days}} {{grain}}s.",
+            is_salient=False,
+            in_cool_off=False,
+            is_heuristic=False,
         ),
         Story(
             genre=StoryGenre.TRENDS,
@@ -141,6 +152,9 @@ async def test_get_stories(db_session, client):
             detail_template="The {{pop}} growth rate for {{metric.label}} is slowing down. It is currently {{"
             "current_growth}}% and down from the {{reference_growth}}% average over the past {{"
             "reference_period_days}} {{grain}}s.",
+            is_salient=False,
+            in_cool_off=False,
+            is_heuristic=False,
         ),
         Story(
             genre=StoryGenre.PERFORMANCE,
@@ -156,6 +170,9 @@ async def test_get_stories(db_session, client):
             detail_template="The {{pop}} growth rate for {{metric.label}} is slowing down. It is currently {{"
             "current_growth}}% and down from the {{reference_growth}}% average over the past {{"
             "reference_period_days}} {{grain}}s.",
+            is_salient=True,
+            in_cool_off=False,
+            is_heuristic=True,
         ),
         Story(
             genre=StoryGenre.PERFORMANCE,
@@ -171,6 +188,9 @@ async def test_get_stories(db_session, client):
             detail_template="The {{pop}} growth rate for {{metric.label}} is slowing down. It is currently {{"
             "current_growth}}% and down from the {{reference_growth}}% average over the past {{"
             "reference_period_days}} {{grain}}s.",
+            is_salient=True,
+            in_cool_off=True,
+            is_heuristic=True,
         ),
         Story(
             genre=StoryGenre.ROOT_CAUSES,
@@ -186,6 +206,9 @@ async def test_get_stories(db_session, client):
             detail_template="The {{pop}} growth rate for {{metric.label}} is slowing down. It is currently {{"
             "current_growth}}% and down from the {{reference_growth}}% average over the past {{"
             "reference_period_days}} {{grain}}s.",
+            is_salient=True,
+            in_cool_off=True,
+            is_heuristic=True,
         ),
     ]
     db_session.add_all(stories)
@@ -312,3 +335,13 @@ async def test_get_stories(db_session, client):
     assert response.status_code == status.HTTP_200_OK
     data = response.json()
     assert data["count"] == 1
+
+    response = client.get("/v1/stories?is_heuristic=True")
+    assert response.status_code == status.HTTP_200_OK
+    data = response.json()
+    assert data["count"] == 3
+
+    response = client.get("/v1/stories?is_heuristic=False")
+    assert response.status_code == status.HTTP_200_OK
+    data = response.json()
+    assert data["count"] == 5

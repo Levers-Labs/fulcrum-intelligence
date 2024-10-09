@@ -54,7 +54,7 @@ async def get_stories(
     story_date_end: datetime | None = None,
     digest: Digest | None = None,
     section: Section | None = None,
-    is_salient: bool | None = None,
+    is_heuristic: bool | None = None,
 ) -> Any:
     """
     Retrieve stories.
@@ -69,7 +69,7 @@ async def get_stories(
         story_date_end=story_date_end,
         digest=digest,
         section=section,
-        is_salient=is_salient,
+        is_heuristic=is_heuristic,
     )
 
     results, count = await story_crud.paginate(params=params, filter_params=story_filter.dict(exclude_unset=True))

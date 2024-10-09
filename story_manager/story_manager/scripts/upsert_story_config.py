@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
 
 from query_manager.config import get_settings
-from story_manager.core.heuristics import STORY_TYPE_HEURISTIC_MAPPING
+from story_manager.core.mappings import STORY_TYPE_HEURISTIC_MAPPING
 from story_manager.core.models import StoryConfig
 
 # Set up logging
@@ -16,11 +16,16 @@ logger = logging.getLogger(__name__)
 async def upsert_story_config(session: AsyncSession) -> None:
     logger.info("Running Story Config Upsert with Salience Heuristic Expressions")
     for story_type, grains in STORY_TYPE_HEURISTIC_MAPPING.items():
-        for grain, expr in grains.items():
+        for grain, data in grains.items():
+            expr = data["salient_expression"]
+            cool_off = data["cool_off_duration"]
             stmt = (
                 insert(StoryConfig)
-                .values(story_type=story_type, grain=grain, heuristic_expression=expr)
-                .on_conflict_do_update(index_elements=["story_type", "grain"], set_=dict(heuristic_expression=expr))
+                .values(story_type=story_type, grain=grain, heuristic_expression=expr, cool_off_duration=cool_off)
+                .on_conflict_do_update(
+                    index_elements=["story_type", "grain"],
+                    set_=dict(heuristic_expression=expr, cool_off_duration=cool_off),
+                )
             )
             await session.execute(stmt)
     await session.commit()

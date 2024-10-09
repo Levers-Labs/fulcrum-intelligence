@@ -261,7 +261,7 @@ class StoryBuilderBase(ABC):
         stories = await self.generate_stories(metric_id, grain)
         logger.info("Generated %s stories for metric '%s' with grain '%s'", len(stories), metric_id, grain)
         story_objs = await self.persist_stories(stories)
-        await self.set_stories_salience(story_objs)
+        await self.set_story_heuristics(story_objs)
 
     async def persist_stories(self, stories: list[dict]) -> list[Story]:
         """
@@ -280,21 +280,29 @@ class StoryBuilderBase(ABC):
         logger.info("Stories persisted successfully")
         return story_objs
 
-    async def set_stories_salience(self, story_objs: list[Story]):
+    async def set_story_heuristics(self, story_objs: list[Story]):
         """
-        Set the salience for the persisted stories
+        Set the salience heuristics for the persisted stories.
 
-        :param story_objs: The list of generated Story objects
+        This method refreshes each story object from the database, sets the heuristics for each story,
+        and then commits the changes to the database.
+
+        :param story_objs: The list of generated Story objects.
         """
-        logger.info(f"Setting salience for {len(story_objs)} stories")
+        logger.info(f"Setting story salience heuristics for {len(story_objs)} stories")
 
+        # Iterate over each story object to refresh and set heuristics
         for story in story_objs:
+            # Refresh the story object from the database to ensure it has the latest data
             await self.db_session.refresh(story)
-            await story.set_salience(self.db_session)
+            # Set the heuristics for the story object
+            await story.set_heuristics(self.db_session)
 
+        # Add all story objects to the session to be committed
         self.db_session.add_all(story_objs)
+        # Commit the changes to the database
         await self.db_session.commit()
-        logger.info("Salience set successfully")
+        logger.info("Story heuristics set successfully")
 
     def _get_current_period_range(self, grain: Granularity) -> tuple[date, date]:
         """
