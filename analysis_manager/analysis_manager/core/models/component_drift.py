@@ -28,5 +28,5 @@ class Component(BaseModel):
     metric_id: str
     evaluation_value: float
     comparison_value: float
-    drift: ComponentDrift
+    drift: ComponentDrift | None
     components: list[Component] | None = None

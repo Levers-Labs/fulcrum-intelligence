@@ -34,6 +34,16 @@ class ComponentDriftService:
             Component object containing the drift analysis results.
         """
         output_metric_id: str = metric["metric_id"]
+
+        if not metric.get("metric_expression"):
+            return {
+                "metric_id": output_metric_id,
+                "drift": None,
+                "evaluation_value": 0,
+                "comparison_value": 0,
+                "components": [],
+            }
+
         # Get evaluation and comparison values for the input & output metrics
         values = await self.get_drift_input_values(
             metric,
@@ -132,6 +142,8 @@ class ComponentDriftService:
         values = []  # noqa
         # get metric values for the given metric_ids and date range
         for input_metric in [metric_expression, *input_metrics_expressions]:
+            if not input_metric:
+                continue
             # calculate dates based on a period specified
             metric_evaluation_start_date, metric_evaluation_end_date = self.get_shifted_dates_for_period(
                 evaluation_start_date, evaluation_end_date, input_metric["period"]

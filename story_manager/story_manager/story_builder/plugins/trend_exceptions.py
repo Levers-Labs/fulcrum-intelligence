@@ -80,13 +80,13 @@ class TrendExceptionsStoryBuilder(StoryBuilderBase):
         ref_data = pc_df.iloc[-1]
 
         story_type = None
-        if ref_data["value"] > ref_data["ucl"]:
+        if ref_data["ucl"] and ref_data["value"] > ref_data["ucl"]:
             deviation = self.analysis_manager.calculate_percentage_difference(
                 ref_data["value"].item(), ref_data["ucl"].item()
             )
             story_type = StoryType.SPIKE
             position = Position.ABOVE
-        elif ref_data["value"] < ref_data["lcl"]:
+        elif ref_data["lcl"] and ref_data["value"] < ref_data["lcl"]:
             deviation = self.analysis_manager.calculate_percentage_difference(
                 ref_data["value"].item(), ref_data["lcl"].item()
             )

@@ -75,6 +75,12 @@ class InfluenceDriftStoryBuilder(StoryBuilderBase):
         influencers = await self.query_service.get_influencers(metric_id, include_indirect=True)
         logger.info("Fetched %d influencers for metric '%s'", len(influencers), metric_id)
 
+        if not influencers:
+            logger.warning(
+                "Discarding story generation for metric '%s' with grain '%s' due to no influencers", metric_id, grain
+            )
+            return []
+
         # Extract all influencer metric IDs from the nested influencers structure
         influencer_metric_ids = self._extract_influencer_metric_ids(influencers)
 

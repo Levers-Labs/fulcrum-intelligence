@@ -74,16 +74,16 @@ class ComponentDriftStoryBuilder(StoryBuilderBase):
 
         components = self.fetch_all_components(response)
 
-        # Extract components data
-        components_df = self.extract_components_data(components)
-
-        if len(components_df) < self.min_component_count:
+        if len(components) < self.min_component_count:
             logger.warning(
                 "Discarding story generation for metric '%s' with grain '%s'" "due to insufficient components.",
                 metric_id,
                 grain,
             )
             return []
+
+        # Extract components data
+        components_df = self.extract_components_data(components)
 
         # Create DataFrame
         df = self.create_ranked_df(components_df)

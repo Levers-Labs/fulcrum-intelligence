@@ -1,5 +1,6 @@
 import logging
 
+import numpy as np
 import pandas as pd
 
 from commons.models.enums import Granularity
@@ -70,7 +71,7 @@ class GoalVsActualStoryBuilder(StoryBuilderBase):
 
         # get growth rate for the series
         df["growth_rate"] = self.analysis_manager.calculate_growth_rates_of_series(df["value"])
-        df["growth_rate"] = df["growth_rate"].fillna(value=0)
+        df["growth_rate"] = df["growth_rate"].replace([np.inf, -np.inf], 0).fillna(0)
 
         # Get story status for the df
         df["status"] = df.apply(determine_status_for_value_and_target, axis=1)
