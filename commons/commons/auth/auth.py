@@ -4,9 +4,15 @@ from enum import Enum
 from typing import Annotated, Any, TypeVar
 
 import jwt
-from fastapi import Depends, HTTPException, status
+from fastapi import (
+    Depends,
+    HTTPException,
+    Request,
+    status,
+)
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer, SecurityScopes
 
+from commons.auth.constants import TENANT_VERIFICATION_BYPASS_ENDPOINTS
 from commons.models import BaseModel
 from commons.utilities.context import get_tenant_id
 
@@ -106,6 +112,7 @@ class Oauth2Auth:
     async def verify(
         self,
         security_scopes: SecurityScopes,
+        request: Request,
         token: Annotated[HTTPAuthorizationCredentials | None, Depends(HTTPBearer(auto_error=False))] = None,
     ) -> OAuth2User:
         """
@@ -116,6 +123,7 @@ class Oauth2Auth:
 
         Args:
             security_scopes (SecurityScopes): Scopes required for a route to execute.
+            request (Request): The request object.
             token (HTTPAuthorizationCredentials | None): JWT token, present in Authorization header.
 
         Returns:
@@ -132,7 +140,7 @@ class Oauth2Auth:
         payload = self.verify_jwt(token.credentials)
 
         # verify tenant: JWT tenant is same as the tenant_id in request header
-        self.verify_tenant(payload)
+        await self.verify_tenant(payload, request)
 
         # Verify the scopes if route requires it
         if security_scopes.scopes:
@@ -145,11 +153,17 @@ class Oauth2Auth:
         user = await self.get_oauth_user(payload, token.credentials)
         return user
 
-    def verify_tenant(self, payload: dict[str, Any]):
+    async def verify_tenant(self, payload: dict[str, Any], request: Request):
         """
         Verify the tenant passed in request header
         payload: token payload
+        request: request object
         """
+        current_route = request.url.path.removeprefix(request.base_url.path)
+        if current_route in TENANT_VERIFICATION_BYPASS_ENDPOINTS:
+            logger.info(f"Skipping tenant verification for route: {current_route}")
+            return
+        # Verify tenant id is present in context
         tenant_id = get_tenant_id()
         if not tenant_id:
             raise UnauthorizedException(detail="Tenant id not found in request header")

@@ -1,5 +1,10 @@
 from .base import InsightsSchemaBaseModel
-from .tenant import Tenant, TenantConfig
+from .tenant import (
+    Tenant,
+    TenantConfig,
+    TenantList,
+    TenantRead,
+)
 from .users import User, UserCreate, UserList
 
 __all__ = [
@@ -9,4 +14,6 @@ __all__ = [
     "UserList",
     "Tenant",
     "TenantConfig",
+    "TenantList",
+    "TenantRead",
 ]

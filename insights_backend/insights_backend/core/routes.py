@@ -10,13 +10,24 @@ from fastapi import (
 from sqlalchemy.exc import IntegrityError
 from starlette import status
 
-from commons.auth.scopes import TENANT_READ, USER_READ, USER_WRITE
+from commons.auth.scopes import (
+    ADMIN_READ,
+    TENANT_READ,
+    USER_READ,
+    USER_WRITE,
+)
 from commons.db.crud import NotFoundError
 from commons.models.tenant import TenantConfig
 from commons.utilities.context import get_tenant_id
 from commons.utilities.pagination import PaginationParams
 from insights_backend.core.dependencies import TenantsCRUDDep, UsersCRUDDep, oauth2_auth
-from insights_backend.core.models import User, UserCreate, UserList
+from insights_backend.core.models import (
+    TenantList,
+    TenantRead,
+    User,
+    UserCreate,
+    UserList,
+)
 from insights_backend.core.models.users import UserRead
 
 user_router = APIRouter(prefix="/users", tags=["users"])
@@ -116,6 +127,25 @@ async def delete_user(user_id: int, user_crud_client: UsersCRUDDep):
 
 
 # Tenant Routes
+@router.get(
+    "/tenants/all",
+    response_model=TenantList,
+    dependencies=[Security(oauth2_auth().verify, scopes=[ADMIN_READ])],  # type: ignore
+)
+async def list_tenants(
+    tenant_crud_client: TenantsCRUDDep,
+    params: Annotated[PaginationParams, Depends(PaginationParams)],
+):
+    """
+    Retrieve all tenants in DB.
+    """
+    count = await tenant_crud_client.total_count()
+    results: list[TenantRead] = [
+        TenantRead.model_validate(tenant) for tenant in await tenant_crud_client.list_results(params=params)
+    ]
+    return TenantList(results=results, count=count)
+
+
 @router.get(
     "/tenant/config",
     response_model=TenantConfig,
