@@ -32,8 +32,16 @@ class StoryHeuristicEvaluator:
         self.grain = grain
         self.session = session
         self.story_config_crud = CRUDStoryConfigDep(StoryConfig, self.session)
-        self.story_config = None
+        self._story_config = None
         self.story_crud = CRUDStoryDep(Story, self.session)
+
+    @property
+    async def story_config(self):
+        if self._story_config is None:
+            self._story_config = await self.story_config_crud.get_story_config(
+                story_type=self.story_type, grain=self.grain
+            )
+        return self._story_config
 
     async def evaluate(self, variables: dict[str, Any]) -> tuple[bool, bool, bool]:
         """
@@ -49,7 +57,6 @@ class StoryHeuristicEvaluator:
             - in_cool_off (bool): Indicates if the story is within the cool-off period.
             - is_heuristic (bool): Indicates if the story should be rendered based on heuristics.
         """
-        await self._set_story_config()
 
         # Check if the story is salient based on the heuristic expression
         is_salient = await self._evaluate_salience(variables)
@@ -70,20 +77,18 @@ class StoryHeuristicEvaluator:
         :param variables: A dictionary of variables to be used in the heuristic evaluation.
         :return: A boolean indicating if the story is salient.
         """
-        if not self.story_config:
+        story_config = await self.story_config
+        if not story_config:
             return True
 
         # Fetch the heuristic expression from the story configuration
-        expression_template = self.story_config.heuristic_expression  # type: ignore
+        expression_template = story_config.heuristic_expression  # type: ignore
 
         # Substitute the provided variables into the heuristic expression
         rendered_expression = self._render_expression(expression_template, variables)
 
         # Evaluate the resulting expression to determine if the story is salient
         return self._evaluate_expression(rendered_expression)
-
-    async def _set_story_config(self):
-        self.story_config = await self.story_config_crud.get_story_config(story_type=self.story_type, grain=self.grain)
 
     @staticmethod
     def _render_expression(expression: str, variables: dict[str, Any]) -> str:
@@ -127,11 +132,11 @@ class StoryHeuristicEvaluator:
         :param is_salient: A boolean indicating if the story is salient.
         :return: A tuple (in_cool_off: bool, is_heuristic: bool).
         """
-
-        if not is_salient and not self.story_config:
+        story_config = await self.story_config
+        if not is_salient and not story_config:
             return False, is_salient
 
-        cool_off_duration = self.story_config.cool_off_duration  # type: ignore
+        cool_off_duration = story_config.cool_off_duration  # type: ignore
 
         # If no cool-off duration is defined, return False for in_cool_off and the value of is_salient for is_heuristic
         if cool_off_duration is None:

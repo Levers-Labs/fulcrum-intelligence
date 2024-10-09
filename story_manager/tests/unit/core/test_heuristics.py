@@ -71,13 +71,17 @@ def test_evaluate_expression(evaluator):
 async def test_evaluate_salience(evaluator):
     variables = {"var1": 10, "var2": 20}
 
-    with patch.object(evaluator, "_set_story_config", new_callable=AsyncMock):
-        evaluator.story_config = StoryConfig(heuristic_expression="{{ var1 }} + {{ var2 }} == 30")
+    with patch.object(evaluator.story_config_crud, "get_story_config", new_callable=AsyncMock) as mock_get_story_config:
+        mock_get_story_config.return_value = StoryConfig(heuristic_expression="{{ var1 }} + {{ var2 }} == 30")
         result = await evaluator._evaluate_salience(variables)
         assert result is True
 
-    with patch.object(evaluator, "_set_story_config", new_callable=AsyncMock):
-        evaluator.story_config = StoryConfig(heuristic_expression="{{ var1 }} + {{ var2 }} == 25")
+
+@pytest.mark.asyncio
+async def test_evaluate_salience_false(evaluator):
+    variables = {"var1": 10, "var2": 20}
+    with patch.object(evaluator.story_config_crud, "get_story_config", new_callable=AsyncMock) as mock_get_story_config:
+        mock_get_story_config.return_value = StoryConfig(heuristic_expression="{{ var1 }} + {{ var2 }} == 25")
         result = await evaluator._evaluate_salience(variables)
         assert result is False
 
@@ -86,10 +90,14 @@ async def test_evaluate_salience(evaluator):
 async def test_evaluate(evaluator):
     variables = {"var1": 10, "var2": 20}
 
-    with patch.object(evaluator, "_set_story_config", new_callable=AsyncMock), patch.object(
+    with patch.object(
+        evaluator.story_config_crud, "get_story_config", new_callable=AsyncMock
+    ) as mock_get_story_config, patch.object(
         evaluator.story_crud, "get_latest_story", new_callable=AsyncMock
     ) as mock_get_last_story:
-        evaluator.story_config = StoryConfig(heuristic_expression="{{ var1 }} + {{ var2 }} == 30", cool_off_duration=1)
+        mock_get_story_config.return_value = StoryConfig(
+            heuristic_expression="{{ var1 }} + {{ var2 }} == 30", cool_off_duration=1
+        )
         mock_get_last_story.return_value = None
 
         is_salient, in_cool_off, is_heuristic = await evaluator.evaluate(variables)
@@ -100,10 +108,14 @@ async def test_evaluate(evaluator):
 
 @pytest.mark.asyncio
 async def test_evaluate_cool_off(evaluator):
-    with patch.object(evaluator, "_set_story_config", new_callable=AsyncMock), patch.object(
+    with patch.object(
+        evaluator.story_config_crud, "get_story_config", new_callable=AsyncMock
+    ) as mock_get_story_config, patch.object(
         evaluator.story_crud, "get_latest_story", new_callable=AsyncMock
-    ) as mock_get_last_story, patch("story_manager.core.heuristics.calculate_periods_count", return_value=0):
-        evaluator.story_config = StoryConfig(cool_off_duration=1)
+    ) as mock_get_last_story, patch(
+        "story_manager.core.heuristics.calculate_periods_count", return_value=0
+    ):
+        mock_get_story_config.return_value = StoryConfig(cool_off_duration=1)
         mock_story = Story(story_date=datetime.now() - timedelta(hours=12))
         mock_get_last_story.return_value = mock_story
 
@@ -116,10 +128,16 @@ async def test_evaluate_cool_off(evaluator):
 async def test_evaluate_with_cool_off(evaluator):
     variables = {"var1": 10, "var2": 20}
 
-    with patch.object(evaluator, "_set_story_config", new_callable=AsyncMock), patch.object(
+    with patch.object(
+        evaluator.story_config_crud, "get_story_config", new_callable=AsyncMock
+    ) as mock_get_story_config, patch.object(
         evaluator.story_crud, "get_latest_story", new_callable=AsyncMock
-    ) as mock_get_last_story, patch("story_manager.core.heuristics.calculate_periods_count", return_value=0):
-        evaluator.story_config = StoryConfig(heuristic_expression="{{ var1 }} + {{ var2 }} == 30", cool_off_duration=1)
+    ) as mock_get_last_story, patch(
+        "story_manager.core.heuristics.calculate_periods_count", return_value=0
+    ):
+        mock_get_story_config.return_value = StoryConfig(
+            heuristic_expression="{{ var1 }} + {{ var2 }} == 30", cool_off_duration=1
+        )
         mock_story = Story(story_date=datetime.now() - timedelta(hours=12))
         mock_get_last_story.return_value = mock_story
 
