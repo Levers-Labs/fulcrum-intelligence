@@ -136,6 +136,7 @@ class StoryHeuristicEvaluator:
         :return: A tuple (in_cool_off: bool, is_heuristic: bool).
         """
         story_config = await self.story_config
+
         if not is_salient or not story_config:
             return False, is_salient
 
