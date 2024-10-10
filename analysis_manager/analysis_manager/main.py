@@ -4,6 +4,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 
 from analysis_manager.config import get_settings
 from analysis_manager.core.routes import router as core_router
+from analysis_manager.exceptions import add_exception_handlers
 from analysis_manager.health import router as health_check_router
 from commons.middleware import process_time_log_middleware, request_id_middleware
 from commons.utilities.docs import custom_openapi, setup_swagger_ui
@@ -40,6 +41,9 @@ def get_application() -> FastAPI:
 
     # setup logging
     setup_rich_logger(settings)
+
+    # add exception handlers
+    add_exception_handlers(_app)
 
     return _app
 

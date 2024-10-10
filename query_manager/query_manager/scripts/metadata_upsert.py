@@ -78,7 +78,11 @@ async def upsert_data(session: AsyncSession, dimensions_file_path: str, metrics_
 
     # Refresh metrics
     metrics = await session.scalars(
-        select(Metric).options(selectinload(Metric.dimensions), selectinload(Metric.influences))  # type: ignore
+        select(Metric).options(
+            selectinload(Metric.dimensions),  # type: ignore
+            selectinload(Metric.influences),  # type: ignore
+            selectinload(Metric.components),  # type: ignore
+        )
     )
     metric_id_map = {metric.metric_id: metric for metric in metrics.unique().all()}
 
@@ -89,6 +93,8 @@ async def upsert_data(session: AsyncSession, dimensions_file_path: str, metrics_
         metric.influences = [metric_id_map[influence_id] for influence_id in metric_data.get("influences", [])]
         # setup dimensions
         metric.dimensions = [dimension_id_map[dim_id] for dim_id in metric_data.get("dimensions", [])]
+        # setup components
+        metric.components = [metric_id_map[component_id] for component_id in metric_data.get("components", [])]
         session.add(metric)
         if i % 10 == 0 or i == len(metrics_data):
             logger.info(f"Updated dimensions for {i}/{len(metrics_data)} metrics")

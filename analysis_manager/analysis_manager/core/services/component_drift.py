@@ -1,6 +1,7 @@
 from datetime import date
 from typing import Any
 
+from analysis_manager.exceptions import NoMetricExpressionError
 from commons.clients.query_manager import QueryManagerClient
 from fulcrum_core import AnalysisManager
 
@@ -34,6 +35,10 @@ class ComponentDriftService:
             Component object containing the drift analysis results.
         """
         output_metric_id: str = metric["metric_id"]
+
+        if not metric.get("metric_expression"):
+            raise NoMetricExpressionError(output_metric_id)
+
         # Get evaluation and comparison values for the input & output metrics
         values = await self.get_drift_input_values(
             metric,
