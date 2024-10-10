@@ -15,7 +15,7 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlmodel import Field
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from commons.db.models import BaseTimeStampedModel
+from commons.db.models import BaseTimeStampedTenantModel
 from commons.models.enums import Granularity
 from story_manager.core.enums import (
     GROUP_TO_STORY_TYPE_MAPPING,
@@ -25,7 +25,7 @@ from story_manager.core.enums import (
 )
 
 
-class StorySchemaBaseModel(BaseTimeStampedModel):
+class StorySchemaBaseModel(BaseTimeStampedTenantModel):
     __table_args__ = {"schema": "story_store"}
 
 
@@ -103,6 +103,6 @@ class StoryConfig(StorySchemaBaseModel, table=True):
     cool_off_duration: int | None = Field(nullable=True)  # type: ignore
 
     __table_args__ = (
-        UniqueConstraint("story_type", "grain", name="uix_story_types_grain"),  # type: ignore
+        UniqueConstraint("story_type", "grain", "tenant_id", name="uix_story_type_grain_tenant_id"),  # type: ignore
         {"schema": "story_store"},
     )

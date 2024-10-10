@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy.orm import selectinload
 
-from commons.utilities.context import set_tenant_id
+from commons.utilities.context import reset_context, set_tenant_id
 from query_manager.config import get_settings
 from query_manager.core.models import Dimension, Metric
 from query_manager.db.config import get_async_session
@@ -124,6 +124,11 @@ async def main(tenant_id: int) -> None:
     dimensions_file_path = settings.PATHS.BASE_DIR / "data/dimensions.json"
     metrics_file_path = settings.PATHS.BASE_DIR / "data/metrics.json"
     await upsert_data(db_session, str(dimensions_file_path), str(metrics_file_path), tenant_id)
+    # Clean up
+    # clear context
+    reset_context()
+    # close db session
+    await db_session.close()
 
 
 # Usage example:

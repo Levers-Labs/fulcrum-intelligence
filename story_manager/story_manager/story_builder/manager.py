@@ -98,11 +98,7 @@ class StoryManager:
         query_service = await get_query_manager_client()
         analysis_service = await get_analysis_manager_client()
         analysis_manager = await get_analysis_manager()
-        db_session = None
-        async for _db_session in get_async_session():
-            db_session = _db_session
-            continue
-
+        db_session = await get_async_session()
         logger.info(f"Running story builder for story group: {group}")
 
         # Create a story builder for the specified group
