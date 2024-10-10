@@ -225,7 +225,7 @@ class Oauth2Auth:
             )
         else:
             # Fetch user details from insights backend
-            user_id = payload.get("user_id", "userId")
+            user_id = payload.get("userId")
             # convert user_id to int if present
             user_id = int(user_id) if user_id else None
             # raise error if user_id is not present in payload
