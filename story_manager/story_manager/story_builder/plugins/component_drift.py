@@ -43,10 +43,18 @@ class ComponentDriftStoryBuilder(StoryBuilderBase):
         :return: A list containing a trend story dictionary.
         """
 
-        logging.info("Generating trends exceptions stories ...")
+        logging.info("Generating Component Drift stories ...")
         stories: list[dict] = []
 
         metric = await self.query_service.get_metric(metric_id)
+
+        if not metric.get("metric_expression"):
+            logger.warning(
+                "Discarding story generation for metric '%s' with grain '%s'" "due to no components.",
+                metric_id,
+                grain,
+            )
+            return []
 
         evaluation_start_date, evaluation_end_date = self._get_input_time_range(
             grain,  # type: ignore

@@ -37,6 +37,28 @@ def mock_component_drift_story_builder(
 @pytest.mark.asyncio
 async def test_generate_stories(mock_component_drift_story_builder):
     # Prepare mock data
+    mock_component_drift_story_builder.query_service.get_metric = AsyncMock(
+        return_value={
+            "id": "metric_1",
+            "metric_id": "metric_1",
+            "label": "metric 1",
+            "metric_expression": {
+                "expression_str": "{comp1ₜ} * {comp2ₜ}",
+                "metric_id": "metric_1",
+                "type": "metric",
+                "period": 0,
+                "expression": {
+                    "type": "expression",
+                    "operator": "*",
+                    "operands": [
+                        {"type": "metric", "metric_id": "comp1", "period": 0},
+                        {"type": "metric", "metric_id": "comp2", "period": 0},
+                    ],
+                },
+            },
+        }
+    )
+
     mock_component_drift_story_builder.analysis_service.get_component_drift = AsyncMock(
         return_value={
             "components": [
@@ -77,6 +99,12 @@ async def test_generate_stories(mock_component_drift_story_builder):
     assert len(result) == 2
     assert result[0]["story_type"] == StoryType.IMPROVING_COMPONENT.value
     assert result[1]["story_type"] == StoryType.WORSENING_COMPONENT.value
+
+    # Verify that the get_metric method was called with the correct argument
+    mock_component_drift_story_builder.query_service.get_metric.assert_called_once_with("metric_1")
+
+    # Verify that the get_component_drift method was called
+    mock_component_drift_story_builder.analysis_service.get_component_drift.assert_called_once()
 
 
 @pytest.mark.asyncio

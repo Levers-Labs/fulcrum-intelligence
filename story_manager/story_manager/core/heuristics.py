@@ -36,11 +36,22 @@ class StoryHeuristicEvaluator:
         self.story_crud = CRUDStoryDep(Story, self.session)
 
     @property
-    async def story_config(self):
+    async def story_config(self) -> StoryConfig | None:
+        """
+        Asynchronously retrieve the story configuration for the given story type and granularity.
+
+        This property fetches the story configuration from the database if it has not been
+        previously retrieved and cached. The configuration is then cached for future use.
+
+        :return: The story configuration or None if not found.
+        """
+        # Check if the story configuration has already been retrieved and cached
         if self._story_config is None:
-            self._story_config = await self.story_config_crud.get_story_config(
+            # Fetch the story configuration from the database
+            self._story_config = await self.story_config_crud.get_story_config(  # type: ignore
                 story_type=self.story_type, grain=self.grain
             )
+        # Return the cached story configuration
         return self._story_config
 
     async def evaluate(self, variables: dict[str, Any]) -> tuple[bool, bool, bool]:
@@ -77,13 +88,17 @@ class StoryHeuristicEvaluator:
         :param variables: A dictionary of variables to be used in the heuristic evaluation.
         :return: A boolean indicating if the story is salient.
         """
+        # Retrieve the story configuration asynchronously
         story_config = await self.story_config
+
+        # If no story configuration is found, return True indicating the story is salient
         if not story_config:
             return True
 
         # Fetch the heuristic expression from the story configuration
         expression_template = story_config.heuristic_expression  # type: ignore
 
+        # If no heuristic expression is defined, return True indicating the story is salient
         if not expression_template:
             return True
 
@@ -135,11 +150,15 @@ class StoryHeuristicEvaluator:
         :param is_salient: A boolean indicating if the story is salient.
         :return: A tuple (in_cool_off: bool, is_heuristic: bool).
         """
+        # Retrieve the story configuration asynchronously
         story_config = await self.story_config
 
+        # If the story is not salient or the story configuration is not available,
+        # return False and the value of is_salient
         if not is_salient or not story_config:
             return False, is_salient
 
+        # Get the cool-off duration from the story configuration
         cool_off_duration = story_config.cool_off_duration  # type: ignore
 
         # If no cool-off duration is defined, return False for in_cool_off and the value of is_salient for is_heuristic
