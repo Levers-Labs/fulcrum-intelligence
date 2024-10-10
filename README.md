@@ -79,6 +79,9 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA story_store TO tena
 ALTER DEFAULT PRIVILEGES IN SCHEMA story_store GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO tenant_user;
 GRANT USAGE ON ALL SEQUENCES IN SCHEMA story_store TO tenant_user;
 ALTER DEFAULT PRIVILEGES IN SCHEMA story_store GRANT USAGE ON SEQUENCES TO tenant_user;
+
+--- Grant tenant_user role access to postgres role
+GRANT tenant_user TO postgres;
 ```
 
 #### Analysis Manager `.env` File
