@@ -109,8 +109,8 @@ async def main() -> None:
     settings = get_settings()
     engine = create_async_engine(settings.DATABASE_URL)
     async_session = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)  # type: ignore
-    dimensions_file_path = settings.PATHS.BASE_DIR / "data/dim_contacts.json"
-    metrics_file_path = settings.PATHS.BASE_DIR / "data/contacts_lifecycle.json"
+    dimensions_file_path = settings.PATHS.BASE_DIR / "data/dimensions.json"
+    metrics_file_path = settings.PATHS.BASE_DIR / "data/metrics.json"
     async with async_session() as session:
         await upsert_data(session, str(dimensions_file_path), str(metrics_file_path))
 
