@@ -407,6 +407,9 @@ class StoryBuilderBase(ABC):
         # Merging df with target_df on the date columns
         merged_df = pd.merge(series_df, targets_df, how="left", on="date")
 
+        # Fill any NaN values
+        merged_df = merged_df.fillna(0)
+
         # Selecting only the required columns
         final_df = merged_df[["date", "value", "target"]]
         return final_df
