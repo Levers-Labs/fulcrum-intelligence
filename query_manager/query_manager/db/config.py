@@ -1,4 +1,5 @@
 from collections.abc import AsyncGenerator, Generator
+from contextlib import asynccontextmanager
 from typing import Annotated
 
 from fastapi import Depends
@@ -26,12 +27,25 @@ async def get_async_session_gen() -> AsyncGenerator[AsyncSession, None]:
         yield session
 
 
-async def get_async_session() -> AsyncSession | None:
-    db_session = None
-    async for _db_session in get_async_session_gen():
-        db_session = _db_session
-        continue
-    return db_session
+@asynccontextmanager
+async def get_async_session() -> AsyncGenerator[AsyncSession, None]:
+    """
+    Get an async session
+    """
+    session = None
+    try:
+        async for _db_session in get_async_session_gen():
+            session = _db_session
+            yield session
+            if session:
+                await session.commit()
+    except Exception:
+        if session:
+            await session.rollback()
+        raise
+    finally:
+        if session:
+            await session.close()
 
 
 # Session Dependency

@@ -1,4 +1,6 @@
-from commons.clients.base import AsyncHttpClient
+from commons.clients.base import AsyncHttpClient, HttpClientError
+from commons.exceptions import InvalidTenantError
+from commons.utilities.context import get_tenant_id
 
 
 class InsightBackendClient(AsyncHttpClient):
@@ -9,7 +11,14 @@ class InsightBackendClient(AsyncHttpClient):
     async def get_tenant_config(self) -> dict:
         """
         Get tenant configuration for tenant from context.
-        Raises an exception if the tenant is not found.
-        :return:
+        Raises an InvalidTenant exception if the tenant is not found.
+        :return: dict
         """
-        return await self.get("/tenant/config")
+        try:
+            config = await self.get("/tenant/config")
+            return config
+        except HttpClientError as e:
+            if e.status_code == 404:
+                tenant_id = get_tenant_id()
+                raise InvalidTenantError(tenant_id) from e
+            raise

@@ -6,7 +6,7 @@ from jinja2 import Template
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from commons.models.enums import Granularity
-from story_manager.core.dependencies import CRUDStoryConfigDep, CRUDStoryDep
+from story_manager.core.crud import CRUDStory, CRUDStoryConfig
 from story_manager.core.enums import StoryType
 from story_manager.core.models import Story, StoryConfig
 from story_manager.story_builder.utils import calculate_periods_count
@@ -23,17 +23,17 @@ class StoryHeuristicEvaluator:
         story_type (StoryType): The type of the story.
         grain (Granularity): The granularity of the story.
         session (AsyncSession): The database session used for fetching configurations and stories.
-        story_config_crud (CRUDStoryConfigDep): CRUD operations for story configurations.
-        story_crud (CRUDStoryDep): CRUD operations for stories.
+        story_config_crud (CRUDStoryConfig): CRUD operations for story configurations.
+        story_crud (CRUDStory): CRUD operations for stories.
     """
 
     def __init__(self, story_type: StoryType, grain: Granularity, session: AsyncSession):
         self.story_type = story_type
         self.grain = grain
         self.session = session
-        self.story_config_crud = CRUDStoryConfigDep(StoryConfig, self.session)
+        self.story_config_crud = CRUDStoryConfig(model=StoryConfig, session=self.session)
         self._story_config = None
-        self.story_crud = CRUDStoryDep(Story, self.session)
+        self.story_crud = CRUDStory(model=Story, session=self.session)
 
     @property
     async def story_config(self) -> StoryConfig | None:

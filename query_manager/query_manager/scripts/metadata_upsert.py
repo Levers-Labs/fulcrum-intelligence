@@ -117,18 +117,13 @@ async def main(tenant_id: int) -> None:
     logger.info("Setting tenant context, Tenant ID: %s", tenant_id)
     set_tenant_id(tenant_id)
 
-    db_session = await get_async_session()
-    if db_session is None:
-        logger.error("Failed to get database session")
-        return
     dimensions_file_path = settings.PATHS.BASE_DIR / "data/dimensions.json"
     metrics_file_path = settings.PATHS.BASE_DIR / "data/metrics.json"
-    await upsert_data(db_session, str(dimensions_file_path), str(metrics_file_path), tenant_id)
-    # Clean up
-    # clear context
-    reset_context()
-    # close db session
-    await db_session.close()
+    async with get_async_session() as db_session:
+        await upsert_data(db_session, str(dimensions_file_path), str(metrics_file_path), tenant_id)
+        # Clean up
+        # clear context
+        reset_context()
 
 
 # Usage example:
