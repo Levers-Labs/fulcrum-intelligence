@@ -1,5 +1,5 @@
 from datetime import date
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
@@ -19,9 +19,23 @@ from query_manager.services.cube import CubeClient, CubeJWTAuthType
 
 
 @pytest.fixture
-async def cube_client() -> CubeClient:
-    client = await get_cube_client()
+def insights_backend_client():
+    client = MagicMock()
+    client.get_tenant_config = AsyncMock(
+        return_value={
+            "cube_connection_config": {
+                "cube_api_url": "http://test-cube-api.com",
+                "cube_auth_type": "SECRET_KEY",
+                "cube_auth_secret_key": "test-secret-key",
+            }
+        }
+    )
     return client
+
+
+@pytest.fixture
+async def cube_client(insights_backend_client):
+    return await get_cube_client(insights_backend_client)
 
 
 @pytest.mark.asyncio
@@ -337,7 +351,7 @@ async def test_load_metric_values_from_cube_error(mocker, metric, cube_client):
 @pytest.mark.asyncio
 async def test_load_metric_targets_from_cube(mocker, metric, cube_client):
     # Prepare
-    cube_client = await cube_client
+    cube_client = await cube_client  # Await the cube_client fixture
     metric = MetricDetail.parse_obj(metric)
     grain = Granularity.WEEK
     start_date = date(2021, 1, 1)
@@ -349,8 +363,6 @@ async def test_load_metric_targets_from_cube(mocker, metric, cube_client):
             "metric_targets.target_date",
             "metric_targets.target_value",
             "metric_targets.aim",
-            "metric_targets.target_lower_bound",
-            "metric_targets.target_upper_bound",
             "metric_targets.yellow_buffer",
             "metric_targets.red_buffer",
         ],
@@ -372,8 +384,6 @@ async def test_load_metric_targets_from_cube(mocker, metric, cube_client):
             "metric_targets.target_value": 100.0,
             "metric_targets.target_date": "2021-01-01",
             "metric_targets.aim": "maximize",
-            "metric_targets.target_upper_bound": 115.0,
-            "metric_targets.target_lower_bound": 85.0,
             "metric_targets.yellow_buffer": 1.5,
             "metric_targets.red_buffer": 3.0,
         }
@@ -385,8 +395,6 @@ async def test_load_metric_targets_from_cube(mocker, metric, cube_client):
             "target_date": "2021-01-01",
             "aim": "maximize",
             "target_value": 100.0,
-            "target_upper_bound": 115.0,
-            "target_lower_bound": 85.0,
             "yellow_buffer": 1.5,
             "red_buffer": 3.0,
         }

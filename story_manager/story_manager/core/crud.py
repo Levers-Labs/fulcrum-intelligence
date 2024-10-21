@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import date
 from typing import Any
 
 from sqlalchemy import desc, func
@@ -20,9 +20,10 @@ class CRUDStory(CRUDBase[Story, Story, Story, StoryFilter]):
 
     async def get_latest_story(
         self,
+        metric_id: str,
         story_type: StoryType,
         grain: Granularity,
-        story_date: datetime,
+        story_date: date,
         is_salient: bool | None = None,
         is_cool_off: bool | None = None,
         is_heuristic: bool | None = None,
@@ -39,11 +40,12 @@ class CRUDStory(CRUDBase[Story, Story, Story, StoryFilter]):
         :param is_heuristic: Optional filter for heuristic stories.
         :return: The latest story instance or None if no such story exists.
         """
+
         # Create a query to select the latest story before the current date
         statement = (
             self.get_select_query()
             .filter(func.date(Story.story_date) < func.date(story_date))  # type: ignore
-            .filter_by(story_type=story_type, grain=grain)
+            .filter_by(story_type=story_type, grain=grain, metric_id=metric_id)
         )
 
         # Apply optional filters
@@ -58,10 +60,10 @@ class CRUDStory(CRUDBase[Story, Story, Story, StoryFilter]):
         statement = statement.order_by(desc("story_date")).limit(1)
 
         # Execute the query
-        results = await self.session.execute(statement=statement)
+        result = await self.session.execute(statement=statement)
 
         # Get the unique result or None if no result is found
-        instance: Story | None = results.unique().scalar_one_or_none()  # noqa
+        instance: Story | None = result.unique().scalar_one_or_none()  # noqa
 
         return instance
 

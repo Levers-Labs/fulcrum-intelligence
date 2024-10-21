@@ -1,5 +1,5 @@
 import logging
-from datetime import datetime
+from datetime import date
 from typing import Any
 
 from jinja2 import Template
@@ -27,13 +27,17 @@ class StoryHeuristicEvaluator:
         story_crud (CRUDStory): CRUD operations for stories.
     """
 
-    def __init__(self, story_type: StoryType, grain: Granularity, session: AsyncSession):
+    def __init__(
+        self, story_type: StoryType, grain: Granularity, session: AsyncSession, story_date: date, metric_id: str
+    ):
         self.story_type = story_type
         self.grain = grain
         self.session = session
         self.story_config_crud = CRUDStoryConfig(model=StoryConfig, session=self.session)
         self._story_config = None
         self.story_crud = CRUDStory(model=Story, session=self.session)
+        self.story_date = story_date
+        self.metric_id = metric_id
 
     @property
     async def story_config(self) -> StoryConfig | None:
@@ -162,14 +166,16 @@ class StoryHeuristicEvaluator:
         cool_off_duration = story_config.cool_off_duration  # type: ignore
 
         # If no cool-off duration is defined, return False for in_cool_off and the value of is_salient for is_heuristic
-        if cool_off_duration is None:
+        if not cool_off_duration:
             return False, is_salient
-
-        current_date = datetime.now()
 
         # Fetch the latest heuristic story before the current date
         latest_heuristic_story = await self.story_crud.get_latest_story(
-            story_type=self.story_type, grain=self.grain, story_date=current_date, is_heuristic=True
+            metric_id=self.metric_id,
+            story_type=self.story_type,
+            grain=self.grain,
+            story_date=self.story_date,
+            is_heuristic=True,
         )
 
         # If no previous story is found, return False for in_cool_off and the value of is_salient for is_heuristic
@@ -177,7 +183,7 @@ class StoryHeuristicEvaluator:
             return False, is_salient
 
         # Calculate the number of periods between the current date and the latest heuristic story's date
-        period_count = calculate_periods_count(current_date, latest_heuristic_story.story_date, self.grain)
+        period_count = calculate_periods_count(self.story_date, latest_heuristic_story.story_date, self.grain)
 
         # Determine if the story is in the cool-off period
         in_cool_off = period_count < cool_off_duration

@@ -112,7 +112,7 @@ class ComponentDriftStoryBuilder(StoryBuilderBase):
         # Loop over top 4 components and compare evaluation_value and comparison_value
         for index, row in top_components.iterrows():
             pct_drift_change = self.analysis_manager.calculate_percentage_difference(
-                float(row["evaluation_value"]), float(row["comparison_value"]), 2
+                float(row["evaluation_value"]), float(row["comparison_value"])
             )
             story_details = self.prepare_story_dict(
                 story_type=top_components.at[index, "story_type"],

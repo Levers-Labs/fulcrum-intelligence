@@ -35,7 +35,7 @@ class SignificantSegmentStoryBuilder(StoryBuilderBase):
 
         dimensions_slices_df = dimensions_slices_df.sort_values(by="value", ascending=False)
 
-        avg_value = round(dimensions_slices_df["value"].mean() or 0.0, 2)
+        avg_value = round(dimensions_slices_df["value"].mean() or 0.0)
 
         top_4_dimensions_slices_df = dimensions_slices_df.head(4)
         top_4_segment_story = self.prepare_story_dict(

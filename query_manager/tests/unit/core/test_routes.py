@@ -1,7 +1,9 @@
 from unittest import mock
-from unittest.mock import ANY, AsyncMock
+from unittest.mock import ANY, AsyncMock, MagicMock
 
 import pytest
+from fastapi import FastAPI
+from fastapi.testclient import TestClient
 from sqlalchemy.exc import IntegrityError
 
 from query_manager.core.enums import TargetAim
@@ -16,32 +18,46 @@ from query_manager.exceptions import DimensionNotFoundError, MetricNotFoundError
 from query_manager.services.parquet import ParquetService
 from query_manager.services.query_client import QueryClient
 from query_manager.services.s3 import NoSuchKeyError
+from query_manager.core.dependencies import oauth2_auth
+from commons.auth.auth import OAuth2User, UserType
 
 
-class MockSecurity:
-    def __init__(self, *args, **kwargs):
-        self.dependency = lambda: True
-        self.use_cache = False
+# Mock the entire oauth2_auth function
+@pytest.fixture(autouse=True)
+def mock_oauth2_auth(mocker):
+    mock_auth = mocker.patch("query_manager.core.routes.oauth2_auth")
+    mock_auth.return_value.verify = AsyncMock(return_value={
+        "sub": "test_user",
+        "scopes": ["query_manager:all"]
+    })
+    return mock_auth
 
 
-mock.patch("fastapi.Security", MockSecurity).start()
+@pytest.fixture
+def app():
+    from query_manager.main import app
+    return app
+
+
+@pytest.fixture
+def client(app: FastAPI):
+    return TestClient(app)
 
 
 def test_health(client):
     response = client.get("/v1/health")
-    res = response.json()
     assert response.status_code == 200
+    res = response.json()
     assert res["graph_api_is_online"]
     assert res["cube_api_is_online"]
 
 
 @pytest.mark.asyncio
 async def test_list_metrics(client, mocker, metric):
-    # Mock the QueryClient's list_metrics method
     mock_list_metrics = AsyncMock(return_value=([Metric.parse_obj(metric)], 10))
     mocker.patch.object(QueryClient, "list_metrics", mock_list_metrics)
 
-    response = client.get(f"/v1/metrics?metric_ids={mock_list_metrics}")
+    response = client.get("/v1/metrics")
     assert response.status_code == 200
     assert response.json() == {
         "count": 10,
@@ -54,7 +70,6 @@ async def test_list_metrics(client, mocker, metric):
 
 @pytest.mark.asyncio
 async def test_get_metric(client, mocker, metric):
-    # Mock the QueryClient's get_metric_details method
     mock_get_metric_details = AsyncMock(return_value=metric)
     mocker.patch.object(QueryClient, "get_metric_details", mock_get_metric_details)
 
@@ -66,7 +81,6 @@ async def test_get_metric(client, mocker, metric):
 
 @pytest.mark.asyncio
 async def test_list_dimensions(client, mocker, dimension):
-    # Mock the QueryClient's list_dimensions method
     mock_list_dimensions = AsyncMock(return_value=([dimension], 10))
     mocker.patch.object(QueryClient, "list_dimensions", mock_list_dimensions)
 
@@ -83,7 +97,6 @@ async def test_list_dimensions(client, mocker, dimension):
 
 @pytest.mark.asyncio
 async def test_get_dimension(client, mocker, dimension):
-    # Mock the QueryClient's get_dimension_details method
     mock_get_dimension_details = AsyncMock(return_value=dimension)
     mocker.patch.object(QueryClient, "get_dimension_details", mock_get_dimension_details)
 
@@ -95,7 +108,6 @@ async def test_get_dimension(client, mocker, dimension):
 
 @pytest.mark.asyncio
 async def test_get_dimension_members(client, mocker, dimension):
-    # Mock the QueryClient's get_dimension_members method
     members_list = ["Enterprise", "Basic"]
     mock_get_dimension_members = AsyncMock(return_value=members_list)
     mocker.patch.object(QueryClient, "get_dimension_members", mock_get_dimension_members)
@@ -108,12 +120,12 @@ async def test_get_dimension_members(client, mocker, dimension):
 
 @pytest.mark.asyncio
 async def test_get_metric_values(client, mocker):
-    # Mock dependencies
     mock_get_metric_values = AsyncMock(return_value=[{"date": "2022-01-01", "value": 100, "metric_id": "CAC"}])
     mocker.patch.object(QueryClient, "get_metric_values", mock_get_metric_values)
 
     response = client.post(
-        "/v1/metrics/test_metric/values", json={"start_date": "2022-01-01", "end_date": "2022-01-31"}
+        "/v1/metrics/test_metric/values",
+        json={"start_date": "2022-01-01", "end_date": "2022-01-31"},
     )
 
     assert response.status_code == 200
@@ -132,7 +144,6 @@ async def test_get_metric_values(client, mocker):
 
 @pytest.mark.asyncio
 async def test_get_metric_values_parquet(client, mocker):
-    # Mock dependencies
     mock_get_metric_values = AsyncMock(return_value=[{"date": "2022-01-01", "value": 100}])
     mocker.patch.object(QueryClient, "get_metric_values", mock_get_metric_values)
 
@@ -154,12 +165,12 @@ async def test_get_metric_values_parquet(client, mocker):
 
 @pytest.mark.asyncio
 async def test_get_metric_values_404(client, mocker):
-    # Mock the QueryClient's get_metric_values method
     mock_get_metric_values = AsyncMock(side_effect=NoSuchKeyError(key="test_metric"))
     mocker.patch.object(QueryClient, "get_metric_values", mock_get_metric_values)
 
     response = client.post(
-        "/v1/metrics/test_metric/values", json={"start_date": "2022-01-01", "end_date": "2022-01-31"}
+        "/v1/metrics/test_metric/values",
+        json={"start_date": "2022-01-01", "end_date": "2022-01-31"},
     )
     assert response.status_code == 404
     assert response.json()["error"] == "metric_not_found"
@@ -168,7 +179,6 @@ async def test_get_metric_values_404(client, mocker):
 
 @pytest.mark.asyncio
 async def test_get_metric_targets(mocker, client):
-    # Mock dependencies
     target_values = [
         {
             "metric_id": "test_metric",
@@ -176,7 +186,6 @@ async def test_get_metric_targets(mocker, client):
             "aim": TargetAim.MAXIMIZE,
             "target_value": 123,
             "target_date": "2022-01-01",
-            "target_upper_bound": None,
             "target_lower_bound": None,
             "yellow_buffer": None,
             "red_buffer": None,
@@ -194,7 +203,6 @@ async def test_get_metric_targets(mocker, client):
 
 @pytest.mark.asyncio
 async def test_get_metric_targets_404(client, mocker):
-    # Mock the QueryClient's get_metric_targets method
     mock_get_metric_targets = AsyncMock(side_effect=MetricNotFoundError("test_metric"))
     mocker.patch.object(QueryClient, "get_metric_targets", mock_get_metric_targets)
 
@@ -206,7 +214,6 @@ async def test_get_metric_targets_404(client, mocker):
 
 @pytest.mark.asyncio
 async def test_get_metric_targets_parquet(client, mocker):
-    # Mock dependencies
     result = {
         "results": None,
         "url": "https://fulcrum-metrics-pq.s3.amazonaws.com/targets/metrics/NewBizDeals/NewBizDeals_70fbe643-d0ad-4ff1-aaa4-2ecee3e56ddd.parquet?AWSAccessKeyId=ASIASSZID53AJMCQYVH6&Signature=5oTidSq2mLn0pLDTRB7y9bDFvM0%3D&x-amz-security-token=IQoJb3JpZ2luX2VjELr%2F%2F%2F%2F%2F%2F%2F%2F%2F%2FwEaCXVzLWVhc3QtMSJHMEUCIQD6x9UyBJgOs8uI7ODczuOl3B2KHy4DYEqlr%2BdT05cs%2FQIgKQQ0tXX0nFsSjIUqQrNJzC%2FEbmiFFHg2Fx0xPluyqKIq%2BgIIQxAAGgwxNzc3ODg0MTU2ODAiDO83Xb4GSmi5Tq07HyrXAh2pc1lEdZC%2FqIDDqff8YGwFhE1jU%2Bs1uTCgMD5IpxoF8nEIvXVNSL44uQ6xrQd5EP%2FBWH%2F68wplUum2gkMy6g88XyNgCxQ3j5LiGiblqyK3GozPYLIdCxE1%2FQarcw1PBN4NjenEG8pPt7DdUVItr5lm5VAv%2BH1jMHrTHN1uO5OgbdTpCk%2BzIoya5UTCDYOXxuYIN3PFbIf4sZsxl4MWgoHEwI3N2dOT%2B0RESmyXfn%2FXq3IVwFQ7%2Bp6rFce0Iyvr7gq%2BC6atzZa%2B61e5uOrkpUiCU0CyFYu64Gf%2B9bcoj50lBAedFq1AckQLTGTPPYMNed9lTnYe8rF6AAsqi57BR04fMyiRI4OLNxAGgA4qeTo7es8dKDAxHK14LP6jvXVr4nt10Z1EjFS9pI5vTHN8cq2Ko%2Bn7pHvMb2OAYV7OMQT31ZwclgFt%2FJdOGW689Tcj%2FF12WQYsoSgwya3msgY6pwFoS9yUGltHK%2F6dqpqRdr5VdDWBFAvV98w5xsTnKVCk9S%2F19s5aWqj7jshYWetF8aYUovrRjOOFgClTCJMn6Zbf2murzt56GGHz65V1p6Tv15PPV8WmuHw3Wp6QiKBq5pFh5mfeoQWPFDQgFNWlR825Y3pDT8Vie%2FH%2FoKzPshY4ng6tw3J5PuzoRdrJXfYY42YdYcfkn9%2F0lNBtBgqwLCdaB2rNkdV6bQ%3D%3D&Expires=1717152017",
@@ -231,7 +238,6 @@ async def test_get_metric_targets_parquet(client, mocker):
 
 @pytest.mark.asyncio
 async def test_create_dimension(client, mocker, dimension):
-    # Mock the QueryClient's create_dimension method
     mock_create_dimension = AsyncMock(return_value=DimensionDetail(**dimension))
     mocker.patch.object(QueryClient, "create_dimension", mock_create_dimension)
 
@@ -256,7 +262,6 @@ async def test_create_dimension(client, mocker, dimension):
 
 @pytest.mark.asyncio
 async def test_update_dimension(client, mocker, dimension):
-    # Mock the QueryClient's update_dimension method
     dimension_id = dimension["dimension_id"]
     updated_data = dimension.copy()
     updated_data["label"] = "Updated Dimension"
