@@ -1,5 +1,4 @@
-from unittest import mock
-from unittest.mock import ANY, AsyncMock, MagicMock
+from unittest.mock import ANY, AsyncMock
 
 import pytest
 from fastapi import FastAPI
@@ -18,24 +17,20 @@ from query_manager.exceptions import DimensionNotFoundError, MetricNotFoundError
 from query_manager.services.parquet import ParquetService
 from query_manager.services.query_client import QueryClient
 from query_manager.services.s3 import NoSuchKeyError
-from query_manager.core.dependencies import oauth2_auth
-from commons.auth.auth import OAuth2User, UserType
 
 
 # Mock the entire oauth2_auth function
 @pytest.fixture(autouse=True)
 def mock_oauth2_auth(mocker):
     mock_auth = mocker.patch("query_manager.core.routes.oauth2_auth")
-    mock_auth.return_value.verify = AsyncMock(return_value={
-        "sub": "test_user",
-        "scopes": ["query_manager:all"]
-    })
+    mock_auth.return_value.verify = AsyncMock(return_value={"sub": "test_user", "scopes": ["query_manager:all"]})
     return mock_auth
 
 
 @pytest.fixture
 def app():
     from query_manager.main import app
+
     return app
 
 

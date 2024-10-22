@@ -184,7 +184,6 @@ def segment_drift_data():
 def segment_drift_stories():
     return [
         {
-            "tenant_id": 1,
             "metric_id": "NewBizDeals",
             "genre": StoryGenre.ROOT_CAUSES,
             "story_group": StoryGroup.SEGMENT_DRIFT,
@@ -193,53 +192,52 @@ def segment_drift_stories():
             "grain": Granularity.WEEK,
             "series": [
                 {
-                    "previous_share": 100.0,
-                    "current_share": 96.67,
+                    "previous_share": 100,
+                    "current_share": 97,
                     "dimension": "Billing Plan",
                     "slice_name": "Enterprise",
-                    "slice_share_change_percentage": -3.33,
+                    "slice_share_change_percentage": -3,
                     "pressure_direction": "upward",
                     "previous_value": 106,
                     "current_value": 29,
-                    "deviation": -72.64,
-                    "pressure_change": 2.66,
+                    "deviation": -73,
+                    "pressure_change": 3,
                     "impact": 77,
                     "sort_value": 77,
                     "serialized_key": "billing_plan:Enterprise",
                 }
             ],
             "title": "Key Driver: Falling null share of Billing Plan",
-            "detail": "For New Business Deals, the share of Billing Plan that is null has decreased from 100.0% to "
-                      "96.67% over the past week. This decrease contributed -3.33% upward pressure on New Business "
-                      "Deals.",
-            "title_template": "Key Driver: Falling {{slice | default('null')}} share of {{dimension}}",
-            "detail_template": "For {{metric.label}}, the share of {{dimension}} that is {{slice | default('null')}} "
-                               "has decreased from {{previous_share}}% to {{current_share}}% over the past {{grain}}. "
-                               "This decrease contributed {{slice_share_change_percentage}}% {{pressure_direction}} "
-                               "pressure on {{metric.label}}.",
+            "detail": "For New Business Deals, the share of Billing Plan that is null has "
+            "decreased from 100% to 97% over the past week. This decrease contributed -3% upward"
+            " pressure on New Business Deals.",
+            "title_template": "Key Driver: Falling {{slice | default('null')}} share of " "{{dimension}}",
+            "detail_template": "For {{metric.label}}, the share of {{dimension}} that is "
+            "{{slice | default('null')}} has decreased from {{previous_share}}% to "
+            "{{current_share}}% over the past {{grain}}. This decrease contributed "
+            "{{slice_share_change_percentage}}% {{pressure_direction}} pressure on {{metric.label}}.",
             "variables": {
                 "grain": "week",
                 "eoi": "EOW",
                 "metric": {"id": "NewBizDeals", "label": "New Business Deals"},
                 "pop": "w/w",
                 "interval": "weekly",
-                "previous_share": 100.0,
-                "current_share": 96.67,
+                "previous_share": 100,
+                "current_share": 97,
                 "dimension": "Billing Plan",
                 "slice_name": "Enterprise",
-                "slice_share_change_percentage": -3.33,
+                "slice_share_change_percentage": -3,
                 "pressure_direction": "upward",
                 "previous_value": 106,
                 "current_value": 29,
-                "deviation": -72.64,
-                "pressure_change": 2.66,
+                "deviation": -73,
+                "pressure_change": 3,
                 "impact": 77,
                 "sort_value": 77,
                 "serialized_key": "billing_plan:Enterprise",
             },
         },
         {
-            "tenant_id": 1,
             "metric_id": "NewBizDeals",
             "genre": StoryGenre.ROOT_CAUSES,
             "story_group": StoryGroup.SEGMENT_DRIFT,
@@ -248,53 +246,51 @@ def segment_drift_stories():
             "grain": Granularity.WEEK,
             "series": [
                 {
-                    "previous_share": 100.0,
-                    "current_share": 96.67,
+                    "previous_share": 100,
+                    "current_share": 97,
                     "dimension": "Billing Plan",
                     "slice_name": "Enterprise",
-                    "slice_share_change_percentage": -3.33,
+                    "slice_share_change_percentage": -3,
                     "pressure_direction": "upward",
                     "previous_value": 106,
                     "current_value": 29,
-                    "deviation": -72.64,
-                    "pressure_change": 2.66,
+                    "deviation": -73,
+                    "pressure_change": 3,
                     "impact": 77,
                     "sort_value": 77,
                     "serialized_key": "billing_plan:Enterprise",
                 }
             ],
             "title": "Key Driver: Stronger null segment",
-            "detail": "Over the past week, when Billing Plan is null, New Business Deals is 29. This is an increase "
-                      "of -72.64% relative to the prior week, and this increase contributed 2.66% upward pressure on "
-                      "New Business Deals.",
+            "detail": "Over the past week, when Billing Plan is null, New Business Deals is 29. This is an increase of "
+            "-73% relative to the prior week, and this increase contributed 3% upward pressure on New Business Deals.",
             "title_template": "Key Driver: Stronger {{slice | default('null')}} segment",
-            "detail_template": "Over the past {{grain}}, when {{dimension}} is {{slice | default('null')}}, "
-                               "{{metric.label}} is {{current_value}}. This is an increase of {{deviation}}% relative "
-                               "to the prior {{grain}}, and this increase contributed {{pressure_change}}% {{"
-                               "pressure_direction}} pressure on {{metric.label}}.",
+            "detail_template": "Over the past {{grain}}, when {{dimension}} is {{slice | "
+            "default('null')}}, {{metric.label}} is {{current_value}}. This is an increase of "
+            "{{deviation}}% relative to the prior {{grain}}, and this increase contributed "
+                               "{{pressure_change}}% {{pressure_direction}} pressure on {{metric.label}}.",
             "variables": {
                 "grain": "week",
                 "eoi": "EOW",
                 "metric": {"id": "NewBizDeals", "label": "New Business Deals"},
                 "pop": "w/w",
                 "interval": "weekly",
-                "previous_share": 100.0,
-                "current_share": 96.67,
+                "previous_share": 100,
+                "current_share": 97,
                 "dimension": "Billing Plan",
                 "slice_name": "Enterprise",
-                "slice_share_change_percentage": -3.33,
+                "slice_share_change_percentage": -3,
                 "pressure_direction": "upward",
                 "previous_value": 106,
                 "current_value": 29,
-                "deviation": -72.64,
-                "pressure_change": 2.66,
+                "deviation": -73,
+                "pressure_change": 3,
                 "impact": 77,
                 "sort_value": 77,
                 "serialized_key": "billing_plan:Enterprise",
             },
         },
         {
-            "tenant_id": 1,
             "metric_id": "NewBizDeals",
             "genre": StoryGenre.ROOT_CAUSES,
             "story_group": StoryGroup.SEGMENT_DRIFT,
@@ -303,52 +299,51 @@ def segment_drift_stories():
             "grain": Granularity.WEEK,
             "series": [
                 {
-                    "previous_share": 0.0,
-                    "current_share": 3.33,
+                    "previous_share": 0,
+                    "current_share": 3,
                     "dimension": "Billing Plan",
                     "slice_name": "Partnership",
-                    "slice_share_change_percentage": 3.33,
+                    "slice_share_change_percentage": 3,
                     "pressure_direction": "downward",
                     "previous_value": 0,
                     "current_value": 1,
-                    "deviation": 0.0,
-                    "pressure_change": -1.0,
+                    "deviation": 0,
+                    "pressure_change": -1,
                     "impact": -1,
                     "sort_value": 1,
                     "serialized_key": "billing_plan:Partnership",
                 }
             ],
             "title": "Key Driver: Growing null share of Billing Plan",
-            "detail": "The share of Billing Plan that is null increased from 0.0% to 3.33% over the past week. This "
-                      "increase contributed 3.33% downward pressure on New Business Deals.",
+            "detail": "The share of Billing Plan that is null increased from 0% to 3% over the "
+            "past week. This increase contributed 3% downward pressure on New Business Deals.",
             "title_template": "Key Driver: Growing {{slice | default('null')}} share of {{dimension}}",
-            "detail_template": "The share of {{dimension}} that is {{slice | default('null')}} increased from {{"
-                               "previous_share}}% to {{current_share}}% over the past {{grain}}. This increase "
-                               "contributed {{slice_share_change_percentage}}% {{pressure_direction}} pressure on {{"
-                               "metric.label}}.",
+            "detail_template": "The share of {{dimension}} that is {{slice | default('null')}} "
+            "increased from {{previous_share}}% to {{current_share}}% over the past {{grain}}. "
+                               "This increase contributed {{slice_share_change_percentage}}% {{pressure_direction}} "
+                               "pressure on {{metric.label}}.",
             "variables": {
                 "grain": "week",
                 "eoi": "EOW",
                 "metric": {"id": "NewBizDeals", "label": "New Business Deals"},
                 "pop": "w/w",
                 "interval": "weekly",
-                "previous_share": 0.0,
-                "current_share": 3.33,
+                "previous_share": 0,
+                "current_share": 3,
                 "dimension": "Billing Plan",
                 "slice_name": "Partnership",
-                "slice_share_change_percentage": 3.33,
+                "slice_share_change_percentage": 3,
                 "pressure_direction": "downward",
                 "previous_value": 0,
                 "current_value": 1,
-                "deviation": 0.0,
-                "pressure_change": -1.0,
+                "deviation": 0,
+                "pressure_change": -1,
                 "impact": -1,
                 "sort_value": 1,
                 "serialized_key": "billing_plan:Partnership",
             },
         },
         {
-            "tenant_id": 1,
             "metric_id": "NewBizDeals",
             "genre": StoryGenre.ROOT_CAUSES,
             "story_group": StoryGroup.SEGMENT_DRIFT,
@@ -357,46 +352,46 @@ def segment_drift_stories():
             "grain": Granularity.WEEK,
             "series": [
                 {
-                    "previous_share": 0.0,
-                    "current_share": 3.33,
+                    "previous_share": 0,
+                    "current_share": 3,
                     "dimension": "Billing Plan",
                     "slice_name": "Partnership",
-                    "slice_share_change_percentage": 3.33,
+                    "slice_share_change_percentage": 3,
                     "pressure_direction": "downward",
                     "previous_value": 0,
                     "current_value": 1,
-                    "deviation": 0.0,
-                    "pressure_change": -1.0,
+                    "deviation": 0,
+                    "pressure_change": -1,
                     "impact": -1,
                     "sort_value": 1,
                     "serialized_key": "billing_plan:Partnership",
                 }
             ],
             "title": "Key Driver: Weaker  segment",
-            "detail": "Over the past week, when Billing Plan is null, New Business Deals is 1. This is a decrease of "
-                      "0.0% relative to the prior week, and this decrease contributed -1.0% downward pressure on New "
-                      "Business Deals.",
+            "detail": "Over the past week, when Billing Plan is null, "
+            "New Business Deals is 1. This is a decrease of 0% relative to the prior week, and this decrease "
+                      "contributed -1% downward pressure on New Business Deals.",
             "title_template": "Key Driver: Weaker {{slice}} segment",
-            "detail_template": "Over the past {{grain}}, when {{dimension}} is {{slice | default('null')}}, "
-                               "{{metric.label}} is {{current_value}}. This is a decrease of {{deviation}}% relative "
-                               "to the prior {{grain}}, and this decrease contributed {{pressure_change}}% {{"
-                               "pressure_direction}} pressure on {{metric.label}}.",
+            "detail_template": "Over the past {{grain}}, when {{dimension}} is {{slice | "
+            "default('null')}}, {{metric.label}} is {{current_value}}. This is a decrease of {{deviation}}%"
+                               " relative to the prior {{grain}}, and this decrease contributed {{pressure_change}}% "
+                               "{{pressure_direction}} pressure on {{metric.label}}.",
             "variables": {
                 "grain": "week",
                 "eoi": "EOW",
                 "metric": {"id": "NewBizDeals", "label": "New Business Deals"},
                 "pop": "w/w",
                 "interval": "weekly",
-                "previous_share": 0.0,
-                "current_share": 3.33,
+                "previous_share": 0,
+                "current_share": 3,
                 "dimension": "Billing Plan",
                 "slice_name": "Partnership",
-                "slice_share_change_percentage": 3.33,
+                "slice_share_change_percentage": 3,
                 "pressure_direction": "downward",
                 "previous_value": 0,
                 "current_value": 1,
-                "deviation": 0.0,
-                "pressure_change": -1.0,
+                "deviation": 0,
+                "pressure_change": -1,
                 "impact": -1,
                 "sort_value": 1,
                 "serialized_key": "billing_plan:Partnership",
@@ -507,11 +502,11 @@ def significant_segment_stories():
     return [
         {
             "metric_id": "NewBizDeals",
-            "genre": "PERFORMANCE",
-            "story_group": "SIGNIFICANT_SEGMENTS",
-            "story_type": "TOP_4_SEGMENTS",
+            "genre": StoryGenre.PERFORMANCE,
+            "story_group": StoryGroup.SIGNIFICANT_SEGMENTS,
+            "story_type": StoryType.TOP_4_SEGMENTS,
             "story_date": date(2024, 3, 1),
-            "grain": "week",
+            "grain": Granularity.WEEK,
             "series": [
                 {"value": 7, "member": None, "dimension_label": "Lead Source", "dimension_id": "lead_source"},
                 {
@@ -534,16 +529,16 @@ def significant_segment_stories():
                 "metric": {"id": "NewBizDeals", "label": "New Business Deals"},
                 "pop": "w/w",
                 "interval": "weekly",
-                "average": 1.35,
+                "average": 1,
             },
         },
         {
             "metric_id": "NewBizDeals",
-            "genre": "PERFORMANCE",
-            "story_group": "SIGNIFICANT_SEGMENTS",
-            "story_type": "BOTTOM_4_SEGMENTS",
+            "genre": StoryGenre.PERFORMANCE,
+            "story_group": StoryGroup.SIGNIFICANT_SEGMENTS,
+            "story_type": StoryType.BOTTOM_4_SEGMENTS,
             "story_date": date(2024, 3, 1),
-            "grain": "week",
+            "grain": Granularity.WEEK,
             "series": [
                 {
                     "value": 0,
@@ -581,7 +576,7 @@ def significant_segment_stories():
                 "metric": {"id": "NewBizDeals", "label": "New Business Deals"},
                 "pop": "w/w",
                 "interval": "weekly",
-                "average": 1.35,
+                "average": 1,
             },
         },
     ]
@@ -589,9 +584,11 @@ def significant_segment_stories():
 
 @pytest.fixture
 def mock_get_dimension_slice_data(significant_segment_story_builder, mocker, dimension_slice_data):
-    async def get_dimension_slice_data(dimensions):
+    async def get_dimension_slice_data(metric_id, start_date, end_date, dimensions):
         return pd.DataFrame(dimension_slice_data[dimensions[0]])
 
     mocker.patch.object(
-        significant_segment_story_builder.query_service, "get_metric_values_df", get_dimension_slice_data
+        significant_segment_story_builder.query_service,
+        "get_metric_values_df",
+        AsyncMock(side_effect=get_dimension_slice_data),
     )
