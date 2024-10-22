@@ -186,7 +186,7 @@ class StoryHeuristicEvaluator:
         period_count = calculate_periods_count(self.story_date, latest_heuristic_story.story_date, self.grain)
 
         # Determine if the story is in the cool-off period
-        in_cool_off = period_count < cool_off_duration
+        in_cool_off = period_count <= cool_off_duration
 
         # Determine if the story should be considered heuristic
         is_heuristic = is_salient and not in_cool_off
