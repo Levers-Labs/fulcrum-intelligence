@@ -28,7 +28,13 @@ class StoryHeuristicEvaluator:
     """
 
     def __init__(
-        self, story_type: StoryType, grain: Granularity, session: AsyncSession, story_date: date, metric_id: str
+        self,
+        story_type: StoryType,
+        grain: Granularity,
+        session: AsyncSession,
+        story_date: date,
+        metric_id: str,
+        tenant_id: int,
     ):
         self.story_type = story_type
         self.grain = grain
@@ -38,6 +44,7 @@ class StoryHeuristicEvaluator:
         self.story_crud = CRUDStory(model=Story, session=self.session)
         self.story_date = story_date
         self.metric_id = metric_id
+        self.tenant_id = tenant_id
 
     @property
     async def story_config(self) -> StoryConfig | None:
@@ -53,7 +60,7 @@ class StoryHeuristicEvaluator:
         if self._story_config is None:
             # Fetch the story configuration from the database
             self._story_config = await self.story_config_crud.get_story_config(  # type: ignore
-                story_type=self.story_type, grain=self.grain
+                story_type=self.story_type, grain=self.grain, tenant_id=self.tenant_id
             )
         # Return the cached story configuration
         return self._story_config
@@ -175,6 +182,7 @@ class StoryHeuristicEvaluator:
             story_type=self.story_type,
             grain=self.grain,
             story_date=self.story_date,
+            tenant_id=self.tenant_id,
             is_heuristic=True,
         )
 
