@@ -268,7 +268,7 @@ def segment_drift_stories():
             "detail_template": "Over the past {{grain}}, when {{dimension}} is {{slice | "
             "default('null')}}, {{metric.label}} is {{current_value}}. This is an increase of "
             "{{deviation}}% relative to the prior {{grain}}, and this increase contributed "
-                               "{{pressure_change}}% {{pressure_direction}} pressure on {{metric.label}}.",
+            "{{pressure_change}}% {{pressure_direction}} pressure on {{metric.label}}.",
             "variables": {
                 "grain": "week",
                 "eoi": "EOW",
@@ -320,8 +320,8 @@ def segment_drift_stories():
             "title_template": "Key Driver: Growing {{slice | default('null')}} share of {{dimension}}",
             "detail_template": "The share of {{dimension}} that is {{slice | default('null')}} "
             "increased from {{previous_share}}% to {{current_share}}% over the past {{grain}}. "
-                               "This increase contributed {{slice_share_change_percentage}}% {{pressure_direction}} "
-                               "pressure on {{metric.label}}.",
+            "This increase contributed {{slice_share_change_percentage}}% {{pressure_direction}} "
+            "pressure on {{metric.label}}.",
             "variables": {
                 "grain": "week",
                 "eoi": "EOW",
@@ -370,12 +370,12 @@ def segment_drift_stories():
             "title": "Key Driver: Weaker  segment",
             "detail": "Over the past week, when Billing Plan is null, "
             "New Business Deals is 1. This is a decrease of 0% relative to the prior week, and this decrease "
-                      "contributed -1% downward pressure on New Business Deals.",
+            "contributed -1% downward pressure on New Business Deals.",
             "title_template": "Key Driver: Weaker {{slice}} segment",
             "detail_template": "Over the past {{grain}}, when {{dimension}} is {{slice | "
             "default('null')}}, {{metric.label}} is {{current_value}}. This is a decrease of {{deviation}}%"
-                               " relative to the prior {{grain}}, and this decrease contributed {{pressure_change}}% "
-                               "{{pressure_direction}} pressure on {{metric.label}}.",
+            " relative to the prior {{grain}}, and this decrease contributed {{pressure_change}}% "
+            "{{pressure_direction}} pressure on {{metric.label}}.",
             "variables": {
                 "grain": "week",
                 "eoi": "EOW",

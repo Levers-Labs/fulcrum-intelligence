@@ -228,6 +228,8 @@ async def test_get_stories(client):
             tenant_id=default_tenant_id,
         ),
     ]
+
+    # Mock the execute method to return the mock result
     mock_session.execute.return_value = mock_result
 
     # Mock get_async_session_gen
@@ -242,13 +244,15 @@ async def test_get_stories(client):
     # Patch the necessary functions and classes
     with patch("story_manager.db.config.get_async_session_gen", mock_get_async_session_gen), patch(
         "story_manager.db.config.get_async_session", mock_get_async_session
-    ), patch("commons.db.models.get_tenant_id", return_value=default_tenant_id):
+    ), patch("commons.db.models.get_tenant_id", return_value=default_tenant_id), patch(
+        "sqlalchemy.ext.asyncio.AsyncSession.execute", return_value=mock_result
+    ):
 
         # Define headers with tenant_id
         headers = {"X-Tenant-Id": str(default_tenant_id)}
 
         # Test listing all stories
-        response = await client.get("/v1/stories/", headers=headers)
+        response = client.get("/v1/stories?is_heuristic=False", headers=headers)
         assert response.status_code == status.HTTP_200_OK
         data = response.json()
         assert data["count"] == len(mock_result.scalars.return_value.all.return_value)
@@ -381,4 +385,4 @@ async def test_get_stories(client):
         response = await client.get("/v1/stories?is_heuristic=False", headers=headers)
         assert response.status_code == status.HTTP_200_OK
         data = response.json()
-        assert data["count"] == 1  # Adjust this number based on your mock data
+        assert data["count"] == 1
