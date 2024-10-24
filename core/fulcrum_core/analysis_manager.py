@@ -455,15 +455,24 @@ class AnalysisManager:
         current_value: float, target_value: float, number_of_periods: int, precision: int | None = None
     ) -> float:
         """
-        Calculate the required growth rate to reach the target value over a given number of periods.
+        Calculate the required compound growth rate to reach the target value over a given number of periods.
         :param current_value: the current actual value
         :param target_value: the target value
         :param number_of_periods: total number of periods to calculate the required growth rate
         :param precision: the number of decimal places to round the result.
-        :return:
+        :return: The required compound growth rate.
         """
-        required_growth = ((target_value - current_value) / number_of_periods) * 100
-        return round(required_growth, precision)
+        if current_value <= 0:
+            raise ValueError("Current value must be greater than zero.")
+        if target_value < 0:
+            raise ValueError("Target value cannot be negative.")
+        if number_of_periods <= 0:
+            raise ValueError("Number of periods must be greater than zero.")
+
+        # Calculate the required compound growth rate
+        required_growth = (target_value / current_value) ** (1 / number_of_periods) - 1
+
+        return round(required_growth * 100, precision) if precision else round(required_growth * 100)
 
     def model_analysis(self, df: pd.DataFrame, input_dfs: list[pd.DataFrame]) -> dict:
         """
