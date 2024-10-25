@@ -27,7 +27,9 @@ def mock_session():
 
 @pytest.fixture
 def evaluator(mock_session):
-    return StoryHeuristicEvaluator(StoryType.STABLE_TREND, Granularity.DAY, mock_session)
+    return StoryHeuristicEvaluator(
+        StoryType.STABLE_TREND, Granularity.DAY, mock_session, datetime.now() - timedelta(hours=12), "metric_1", 1
+    )
 
 
 async def async_return(value):

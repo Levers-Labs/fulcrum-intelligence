@@ -2,6 +2,7 @@ from unittest.mock import AsyncMock, MagicMock, Mock
 
 import jwt
 import pytest
+from fastapi import Request
 from fastapi.security import HTTPAuthorizationCredentials, SecurityScopes
 
 from commons.auth.auth import (
@@ -21,10 +22,15 @@ def oauth2_auth():
 async def test_verify_with_valid_token_and_scopes(oauth2_auth, monkeypatch):
     token_credentials = HTTPAuthorizationCredentials(scheme="Bearer", credentials="valid_token")
     security_scopes = SecurityScopes(scopes=["read"])
+    mock_request = Request({"type": "http", "method": "GET", "url": "http://test.com"})
 
-    # Mock the return values of verify_jwt and get_oauth_user
+    # Mock the return values of verify_jwt, verify_tenant, and get_oauth_user
     def mock_verify_jwt(token):
         return {"sub": "userId", "permissions": ["read"]}
+
+    async def mock_verify_tenant(payload, request):
+        # This method doesn't need to do anything for this test
+        pass
 
     async def mock_get_oauth_user(payload, token):
         return OAuth2User(
@@ -34,15 +40,24 @@ async def test_verify_with_valid_token_and_scopes(oauth2_auth, monkeypatch):
             app_user_id=1,
         )
 
-    # Replace the original methods with AsyncMock
+    # Replace the original methods with mocks
     monkeypatch.setattr(oauth2_auth, "verify_jwt", Mock(side_effect=mock_verify_jwt))
+    monkeypatch.setattr(oauth2_auth, "verify_tenant", AsyncMock(side_effect=mock_verify_tenant))
     monkeypatch.setattr(oauth2_auth, "get_oauth_user", AsyncMock(side_effect=mock_get_oauth_user))
 
     # Call the method under test
-    result = await oauth2_auth.verify(security_scopes, token_credentials)
+    try:
+        result = await oauth2_auth.verify(security_scopes, mock_request, token_credentials)
+    except Exception as e:
+        pytest.fail(f"verify method raised an unexpected exception: {str(e)}")
 
     # Assert the returned OAuth2User object
     assert isinstance(result, OAuth2User)
+
+    # Ensure that verify_jwt, verify_tenant, and get_oauth_user were called
+    oauth2_auth.verify_jwt.assert_called_once_with("valid_token")
+    oauth2_auth.verify_tenant.assert_called_once()
+    oauth2_auth.get_oauth_user.assert_called_once()
 
 
 def test_verify_jwt(oauth2_auth):

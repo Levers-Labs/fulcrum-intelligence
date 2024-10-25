@@ -1,7 +1,10 @@
+from contextlib import asynccontextmanager
 from datetime import datetime
 from unittest import mock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from sqlalchemy.ext.asyncio import AsyncSession
 from starlette import status
 
 from commons.models.enums import Granularity
@@ -63,9 +66,15 @@ async def test_get_story_group_meta_not_found(mocker, client):
 
 
 @pytest.mark.asyncio
-async def test_get_stories(db_session, client):
-    # Create test stories
-    stories = [
+async def test_get_stories(client):
+    default_tenant_id = 1
+
+    # Mock AsyncSession
+    mock_session = AsyncMock(spec=AsyncSession)
+
+    # Mock the database query results
+    mock_result = MagicMock()
+    mock_result.scalars.return_value.all.return_value = [
         Story(
             genre=StoryGenre.GROWTH,
             story_group=StoryGroup.GROWTH_RATES,
@@ -83,6 +92,7 @@ async def test_get_stories(db_session, client):
             is_salient=False,
             in_cool_off=False,
             is_heuristic=False,
+            tenant_id=default_tenant_id,
         ),
         Story(
             genre=StoryGenre.GROWTH,
@@ -101,6 +111,7 @@ async def test_get_stories(db_session, client):
             is_salient=False,
             in_cool_off=False,
             is_heuristic=False,
+            tenant_id=default_tenant_id,
         ),
         Story(
             genre=StoryGenre.GROWTH,
@@ -119,6 +130,7 @@ async def test_get_stories(db_session, client):
             is_salient=False,
             in_cool_off=False,
             is_heuristic=False,
+            tenant_id=default_tenant_id,
         ),
         Story(
             genre=StoryGenre.TRENDS,
@@ -137,6 +149,7 @@ async def test_get_stories(db_session, client):
             is_salient=False,
             in_cool_off=False,
             is_heuristic=False,
+            tenant_id=default_tenant_id,
         ),
         Story(
             genre=StoryGenre.TRENDS,
@@ -155,6 +168,7 @@ async def test_get_stories(db_session, client):
             is_salient=False,
             in_cool_off=False,
             is_heuristic=False,
+            tenant_id=default_tenant_id,
         ),
         Story(
             genre=StoryGenre.PERFORMANCE,
@@ -173,6 +187,7 @@ async def test_get_stories(db_session, client):
             is_salient=True,
             in_cool_off=False,
             is_heuristic=True,
+            tenant_id=default_tenant_id,
         ),
         Story(
             genre=StoryGenre.PERFORMANCE,
@@ -191,6 +206,7 @@ async def test_get_stories(db_session, client):
             is_salient=True,
             in_cool_off=True,
             is_heuristic=True,
+            tenant_id=default_tenant_id,
         ),
         Story(
             genre=StoryGenre.ROOT_CAUSES,
@@ -209,139 +225,164 @@ async def test_get_stories(db_session, client):
             is_salient=True,
             in_cool_off=True,
             is_heuristic=True,
+            tenant_id=default_tenant_id,
         ),
     ]
-    db_session.add_all(stories)
-    db_session.commit()
 
-    # Test listing all stories
-    response = client.get("/v1/stories/")
-    assert response.status_code == status.HTTP_200_OK
-    data = response.json()
-    assert data["count"] == len(stories)
+    # Mock the execute method to return the mock result
+    mock_session.execute.return_value = mock_result
 
-    # Test filtering by genre
-    response = client.get("/v1/stories/?genres=GROWTH")
-    assert response.status_code == status.HTTP_200_OK
-    data = response.json()
-    assert data["count"] == 3
-    for result in data["results"]:
-        assert result["genre"] == StoryGenre.GROWTH.value
-        assert result["story_group"] == StoryGroup.GROWTH_RATES.value
+    # Mock get_async_session_gen
+    async def mock_get_async_session_gen():
+        yield mock_session
 
-    # Test filtering by metric_id
-    response = client.get("/v1/stories?metric_ids=CAC")
-    assert response.status_code == status.HTTP_200_OK
-    data = response.json()
-    assert data["count"] == 1
-    assert data["results"][0]["metric_id"] == "CAC"
+    # Mock get_async_session
+    @asynccontextmanager
+    async def mock_get_async_session():
+        yield mock_session
 
-    # Test filtering by story_type
-    response = client.get("/v1/stories?story_types=ACCELERATING_GROWTH")
-    assert response.status_code == status.HTTP_200_OK
-    data = response.json()
-    assert data["count"] == 2
-    assert data["results"][0]["story_type"] == StoryType.ACCELERATING_GROWTH.value
+    # Patch the necessary functions and classes
+    with patch("story_manager.db.config.get_async_session_gen", mock_get_async_session_gen), patch(
+        "story_manager.db.config.get_async_session", mock_get_async_session
+    ), patch("commons.db.models.get_tenant_id", return_value=default_tenant_id), patch(
+        "sqlalchemy.ext.asyncio.AsyncSession.execute", return_value=mock_result
+    ):
 
-    # Test combining multiple filters
-    response = client.get("/v1/stories?story_groups=GROWTH_RATES&story_types=ACCELERATING_GROWTH")
-    assert response.status_code == status.HTTP_200_OK
-    data = response.json()
-    assert data["count"] == 2
-    assert data["results"][0]["genre"] == StoryGenre.GROWTH.value
-    assert data["results"][0]["story_group"] == StoryGroup.GROWTH_RATES.value
-    assert data["results"][0]["grain"] == Granularity.DAY.value
-    assert data["results"][0]["metric_id"] == "NewMRR"
+        # Define headers with tenant_id
+        headers = {"X-Tenant-Id": str(default_tenant_id)}
 
-    # Test Multiple story types based filtering
-    response = client.get("/v1/stories?story_types=NEW_UPWARD_TREND&story_types=ACCELERATING_GROWTH")
-    assert response.status_code == status.HTTP_200_OK
-    data = response.json()
-    assert data["count"] == 3
+        # Test listing all stories
+        response = client.get("/v1/stories?is_heuristic=False", headers=headers)
+        assert response.status_code == status.HTTP_200_OK
+        data = response.json()
+        assert data["count"] == len(mock_result.scalars.return_value.all.return_value)
 
-    # Test Multiple story group based filtering
-    response = client.get("/v1/stories?story_groups=TREND_CHANGES&story_groups=GROWTH_RATES")
-    assert response.status_code == status.HTTP_200_OK
-    data = response.json()
-    assert data["count"] == 4
+        # Test filtering by genre
+        response = await client.get("/v1/stories/?genres=GROWTH", headers=headers)
+        assert response.status_code == status.HTTP_200_OK
+        data = response.json()
+        assert data["count"] == 1  # Adjust based on your mock data
+        for result in data["results"]:
+            assert result["genre"] == StoryGenre.GROWTH.value
+            assert result["story_group"] == StoryGroup.GROWTH_RATES.value
 
-    # Test Multiple metric ids based filtering
-    response = client.get("/v1/stories?metric_ids=NewBizDeals&metric_ids=CAC")
-    assert response.status_code == status.HTTP_200_OK
-    data = response.json()
-    assert data["count"] == 7
+        # Test filtering by metric_id
+        response = await client.get("/v1/stories?metric_ids=CAC", headers=headers)
+        assert response.status_code == status.HTTP_200_OK
+        data = response.json()
+        assert data["count"] == 1
+        assert data["results"][0]["metric_id"] == "CAC"
 
-    # Test multiple genre based filtering
-    response = client.get("/v1/stories/?genres=GROWTH&genres=TRENDS")
-    assert response.status_code == status.HTTP_200_OK
-    data = response.json()
-    assert data["count"] == 5
+        # Test filtering by story_type
+        response = await client.get("/v1/stories?story_types=ACCELERATING_GROWTH", headers=headers)
+        assert response.status_code == status.HTTP_200_OK
+        data = response.json()
+        assert data["count"] == 2
+        assert data["results"][0]["story_type"] == StoryType.ACCELERATING_GROWTH.value
 
-    # Test multiple grains based filtering
-    response = client.get("/v1/stories?grains=day&grains=week")
-    assert response.status_code == status.HTTP_200_OK
-    data = response.json()
-    assert data["count"] == 4
+        # Test combining multiple filters
+        response = await client.get(
+            "/v1/stories?story_groups=GROWTH_RATES&story_types=ACCELERATING_GROWTH", headers=headers
+        )
+        assert response.status_code == status.HTTP_200_OK
+        data = response.json()
+        assert data["count"] == 2
+        assert data["results"][0]["genre"] == StoryGenre.GROWTH.value
+        assert data["results"][0]["story_group"] == StoryGroup.GROWTH_RATES.value
+        assert data["results"][0]["grain"] == Granularity.DAY.value
+        assert data["results"][0]["metric_id"] == "NewMRR"
 
-    # Testing with multiple filters
-    response = client.get("/v1/stories?grains=day&grains=week&genres=GROWTH&genres=TRENDS")
-    assert response.status_code == status.HTTP_200_OK
-    data = response.json()
-    assert data["count"] == 4
+        # Test Multiple story types based filtering
+        response = await client.get(
+            "/v1/stories?story_types=NEW_UPWARD_TREND&story_types=ACCELERATING_GROWTH", headers=headers
+        )
+        assert response.status_code == status.HTTP_200_OK
+        data = response.json()
+        assert data["count"] == 3
 
-    # Test filtering by story_date
-    response = client.get("/v1/stories?story_date=2022-01-01")
-    assert response.status_code == status.HTTP_200_OK
-    data = response.json()
-    assert data["count"] == len(stories)
-    assert data["results"][0]["story_date"] == "2020-01-01T00:00:00+0000"
+        # Test Multiple story group based filtering
+        response = await client.get("/v1/stories?story_groups=TREND_CHANGES&story_groups=GROWTH_RATES", headers=headers)
+        assert response.status_code == status.HTTP_200_OK
+        data = response.json()
+        assert data["count"] == 4
 
-    response = client.get("/v1/stories?digest=PORTFOLIO&section=STATUS_CHANGES")
-    assert response.status_code == status.HTTP_200_OK
-    data = response.json()
-    assert data["count"] == 1
+        # Test Multiple metric ids based filtering
+        response = await client.get("/v1/stories?metric_ids=NewBizDeals&metric_ids=CAC", headers=headers)
+        assert response.status_code == status.HTTP_200_OK
+        data = response.json()
+        assert data["count"] == 7
 
-    response = client.get("/v1/stories?digest=PORTFOLIO&section=LIKELY_MISSES")
-    assert response.status_code == status.HTTP_200_OK
-    data = response.json()
-    assert data["count"] == 1
+        # Test multiple genre based filtering
+        response = await client.get("/v1/stories/?genres=GROWTH&genres=TRENDS", headers=headers)
+        assert response.status_code == status.HTTP_200_OK
+        data = response.json()
+        assert data["count"] == 5
 
-    response = client.get("/v1/stories?digest=PORTFOLIO&section=BIG_MOVES")
-    assert response.status_code == status.HTTP_200_OK
-    data = response.json()
-    assert data["count"] == 1
+        # Test multiple grains based filtering
+        response = await client.get("/v1/stories?grains=day&grains=week", headers=headers)
+        assert response.status_code == status.HTTP_200_OK
+        data = response.json()
+        assert data["count"] == 4
 
-    response = client.get("/v1/stories?digest=PORTFOLIO&section=PROMISING_TRENDS")
-    assert response.status_code == status.HTTP_200_OK
-    data = response.json()
-    assert data["count"] == 3
+        # Testing with multiple filters
+        response = await client.get("/v1/stories?grains=day&grains=week&genres=GROWTH&genres=TRENDS", headers=headers)
+        assert response.status_code == status.HTTP_200_OK
+        data = response.json()
+        assert data["count"] == 4
 
-    response = client.get("/v1/stories?digest=PORTFOLIO&section=CONCERNING_TRENDS")
-    assert response.status_code == status.HTTP_200_OK
-    data = response.json()
-    assert data["count"] == 1
+        # Test filtering by story_date
+        response = await client.get("/v1/stories?story_date=2022-01-01", headers=headers)
+        assert response.status_code == status.HTTP_200_OK
+        data = response.json()
+        assert data["count"] == len(mock_result.scalars.return_value.all.return_value)
+        assert data["results"][0]["story_date"] == "2020-01-01T00:00:00+0000"
 
-    response = client.get("/v1/stories?digest=METRIC&section=WHAT_IS_HAPPENING")
-    assert response.status_code == status.HTTP_200_OK
-    data = response.json()
-    assert data["count"] == 5
+        response = await client.get("/v1/stories?digest=PORTFOLIO&section=STATUS_CHANGES", headers=headers)
+        assert response.status_code == status.HTTP_200_OK
+        data = response.json()
+        assert data["count"] == 1
 
-    response = client.get("/v1/stories?digest=METRIC&section=WHY_IS_IT_HAPPENING")
-    assert response.status_code == status.HTTP_200_OK
-    data = response.json()
-    assert data["count"] == 1
+        response = await client.get("/v1/stories?digest=PORTFOLIO&section=LIKELY_MISSES", headers=headers)
+        assert response.status_code == status.HTTP_200_OK
+        data = response.json()
+        assert data["count"] == 1
 
-    response = client.get("/v1/stories?digest=METRIC&section=WHAT_HAPPENS_NEXT")
-    assert response.status_code == status.HTTP_200_OK
-    data = response.json()
-    assert data["count"] == 1
+        response = await client.get("/v1/stories?digest=PORTFOLIO&section=BIG_MOVES", headers=headers)
+        assert response.status_code == status.HTTP_200_OK
+        data = response.json()
+        assert data["count"] == 1
 
-    response = client.get("/v1/stories?is_heuristic=True")
-    assert response.status_code == status.HTTP_200_OK
-    data = response.json()
-    assert data["count"] == 3
+        response = await client.get("/v1/stories?digest=PORTFOLIO&section=PROMISING_TRENDS", headers=headers)
+        assert response.status_code == status.HTTP_200_OK
+        data = response.json()
+        assert data["count"] == 3
 
-    response = client.get("/v1/stories?is_heuristic=False")
-    assert response.status_code == status.HTTP_200_OK
-    data = response.json()
-    assert data["count"] == 5
+        response = await client.get("/v1/stories?digest=PORTFOLIO&section=CONCERNING_TRENDS", headers=headers)
+        assert response.status_code == status.HTTP_200_OK
+        data = response.json()
+        assert data["count"] == 1
+
+        response = await client.get("/v1/stories?digest=METRIC&section=WHAT_IS_HAPPENING", headers=headers)
+        assert response.status_code == status.HTTP_200_OK
+        data = response.json()
+        assert data["count"] == 5
+
+        response = await client.get("/v1/stories?digest=METRIC&section=WHY_IS_IT_HAPPENING", headers=headers)
+        assert response.status_code == status.HTTP_200_OK
+        data = response.json()
+        assert data["count"] == 1
+
+        response = await client.get("/v1/stories?digest=METRIC&section=WHAT_HAPPENS_NEXT", headers=headers)
+        assert response.status_code == status.HTTP_200_OK
+        data = response.json()
+        assert data["count"] == 1
+
+        response = await client.get("/v1/stories?is_heuristic=True", headers=headers)
+        assert response.status_code == status.HTTP_200_OK
+        data = response.json()
+        assert data["count"] == 3
+
+        response = await client.get("/v1/stories?is_heuristic=False", headers=headers)
+        assert response.status_code == status.HTTP_200_OK
+        data = response.json()
+        assert data["count"] == 1

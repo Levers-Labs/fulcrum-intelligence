@@ -98,7 +98,7 @@ class RequiredPerformanceStoryBuilder(StoryBuilderBase):
             is_min_data = True
 
         req_duration = calculate_periods_count(end_date, period_end_date, grain)
-        required_growth = self.analysis_manager.calculate_required_growth(value, target, req_duration, 2)
+        required_growth = self.analysis_manager.calculate_required_growth(value, target, req_duration)
         current_growth = current_period["growth_rate"].item()
         growth_deviation = self.analysis_manager.calculate_percentage_difference(current_growth, required_growth)
         # prepare story details

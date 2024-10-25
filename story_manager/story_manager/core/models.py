@@ -86,7 +86,14 @@ class Story(StorySchemaBaseModel, table=True):  # type: ignore
         from story_manager.core.heuristics import StoryHeuristicEvaluator
 
         # Create an instance of StoryHeuristicEvaluator with the story's type, grain, and session
-        evaluator = StoryHeuristicEvaluator(self.story_type, self.grain, session)
+        evaluator = StoryHeuristicEvaluator(
+            story_type=self.story_type,
+            grain=self.grain,
+            session=session,
+            story_date=self.story_date,
+            metric_id=self.metric_id,
+            tenant_id=self.tenant_id,
+        )
 
         # Evaluate the salience of the story and update the 'is_salient', 'in_cool_off', and 'is_heuristic' attributes
         self.is_salient, self.in_cool_off, self.is_heuristic = await evaluator.evaluate(self.variables)
