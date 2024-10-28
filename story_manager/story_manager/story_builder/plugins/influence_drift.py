@@ -21,14 +21,6 @@ class InfluenceDriftStoryBuilder(StoryBuilderBase):
     genre = StoryGenre.ROOT_CAUSES
     group = StoryGroup.INFLUENCE_DRIFT
     supported_grains = [Granularity.DAY, Granularity.WEEK, Granularity.MONTH]
-    story_movement_map = {
-        StoryType.STRONGER_INFLUENCE: Movement.INCREASE.value,
-        StoryType.WEAKER_INFLUENCE: Movement.DECREASE.value,
-    }
-    story_pressure_map = {
-        StoryType.IMPROVING_INFLUENCE: Pressure.UPWARD.value,
-        StoryType.WORSENING_INFLUENCE: Pressure.DOWNWARD.value,
-    }
 
     async def generate_stories(self, metric_id: str, grain: Granularity) -> list[dict]:
         """
@@ -164,8 +156,8 @@ class InfluenceDriftStoryBuilder(StoryBuilderBase):
                     influence_metric=influence_metric["label"],
                     output_metric=metric["label"],
                     influence_deviation=influence_deviation,
-                    movement=self.story_movement_map.get(story_type, None),
-                    pressure=self.story_pressure_map.get(story_type, None),
+                    movement=Movement.INCREASE.value if output_deviation > 0 else Movement.DECREASE.value,
+                    pressure=Pressure.UPWARD.value if output_deviation > 0 else Pressure.DOWNWARD.value,
                     prev_output_deviation=prev_output_deviation,
                     output_deviation=output_deviation,
                     latest_strength=latest_strength,
@@ -189,8 +181,8 @@ class InfluenceDriftStoryBuilder(StoryBuilderBase):
                     influence_metric=influence_metric["label"],
                     output_metric=metric["label"],
                     influence_deviation=influence_deviation,
-                    movement=self.story_movement_map.get(story_type, None),
-                    pressure=self.story_pressure_map.get(story_type, None),
+                    movement=Movement.INCREASE.value if output_deviation > 0 else Movement.DECREASE.value,
+                    pressure=Pressure.UPWARD.value if output_deviation > 0 else Pressure.DOWNWARD.value,
                     prev_output_deviation=prev_output_deviation,
                     output_deviation=output_deviation,
                     latest_strength=latest_strength,

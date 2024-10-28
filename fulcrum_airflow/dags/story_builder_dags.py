@@ -47,20 +47,24 @@ ECS_REGION = get_config("ECS_REGION")
 ECS_TASK_DEFINITION_NAME = get_config("ECS_TASK_DEFINITION_NAME")
 ECS_CLUSTER_NAME = get_config("ECS_CLUSTER_NAME")
 
+# Default schedule for midnight
+DEFAULT_SCHEDULE = get_config("DEFAULT_SCHEDULE", "0 0 * * *")  # Every day at 12:00 AM
+
+# Define the schedule for each story group, running every 30 minutes starting from 12:00 AM
 STORY_GROUP_META = {
-    "GROWTH_RATES": {"schedule_interval": DEFAULT_SCHEDULE},
-    "TREND_CHANGES": {"schedule_interval": DEFAULT_SCHEDULE},
-    "TREND_EXCEPTIONS": {"schedule_interval": DEFAULT_SCHEDULE},
-    "LONG_RANGE": {"schedule_interval": DEFAULT_SCHEDULE},
-    "GOAL_VS_ACTUAL": {"schedule_interval": DEFAULT_SCHEDULE},
-    "LIKELY_STATUS": {"schedule_interval": DEFAULT_SCHEDULE},
-    "RECORD_VALUES": {"schedule_interval": DEFAULT_SCHEDULE},
-    "STATUS_CHANGE": {"schedule_interval": DEFAULT_SCHEDULE},
-    "SEGMENT_DRIFT": {"schedule_interval": DEFAULT_SCHEDULE},
-    "INFLUENCE_DRIFT": {"schedule_interval": DEFAULT_SCHEDULE},
-    "REQUIRED_PERFORMANCE": {"schedule_interval": DEFAULT_SCHEDULE},
-    "SIGNIFICANT_SEGMENTS": {"schedule_interval": DEFAULT_SCHEDULE},
-    "COMPONENT_DRIFT": {"schedule_interval": DEFAULT_SCHEDULE},
+    "GROWTH_RATES": {"schedule_interval": "0 0 * * *"},  # 12:00 AM
+    "TREND_CHANGES": {"schedule_interval": "30 0 * * *"},  # 12:30 AM
+    "TREND_EXCEPTIONS": {"schedule_interval": "0 1 * * *"},  # 1:00 AM
+    "LONG_RANGE": {"schedule_interval": "30 1 * * *"},  # 1:30 AM
+    "GOAL_VS_ACTUAL": {"schedule_interval": "0 2 * * *"},  # 2:00 AM
+    "COMPONENT_DRIFT": {"schedule_interval": "30 2 * * *"},  # 2:30 AM
+    "RECORD_VALUES": {"schedule_interval": "0 3 * * *"},  # 3:00 AM
+    "STATUS_CHANGE": {"schedule_interval": "30 3 * * *"},  # 3:30 AM
+    "SEGMENT_DRIFT": {"schedule_interval": "0 4 * * *"},  # 4:00 AM
+    "INFLUENCE_DRIFT": {"schedule_interval": "30 4 * * *"},  # 4:30 AM
+    "REQUIRED_PERFORMANCE": {"schedule_interval": "0 5 * * *"},  # 5:00 AM
+    "SIGNIFICANT_SEGMENTS": {"schedule_interval": "30 5 * * *"},  # 5:30 AM
+    "LIKELY_STATUS": {"schedule_interval": "0 6 * * *"},  # 6:00 AM
 }
 
 

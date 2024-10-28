@@ -21,10 +21,6 @@ class RequiredPerformanceStoryBuilder(StoryBuilderBase):
     genre = StoryGenre.PERFORMANCE
     group = StoryGroup.REQUIRED_PERFORMANCE
     supported_grains = [Granularity.DAY, Granularity.WEEK, Granularity.MONTH]
-    story_movement_map = {
-        StoryType.REQUIRED_PERFORMANCE: Movement.DECREASE.value,
-        StoryType.HOLD_STEADY: Movement.INCREASE.value,
-    }
 
     async def generate_stories(self, metric_id: str, grain: Granularity) -> list[dict]:
         """
@@ -115,7 +111,7 @@ class RequiredPerformanceStoryBuilder(StoryBuilderBase):
             required_growth=required_growth,
             current_growth=current_growth,
             growth_deviation=abs(growth_deviation),
-            movement=self.story_movement_map[story_type],
+            movement=Movement.INCREASE.value if growth_deviation > 0 else Movement.DECREASE.value,
         )
         stories.append(story_details)
         logger.info(f"Stories generated for metric '{metric_id}', story details: {story_details}")

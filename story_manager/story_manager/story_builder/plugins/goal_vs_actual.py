@@ -4,12 +4,7 @@ import numpy as np
 import pandas as pd
 
 from commons.models.enums import Granularity
-from story_manager.core.enums import (
-    Direction,
-    StoryGenre,
-    StoryGroup,
-    StoryType,
-)
+from story_manager.core.enums import Direction, StoryGenre, StoryGroup
 from story_manager.story_builder import StoryBuilderBase
 from story_manager.story_builder.utils import determine_status_for_value_and_target
 
@@ -20,10 +15,6 @@ class GoalVsActualStoryBuilder(StoryBuilderBase):
     genre = StoryGenre.PERFORMANCE
     group = StoryGroup.GOAL_VS_ACTUAL
     supported_grains = [Granularity.DAY, Granularity.WEEK, Granularity.MONTH]
-    story_direction_map = {
-        StoryType.ON_TRACK: Direction.UP.value,
-        StoryType.OFF_TRACK: Direction.DOWN.value,
-    }
 
     async def generate_stories(self, metric_id: str, grain: Granularity) -> list[dict]:
         """
@@ -99,7 +90,7 @@ class GoalVsActualStoryBuilder(StoryBuilderBase):
             metric=metric,
             df=df,
             current_value=value,
-            direction=self.story_direction_map.get(story_type),  # noqa
+            direction=Direction.UP.value if growth > 0 else Direction.DOWN.value,
             current_growth=growth,
             target=target,
             deviation=abs(deviation),
