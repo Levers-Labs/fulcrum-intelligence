@@ -20,7 +20,7 @@ def determine_status_for_value_and_target(df_row: pd.Series) -> StoryType | None
     """
     value = df_row["value"]
     target = df_row["target"]
-    if pd.isnull(target) or pd.isnull(value):
+    if pd.isnull(target) or pd.isnull(value) or target == 0:
         return None
     elif value >= target:
         return StoryType.ON_TRACK

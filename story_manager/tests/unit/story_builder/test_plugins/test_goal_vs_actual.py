@@ -97,3 +97,19 @@ async def test_generate_goal_vs_actual_stories_nan_target(goal_vs_actual_story_b
     result = await goal_vs_actual_story_builder.generate_stories("metric_1", Granularity.DAY)
 
     assert len(result) == 0
+
+
+@pytest.mark.asyncio
+async def test_generate_goal_vs_actual_stories_zero_target(goal_vs_actual_story_builder, targets_df):
+    targets_df = targets_df.copy()
+    data = {
+        "value": 100,
+        "target": 0,
+        "date": pd.to_datetime(start_date),
+    }
+    targets_df.loc[len(targets_df)] = data
+    goal_vs_actual_story_builder._get_time_series_data_with_targets = AsyncMock(return_value=targets_df)
+
+    result = await goal_vs_actual_story_builder.generate_stories("metric_1", Granularity.DAY)
+
+    assert len(result) == 0
