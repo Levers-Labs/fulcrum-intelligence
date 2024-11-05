@@ -1,8 +1,10 @@
 import importlib
 import logging
 import os
+from datetime import datetime, timedelta
 
 import fastapi
+import jwt
 import pytest
 from _pytest.monkeypatch import MonkeyPatch
 from fastapi.testclient import TestClient
@@ -10,6 +12,7 @@ from sqlalchemy import create_engine, text
 from sqlmodel import Session, SQLModel
 from testing.postgresql import Postgresql
 
+from commons.auth.auth import Oauth2Auth
 from insights_backend.db.config import MODEL_PATHS
 
 logger = logging.getLogger(__name__)
@@ -49,7 +52,27 @@ def setup_db(postgres):
     # create schema
     logger.info("Creating db schema and tables")
     with engine.connect() as conn:
+        # Create schema
         conn.execute(text("CREATE SCHEMA IF NOT EXISTS insights_store"))
+
+        # Create tenant role and grant permissions
+        conn.execute(text("CREATE ROLE tenant_user"))
+
+        # Grant schema permissions
+        conn.execute(text("GRANT USAGE ON SCHEMA insights_store TO tenant_user"))
+        conn.execute(text("GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA insights_store TO tenant_user"))
+        conn.execute(
+            text(
+                "ALTER DEFAULT PRIVILEGES IN SCHEMA insights_store GRANT SELECT, INSERT, UPDATE,"
+                " DELETE ON TABLES TO tenant_user"
+            )
+        )
+        conn.execute(text("GRANT USAGE ON ALL SEQUENCES IN SCHEMA insights_store TO tenant_user"))
+        conn.execute(text("ALTER DEFAULT PRIVILEGES IN SCHEMA insights_store GRANT USAGE ON SEQUENCES TO tenant_user"))
+
+        # Grant tenant_user role to postgres
+        conn.execute(text("GRANT tenant_user TO postgres"))
+
         conn.commit()
     # create all models
     for model_path in MODEL_PATHS:
@@ -81,24 +104,33 @@ def setup_env(session_monkeypatch, postgres):  # noqa
     yield
 
 
-@pytest.fixture(scope="session")
-def token():
-    return (
-        "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImZWT3owbEM0Q1lNTjduaVlpejRSViJ9.eyJpc3MiOiJodHRwczovL2luc2lna"
-        "HRzLXdlYi1hcHAudXMuYXV0aDAuY29tLyIsInN1YiI6IlBOMEN0SkFTbE1EbTlURWl2YjNpenNEbklmNWRjRllBQGNsaWVudHMiLCJhd"
-        "WQiOiJodHRwczovL2Z1bGNydW1fYXBpX2lkZW50aWZpZXIiLCJpYXQiOjE3MjExMjIxNzAsImV4cCI6MTcyMTIwODU3MCwic2NvcGUiOiJ"
-        "1c2VyLXJlYWQgcXVlcnlfbWFuYWdlcjoqIGFuYWx5c2lzX21hbmFnZXI6KiBzdG9yeV9tYW5hZ2VyOioiLCJndHkiOiJjbGllbnQtY3Jl"
-        "ZGVudGlhbHMiLCJhenAiOiJQTjBDdEpBU2xNRG05VEVpdmIzaXpzRG5JZjVkY0ZZQSJ9.tMph01mxSQJcPjvNUqVVkWbaThCcN2DqVMQe"
-        "rmO3pFKX2lE2WeaFYTH11h1_xHR1HX2UPyytBYYnMQ9PYXhKqUlhVGnYtpYljPl_g0Qpoa4mtWzd5vNjjOG0flfCFRiOs7L_9BrzFHkcdF"
-        "79C-CT00yqvym9scoqNuR1RdmQDdlW4wpsOBV7xlvJ5ualOD4nvRFIOohC496AxAwjA4FqOXUOGkFzyaDwvJaSBNIHKyVHv1YmQjcKATm"
-        "m4n6J8s7lGaGkdi5ZCAAGafiecpYG65MDb4m2D4rGzVLPjd4aK-_I2hiZUgxHYJTdprbWyd8beX-lnaIBfkA_2PDVgK23dg"
-    )
+@pytest.fixture(scope="session", name="jwt_payload")
+def mock_jwt_payload():
+    return {
+        "sub": "PN0CtJASlMDm9TEivb3izsDnIf5dcFYA@clients",
+        "permissions": ["user:write", "user:read"],
+        "iat": datetime.now(),
+        "exp": datetime.now() + timedelta(hours=1),
+        "scope": "user:write user:read",
+        "tenant_id": 1,  # Include tenant_id if needed
+    }
 
 
-@pytest.fixture(scope="session")
-def client(setup_env, token):
+@pytest.fixture(name="token")
+def mock_token(jwt_payload):
+    # Create a mock JWT token
+    payload = jwt_payload
+    _token = jwt.encode(payload, "secret", algorithm="HS256")  # Use a secret key
+    return _token
+
+
+@pytest.fixture()
+def client(setup_env, token, mock_security, jwt_payload, mocker):
     # Import only after setting up the environment
     from insights_backend.main import app  # noqa
+
+    # Mock the JWKS client
+    mocker.patch.object(Oauth2Auth, "verify_jwt", return_value=jwt_payload)
 
     fastapi.Security = mock_security
     headers = {"Authorization": f"Bearer {token}"}
