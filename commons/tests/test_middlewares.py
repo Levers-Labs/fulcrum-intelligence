@@ -1,9 +1,9 @@
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, call, patch
 
 import pytest
 from fastapi import Request, Response
 
-from commons.middleware import process_time_log_middleware, request_id_middleware
+from commons.middleware import process_time_log_middleware, request_id_middleware, tenant_context_middleware
 
 
 @pytest.mark.asyncio
@@ -76,3 +76,69 @@ async def test_process_time_log_middleware():
             result.status_code,
             "0.5",
         )
+
+
+@pytest.mark.asyncio
+async def test_tenant_context_middleware():
+    # Mock Request with tenant ID header
+    request = Request(
+        scope={
+            "type": "http",
+            "method": "GET",
+            "path": "/test",
+            "headers": [
+                (b"host", b"testserver"),
+                (b"x-tenant-id", b"123"),
+            ],
+        }
+    )
+
+    # Mock Response
+    response = Response()
+    call_next = AsyncMock(return_value=response)
+
+    # Test with valid tenant ID
+    with patch("commons.middleware.context.logger.info") as mock_logger:
+        result = await tenant_context_middleware(request, call_next)
+
+        assert result is response
+        mock_logger.assert_has_calls(
+            [call("Setting the tenant id in the context: %s", 123), call("Resetting the tenant id from the context")]
+        )
+
+    # Test with invalid tenant ID
+    request = Request(
+        scope={
+            "type": "http",
+            "method": "GET",
+            "path": "/test",
+            "headers": [
+                (b"host", b"testserver"),
+                (b"x-tenant-id", b"invalid"),
+            ],
+        }
+    )
+
+    with patch("commons.middleware.context.logger.info") as mock_logger:
+        result = await tenant_context_middleware(request, call_next)
+
+        assert result is response
+        mock_logger.assert_called_once_with("Resetting the tenant id from the context")
+
+    # Test without tenant ID
+    request = Request(
+        scope={
+            "type": "http",
+            "method": "GET",
+            "path": "/test",
+            "headers": [
+                (b"host", b"testserver"),
+            ],
+        }
+    )
+
+    with patch("commons.middleware.context.logger.info") as mock_logger:
+        result = await tenant_context_middleware(request, call_next)
+
+        assert result is response
+        mock_logger.assert_called_once_with("Resetting the tenant id from the context")
