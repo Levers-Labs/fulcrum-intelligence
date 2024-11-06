@@ -2,7 +2,7 @@ import asyncio
 import importlib
 import logging
 import os
-from collections.abc import AsyncGenerator, Callable, Generator
+from collections.abc import Callable
 from datetime import datetime, timedelta
 
 import jwt
@@ -39,7 +39,7 @@ def session_monkeypatch():
 
 
 @pytest.fixture(scope="session")
-def event_loop(request) -> Generator:
+def event_loop(request):
     """Create an instance of the default event loop for each test case."""
     loop = asyncio.get_event_loop_policy().new_event_loop()
     yield loop
@@ -47,7 +47,7 @@ def event_loop(request) -> Generator:
 
 
 @pytest_asyncio.fixture()
-async def db_session(postgres) -> AsyncSession:
+async def db_session(postgres):
     db_sync_uri = postgres.url()
     db_async_uri = db_sync_uri.replace("postgresql://", "postgresql+asyncpg://")
     engine = create_async_engine(db_async_uri, echo=True)
@@ -68,7 +68,7 @@ async def db_session(postgres) -> AsyncSession:
 
 
 @pytest.fixture()
-def override_get_async_session(db_session: AsyncSession) -> Callable:
+def override_get_async_session(db_session: AsyncSession):
     async def _override_get_db():
         yield db_session
 
@@ -141,7 +141,7 @@ def mock_token(jwt_payload):
 
 
 @pytest_asyncio.fixture()
-async def async_client(app: FastAPI, mocker, jwt_payload, token) -> AsyncGenerator:
+async def async_client(app: FastAPI, mocker, jwt_payload, token):
     # Mock the JWKS client
     mocker.patch.object(Oauth2Auth, "verify_jwt", return_value=jwt_payload)
     # Setup auth headers
