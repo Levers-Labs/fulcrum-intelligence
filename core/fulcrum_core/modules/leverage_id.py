@@ -165,15 +165,6 @@ class LeverageIdCalculator(BaseAnalyzer):
 
         equation = sp.sympify(equation_str, locals=self.metric_symbols)
         result = equation.subs({self.metric_symbols[var]: value for var, value in filtered_values.items()})
-
-        # Check if the result is complex
-        if result.is_complex:
-            logger.error(
-                f"Computed result is complex, cannot convert to float for equation: {equation_str} "
-                f"with values: {filtered_values}"
-            )
-            raise TypeError("Cannot convert complex to float")
-
         return float(result)
 
     def _compute_percentage_diff(self, equation_str: str, current_values: dict, var: str) -> float:
