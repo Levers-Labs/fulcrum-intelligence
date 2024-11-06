@@ -1,8 +1,7 @@
 from unittest.mock import ANY, AsyncMock
 
 import pytest
-from fastapi import FastAPI
-from fastapi.testclient import TestClient
+from httpx import AsyncClient
 from sqlalchemy.exc import IntegrityError
 
 from query_manager.core.enums import TargetAim
@@ -19,42 +18,11 @@ from query_manager.services.query_client import QueryClient
 from query_manager.services.s3 import NoSuchKeyError
 
 
-@pytest.fixture
-def mock_token():
-    return "mock_token"
-
-
-@pytest.fixture(autouse=True)
-def mock_oauth2_auth(mocker, mock_token):
-    # Create a mock user object
-    mock_user = {"sub": "test_user", "scopes": ["query_manager:all"], "access_token": mock_token}
-
-    # Mock the oauth2_auth function
-    mock_auth = mocker.patch("query_manager.core.routes.oauth2_auth")
-    mock_auth.return_value.verify = AsyncMock(return_value=mock_user)
-    return mock_auth
-
-
-@pytest.fixture
-def app():
-    from query_manager.main import app
-
-    return app
-
-
-@pytest.fixture
-def client(app: FastAPI, mock_token):
-    def _client(headers=None):
-        default_headers = {"Authorization": f"Bearer {mock_token}"}
-        if headers:
-            default_headers.update(headers)
-        return TestClient(app, headers=default_headers)
-
-    return _client
-
-
-def test_health(client):
-    response = client().get("/v1/health")
+@pytest.mark.asyncio
+async def test_health(async_client: AsyncClient):
+    # Act
+    response = await async_client.get("/v1/health")
+    # Assert
     assert response.status_code == 200
     res = response.json()
     assert res["graph_api_is_online"]
@@ -62,11 +30,11 @@ def test_health(client):
 
 
 @pytest.mark.asyncio
-async def test_list_metrics(client, mocker, metric):
+async def test_list_metrics(async_client: AsyncClient, mocker, metric):
     mock_list_metrics = AsyncMock(return_value=([Metric.parse_obj(metric)], 10))
     mocker.patch.object(QueryClient, "list_metrics", mock_list_metrics)
 
-    response = client().get("/v1/metrics")
+    response = await async_client.get("/v1/metrics")
 
     assert response.status_code == 200
     assert response.json() == {
@@ -79,22 +47,22 @@ async def test_list_metrics(client, mocker, metric):
 
 
 @pytest.mark.asyncio
-async def test_get_metric(client, mocker, metric):
+async def test_get_metric(async_client: AsyncClient, mocker, metric):
     mock_get_metric_details = AsyncMock(return_value=metric)
     mocker.patch.object(QueryClient, "get_metric_details", mock_get_metric_details)
 
     metric_id = metric["id"]
-    response = client().get(f"/v1/metrics/{metric_id}")
+    response = await async_client.get(f"/v1/metrics/{metric_id}")
     assert response.status_code == 200
     assert response.json() == MetricDetail(**metric).model_dump(mode="json")
 
 
 @pytest.mark.asyncio
-async def test_list_dimensions(client, mocker, dimension):
+async def test_list_dimensions(async_client: AsyncClient, mocker, dimension):
     mock_list_dimensions = AsyncMock(return_value=([dimension], 10))
     mocker.patch.object(QueryClient, "list_dimensions", mock_list_dimensions)
 
-    response = client().get("/v1/dimensions")
+    response = await async_client.get("/v1/dimensions")
     assert response.status_code == 200
     assert response.json() == {
         "count": 10,
@@ -106,34 +74,34 @@ async def test_list_dimensions(client, mocker, dimension):
 
 
 @pytest.mark.asyncio
-async def test_get_dimension(client, mocker, dimension):
+async def test_get_dimension(async_client: AsyncClient, mocker, dimension):
     mock_get_dimension_details = AsyncMock(return_value=dimension)
     mocker.patch.object(QueryClient, "get_dimension_details", mock_get_dimension_details)
 
     dimension_id = dimension["id"]
-    response = client().get(f"/v1/dimensions/{dimension_id}")
+    response = await async_client.get(f"/v1/dimensions/{dimension_id}")
     assert response.status_code == 200
     assert response.json() == DimensionDetail(**dimension).model_dump(mode="json")
 
 
 @pytest.mark.asyncio
-async def test_get_dimension_members(client, mocker, dimension):
+async def test_get_dimension_members(async_client: AsyncClient, mocker, dimension):
     members_list = ["Enterprise", "Basic"]
     mock_get_dimension_members = AsyncMock(return_value=members_list)
     mocker.patch.object(QueryClient, "get_dimension_members", mock_get_dimension_members)
 
     dimension_id = dimension["id"]
-    response = client().get(f"/v1/dimensions/{dimension_id}/members")
+    response = await async_client.get(f"/v1/dimensions/{dimension_id}/members")
     assert response.status_code == 200
     assert response.json() == members_list
 
 
 @pytest.mark.asyncio
-async def test_get_metric_values(client, mocker):
+async def test_get_metric_values(async_client: AsyncClient, mocker):
     mock_get_metric_values = AsyncMock(return_value=[{"date": "2022-01-01", "value": 100, "metric_id": "CAC"}])
     mocker.patch.object(QueryClient, "get_metric_values", mock_get_metric_values)
 
-    response = client().post(
+    response = await async_client.post(
         "/v1/metrics/test_metric/values",
         json={"start_date": "2022-01-01", "end_date": "2022-01-31"},
     )
@@ -153,14 +121,14 @@ async def test_get_metric_values(client, mocker):
 
 
 @pytest.mark.asyncio
-async def test_get_metric_values_parquet(client, mocker):
+async def test_get_metric_values_parquet(async_client: AsyncClient, mocker):
     mock_get_metric_values = AsyncMock(return_value=[{"date": "2022-01-01", "value": 100}])
     mocker.patch.object(QueryClient, "get_metric_values", mock_get_metric_values)
 
     mock_convert_and_upload = AsyncMock(return_value="http://file.parquet")
     mocker.patch.object(ParquetService, "convert_and_upload", mock_convert_and_upload)
 
-    response = client().post(
+    response = await async_client.post(
         "/v1/metrics/test_metric/values",
         json={"start_date": "2022-01-01", "end_date": "2022-01-31", "output_format": "PARQUET"},
     )
@@ -174,11 +142,11 @@ async def test_get_metric_values_parquet(client, mocker):
 
 
 @pytest.mark.asyncio
-async def test_get_metric_values_404(client, mocker):
+async def test_get_metric_values_404(async_client: AsyncClient, mocker):
     mock_get_metric_values = AsyncMock(side_effect=NoSuchKeyError(key="test_metric"))
     mocker.patch.object(QueryClient, "get_metric_values", mock_get_metric_values)
 
-    response = client().post(
+    response = await async_client.post(
         "/v1/metrics/test_metric/values",
         json={"start_date": "2022-01-01", "end_date": "2022-01-31"},
     )
@@ -188,15 +156,16 @@ async def test_get_metric_values_404(client, mocker):
 
 
 @pytest.mark.asyncio
-async def test_get_metric_targets(mocker, client):
+async def test_get_metric_targets(mocker, async_client: AsyncClient):
     target_values = [
         {
             "metric_id": "test_metric",
             "grain": "week",
-            "aim": TargetAim.MAXIMIZE,
-            "target_value": 123,
+            "aim": TargetAim.MAXIMIZE.value,
+            "target_value": 123.0,
             "target_date": "2022-01-01",
             "target_lower_bound": None,
+            "target_upper_bound": None,
             "yellow_buffer": None,
             "red_buffer": None,
         }
@@ -204,7 +173,9 @@ async def test_get_metric_targets(mocker, client):
     mock_get_metric_targets = AsyncMock(return_value=target_values)
     mocker.patch.object(QueryClient, "get_metric_targets", mock_get_metric_targets)
 
-    response = client().get("/v1/metrics/test_metric/targets?start_date=2022-01-01&end_date=2022-01-31&grain=week")
+    response = await async_client.get(
+        "/v1/metrics/test_metric/targets?start_date=2022-01-01&end_date=2022-01-31&grain=week"
+    )
 
     assert response.status_code == 200
     assert response.json() == {"results": target_values, "url": None}
@@ -212,18 +183,18 @@ async def test_get_metric_targets(mocker, client):
 
 
 @pytest.mark.asyncio
-async def test_get_metric_targets_404(client, mocker):
+async def test_get_metric_targets_404(async_client: AsyncClient, mocker):
     mock_get_metric_targets = AsyncMock(side_effect=MetricNotFoundError("test_metric"))
     mocker.patch.object(QueryClient, "get_metric_targets", mock_get_metric_targets)
 
-    response = client().get("/v1/metrics/test_metric/targets?start_date=2022-01-01&end_date=2022-01-31")
+    response = await async_client.get("/v1/metrics/test_metric/targets?start_date=2022-01-01&end_date=2022-01-31")
     assert response.status_code == 404
     assert response.json()["error"] == "metric_not_found"
     mock_get_metric_targets.assert_awaited_once()
 
 
 @pytest.mark.asyncio
-async def test_get_metric_targets_parquet(client, mocker):
+async def test_get_metric_targets_parquet(async_client: AsyncClient, mocker):
     result = {
         "results": None,
         "url": "https://fulcrum-metrics-pq.s3.amazonaws.com/targets/metrics/NewBizDeals/NewBizDeals_70fbe643-d0ad"
@@ -247,7 +218,7 @@ async def test_get_metric_targets_parquet(client, mocker):
     mock_convert_and_upload = AsyncMock(return_value=result["url"])
     mocker.patch.object(ParquetService, "convert_and_upload", mock_convert_and_upload)
 
-    response = client().get(
+    response = await async_client.get(
         "/v1/metrics/test_metric/targets?start_date=2022-01-01&end_date=2022-01-31&output_format=PARQUET",
     )
     assert response.status_code == 200
@@ -260,7 +231,7 @@ async def test_get_metric_targets_parquet(client, mocker):
 
 
 @pytest.mark.asyncio
-async def test_create_dimension(client, mocker, dimension):
+async def test_create_dimension(async_client: AsyncClient, mocker, dimension):
     mock_create_dimension = AsyncMock(return_value=DimensionDetail(**dimension))
     mocker.patch.object(QueryClient, "create_dimension", mock_create_dimension)
 
@@ -271,20 +242,20 @@ async def test_create_dimension(client, mocker, dimension):
         "definition": "New Dimension Definition",
         "meta_data": {"semantic_meta": {"cube": "cube1", "member": "new_dimension", "member_type": "dimension"}},
     }
-    response = client().post("/v1/dimensions", json=dimension_data)
+    response = await async_client.post("/v1/dimensions", json=dimension_data)
     assert response.status_code == 200
     assert response.json() == DimensionDetail(**dimension).model_dump(mode="json")
 
     # test with duplicate dimension_id
     mock_create_dimension = AsyncMock(side_effect=IntegrityError("new_dimension", ANY, ANY))
     mocker.patch.object(QueryClient, "create_dimension", mock_create_dimension)
-    response = client().post("/v1/dimensions", json=dimension_data)
+    response = await async_client.post("/v1/dimensions", json=dimension_data)
     assert response.status_code == 422
     assert response.json()["detail"]["type"] == "already_exists"
 
 
 @pytest.mark.asyncio
-async def test_update_dimension(client, mocker, dimension):
+async def test_update_dimension(async_client: AsyncClient, mocker, dimension):
     dimension_id = dimension["dimension_id"]
     updated_data = dimension.copy()
     updated_data["label"] = "Updated Dimension"
@@ -292,7 +263,7 @@ async def test_update_dimension(client, mocker, dimension):
     mock_update_dimension = AsyncMock(return_value=DimensionDetail(**updated_data))
     mocker.patch.object(QueryClient, "update_dimension", mock_update_dimension)
 
-    response = client().put(f"/v1/dimensions/{dimension_id}", json=updated_data)
+    response = await async_client.put(f"/v1/dimensions/{dimension_id}", json=updated_data)
     assert response.status_code == 200
     assert response.json() == DimensionDetail(**updated_data).model_dump(mode="json")
 
@@ -300,5 +271,5 @@ async def test_update_dimension(client, mocker, dimension):
     mock_update_dimension = AsyncMock(side_effect=DimensionNotFoundError("test_dimension"))
     mocker.patch.object(QueryClient, "update_dimension", mock_update_dimension)
 
-    response = client().put(f"/v1/dimensions/{dimension_id}", json=updated_data)
+    response = await async_client.put(f"/v1/dimensions/{dimension_id}", json=updated_data)
     assert response.status_code == 404
