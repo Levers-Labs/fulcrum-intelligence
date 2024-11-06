@@ -187,20 +187,19 @@ class SegmentDriftStoryBuilder(StoryBuilderBase):
         df = pd.DataFrame([])
         for dimension_slice in dimension_slices:
             row = {
-                "previous_share": round(dimension_slice["comparison_value"]["slice_share"], 2),
-                "current_share": round(dimension_slice["evaluation_value"]["slice_share"], 2),
+                "previous_share": round(dimension_slice["comparison_value"]["slice_share"]),
+                "current_share": round(dimension_slice["evaluation_value"]["slice_share"]),
                 "dimension": metric_dimensions[dimension_slice["key"][0]["dimension"]],
                 "slice_name": dimension_slice["key"][0]["value"],
-                "slice_share_change_percentage": round(dimension_slice["slice_share_change_percentage"], 2),
+                "slice_share_change_percentage": round(dimension_slice["slice_share_change_percentage"]),
                 "pressure_direction": dimension_slice["pressure"].lower(),
-                "previous_value": round(dimension_slice["comparison_value"]["slice_value"], 2),
-                "current_value": round(dimension_slice["evaluation_value"]["slice_value"], 2),
+                "previous_value": round(dimension_slice["comparison_value"]["slice_value"]),
+                "current_value": round(dimension_slice["evaluation_value"]["slice_value"]),
                 "deviation": self.analysis_manager.calculate_percentage_difference(
                     dimension_slice["evaluation_value"]["slice_value"],
                     dimension_slice["comparison_value"]["slice_value"],
-                    precision=2,
                 ),
-                "pressure_change": round(dimension_slice["change_percentage"], 2),
+                "pressure_change": round(dimension_slice["change_percentage"]),
                 "impact": dimension_slice["impact"],
                 "sort_value": dimension_slice["sort_value"],
                 "serialized_key": dimension_slice["serialized_key"],

@@ -325,8 +325,6 @@ class CubeClient(AsyncHttpClient):
             "target_date",
             "target_value",
             "aim",
-            "target_lower_bound",
-            "target_upper_bound",
             "yellow_buffer",
             "red_buffer",
         ]

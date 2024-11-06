@@ -11,6 +11,7 @@ from alembic import command
 from alembic.config import Config
 from alembic.util import CommandError
 
+from commons.utilities.migration_utils import add_rls_policies
 from query_manager.config import get_settings
 from query_manager.db.config import MODEL_PATHS
 
@@ -103,6 +104,7 @@ def create_alembic_revision(
             version_path=version_path,
             rev_id=rev_id,
             depends_on=depends_on,
+            process_revision_directives=add_rls_policies,
         )
     except CommandError as exc:
         typer.secho(f"Error: {exc}", fg=typer.colors.RED, bold=True)
@@ -178,18 +180,18 @@ def info():
 
 
 @cli.command("metadata-upsert")
-def metadata_upsert():
-    """Upsert metadata from JSON files into the database."""
+def metadata_upsert(tenant_id: int):
+    """Upsert metadata from JSON files into the database for a specific tenant."""
     import asyncio
 
     from query_manager.scripts.metadata_upsert import main as upsert_main
 
-    typer.secho("Starting metadata upsert...", fg=typer.colors.BLUE)
+    typer.secho(f"Starting metadata upsert for tenant {tenant_id}...", fg=typer.colors.BLUE)
     try:
-        asyncio.run(upsert_main())
-        typer.secho("Metadata upsert completed successfully!", fg=typer.colors.GREEN)
+        asyncio.run(upsert_main(tenant_id))
+        typer.secho(f"Metadata upsert for tenant {tenant_id} completed successfully!", fg=typer.colors.GREEN)
     except Exception as e:
-        typer.secho(f"Error during metadata upsert: {str(e)}", fg=typer.colors.RED)
+        typer.secho(f"Error during metadata upsert for tenant {tenant_id}: {str(e)}", fg=typer.colors.RED)
         raise typer.Exit(code=1) from e
 
 

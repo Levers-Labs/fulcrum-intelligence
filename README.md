@@ -45,6 +45,45 @@ AUTH0_CLIENT_ID= // The auth0 client id
 AUTH0_CLIENT_SECRET= // The auth0 client secret
 ```
 
+### Multitenancy Support
+
+To Enable the multitenancy Support, Kindly execute the following scripts in the Database for each application schema.
+
+```sql
+CREATE ROLE tenant_user;
+
+-- For analysis_store schema
+GRANT USAGE ON SCHEMA analysis_store TO tenant_user;
+GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA analysis_store TO tenant_user;
+ALTER DEFAULT PRIVILEGES IN SCHEMA analysis_store GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO tenant_user;
+GRANT USAGE ON ALL SEQUENCES IN SCHEMA analysis_store TO tenant_user;
+ALTER DEFAULT PRIVILEGES IN SCHEMA analysis_store GRANT USAGE ON SEQUENCES TO tenant_user;
+
+-- For insights_store schema
+GRANT USAGE ON SCHEMA insights_store TO tenant_user;
+GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA insights_store TO tenant_user;
+ALTER DEFAULT PRIVILEGES IN SCHEMA insights_store GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO tenant_user;
+GRANT USAGE ON ALL SEQUENCES IN SCHEMA insights_store TO tenant_user;
+ALTER DEFAULT PRIVILEGES IN SCHEMA insights_store GRANT USAGE ON SEQUENCES TO tenant_user;
+
+-- For query_store schema
+GRANT USAGE ON SCHEMA query_store TO tenant_user;
+GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA query_store TO tenant_user;
+ALTER DEFAULT PRIVILEGES IN SCHEMA query_store GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO tenant_user;
+GRANT USAGE ON ALL SEQUENCES IN SCHEMA query_store TO tenant_user;
+ALTER DEFAULT PRIVILEGES IN SCHEMA query_store GRANT USAGE ON SEQUENCES TO tenant_user;
+
+-- For story_store schema
+GRANT USAGE ON SCHEMA story_store TO tenant_user;
+GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA story_store TO tenant_user;
+ALTER DEFAULT PRIVILEGES IN SCHEMA story_store GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO tenant_user;
+GRANT USAGE ON ALL SEQUENCES IN SCHEMA story_store TO tenant_user;
+ALTER DEFAULT PRIVILEGES IN SCHEMA story_store GRANT USAGE ON SEQUENCES TO tenant_user;
+
+--- Grant tenant_user role access to postgres role
+GRANT tenant_user TO postgres;
+```
+
 #### Analysis Manager `.env` File
 
 Navigate to the `analysis_manager` directory and create a `.env` file with the following variables:

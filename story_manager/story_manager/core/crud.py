@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import date
 from typing import Any
 
 from sqlalchemy import desc, func
@@ -20,9 +20,11 @@ class CRUDStory(CRUDBase[Story, Story, Story, StoryFilter]):
 
     async def get_latest_story(
         self,
+        metric_id: str,
         story_type: StoryType,
         grain: Granularity,
-        story_date: datetime,
+        story_date: date,
+        tenant_id: int,
         is_salient: bool | None = None,
         is_cool_off: bool | None = None,
         is_heuristic: bool | None = None,
@@ -39,11 +41,12 @@ class CRUDStory(CRUDBase[Story, Story, Story, StoryFilter]):
         :param is_heuristic: Optional filter for heuristic stories.
         :return: The latest story instance or None if no such story exists.
         """
+
         # Create a query to select the latest story before the current date
         statement = (
             self.get_select_query()
             .filter(func.date(Story.story_date) < func.date(story_date))  # type: ignore
-            .filter_by(story_type=story_type, grain=grain)
+            .filter_by(story_type=story_type, grain=grain, metric_id=metric_id, tenant_id=tenant_id)
         )
 
         # Apply optional filters
@@ -58,10 +61,10 @@ class CRUDStory(CRUDBase[Story, Story, Story, StoryFilter]):
         statement = statement.order_by(desc("story_date")).limit(1)
 
         # Execute the query
-        results = await self.session.execute(statement=statement)
+        result = await self.session.execute(statement=statement)
 
         # Get the unique result or None if no result is found
-        instance: Story | None = results.unique().scalar_one_or_none()  # noqa
+        instance: Story | None = result.unique().scalar_one_or_none()  # noqa
 
         return instance
 
@@ -74,7 +77,9 @@ class CRUDStoryConfig(CRUDBase[StoryConfig, StoryConfig, StoryConfig, StoryConfi
 
     filter_class = StoryConfigFilter
 
-    async def get_story_config(self, story_type: StoryType, grain: Granularity) -> StoryConfig | None:  # noqa
+    async def get_story_config(
+        self, story_type: StoryType, grain: Granularity, tenant_id: int
+    ) -> StoryConfig | None:  # noqa
         """
         Retrieve the StoryConfig for a specific story type and granularity.
 
@@ -84,10 +89,11 @@ class CRUDStoryConfig(CRUDBase[StoryConfig, StoryConfig, StoryConfig, StoryConfi
 
         :param story_type: The type of the story.
         :param grain: The granularity of the story.
+        :param tenant_id: The tenant ID
         :return: A StoryConfig object if found, otherwise None.
         """
         # Create a query to select the story config for the given story type and granularity
-        statement = self.get_select_query().filter_by(story_type=story_type, grain=grain)
+        statement = self.get_select_query().filter_by(story_type=story_type, grain=grain, tenant_id=tenant_id)
 
         # Execute the query and fetch the results
         results = await self.session.execute(statement=statement)

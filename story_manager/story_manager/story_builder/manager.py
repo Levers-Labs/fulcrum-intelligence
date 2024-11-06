@@ -98,24 +98,21 @@ class StoryManager:
         query_service = await get_query_manager_client()
         analysis_service = await get_analysis_manager_client()
         analysis_manager = await get_analysis_manager()
-        db_session = None
-        async for _db_session in get_async_session():
-            db_session = _db_session
-            continue
-
         logger.info(f"Running story builder for story group: {group}")
 
-        # Create a story builder for the specified group
-        story_builder = StoryFactory.create_story_builder(
-            group,
-            query_service,
-            analysis_service,
-            analysis_manager=analysis_manager,
-            db_session=db_session,
-            story_date=story_date,
-        )
+        # Use a session in context manager to ensure proper cleanup
+        async with get_async_session() as db_session:
+            # Create a story builder for the specified group
+            story_builder = StoryFactory.create_story_builder(
+                group,
+                query_service,
+                analysis_service,
+                analysis_manager=analysis_manager,
+                db_session=db_session,
+                story_date=story_date,
+            )
 
-        # Run the story builder for the metrics
-        logger.info(f"Generating stories for grain: {grain}")
-        await story_builder.run(metric_id, grain)
-        logger.info(f"Stories generated for metric {metric_id} with grain {grain}")
+            # Run the story builder for the metrics
+            logger.info(f"Generating stories for grain: {grain}")
+            await story_builder.run(metric_id, grain)
+            logger.info(f"Stories generated for metric {metric_id} with grain {grain}")

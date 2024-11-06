@@ -273,7 +273,7 @@ class StoryBuilderBase(ABC):
         logger.info(f"stories: {stories}")
 
         # perform the necessary data transformations
-        story_objs: list[Story] = [Story.parse_obj(story_dict) for story_dict in stories]
+        story_objs: list[Story] = [Story(**story_dict) for story_dict in stories]
 
         self.db_session.add_all(story_objs)
         await self.db_session.commit()

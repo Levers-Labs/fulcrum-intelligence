@@ -1,5 +1,7 @@
 USER_WRITE = "user:write"
 USER_READ = "user:read"
+TENANT_READ = "tenant:read"
+ADMIN_READ = "admin:read"
 
 
 ANALYSIS_MANAGER_ALL = "analysis:*"

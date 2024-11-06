@@ -19,9 +19,10 @@ x-airflow-common:
     AIRFLOW_ENV: local
     SERVER_HOST: http://localhost:8003/v1/
     SECRET_KEY: some-secret-key
-    ANALYSIS_MANAGER_SERVER_HOST: http://host.docker.internal:8000/v1/
-    STORY_MANAGER_SERVER_HOST: http://host.docker.internal:8003/v1/
-    QUERY_MANAGER_SERVER_HOST: http://host.docker.internal:8002/v1/
+    ANALYSIS_MANAGER_SERVER_HOST: http://host.docker.internal:8000/analysis/v1/
+    STORY_MANAGER_SERVER_HOST: http://host.docker.internal:8003/story/v1/
+    QUERY_MANAGER_SERVER_HOST: http://host.docker.internal:8002/query/v1/
+    INSIGHTS_BACKEND_SERVER_HOST: http://host.docker.internal:8004/insights/v1/
     DSENSEI_BASE_URL: http://host.docker.internal:5001
     DATABASE_URL: postgresql+asyncpg://postgres:passwordpw@host.docker.internal:5432/fulcrum_db
     DOCKER_HOST: unix://var/run/docker.sock

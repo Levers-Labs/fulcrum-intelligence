@@ -5,6 +5,7 @@ import pandas as pd
 import pytest
 
 from commons.models.enums import Granularity
+from fulcrum_core.analysis_manager import AnalysisManager  # Adjust the import based on your actual module structure
 from story_manager.core.enums import StoryType
 from story_manager.story_builder.plugins import RequiredPerformanceStoryBuilder
 
@@ -141,3 +142,33 @@ def test_month_grain_last_day_of_quarter(required_performance_story_builder):
     interval, end_date = required_performance_story_builder._get_end_date_of_period(Granularity.MONTH)
     assert interval == Granularity.QUARTER
     assert end_date == date(2024, 3, 31)
+
+
+# Test cases for required growth calculation
+@pytest.mark.parametrize(
+    "current_value, target_value, number_of_periods, expected_growth",
+    [
+        (100, 200, 1, 100.0),  # Simple case: double the value in 1 period
+        (100, 300, 2, 73),  # Corrected: Triple the value in 2 periods
+        (100, 400, 3, 59),  # Corrected: Quadruple the value in 3 periods
+        (100, 100, 1, 0.0),  # No growth needed
+        (50, 100, 1, 100.0),  # 100% growth in 1 period
+        (100, 0, 1, -100.0),  # Negative growth to zero
+    ],
+)
+def test_calculate_required_growth(current_value, target_value, number_of_periods, expected_growth):
+    result = AnalysisManager.calculate_required_growth(current_value, target_value, number_of_periods)
+    assert result == expected_growth
+
+
+@pytest.mark.parametrize(
+    "current_value, target_value, number_of_periods",
+    [
+        (0, 100, 1),  # Current value is zero
+        (100, -50, 1),  # Target value is negative
+        (100, 200, 0),  # Number of periods is zero
+    ],
+)
+def test_calculate_required_growth_exceptions(current_value, target_value, number_of_periods):
+    with pytest.raises(ValueError):
+        AnalysisManager.calculate_required_growth(current_value, target_value, number_of_periods)

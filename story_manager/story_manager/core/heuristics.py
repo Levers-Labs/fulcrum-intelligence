@@ -1,12 +1,12 @@
 import logging
-from datetime import datetime
+from datetime import date
 from typing import Any
 
 from jinja2 import Template
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from commons.models.enums import Granularity
-from story_manager.core.dependencies import CRUDStoryConfigDep, CRUDStoryDep
+from story_manager.core.crud import CRUDStory, CRUDStoryConfig
 from story_manager.core.enums import StoryType
 from story_manager.core.models import Story, StoryConfig
 from story_manager.story_builder.utils import calculate_periods_count
@@ -23,17 +23,28 @@ class StoryHeuristicEvaluator:
         story_type (StoryType): The type of the story.
         grain (Granularity): The granularity of the story.
         session (AsyncSession): The database session used for fetching configurations and stories.
-        story_config_crud (CRUDStoryConfigDep): CRUD operations for story configurations.
-        story_crud (CRUDStoryDep): CRUD operations for stories.
+        story_config_crud (CRUDStoryConfig): CRUD operations for story configurations.
+        story_crud (CRUDStory): CRUD operations for stories.
     """
 
-    def __init__(self, story_type: StoryType, grain: Granularity, session: AsyncSession):
+    def __init__(
+        self,
+        story_type: StoryType,
+        grain: Granularity,
+        session: AsyncSession,
+        story_date: date,
+        metric_id: str,
+        tenant_id: int,
+    ):
         self.story_type = story_type
         self.grain = grain
         self.session = session
-        self.story_config_crud = CRUDStoryConfigDep(StoryConfig, self.session)
+        self.story_config_crud = CRUDStoryConfig(model=StoryConfig, session=self.session)
         self._story_config = None
-        self.story_crud = CRUDStoryDep(Story, self.session)
+        self.story_crud = CRUDStory(model=Story, session=self.session)
+        self.story_date = story_date
+        self.metric_id = metric_id
+        self.tenant_id = tenant_id
 
     @property
     async def story_config(self) -> StoryConfig | None:
@@ -49,7 +60,7 @@ class StoryHeuristicEvaluator:
         if self._story_config is None:
             # Fetch the story configuration from the database
             self._story_config = await self.story_config_crud.get_story_config(  # type: ignore
-                story_type=self.story_type, grain=self.grain
+                story_type=self.story_type, grain=self.grain, tenant_id=self.tenant_id
             )
         # Return the cached story configuration
         return self._story_config
@@ -162,14 +173,17 @@ class StoryHeuristicEvaluator:
         cool_off_duration = story_config.cool_off_duration  # type: ignore
 
         # If no cool-off duration is defined, return False for in_cool_off and the value of is_salient for is_heuristic
-        if cool_off_duration is None:
+        if not cool_off_duration:
             return False, is_salient
-
-        current_date = datetime.now()
 
         # Fetch the latest heuristic story before the current date
         latest_heuristic_story = await self.story_crud.get_latest_story(
-            story_type=self.story_type, grain=self.grain, story_date=current_date, is_heuristic=True
+            metric_id=self.metric_id,
+            story_type=self.story_type,
+            grain=self.grain,
+            story_date=self.story_date,
+            tenant_id=self.tenant_id,
+            is_heuristic=True,
         )
 
         # If no previous story is found, return False for in_cool_off and the value of is_salient for is_heuristic
@@ -177,10 +191,10 @@ class StoryHeuristicEvaluator:
             return False, is_salient
 
         # Calculate the number of periods between the current date and the latest heuristic story's date
-        period_count = calculate_periods_count(current_date, latest_heuristic_story.story_date, self.grain)
+        period_count = calculate_periods_count(self.story_date, latest_heuristic_story.story_date, self.grain)
 
         # Determine if the story is in the cool-off period
-        in_cool_off = period_count < cool_off_duration
+        in_cool_off = period_count <= cool_off_duration
 
         # Determine if the story should be considered heuristic
         is_heuristic = is_salient and not in_cool_off

@@ -12,12 +12,13 @@ from sqlalchemy import (
     Float,
     String,
     Text,
+    UniqueConstraint,
     event,
 )
 from sqlalchemy.dialects.postgresql import ARRAY, JSONB
 from sqlmodel import Field, Relationship, SQLModel
 
-from commons.db.models import BaseSQLModel, BaseTimeStampedModel
+from commons.db.models import BaseSQLModel, BaseTimeStampedTenantModel
 from commons.models import BaseModel
 from commons.models.enums import Granularity
 from query_manager.core.enums import Complexity, SemanticMemberType
@@ -74,7 +75,7 @@ class DimensionMetadata(BaseModel):
 
 
 # Base DB model
-class QuerySchemaBaseModel(BaseTimeStampedModel):
+class QuerySchemaBaseModel(BaseTimeStampedTenantModel):
     __table_args__ = {"schema": "query_store"}
 
 
@@ -115,7 +116,7 @@ class MetricInput(SQLModel, table=True):
 
 # Dimension models
 class DimensionBase(BaseSQLModel):
-    dimension_id: str = Field(sa_column=Column(String(255), index=True, unique=True))
+    dimension_id: str = Field(sa_column=Column(String(255), index=True))
     label: str = Field(sa_column=Column(String(255)))
     reference: str = Field(sa_column=Column(String(255), nullable=True))
     definition: str = Field(sa_column=Column(Text, nullable=True))
@@ -126,6 +127,12 @@ class Dimension(DimensionBase, QuerySchemaBaseModel, table=True):  # type: ignor
     """
     Dimensions model
     """
+
+    __table_args__ = (
+        # Unique constraint for dimension_id and tenant_id
+        UniqueConstraint("dimension_id", "tenant_id", name="uq_dimension_id_tenant_id"),  # type: ignore
+        {"schema": "query_store"},
+    )
 
     metrics: list["Metric"] = Relationship(back_populates="dimensions", link_model=MetricDimension)
 
@@ -138,7 +145,7 @@ class Dimension(DimensionBase, QuerySchemaBaseModel, table=True):  # type: ignor
 
 
 class MetricBase(BaseSQLModel):
-    metric_id: str = Field(sa_column=Column(String(255), index=True, unique=True))
+    metric_id: str = Field(sa_column=Column(String(255), index=True))
     label: str = Field(sa_column=Column(String(255)))
     abbreviation: str | None = Field(sa_column=Column(String(255), nullable=True))
     definition: str | None = Field(sa_column=Column(Text, nullable=True))
@@ -164,6 +171,12 @@ class Metric(MetricBase, QuerySchemaBaseModel, table=True):  # type: ignore
     """
     Metric model
     """
+
+    __table_args__ = (
+        # Unique constraint for metric_id and tenant_id
+        UniqueConstraint("metric_id", "tenant_id", name="uq_metric_id_tenant_id"),  # type: ignore
+        {"schema": "query_store"},
+    )
 
     dimensions: list["Dimension"] = Relationship(back_populates="metrics", link_model=MetricDimension)
 

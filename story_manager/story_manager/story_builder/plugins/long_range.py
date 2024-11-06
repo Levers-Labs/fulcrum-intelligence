@@ -69,7 +69,7 @@ class LongRangeStoryBuilder(StoryBuilderBase):
         final_value = df["value"].iloc[-1]
         overall_growth = self.analysis_manager.calculate_percentage_difference(final_value, initial_value)
 
-        slope = self.analysis_manager.calculate_slope_of_time_series(df=df, precision=2)
+        slope = self.analysis_manager.calculate_slope_of_time_series(df=df)
 
         df["slope"] = slope
 

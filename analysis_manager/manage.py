@@ -13,6 +13,7 @@ from alembic.util import CommandError
 
 from analysis_manager.config import get_settings
 from analysis_manager.db.config import MODEL_PATHS
+from commons.utilities.migration_utils import add_rls_policies
 
 cli = typer.Typer()
 db_cli = typer.Typer()
@@ -103,6 +104,7 @@ def create_alembic_revision(
             version_path=version_path,
             rev_id=rev_id,
             depends_on=depends_on,
+            process_revision_directives=add_rls_policies,
         )
     except CommandError as exc:
         typer.secho(f"Error: {exc}", fg=typer.colors.RED, bold=True)

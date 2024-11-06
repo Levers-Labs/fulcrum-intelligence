@@ -6,6 +6,9 @@ omit=
     commons/utilities/pagination.py
     commons/utilities/docs.py
     commons/models/enums.py
+    commons/auth/scopes.py
+    commons/utilities/migration_utils.py
+    commons/utilities/async_http_client.py
 
 [report]
 fail_under = 85

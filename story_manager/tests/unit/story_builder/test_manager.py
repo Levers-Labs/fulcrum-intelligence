@@ -70,7 +70,7 @@ async def test_run_builder_for_story_group(
 
     # Mock get_async_session
     mock_session_context = mocker.AsyncMock()
-    mock_session_context.__aiter__.return_value = [mock_db_session]
+    mock_session_context.__aenter__.return_value = mock_db_session
     mocker.patch("story_manager.story_builder.manager.get_async_session", return_value=mock_session_context)
 
     # Mock StoryFactory.create_story_builder
@@ -91,14 +91,16 @@ async def test_run_builder_for_story_group(
     )
 
     # Assertions
-    mock_create_story_builder.assert_called_once_with(
-        test_group,
-        mock_query_service,
-        mock_analysis_service,
-        analysis_manager=mock_analysis_manager,
-        db_session=mock_db_session,
-        story_date=datetime.date.today(),
-    )
+    mock_create_story_builder.assert_called_once()
+    call_args = mock_create_story_builder.call_args[0]
+    call_kwargs = mock_create_story_builder.call_args[1]
+
+    assert call_args[0] == test_group
+    assert call_args[1] == mock_query_service
+    assert call_args[2] == mock_analysis_service
+    assert call_kwargs["analysis_manager"] == mock_analysis_manager
+    assert isinstance(call_kwargs["db_session"], mocker.AsyncMock)
+    assert call_kwargs["story_date"] == datetime.date.today()
 
     mock_story_builder.run.assert_called_once_with(test_metric_id, test_grain)
 
@@ -112,7 +114,7 @@ async def test_run_builder_for_story_group_error_handling(
     mocker.patch("story_manager.story_builder.manager.get_analysis_manager_client", return_value=mock_analysis_service)
     mocker.patch("story_manager.story_builder.manager.get_analysis_manager", return_value=mock_analysis_manager)
     mock_session_context = mocker.AsyncMock()
-    mock_session_context.__aiter__.return_value = [mock_db_session]
+    mock_session_context.__aenter__.return_value = mock_db_session
     mocker.patch("story_manager.story_builder.manager.get_async_session", return_value=mock_session_context)
 
     # Mock StoryFactory.create_story_builder

@@ -1,8 +1,8 @@
 """initial
 
-Revision ID: 90cd84520fbd
+Revision ID: 7e7a22650c1c
 Revises:
-Create Date: 2024-07-26 17:02:21.922737
+Create Date: 2024-10-07 13:35:29.842534
 
 """
 
@@ -13,7 +13,7 @@ from alembic import op
 from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
-revision: str = "90cd84520fbd"
+revision: str = "7e7a22650c1c"
 down_revision: str | None = None
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
@@ -26,22 +26,28 @@ def upgrade() -> None:
         sa.Column("id", sa.Integer(), nullable=False),
         sa.Column("created_at", sa.DateTime(), server_default=sa.text("current_timestamp(0)"), nullable=False),
         sa.Column("updated_at", sa.DateTime(), server_default=sa.text("current_timestamp(0)"), nullable=False),
+        sa.Column("tenant_id", sa.Integer(), nullable=False),
         sa.Column("dimension_id", sa.String(length=255), nullable=True),
         sa.Column("label", sa.String(length=255), nullable=True),
         sa.Column("reference", sa.String(length=255), nullable=True),
         sa.Column("definition", sa.Text(), nullable=True),
         sa.Column("meta_data", postgresql.JSONB(astext_type=sa.Text()), nullable=False),
         sa.PrimaryKeyConstraint("id"),
+        sa.UniqueConstraint("dimension_id", "tenant_id", name="uq_dimension_id_tenant_id"),
         schema="query_store",
     )
     op.create_index(
-        op.f("ix_query_store_dimension_dimension_id"), "dimension", ["dimension_id"], unique=True, schema="query_store"
+        op.f("ix_query_store_dimension_dimension_id"), "dimension", ["dimension_id"], unique=False, schema="query_store"
+    )
+    op.create_index(
+        op.f("ix_query_store_dimension_tenant_id"), "dimension", ["tenant_id"], unique=False, schema="query_store"
     )
     op.create_table(
         "metric",
         sa.Column("id", sa.Integer(), nullable=False),
         sa.Column("created_at", sa.DateTime(), server_default=sa.text("current_timestamp(0)"), nullable=False),
         sa.Column("updated_at", sa.DateTime(), server_default=sa.text("current_timestamp(0)"), nullable=False),
+        sa.Column("tenant_id", sa.Integer(), nullable=False),
         sa.Column("metric_id", sa.String(length=255), nullable=True),
         sa.Column("label", sa.String(length=255), nullable=True),
         sa.Column("abbreviation", sa.String(length=255), nullable=True),
@@ -56,14 +62,21 @@ def upgrade() -> None:
         ),
         sa.Column("metric_expression", postgresql.JSONB(astext_type=sa.Text()), nullable=True),
         sa.Column("periods", postgresql.ARRAY(sa.String()), nullable=True),
-        sa.Column("grain_aggregation", sa.String(), nullable=True, max_length=255),
+        sa.Column("grain_aggregation", sa.String(length=255), nullable=True),
         sa.Column("aggregations", postgresql.ARRAY(sa.String()), nullable=True),
         sa.Column("owned_by_team", postgresql.ARRAY(sa.String()), nullable=True),
         sa.Column("meta_data", postgresql.JSONB(astext_type=sa.Text()), nullable=False),
+        sa.Column("hypothetical_max", sa.Float(), nullable=True),
         sa.PrimaryKeyConstraint("id"),
+        sa.UniqueConstraint("metric_id", "tenant_id", name="uq_metric_id_tenant_id"),
         schema="query_store",
     )
-    op.create_index(op.f("ix_query_store_metric_metric_id"), "metric", ["metric_id"], unique=True, schema="query_store")
+    op.create_index(
+        op.f("ix_query_store_metric_metric_id"), "metric", ["metric_id"], unique=False, schema="query_store"
+    )
+    op.create_index(
+        op.f("ix_query_store_metric_tenant_id"), "metric", ["tenant_id"], unique=False, schema="query_store"
+    )
     op.create_table(
         "metriccomponent",
         sa.Column("parent_id", sa.Integer(), nullable=False),
@@ -124,6 +137,16 @@ def upgrade() -> None:
         sa.PrimaryKeyConstraint("metric_id", "input_id"),
         schema="query_store",
     )
+    op.execute("ALTER TABLE query_store.dimension ENABLE ROW LEVEL SECURITY;")
+    op.execute(
+        "CREATE POLICY tenant_isolation_query_store_dimension ON query_store.dimension "
+        "USING (tenant_id = current_setting('app.current_tenant')::int);"
+    )
+    op.execute("ALTER TABLE query_store.metric ENABLE ROW LEVEL SECURITY;")
+    op.execute(
+        "CREATE POLICY tenant_isolation_query_store_metric ON query_store.metric USING"
+        " (tenant_id = current_setting('app.current_tenant')::int);"
+    )
     # ### end Alembic commands ###
 
 
@@ -133,8 +156,10 @@ def downgrade() -> None:
     op.drop_table("metricinfluence", schema="query_store")
     op.drop_table("metricdimension", schema="query_store")
     op.drop_table("metriccomponent", schema="query_store")
+    op.drop_index(op.f("ix_query_store_metric_tenant_id"), table_name="metric", schema="query_store")
     op.drop_index(op.f("ix_query_store_metric_metric_id"), table_name="metric", schema="query_store")
     op.drop_table("metric", schema="query_store")
+    op.drop_index(op.f("ix_query_store_dimension_tenant_id"), table_name="dimension", schema="query_store")
     op.drop_index(op.f("ix_query_store_dimension_dimension_id"), table_name="dimension", schema="query_store")
     op.drop_table("dimension", schema="query_store")
     # ### end Alembic commands ###

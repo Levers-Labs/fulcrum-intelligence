@@ -15,6 +15,8 @@ from alembic.config import Config
 from alembic.util import CommandError
 
 from commons.models.enums import Granularity
+from commons.utilities.context import reset_context, set_tenant_id
+from commons.utilities.migration_utils import add_rls_policies
 from story_manager.config import get_settings
 from story_manager.core.enums import StoryGroup
 from story_manager.db.config import MODEL_PATHS
@@ -111,6 +113,7 @@ def create_alembic_revision(
             version_path=version_path,
             rev_id=rev_id,
             depends_on=depends_on,
+            process_revision_directives=add_rls_policies,
         )
     except CommandError as exc:
         typer.secho(f"Error: {exc}", fg=typer.colors.RED, bold=True)
@@ -164,6 +167,10 @@ def run_builder_for_group(
         str,
         typer.Argument(help="The metric id for which the builder should be run."),
     ],
+    tenant_id: Annotated[
+        int,
+        typer.Argument(help="The tenant id for which the builder should be run."),
+    ],
     grain: Annotated[
         Optional[Granularity],  # noqa
         typer.Argument(help="The grain for which the builder should be run."),
@@ -177,11 +184,19 @@ def run_builder_for_group(
     Run the builder for a specific story group and metric.
     """
     typer.secho(
-        f"Running builder for group {group} and metric {metric_id}",
+        f"Running builder for group {group} and metric {metric_id} and tenant {tenant_id}",
         fg=typer.colors.GREEN,
     )
+    # Setup tenant context
+    typer.secho(
+        f"Setting up tenant context for tenant {tenant_id}",
+        fg=typer.colors.GREEN,
+    )
+    set_tenant_id(tenant_id)
     story_date = datetime.strptime(story_date, "%Y-%m-%d").date() if story_date else date.today()  # type: ignore
     asyncio.run(StoryManager.run_builder_for_story_group(group, metric_id, grain=grain, story_date=story_date))  # type: ignore
+    # Cleanup tenant context
+    reset_context()
     typer.secho(
         f"Execution for group {group} and metric {metric_id} finished",
         fg=typer.colors.GREEN,
@@ -221,9 +236,9 @@ def info():
 
 
 @cli.command("upsert-story-config")
-def upsert_story_config():
+def upsert_story_config(tenant_id: int):
     """
-    Update the story configuration by running the update_story_config script.
+    Update the story configuration for a specific tenant by running the update_story_config script.
 
     This function uses asyncio to run the update_story_config script and provides
     feedback on the success or failure of the operation using typer.
@@ -232,10 +247,10 @@ def upsert_story_config():
 
     from story_manager.scripts.upsert_story_config import main as upsert_config
 
-    typer.secho("Starting story config update...", fg=typer.colors.BLUE)
+    typer.secho(f"Starting story config update for tenant {tenant_id}...", fg=typer.colors.BLUE)
     try:
-        asyncio.run(upsert_config())
-        typer.secho("Story config update completed successfully!", fg=typer.colors.GREEN)
+        asyncio.run(upsert_config(tenant_id))
+        typer.secho("Story config update completed successfully 🎉", fg=typer.colors.GREEN)
     except Exception as e:
         typer.secho(f"Error during story config update: {str(e)}", fg=typer.colors.RED)
         raise typer.Exit(code=1) from e

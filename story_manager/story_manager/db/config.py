@@ -1,4 +1,5 @@
 from collections.abc import AsyncGenerator, Generator
+from contextlib import asynccontextmanager
 from typing import Annotated
 
 from fastapi import Depends
@@ -20,12 +21,36 @@ def get_session() -> Generator[Session, None, None]:
 
 
 # async session
-async def get_async_session() -> AsyncGenerator[AsyncSession, None]:
+async def get_async_session_gen() -> AsyncGenerator[AsyncSession, None]:
+    """
+    Get an async session generator
+    """
     settings = get_settings()
     async for session in _get_async_session(settings.DATABASE_URL, settings.SQLALCHEMY_ENGINE_OPTIONS):  # type: ignore
         yield session
 
 
+@asynccontextmanager
+async def get_async_session() -> AsyncGenerator[AsyncSession, None]:
+    """
+    Get an async session
+    """
+    session = None
+    try:
+        async for _db_session in get_async_session_gen():
+            session = _db_session
+            yield session
+            if session:
+                await session.commit()
+    except Exception:
+        if session:
+            await session.rollback()
+        raise
+    finally:
+        if session:
+            await session.close()
+
+
 # Session Dependency
 SessionDep = Annotated[Session, Depends(get_session)]
-AsyncSessionDep = Annotated[AsyncSession, Depends(get_async_session)]
+AsyncSessionDep = Annotated[AsyncSession, Depends(get_async_session_gen)]

@@ -6,8 +6,8 @@ from fastapi import Depends
 
 from commons.auth.auth import Oauth2Auth
 from insights_backend.config import get_settings
-from insights_backend.core.crud import CRUDUser
-from insights_backend.core.models import User
+from insights_backend.core.crud import CRUDUser, TenantCRUD
+from insights_backend.core.models import Tenant, User
 from insights_backend.db.config import AsyncSessionDep
 
 
@@ -15,7 +15,12 @@ async def get_users_crud(session: AsyncSessionDep) -> CRUDUser:
     return CRUDUser(model=User, session=session)
 
 
+async def get_tenants_crud(session: AsyncSessionDep) -> TenantCRUD:
+    return TenantCRUD(model=Tenant, session=session)
+
+
 UsersCRUDDep = Annotated[CRUDUser, Depends(get_users_crud)]
+TenantsCRUDDep = Annotated[TenantCRUD, Depends(get_tenants_crud)]
 
 
 def oauth2_auth() -> Oauth2Auth:

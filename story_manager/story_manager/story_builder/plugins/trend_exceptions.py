@@ -85,15 +85,14 @@ class TrendExceptionsStoryBuilder(StoryBuilderBase):
                 ref_data["value"].item(), ref_data["ucl"].item()
             )
             story_type = StoryType.SPIKE
-            position = Position.ABOVE
         elif ref_data["lcl"] and ref_data["value"] < ref_data["lcl"]:
             deviation = self.analysis_manager.calculate_percentage_difference(
                 ref_data["value"].item(), ref_data["lcl"].item()
             )
             story_type = StoryType.DROP
-            position = Position.BELOW
 
         if story_type:
+            position = Position.ABOVE if deviation > 0 else Position.BELOW  # noqa
             story_details = self.prepare_story_dict(
                 story_type=story_type,
                 grain=grain,  # type: ignore

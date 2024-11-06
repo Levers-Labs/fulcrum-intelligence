@@ -19,6 +19,12 @@ def async_http_client():
     return AsyncHttpClient(base_url, auth)
 
 
+@pytest.fixture(autouse=True)
+def mock_get_tenant_id():
+    with patch("commons.clients.base.get_tenant_id", return_value="test_tenant_id"):
+        yield
+
+
 @pytest.mark.asyncio
 async def test_get_url(async_http_client):
     base_url = "https://example.com"
@@ -37,7 +43,9 @@ async def test_make_request_success(async_http_client):
     ) as request_mock:
         response = await async_http_client._make_request("GET", endpoint)
         assert response == response_mock
-        request_mock.assert_awaited_once_with("GET", "https://example.com/api/users", timeout=60)
+        request_mock.assert_awaited_once_with(
+            "GET", "https://example.com/api/users", timeout=60, headers={"X-Tenant-Id": "test_tenant_id"}
+        )
 
 
 @pytest.mark.asyncio

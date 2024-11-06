@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
 
-from commons.middleware import process_time_log_middleware, request_id_middleware
+from commons.middleware import process_time_log_middleware, request_id_middleware, tenant_context_middleware
 from commons.utilities.docs import custom_openapi, setup_swagger_ui
 from commons.utilities.logger import setup_rich_logger
 from query_manager.config import get_settings
@@ -39,6 +39,9 @@ def get_application() -> FastAPI:
 
     # add process time log middleware
     _app.add_middleware(BaseHTTPMiddleware, dispatch=process_time_log_middleware)
+
+    # add tenant context middleware
+    _app.add_middleware(BaseHTTPMiddleware, dispatch=tenant_context_middleware)
 
     # setup logging
     setup_rich_logger(settings)

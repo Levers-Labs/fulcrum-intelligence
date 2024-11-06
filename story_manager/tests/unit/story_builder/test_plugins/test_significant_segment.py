@@ -30,6 +30,10 @@ async def test_generate_stories_success(
     dimension_slice_data,
     mock_get_dimension_slice_data,
 ):
-
+    # The mock_get_dimension_slice_data fixture should now be properly set up
     stories = await significant_segment_story_builder.generate_stories(metric_id, grain)
-    assert stories == significant_segment_stories
+
+    # Compare the generated stories with the expected stories
+    assert len(stories) == len(significant_segment_stories)
+    for generated, expected in zip(stories, significant_segment_stories):
+        assert generated == expected

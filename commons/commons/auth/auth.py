@@ -4,10 +4,17 @@ from enum import Enum
 from typing import Annotated, Any, TypeVar
 
 import jwt
-from fastapi import Depends, HTTPException, status
+from fastapi import (
+    Depends,
+    HTTPException,
+    Request,
+    status,
+)
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer, SecurityScopes
 
+from commons.auth.constants import TENANT_VERIFICATION_BYPASS_ENDPOINTS
 from commons.models import BaseModel
+from commons.utilities.context import get_tenant_id
 
 F = TypeVar("F", bound=Callable[..., Any])
 logger = logging.getLogger(__name__)
@@ -105,6 +112,7 @@ class Oauth2Auth:
     async def verify(
         self,
         security_scopes: SecurityScopes,
+        request: Request,
         token: Annotated[HTTPAuthorizationCredentials | None, Depends(HTTPBearer(auto_error=False))] = None,
     ) -> OAuth2User:
         """
@@ -115,6 +123,7 @@ class Oauth2Auth:
 
         Args:
             security_scopes (SecurityScopes): Scopes required for a route to execute.
+            request (Request): The request object.
             token (HTTPAuthorizationCredentials | None): JWT token, present in Authorization header.
 
         Returns:
@@ -129,6 +138,10 @@ class Oauth2Auth:
 
         # verify the token
         payload = self.verify_jwt(token.credentials)
+
+        # verify tenant: JWT tenant is same as the tenant_id in request header
+        await self.verify_tenant(payload, request)
+
         # Verify the scopes if route requires it
         if security_scopes.scopes:
             # in case of M2M app token permissions are present in scope key
@@ -139,6 +152,28 @@ class Oauth2Auth:
 
         user = await self.get_oauth_user(payload, token.credentials)
         return user
+
+    async def verify_tenant(self, payload: dict[str, Any], request: Request):
+        """
+        Verify the tenant passed in request header
+        payload: token payload
+        request: request object
+        """
+        current_route = request.url.path.removeprefix(request.base_url.path)
+        if current_route.strip("/") in TENANT_VERIFICATION_BYPASS_ENDPOINTS:
+            logger.info(f"Skipping tenant verification for route: {current_route}")
+            return
+        # Verify tenant id is present in context
+        tenant_id = get_tenant_id()
+        if not tenant_id:
+            raise UnauthorizedException(detail="Tenant id not found in request header")
+        # TODO: remove this after auth0 feture is enabled
+        # https://community.auth0.com/t/why-is-there-an-organization-property-in-the-python-skds-client-credential-flow/134158  # noqa
+        if self.is_machine_user(payload):
+            logger.info("Machine user, tenant id check skipped")
+            return
+        if "tenant_id" not in payload or payload["tenant_id"] != tenant_id:
+            raise UnauthorizedException(detail="Tenant id in token doesn't match tenant id in request header")
 
     def _verify_token_claims(self, payload: dict[str, Any], claim_name: str, expected_value: list[str]) -> None:
         """
@@ -163,6 +198,12 @@ class Oauth2Auth:
             if value not in payload_claim:
                 raise UnauthorizedException(detail="User isn't authorised to perform this operation")
 
+    def is_machine_user(self, payload: dict[str, Any]) -> bool:
+        """
+        Check if the user is a machine user.
+        """
+        return payload["sub"].endswith("@clients")
+
     async def get_oauth_user(self, payload: dict[str, Any], token: str) -> OAuth2User:
         """
         Create an OAuth2User object based on the JWT payload.
@@ -174,7 +215,7 @@ class Oauth2Auth:
         Returns:
             OAuth2User: An OAuth2User object containing user information.
         """
-        is_machine_user = payload["sub"].endswith("@clients")
+        is_machine_user = self.is_machine_user(payload)
 
         if is_machine_user:
             return OAuth2User(
@@ -184,10 +225,12 @@ class Oauth2Auth:
             )
         else:
             # Fetch user details from insights backend
-            user_id = int(payload.get("userId", "user_id"))
+            user_id = payload.get("userId")
+            # convert user_id to int if present
+            user_id = int(user_id) if user_id else None
             # raise error if user_id is not present in payload
-            if user_id == "user_id":
-                raise UnauthenticatedException(detail="Invalid User")
+            if user_id is None:
+                raise UnauthenticatedException(detail="No user id found in token")
 
             return OAuth2User(
                 external_id=payload["sub"],
