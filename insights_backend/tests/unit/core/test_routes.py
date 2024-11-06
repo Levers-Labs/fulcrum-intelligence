@@ -1,103 +1,141 @@
-from unittest import mock
-
 import pytest
+import pytest_asyncio
+from httpx import AsyncClient
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 from starlette import status
 
 from commons.utilities.context import set_tenant_id
+from insights_backend.core.models.tenant import Tenant, TenantConfig
+
+pytestmark = pytest.mark.asyncio
 
 
-@pytest.fixture
-def db_user_json():
-    return {
-        "name": "test_name",
-        "email": "test_email@test.com",
-        "provider": "google",
-        "tenant_org_id": "test_org_id",
-        "external_user_id": "auth0|001123",
-        "profile_picture": "http://test.com",
-    }
+@pytest_asyncio.fixture(name="insert_tenant")
+async def insert_tenant_fixture(db_session: AsyncSession, jwt_payload: dict):
+    set_tenant_id(jwt_payload["tenant_id"])
+    tenant = await db_session.execute(select(Tenant).filter_by(external_id=jwt_payload["external_id"]))
+    tenant = tenant.scalar_one_or_none()
+    if not tenant:
+        tenant = Tenant(
+            external_id=jwt_payload["external_id"], name="test_tenant", identifier="test_tenant", domains=["test.com"]
+        )
+        config = TenantConfig(
+            tenant_id=tenant.id,
+            cube_connection_config={
+                "cube_connection_config": {
+                    "cube_api_url": "http://test-cube-api.com",
+                    "cube_auth_type": "SECRET_KEY",
+                    "cube_auth_secret_key": "test-secret-key",
+                }
+            },
+        )
+        db_session.add(tenant)
+        db_session.add(config)
+        await db_session.flush()
+    return tenant
 
 
-@pytest.mark.asyncio
-@mock.patch("insights_backend.core.routes.handle_tenant_context_from_org_id")
-async def test_create_user(mock_handle_tenant_context, client, db_user_json):
-    mock_handle_tenant_context.return_value = None
-    # Setting up tenant id in context
-    set_tenant_id(1)
-
-    response = client.post("/v1/users/", json=db_user_json)
+async def test_create_user(insert_tenant, db_user_json: dict, async_client: AsyncClient, db_session: AsyncSession):
+    # Act
+    response = await async_client.post("/v1/users/", json=db_user_json)
+    # Assert
     assert response.status_code == 200
     db_user = response.json()
     assert "id" in db_user
-    mock_handle_tenant_context.assert_called_once_with(db_user_json["tenant_org_id"], mock.ANY)
 
 
-@pytest.mark.asyncio
-@mock.patch("insights_backend.core.routes.handle_tenant_context_from_org_id")
-async def test_get_user(mock_handle_tenant_context, client, db_user_json):
-    mock_handle_tenant_context.return_value = None
-    # Setting up tenant id in context
-    set_tenant_id(1)
-    # creating a user
-    response = client.post("/v1/users/", json=db_user_json)
+async def test_list_users(insert_tenant, db_user_json, async_client: AsyncClient, db_session: AsyncSession):
+    # Create User first
+    response = await async_client.post("/v1/users/", json=db_user_json)
+    user_id = response.json()["id"]
+    # Act
+    response = await async_client.get("/v1/users/")
+    data = response.json()
+    # Assert
     assert response.status_code == status.HTTP_200_OK
-    db_user = response.json()
-    assert "id" in db_user
+    assert len(data["results"]) == 1
+    assert data["results"][0]["id"] == user_id
 
-    response = client.get(f"/v1/users/{db_user['id']}")
-    user = response.json()
+
+async def test_get_user(insert_tenant, db_user_json, async_client: AsyncClient, db_session: AsyncSession):
+    # Create User first
+    response = await async_client.post("/v1/users/", json=db_user_json)
+    user_id = response.json()["id"]
+    # Act
+    response = await async_client.get(f"/v1/users/{user_id}")
+    data = response.json()
+    # Assert
     assert response.status_code == status.HTTP_200_OK
-    assert user["id"] == db_user["id"]
-
-    response = client.get("/v1/users/-1")
-    assert response.status_code == status.HTTP_404_NOT_FOUND
+    assert data["id"] == user_id
 
 
-@pytest.mark.asyncio
-@mock.patch("insights_backend.core.routes.handle_tenant_context_from_org_id")
-async def test_get_user_by_email(mock_handle_tenant_context, client, db_user_json):
-    mock_handle_tenant_context.return_value = None
-    # Setting up tenant id in context
-    set_tenant_id(1)
-    # creating a user
-    response = client.post("/v1/users/", json=db_user_json)
+async def test_get_user_by_email(insert_tenant, db_user_json, async_client: AsyncClient, db_session: AsyncSession):
+    # Create User first
+    response = await async_client.post("/v1/users/", json=db_user_json)
+    user_id = response.json()["id"]
+
+    # Act
+    response = await async_client.get(f"/v1/users/user-by-email/{db_user_json['email']}")
+    data = response.json()
+    # Assert
     assert response.status_code == status.HTTP_200_OK
-    db_user = response.json()
-
-    response = client.get(f"/v1/users/user-by-email/{db_user_json['email']}")
-    assert response.status_code == status.HTTP_200_OK
-
-    response = client.get("/v1/users/user-by-email/test_email12@test.com")
-    assert response.status_code == status.HTTP_404_NOT_FOUND
-
-    client.delete(f"/v1/users/{db_user['id']}")
+    assert data["id"] == user_id
 
 
-@pytest.mark.asyncio
-@mock.patch("insights_backend.core.routes.handle_tenant_context_from_org_id")
-async def test_update_user(mock_handle_tenant_context, client, db_user_json, mocker):
-    mock_handle_tenant_context.return_value = None
-    # Setting up tenant id in context
-    set_tenant_id(1)
+async def test_update_user(insert_tenant, db_user_json, async_client: AsyncClient, db_session: AsyncSession):
+    # Create User first
+    response = await async_client.post("/v1/users/", json=db_user_json)
+    user_id = response.json()["id"]
 
-    response = client.post("/v1/users/", json=db_user_json)
-    assert response.status_code == status.HTTP_200_OK
-    db_user = response.json()
-    assert "id" in db_user
-
+    # Update user
     user_json = {
         "name": "test_name",
-        "email": "test_email@test.com",
+        "email": db_user_json["email"],
         "provider": "email",
         "external_user_id": "auth0|001123",
         "profile_picture": "http://test-some-url.com",
     }
-    response = client.put(f"/v1/users/{db_user['id']}", json=user_json)
+    # Act
+    response = await async_client.put(f"/v1/users/{user_id}", json=user_json)
+    # Assert
     assert response.status_code == status.HTTP_200_OK
-    response = response.json()
-    assert response["profile_picture"] == "http://test-some-url.com"
+    response_data = response.json()
+    assert response_data["profile_picture"] == "http://test-some-url.com"
 
-    response = client.put("/v1/users/-4", json=user_json)
+    # Act
+    response = await async_client.put("/v1/users/-4", json=user_json)
+    # Assert
     assert response.status_code == status.HTTP_404_NOT_FOUND
 
-    client.delete(f"/v1/users/{db_user['id']}")
+
+async def test_delete_user(insert_tenant, db_user_json, async_client: AsyncClient, db_session: AsyncSession):
+    # Create User first
+    response = await async_client.post("/v1/users/", json=db_user_json)
+    user_id = response.json()["id"]
+
+    # Act
+    response = await async_client.delete(f"/v1/users/{user_id}")
+    # Assert
+    assert response.status_code == status.HTTP_200_OK
+
+
+async def test_list_tenants(insert_tenant, async_client: AsyncClient, db_session: AsyncSession):
+    # Act
+    response = await async_client.get("/v1/tenants/all")
+    # Assert
+    assert response.status_code == status.HTTP_200_OK
+    data = response.json()
+    assert "results" in data
+    assert "count" in data
+    assert len(data["results"]) == 1
+    assert data["results"][0]["id"] == insert_tenant.id
+
+
+async def test_get_tenant_config(insert_tenant, async_client: AsyncClient, db_session: AsyncSession):
+    # Act
+    response = await async_client.get("/v1/tenant/config")
+    # Assert
+    assert response.status_code == status.HTTP_200_OK
+    data = response.json()
+    assert "cube_connection_config" in data

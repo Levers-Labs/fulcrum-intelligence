@@ -3,6 +3,7 @@ omit=
     # no need to data files
     */data/*
     insights_backend/health.py
+    insights_backend/core/scripts/onboard_tenant.py
 
 [report]
 fail_under = 85

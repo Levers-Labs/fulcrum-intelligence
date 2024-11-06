@@ -1,15 +1,20 @@
+import asyncio
 import importlib
 import logging
 import os
+from collections.abc import AsyncGenerator, Callable, Generator
 from datetime import datetime, timedelta
 
-import fastapi
 import jwt
 import pytest
+import pytest_asyncio
 from _pytest.monkeypatch import MonkeyPatch
-from fastapi.testclient import TestClient
-from sqlalchemy import create_engine, text
-from sqlmodel import Session, SQLModel
+from fastapi import FastAPI
+from httpx import AsyncClient
+from sqlalchemy import text
+from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
+from sqlalchemy.orm import sessionmaker
+from sqlmodel import SQLModel
 from testing.postgresql import Postgresql
 
 from commons.auth.auth import Oauth2Auth
@@ -27,59 +32,57 @@ def postgres():
 
 
 @pytest.fixture(scope="session")
-def mock_security(*args, **kwargs):
-    return {
-        "name": "test_name",
-        "email": "test_email@test.com",
-        "provider": "google",
-        "external_user_id": "auth0|001123",
-        "profile_picture": "http://test.com",
-    }
-
-
-@pytest.fixture(scope="session")
 def session_monkeypatch():
     m_patch = MonkeyPatch()
     yield m_patch
     m_patch.undo()
 
 
-@pytest.fixture(scope="session", autouse=True)
-def setup_db(postgres):
+@pytest.fixture(scope="session")
+def event_loop(request) -> Generator:
+    """Create an instance of the default event loop for each test case."""
+    loop = asyncio.get_event_loop_policy().new_event_loop()
+    yield loop
+    loop.close()
+
+
+@pytest_asyncio.fixture()
+async def db_session(postgres) -> AsyncSession:
     db_sync_uri = postgres.url()
-    # Ensure tables are created
-    engine = create_engine(db_sync_uri)
-    # create schema
-    logger.info("Creating db schema and tables")
-    with engine.connect() as conn:
+    db_async_uri = db_sync_uri.replace("postgresql://", "postgresql+asyncpg://")
+    engine = create_async_engine(db_async_uri, echo=True)
+    async_session = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)  # type: ignore
+    async with engine.begin() as conn:
+        # recreate all models
+        for model_path in MODEL_PATHS:
+            importlib.import_module(model_path)
         # Create schema
-        conn.execute(text("CREATE SCHEMA IF NOT EXISTS insights_store"))
+        await conn.execute(text("CREATE SCHEMA IF NOT EXISTS insights_store"))
+        await conn.run_sync(SQLModel.metadata.drop_all)
+        await conn.run_sync(SQLModel.metadata.create_all)
 
-        # Create tenant role and grant permissions
-        conn.execute(text("CREATE ROLE tenant_user"))
+        async with async_session(bind=conn) as session:
+            yield session
+            await session.flush()
+            await session.rollback()
 
-        # Grant schema permissions
-        conn.execute(text("GRANT USAGE ON SCHEMA insights_store TO tenant_user"))
-        conn.execute(text("GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA insights_store TO tenant_user"))
-        conn.execute(
-            text(
-                "ALTER DEFAULT PRIVILEGES IN SCHEMA insights_store GRANT SELECT, INSERT, UPDATE,"
-                " DELETE ON TABLES TO tenant_user"
-            )
-        )
-        conn.execute(text("GRANT USAGE ON ALL SEQUENCES IN SCHEMA insights_store TO tenant_user"))
-        conn.execute(text("ALTER DEFAULT PRIVILEGES IN SCHEMA insights_store GRANT USAGE ON SEQUENCES TO tenant_user"))
 
-        # Grant tenant_user role to postgres
-        conn.execute(text("GRANT tenant_user TO postgres"))
+@pytest.fixture()
+def override_get_async_session(db_session: AsyncSession) -> Callable:
+    async def _override_get_db():
+        yield db_session
 
-        conn.commit()
-    # create all models
-    for model_path in MODEL_PATHS:
-        importlib.import_module(model_path)
-    SQLModel.metadata.create_all(engine)
-    engine.dispose()
-    yield db_sync_uri
+    return _override_get_db
+
+
+@pytest.fixture()
+def app(setup_env, override_get_async_session: Callable) -> FastAPI:
+    # Import only after setting up the environment
+    from insights_backend.db.config import get_async_session
+    from insights_backend.main import app  # noqa
+
+    app.dependency_overrides[get_async_session] = override_get_async_session
+    return app
 
 
 @pytest.fixture(autouse=True, scope="session")
@@ -108,11 +111,24 @@ def setup_env(session_monkeypatch, postgres):  # noqa
 def mock_jwt_payload():
     return {
         "sub": "PN0CtJASlMDm9TEivb3izsDnIf5dcFYA@clients",
-        "permissions": ["user:write", "user:read"],
+        "permissions": ["user:write", "user:read", "admin:read", "tenant:read"],
         "iat": datetime.now(),
         "exp": datetime.now() + timedelta(hours=1),
-        "scope": "user:write user:read",
+        "scope": "user:write user:read admin:read tenant:read",
         "tenant_id": 1,  # Include tenant_id if needed
+        "external_id": "auth0_123",
+    }
+
+
+@pytest.fixture
+def db_user_json(jwt_payload):
+    return {
+        "name": "test_name",
+        "email": "test_email@test.com",
+        "provider": "google",
+        "tenant_org_id": jwt_payload["external_id"],
+        "external_user_id": "auth0|001123",
+        "profile_picture": "http://test.com",
     }
 
 
@@ -124,41 +140,12 @@ def mock_token(jwt_payload):
     return _token
 
 
-@pytest.fixture()
-def client(setup_env, token, mock_security, jwt_payload, mocker):
-    # Import only after setting up the environment
-    from insights_backend.main import app  # noqa
-
+@pytest_asyncio.fixture()
+async def async_client(app: FastAPI, mocker, jwt_payload, token) -> AsyncGenerator:
     # Mock the JWKS client
     mocker.patch.object(Oauth2Auth, "verify_jwt", return_value=jwt_payload)
-
-    fastapi.Security = mock_security
-    headers = {"Authorization": f"Bearer {token}"}
-    with TestClient(app, headers=headers) as client:
-        yield client
-
-
-@pytest.fixture(scope="module")
-def db_session(setup_env, postgres):
-    # Create an asynchronous engine
-    engine = create_engine(postgres.url(), echo=True)
-
-    # Create a new session
-    with Session(engine) as session:
-        # Start a transaction
-        with session.begin():
-            yield session  # Provide the session to the test
-
-    # Close the engine
-    engine.dispose()
-
-
-@pytest.fixture
-def db_user_json():
-    return {
-        "name": "test_name",
-        "email": "test_email@test.com",
-        "provider": "google",
-        "external_user_id": "auth0|001123",
-        "profile_picture": "http://test.com",
-    }
+    # Setup auth headers
+    headers = {"Authorization": f"Bearer {token}", "X-Tenant-Id": str(jwt_payload["tenant_id"])}
+    # Create an async client
+    async with AsyncClient(app=app, base_url="http://test", headers=headers) as ac:
+        yield ac
