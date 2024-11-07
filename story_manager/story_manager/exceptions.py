@@ -46,4 +46,4 @@ def add_exception_handlers(app):
                 exc.status_code, exc.content.get("error"), str(exc.content.get("detail"))  # type: ignore
             ) from exc
         else:
-            raise UnhandledError(status_code=exc.status_code, detail=str(exc.message)) from exc
+            raise UnhandledError(status_code=exc.status_code, detail=str(exc.message)) from exc  # type: ignore
