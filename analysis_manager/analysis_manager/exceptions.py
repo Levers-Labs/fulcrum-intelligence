@@ -64,7 +64,7 @@ def add_exception_handlers(app):
     async def http_client_error_handler(request, exc: HttpClientError):
         if exc.status_code == 404:
             raise AnalysisManagerError(
-                exc.status_code, exc.content.get("error"), str(exc.content.get("detail"))
+                exc.status_code, exc.content.get("error"), str(exc.content.get("detail"))  # type: ignore
             ) from exc
         else:
             raise UnhandledError(status_code=exc.status_code, detail=str(exc.message)) from exc
