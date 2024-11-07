@@ -4,6 +4,8 @@ from fastapi import HTTPException
 from starlette.responses import JSONResponse
 from starlette.status import HTTP_404_NOT_FOUND, HTTP_422_UNPROCESSABLE_ENTITY, HTTP_500_INTERNAL_SERVER_ERROR
 
+from commons.clients.base import HttpClientError
+
 
 class ErrorCode(str, Enum):
     """
@@ -28,13 +30,6 @@ class NoMetricExpressionError(AnalysisManagerError):
     def __init__(self, metric_id: str):
         detail = f"No metric expression found for metric_id: {metric_id}. Components do not exist."
         super().__init__(status_code=HTTP_422_UNPROCESSABLE_ENTITY, code=ErrorCode.NO_METRIC_EXPRESSION, detail=detail)
-
-
-class MetricNotFoundError(AnalysisManagerError):
-    def __init__(self, metric_id: str):
-        self.metric_id = metric_id
-        detail = f"Metric '{metric_id}' not found."
-        super().__init__(status_code=HTTP_404_NOT_FOUND, detail=detail, code=ErrorCode.METRIC_NOT_FOUND)
 
 
 class MetricValueNotFoundError(AnalysisManagerError):
@@ -64,3 +59,12 @@ def add_exception_handlers(app):
             status_code=exc.status_code,
             content={"error": exc.code, "detail": exc.detail},
         )
+
+    @app.exception_handler(HttpClientError)
+    async def http_client_error_handler(request, exc: HttpClientError):
+        if exc.status_code == 404:
+            raise AnalysisManagerError(
+                exc.status_code, exc.content.get("error"), str(exc.content.get("detail"))
+            ) from exc
+        else:
+            raise UnhandledError(status_code=exc.status_code, detail=str(exc.message)) from exc

@@ -34,14 +34,8 @@ from analysis_manager.core.schema import (
     SegmentDriftRequest,
     SegmentDriftResponse,
 )
-from analysis_manager.exceptions import (
-    ComplexValueError,
-    MetricNotFoundError,
-    MetricValueNotFoundError,
-    UnhandledError,
-)
+from analysis_manager.exceptions import ComplexValueError, MetricValueNotFoundError
 from commons.auth.scopes import ANALYSIS_MANAGER_ALL
-from commons.clients.base import HttpClientError
 from fulcrum_core.execptions import InsufficientDataError
 from fulcrum_core.modules import LeverageIdCalculator
 
@@ -85,27 +79,17 @@ async def describe_analysis(
     Describe an analysis.
     """
     dimensions = [dimension.dimension for dimension in body.dimensions] if body.dimensions else []
-    try:
-        metric = await query_manager.get_metric(body.metric_id)
-    except HttpClientError as e:
-        if e.status_code == 404:
-            raise MetricNotFoundError(body.metric_id) from e
+    metric = await query_manager.get_metric(body.metric_id)
 
-    try:
-        metrics = await query_manager.get_metric_time_series(
-            metric_id=str(body.metric_id),
-            start_date=body.start_date,
-            end_date=body.end_date,
-            dimensions=dimensions,
-            grain=body.grain,
-        )
-        if not metrics:
-            return []
-    except HttpClientError as e:
-        if e.status_code == 404:
-            raise MetricValueNotFoundError(body.metric_id) from e
-        else:
-            raise UnhandledError(status_code=e.status_code, detail=str(e.message)) from e  # type: ignore
+    metrics = await query_manager.get_metric_time_series(
+        metric_id=str(body.metric_id),
+        start_date=body.start_date,
+        end_date=body.end_date,
+        dimensions=dimensions,
+        grain=body.grain,
+    )
+    if not metrics:
+        return []
 
     # list of columns to include in df
     columns = ["metric_id", "date", "value"]
@@ -152,21 +136,16 @@ async def correlate(
     """
     Analyze correlations between metrics.
     """
-    try:
-        # get metric values for the given metric_ids and date range
-        metric_values = await query_manager.get_metrics_time_series(
-            metric_ids=correlate_request.metric_ids,
-            start_date=correlate_request.start_date,
-            end_date=correlate_request.end_date,
-            grain=correlate_request.grain,
-        )
-        if not metric_values:
-            return []
-    except HttpClientError as e:
-        if e.status_code == 404:
-            raise MetricValueNotFoundError(", ".join(correlate_request.metric_ids)) from e
-        else:
-            raise UnhandledError(status_code=e.status_code, detail=str(e.message)) from e  # type: ignore
+    # get metric values for the given metric_ids and date range
+    metric_values = await query_manager.get_metrics_time_series(
+        metric_ids=correlate_request.metric_ids,
+        start_date=correlate_request.start_date,
+        end_date=correlate_request.end_date,
+        grain=correlate_request.grain,
+    )
+    if not metric_values:
+        return []
+
     metrics_df = pd.DataFrame(metric_values, columns=["metric_id", "date", "value"])  # noqa
     # return the correlation coefficient for each pair of metrics
     return analysis_manager.correlate(df=metrics_df)
@@ -185,20 +164,14 @@ async def process_control(
         Body(examples=[{"metric_id": "NewMRR", "start_date": "2024-01-01", "end_date": "2024-04-30", "grain": "day"}]),
     ],
 ) -> Any:
-    try:
-        values_df = await query_manager.get_metric_time_series_df(
-            metric_id=request.metric_id,
-            start_date=request.start_date,
-            end_date=request.end_date,
-            grain=request.grain,
-        )
-        if values_df.empty:
-            raise MetricValueNotFoundError(request.metric_id)
-    except HttpClientError as e:
-        if e.status_code == 404:
-            raise MetricValueNotFoundError(request.metric_id) from e
-        else:
-            raise UnhandledError(status_code=e.status_code, detail=str(e.message)) from e  # type: ignore
+    values_df = await query_manager.get_metric_time_series_df(
+        metric_id=request.metric_id,
+        start_date=request.start_date,
+        end_date=request.end_date,
+        grain=request.grain,
+    )
+    if values_df.empty:
+        raise MetricValueNotFoundError(request.metric_id)
 
     # process control analysis
     try:
@@ -240,25 +213,15 @@ async def component_drift(
     Analyze component drift for a given metric.
     """
     logger.debug(f"Component drift request: {drift_req}")
-    try:
-        metric = await query_manager.get_metric(drift_req.metric_id)
-    except HttpClientError as e:
-        if e.status_code == 404:
-            raise MetricNotFoundError(drift_req.metric_id) from e
+    metric = await query_manager.get_metric(drift_req.metric_id)
 
-    try:
-        return await component_drift_service.calculate_drift(
-            metric,  # noqa
-            evaluation_start_date=drift_req.evaluation_start_date,
-            evaluation_end_date=drift_req.evaluation_end_date,
-            comparison_start_date=drift_req.comparison_start_date,
-            comparison_end_date=drift_req.comparison_end_date,
-        )
-    except HttpClientError as e:
-        if e.status_code == 404:
-            raise MetricValueNotFoundError(drift_req.metric_id) from e
-        else:
-            raise UnhandledError(status_code=e.status_code, detail=str(e.message)) from e  # type: ignore
+    return await component_drift_service.calculate_drift(
+        metric,  # noqa
+        evaluation_start_date=drift_req.evaluation_start_date,
+        evaluation_end_date=drift_req.evaluation_end_date,
+        comparison_start_date=drift_req.comparison_start_date,
+        comparison_end_date=drift_req.comparison_end_date,
+    )
 
 
 @router.post(
@@ -288,18 +251,12 @@ async def simple_forecast(
     """
     Simple Forecast a metric.
     """
-    try:
-        # get metric values for the given metric_ids and date range
-        values_df = await query_manager.get_metric_time_series_df(
-            metric_id=request.metric_id, start_date=request.start_date, end_date=request.end_date, grain=request.grain
-        )
-        if values_df.empty:
-            raise HTTPException(status_code=400, detail="No data found for the given metric")
-    except HttpClientError as e:
-        if e.status_code == 404:
-            raise MetricValueNotFoundError(request.metric_id) from e
-        else:
-            raise UnhandledError(status_code=e.status_code, detail=str(e.message)) from e  # type: ignore
+    # get metric values for the given metric_ids and date range
+    values_df = await query_manager.get_metric_time_series_df(
+        metric_id=request.metric_id, start_date=request.start_date, end_date=request.end_date, grain=request.grain
+    )
+    if values_df.empty:
+        raise HTTPException(status_code=400, detail="No data found for the given metric")
 
     try:
         forecast_horizon = request.forecast_horizon
@@ -351,25 +308,20 @@ async def segment_drift(
     settings = get_settings()
     if len(drift_req.dimensions) == 0:
         raise HTTPException(status_code=400, detail="at least one dimension is required")
-    try:
-        evaluation_data = await query_manager.get_metric_time_series(
-            metric_id=drift_req.metric_id,
-            start_date=drift_req.evaluation_start_date,
-            end_date=drift_req.evaluation_end_date,
-            dimensions=drift_req.dimensions,
-        )
 
-        comparison_data = await query_manager.get_metric_time_series(
-            metric_id=drift_req.metric_id,
-            start_date=drift_req.comparison_start_date,
-            end_date=drift_req.comparison_end_date,
-            dimensions=drift_req.dimensions,
-        )
-    except HttpClientError as e:
-        if e.status_code == 404:
-            raise MetricValueNotFoundError(drift_req.metric_id) from e
-        else:
-            raise UnhandledError(status_code=e.status_code, detail=str(e.message)) from e  # type: ignore
+    evaluation_data = await query_manager.get_metric_time_series(
+        metric_id=drift_req.metric_id,
+        start_date=drift_req.evaluation_start_date,
+        end_date=drift_req.evaluation_end_date,
+        dimensions=drift_req.dimensions,
+    )
+
+    comparison_data = await query_manager.get_metric_time_series(
+        metric_id=drift_req.metric_id,
+        start_date=drift_req.comparison_start_date,
+        end_date=drift_req.comparison_end_date,
+        dimensions=drift_req.dimensions,
+    )
 
     data_frame = pd.json_normalize(evaluation_data + comparison_data)
 
@@ -422,40 +374,30 @@ async def influence_attribution(
     Analyze influence attribution for a given metric.
     """
     logger.debug(f"Influence attribution request: {request}")
-    try:
-        metric = await query_manager.get_metric(request.metric_id)
-    except HttpClientError as e:
-        if e.status_code == 404:
-            raise MetricNotFoundError(request.metric_id) from e
+    metric = await query_manager.get_metric(request.metric_id)
 
     # check if metric has influeces ie. influenced_by
     influenced_by = metric.get("influenced_by", [])  # noqa
     if not influenced_by:
         raise HTTPException(status_code=400, detail="Metric is not influenced by any other metric.")
 
-    try:
-        # get metric time series df for output metric
-        df = await query_manager.get_metric_time_series_df(
-            metric_id=request.metric_id,
+    # get metric time series df for output metric
+    df = await query_manager.get_metric_time_series_df(
+        metric_id=request.metric_id,
+        start_date=request.start_date,
+        end_date=request.end_date,
+        grain=request.grain,
+    )
+    # get the time series for all the input metric
+    inputs_dfs = []
+    for metric_id in influenced_by:
+        inputs_df = await query_manager.get_metric_time_series_df(
+            metric_id=metric_id,
             start_date=request.start_date,
             end_date=request.end_date,
             grain=request.grain,
         )
-        # get the time series for all the input metric
-        inputs_dfs = []
-        for metric_id in influenced_by:
-            inputs_df = await query_manager.get_metric_time_series_df(
-                metric_id=metric_id,
-                start_date=request.start_date,
-                end_date=request.end_date,
-                grain=request.grain,
-            )
-            inputs_dfs.append(inputs_df)
-    except HttpClientError as e:
-        if e.status_code == 404:
-            raise MetricValueNotFoundError(request.metric_id) from e
-        else:
-            raise UnhandledError(status_code=e.status_code, detail=str(e.message)) from e  # type: ignore
+        inputs_dfs.append(inputs_df)
 
     # get the evaluation and comparison values for all metrics
     metric_ids = [request.metric_id] + influenced_by
@@ -514,14 +456,10 @@ async def leverage_id(
     """
     logger.debug(f"LeverageResponse Id request: {request}")
     expr = None
-    try:
-        # Fetch the metric details from the query manager
-        metric = await query_manager.get_metric(request.metric_id)
-        # Extract the metric expression from the fetched metric details
-        expr = metric.get("metric_expression", None)
-    except HttpClientError as e:
-        if e.status_code == 404:
-            raise MetricNotFoundError(request.metric_id) from e
+    # Fetch the metric details from the query manager
+    metric = await query_manager.get_metric(request.metric_id)
+    # Extract the metric expression from the fetched metric details
+    expr = metric.get("metric_expression", None)
 
     if expr is None:
         # Raise an HTTP 404 error if the metric expression is not found
@@ -533,16 +471,10 @@ async def leverage_id(
     # Fetch the maximum values for the metrics involved
     max_values = await query_manager.get_metrics_max_values(metric_ids)
 
-    try:
-        # Fetch the time series data for the metrics within the specified date range and grain
-        values_df = await query_manager.get_metrics_time_series_df(
-            metric_ids=metric_ids, start_date=request.start_date, end_date=request.end_date, grain=request.grain
-        )
-    except HttpClientError as e:
-        if e.status_code == 404:
-            raise MetricValueNotFoundError(request.metric_id) from e
-        else:
-            raise UnhandledError(status_code=e.status_code, detail=str(e.message)) from e  # type: ignore
+    # Fetch the time series data for the metrics within the specified date range and grain
+    values_df = await query_manager.get_metrics_time_series_df(
+        metric_ids=metric_ids, start_date=request.start_date, end_date=request.end_date, grain=request.grain
+    )
 
     try:
         # Initialize the LeverageIdCalculator with the metric expression and max values
