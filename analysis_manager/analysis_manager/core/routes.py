@@ -34,10 +34,9 @@ from analysis_manager.core.schema import (
     SegmentDriftRequest,
     SegmentDriftResponse,
 )
-from analysis_manager.exceptions import ComplexValueError
+from analysis_manager.exceptions import ComplexValueError, UnhandledError
 from commons.auth.scopes import ANALYSIS_MANAGER_ALL
 from commons.clients.base import HttpClientError
-from commons.exceptions import UnhandledError
 from fulcrum_core.execptions import InsufficientDataError
 from fulcrum_core.modules import LeverageIdCalculator
 from query_manager.exceptions import MetricNotFoundError, MetricValueNotFoundError
