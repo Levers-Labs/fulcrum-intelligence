@@ -12,7 +12,6 @@ from starlette import status
 
 from commons.auth.scopes import (
     ADMIN_READ,
-    TENANT_READ,
     USER_READ,
     USER_WRITE,
 )
@@ -161,7 +160,7 @@ async def list_tenants(
 @router.get(
     "/tenant/config",
     response_model=TenantConfig,
-    dependencies=[Security(oauth2_auth().verify, scopes=[TENANT_READ])],  # type: ignore
+    dependencies=[Security(oauth2_auth().verify, scopes=[ADMIN_READ])],  # type: ignore
 )
 async def get_tenant_config(tenant_id: Annotated[int, Depends(get_tenant_id)], tenant_crud_client: TenantsCRUDDep):
     """

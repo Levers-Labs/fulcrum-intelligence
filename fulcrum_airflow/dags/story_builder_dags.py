@@ -101,7 +101,7 @@ def fetch_group_meta(group: str, auth_header: dict[str, str]) -> dict[str, Any]:
 def filter_grains(grains: list[str], today: datetime) -> list[str]:
     """
     Filter grains based on the current date.
-    
+
     Args:
         grains (list[str]): List of grains to filter.
         today (datetime): Current date.
