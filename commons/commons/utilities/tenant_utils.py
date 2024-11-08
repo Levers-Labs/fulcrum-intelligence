@@ -23,11 +23,10 @@ async def validate_tenant(settings, tenant_id: int | None = None):
 
     # Attempt to fetch the tenant configuration
     try:
-        _ = await insights_client.get_tenant_config()
+        _ = await insights_client.validate_tenant()
     except Exception as ex:
-        if not tenant_id:
-            tenant_id = get_tenant_id()
+        tenant_id = tenant_id or get_tenant_id()
         # Log a warning if the tenant ID does not exist
-        logger.warning("Tenant ID: %s does not exist. Aborting upsert.", tenant_id)
+        logger.warning("Tenant ID: %s does not exist.", tenant_id)
         # Raise an InvalidTenantError
         raise InvalidTenantError(tenant_id) from ex
