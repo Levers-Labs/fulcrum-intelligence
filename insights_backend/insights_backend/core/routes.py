@@ -10,11 +10,7 @@ from fastapi import (
 from sqlalchemy.exc import IntegrityError
 from starlette import status
 
-from commons.auth.scopes import (
-    ADMIN_READ,
-    USER_READ,
-    USER_WRITE,
-)
+from commons.auth.scopes import ADMIN_READ, USER_READ, USER_WRITE
 from commons.db.crud import NotFoundError
 from commons.models.tenant import TenantConfig
 from commons.utilities.context import get_tenant_id, set_tenant_id
