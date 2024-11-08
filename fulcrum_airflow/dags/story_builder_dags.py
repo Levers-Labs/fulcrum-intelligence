@@ -165,7 +165,7 @@ def create_story_group_dag(group: str, meta: dict[str, Any]) -> None:
             _tenants: list[int], _metric_ids_map: dict[str, list[str]], _grains_map: dict[str, list[str]]
         ) -> list[str]:
             logger.info("Preparing story builder commands for all tenants")
-            today = datetime.now()
+            today = datetime.utcnow()
 
             commands = []
             for tenant_id in _tenants:
