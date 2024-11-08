@@ -98,6 +98,30 @@ def fetch_group_meta(group: str, auth_header: dict[str, str]) -> dict[str, Any]:
     return response.json()
 
 
+def filter_grains(grains: list[str], today: datetime) -> list[str]:
+    """
+    Filter grains based on the current date.
+    
+    Args:
+        grains (list[str]): List of grains to filter.
+        today (datetime): Current date.
+
+    Returns:
+        list[str]: Filtered list of grains.
+    """
+    # Filter grains based on the current date
+    return [
+        grain
+        for grain in grains
+        # Include 'week' grain if today is Monday (weekday() == 0)
+        if (grain == "week" and today.weekday() == 0)
+        # Include 'month' grain if today is the first day of the month
+        or (grain == "month" and today.day == 1)
+        # Always include 'day' grain
+        or (grain == "day")
+    ]
+
+
 def create_story_group_dag(group: str, meta: dict[str, Any]) -> None:
     dag_id = f"GROUP_{group}_STORY_DAG"
 
@@ -181,13 +205,8 @@ def create_story_group_dag(group: str, meta: dict[str, Any]) -> None:
                 metrics = _metric_ids_map[tenant_id_str]
                 grains = _grains_map[tenant_id_str]
 
-                filtered_grains = [
-                    grain
-                    for grain in grains
-                    if (grain == "week" and today.weekday() == 0)
-                    or (grain == "month" and today.day == 1)
-                    or (grain == "day")
-                ]
+                # Filter grains based on the current date
+                filtered_grains = filter_grains(grains, today)
                 commands.extend(
                     [
                         f"story generate {group} {metric_id} {tenant_id} {grain}"
