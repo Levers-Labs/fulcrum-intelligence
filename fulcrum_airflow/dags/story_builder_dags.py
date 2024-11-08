@@ -165,6 +165,8 @@ def create_story_group_dag(group: str, meta: dict[str, Any]) -> None:
             _tenants: list[int], _metric_ids_map: dict[str, list[str]], _grains_map: dict[str, list[str]]
         ) -> list[str]:
             logger.info("Preparing story builder commands for all tenants")
+            today = datetime.now()
+
             commands = []
             for tenant_id in _tenants:
                 logger.info("Preparing story builder commands for tenant %s", tenant_id)
@@ -178,11 +180,19 @@ def create_story_group_dag(group: str, meta: dict[str, Any]) -> None:
                 # Prepare story builder commands
                 metrics = _metric_ids_map[tenant_id_str]
                 grains = _grains_map[tenant_id_str]
+
+                filtered_grains = [
+                    grain
+                    for grain in grains
+                    if (grain == "week" and today.weekday() == 0)
+                    or (grain == "month" and today.day == 1)
+                    or (grain == "day")
+                ]
                 commands.extend(
                     [
                         f"story generate {group} {metric_id} {tenant_id} {grain}"
                         for metric_id in metrics
-                        for grain in grains
+                        for grain in filtered_grains
                     ]
                 )
                 logger.info("Prepared %s story builder commands for tenant %s", len(commands), tenant_id)
