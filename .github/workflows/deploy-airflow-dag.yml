@@ -32,4 +32,4 @@ jobs:
 
       - name: Upload DAG to S3
         run: |
-          aws s3 cp ${{ env.DAG_FILE }} s3://${{ env.S3_BUCKET }}/dags/
+          aws s3 cp ${{ env.DAG_FILE }} s3://${{ env.S3_BUCKET }}/airflow/dag/
