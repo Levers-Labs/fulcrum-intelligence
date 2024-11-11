@@ -241,5 +241,6 @@ def create_story_group_dag(group: str, meta: dict[str, Any]) -> None:
     story_group_dag()
 
 
+# Iterate through each story group and its metadata to create a DAG for each
 for story_group, group_meta in STORY_GROUP_META.items():
     create_story_group_dag(story_group, group_meta)
