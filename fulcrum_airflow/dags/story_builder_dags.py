@@ -101,6 +101,7 @@ def fetch_auth_token():
         return response_data["access_token"]
     except Exception as e:
         logger.error(f"Failed to fetch auth token: {str(e)}")
+        return None
 
 
 def fetch_all_metrics(auth_header: dict[str, str]) -> list[str]:
@@ -138,7 +139,7 @@ def fetch_group_meta(group: str, auth_header: dict[str, str]) -> dict[str, Any]:
         return response.json()
     except Exception as e:
         logger.error(f"Failed to fetch group meta for group {group}: {str(e)}")
-
+        return {}
 
 def create_story_group_dag(group: str, meta: dict[str, Any]) -> None:
     """
@@ -185,6 +186,7 @@ def create_story_group_dag(group: str, meta: dict[str, Any]) -> None:
                 return tenant_ids
             except Exception as e:
                 logger.error(f"Failed to fetch tenants: {str(e)}")
+                return []
 
         @task(task_id="fetch_metric_ids", multiple_outputs=True)
         def fetch_metric_ids(auth_header, tenants: list[int]) -> dict[str, list[str]]:
