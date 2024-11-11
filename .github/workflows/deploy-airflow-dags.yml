@@ -5,7 +5,8 @@ on:
     branches:
       - main
     paths:
-      - 'fulcrum_airflow/dags/**'
+      - 'fulcrum_airflow/dags/**'  # Adjust the path as necessary
+    workflow_dispatch:
 
 env:
   S3_BUCKET: "fulcrum-airflow"
