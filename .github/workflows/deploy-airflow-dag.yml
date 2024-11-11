@@ -6,7 +6,7 @@ on:
       - main
     paths:
       - 'fulcrum_airflow/dags/**'
-
+  workflow_dispatch:
 env:
   S3_BUCKET: "fulcrum-airflow"
   DAG_FILE: "fulcrum_airflow/dags/story_builder_dags.py"
