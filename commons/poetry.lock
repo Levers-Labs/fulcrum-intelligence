@@ -917,6 +917,20 @@ files = [
 ]
 
 [[package]]
+name = "slack-sdk"
+version = "3.33.3"
+description = "The Slack API Platform SDK for Python"
+optional = false
+python-versions = ">=3.6"
+files = [
+    {file = "slack_sdk-3.33.3-py2.py3-none-any.whl", hash = "sha256:0515fb93cd03b18de61f876a8304c4c3cef4dd3c2a3bad62d7394d2eb5a3c8e6"},
+    {file = "slack_sdk-3.33.3.tar.gz", hash = "sha256:4cc44c9ffe4bb28a01fbe3264c2f466c783b893a4eca62026ab845ec7c176ff1"},
+]
+
+[package.extras]
+optional = ["SQLAlchemy (>=1.4,<3)", "aiodns (>1.0)", "aiohttp (>=3.7.3,<4)", "boto3 (<=2)", "websocket-client (>=1,<2)", "websockets (>=9.1,<14)"]
+
+[[package]]
 name = "sniffio"
 version = "1.3.1"
 description = "Sniff out which async library your code is running under"
@@ -1105,4 +1119,4 @@ db = ["alembic", "asyncpg", "greenlet", "psycopg2-binary", "sqlalchemy", "sqlmod
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.10,<3.12"
-content-hash = "95c56940f28ed7aacc6606e59bed7d3504be088ad4cb4bcbf5a210e23919822c"
+content-hash = "c3277f92e8b94b8763f1160820a3564950a84e1a12d2611ef8c5ab3e198ba3fd"

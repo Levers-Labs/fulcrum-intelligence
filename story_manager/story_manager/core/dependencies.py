@@ -8,6 +8,9 @@ from commons.auth.auth import Oauth2Auth
 from commons.clients.analysis_manager import AnalysisManagerClient
 from commons.clients.auth import ClientCredsAuth
 from commons.clients.query_manager import QueryManagerClient
+from commons.notifiers.base import BaseNotifier
+from commons.notifiers.constants import NotificationChannel
+from commons.notifiers.factory import NotifierFactory
 from fulcrum_core import AnalysisManager
 from story_manager.config import get_settings
 from story_manager.core.crud import CRUDStory, CRUDStoryConfig
@@ -56,6 +59,16 @@ async def get_analysis_manager() -> AnalysisManager:
 
 async def get_story_config_crud(session: AsyncSessionDep) -> CRUDStoryConfig:
     return CRUDStoryConfig(model=StoryConfig, session=session)
+
+
+async def get_slack_notifier() -> BaseNotifier:
+    settings = get_settings()
+    return NotifierFactory.create_notifier(
+        channel=NotificationChannel.SLACK, template_dir=str(settings.PATHS.TEMPLATES_DIR)
+    )
+
+
+SlackNotifierDep = Annotated[BaseNotifier, Depends(get_slack_notifier)]
 
 
 CRUDStoryDep = Annotated[CRUDStory, Depends(get_stories_crud)]
