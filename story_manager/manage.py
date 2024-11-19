@@ -20,6 +20,7 @@ from commons.utilities.migration_utils import add_rls_policies
 from story_manager.config import get_settings
 from story_manager.core.enums import StoryGroup
 from story_manager.db.config import MODEL_PATHS
+from story_manager.story_builder.alerts import StoryAlerts
 from story_manager.story_builder.manager import StoryManager
 
 cli = typer.Typer()
@@ -254,6 +255,56 @@ def upsert_story_config(tenant_id: int):
     except Exception as e:
         typer.secho(f"Error during story config update: {str(e)}", fg=typer.colors.RED)
         raise typer.Exit(code=1) from e
+
+
+@story_cli.command("send-alert")
+def send_alerts_for_group(
+    group: Annotated[
+        StoryGroup,
+        typer.Argument(help="The story group for which the builder should be run."),
+    ],
+    metric_id: Annotated[
+        str,
+        typer.Argument(help="The metric id for which the builder should be run."),
+    ],
+    tenant_id: Annotated[
+        int,
+        typer.Argument(help="The tenant id for which the builder should be run."),
+    ],
+    grain: Annotated[
+        Optional[Granularity],  # noqa
+        typer.Argument(help="The grain for which the builder should be run."),
+    ],
+    created_date: Annotated[
+        str,
+        typer.Argument(help="The created at date for generated stories"),
+    ] = "",
+):
+    """
+    Run the builder for a specific story group and metric.
+    """
+    typer.secho(
+        f"Running builder for group {group} and metric {metric_id} and tenant {tenant_id}",
+        fg=typer.colors.GREEN,
+    )
+    # Setup tenant context
+    typer.secho(
+        f"Setting up tenant context for tenant {tenant_id}",
+        fg=typer.colors.GREEN,
+    )
+    set_tenant_id(tenant_id)
+    created_at_date = datetime.strptime(created_date, "%Y-%m-%d").date() if created_date else date.today()  # type: ignore
+    asyncio.run(
+        StoryAlerts.get_all_stories(
+            group=group, metric_id=metric_id, grain=grain, tenant_id=tenant_id, created_date=created_at_date
+        )
+    )  # type: ignore
+    # Cleanup tenant context
+    reset_context()
+    typer.secho(
+        f"Execution for group {group} and metric {metric_id} finished",
+        fg=typer.colors.GREEN,
+    )
 
 
 if __name__ == "__main__":

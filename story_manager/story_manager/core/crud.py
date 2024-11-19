@@ -1,11 +1,11 @@
-from datetime import date
+from datetime import date, timedelta
 from typing import Any
 
 from sqlalchemy import desc, func
 
 from commons.db.crud import CRUDBase
 from commons.models.enums import Granularity
-from story_manager.core.enums import StoryType
+from story_manager.core.enums import StoryGroup, StoryType
 from story_manager.core.filters import StoryConfigFilter, StoryFilter
 from story_manager.core.models import Story, StoryConfig
 
@@ -33,6 +33,8 @@ class CRUDStory(CRUDBase[Story, Story, Story, StoryFilter]):
         Retrieve the latest story of a specific type and granularity before the current date,
         with optional filters for salience, cool-down status, and heuristic flag.
 
+        :param tenant_id:
+        :param metric_id:
         :param story_type: The type of the story.
         :param grain: The granularity of the story.
         :param story_date: The current date to compare against.
@@ -67,6 +69,35 @@ class CRUDStory(CRUDBase[Story, Story, Story, StoryFilter]):
         instance: Story | None = result.unique().scalar_one_or_none()  # noqa
 
         return instance
+
+    async def get_stories(
+        self,
+        metric_id: str,
+        story_group: StoryGroup,
+        grain: Granularity,
+        created_date: date,
+        tenant_id: int,
+    ) -> Any:
+
+        statement = (
+            self.get_select_query()
+            .filter(func.date(Story.created_at) >= func.date(created_date))
+            .filter(func.date(Story.created_at) < func.date(created_date + timedelta(days=1)))
+            .filter_by(
+                story_group=story_group, grain=grain, metric_id=metric_id, tenant_id=tenant_id, is_heuristic=True
+            )
+        )
+
+        # Order by story date in descending order and limit to 1 result
+        statement = statement.order_by(desc("story_date"))
+
+        # Execute the query
+        result = await self.session.execute(statement=statement)
+
+        # Get the unique result or None if no result is found
+        instances: list(Story) | None = result.scalars().all()  # type: ignore
+
+        return instances
 
 
 class CRUDStoryConfig(CRUDBase[StoryConfig, StoryConfig, StoryConfig, StoryConfigFilter]):

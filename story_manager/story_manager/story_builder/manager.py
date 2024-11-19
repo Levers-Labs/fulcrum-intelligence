@@ -116,3 +116,17 @@ class StoryManager:
             logger.info(f"Generating stories for grain: {grain}")
             await story_builder.run(metric_id, grain)
             logger.info(f"Stories generated for metric {metric_id} with grain {grain}")
+
+    @classmethod
+    async def run_slack_alerts_for_story_group(
+        cls, group: StoryGroup, metric_id, grain: Granularity, creation_date: date | None = None
+    ):
+        logger.info(
+            f"Running slack alerts for story group: {group} and metric: {metric_id} and grain: {grain} for "
+            f"date: {creation_date}"
+        )
+
+        # Use a session in context manager to ensure proper cleanup
+        # async with get_async_session() as db_session:
+        # TODO: Call the method (which will retrieve the stories, create template and send alerts)
+        logger.info(f"Stories generated for metric {metric_id} with grain {grain}")
