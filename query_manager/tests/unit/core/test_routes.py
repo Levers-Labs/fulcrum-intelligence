@@ -13,6 +13,7 @@ from query_manager.core.schemas import (
     MetricList,
 )
 from query_manager.exceptions import DimensionNotFoundError, MetricNotFoundError
+from query_manager.services.cube import CubeClient
 from query_manager.services.parquet import ParquetService
 from query_manager.services.query_client import QueryClient
 from query_manager.services.s3 import NoSuchKeyError
@@ -273,3 +274,37 @@ async def test_update_dimension(async_client: AsyncClient, mocker, dimension):
 
     response = await async_client.put(f"/v1/dimensions/{dimension_id}", json=updated_data)
     assert response.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_connect_cube(async_client: AsyncClient, mocker):
+    # Mock the CubeClient's load_query_data method
+    mock_load_query_data = AsyncMock(return_value={"data": []})
+    mocker.patch.object(CubeClient, "load_query_data", mock_load_query_data)
+
+    # Act
+    response = await async_client.post(
+        "/v1/cube/connect?cube_api_url=http://localhost:4000/cubejs-api/v1&auth_type=SECRET_KEY&key"
+        "=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpYXQiOjE3Mjg1NzAzMzh9.qvRWKaXmRXrhCY5c-K1NlodDN95mRv_utQAr99Pcr8c"
+    )
+
+    # Assert
+    assert response.status_code == 200
+    assert response.json() == {"message": "Connection successful"}
+    mock_load_query_data.assert_awaited_once_with({"dimensions": ["metric_targets.grain"]})
+
+
+@pytest.mark.asyncio
+async def test_connect_cube_invalid_credentials(async_client: AsyncClient, mocker):
+    # Mock the CubeClient's load_query_data method to raise an exception
+    mock_load_query_data = AsyncMock(side_effect=Exception("Invalid credentials"))
+    mocker.patch.object(CubeClient, "load_query_data", mock_load_query_data)
+
+    # Act
+    response = await async_client.post(
+        "/v1/cube/connect?cube_api_url=https://your-cube-api-url&auth_type=SECRET_KEY&key=invalid_secret_key"
+    )
+
+    # Assert
+    assert response.status_code == 401
+    assert response.json()["detail"] == "Invalid credentials"

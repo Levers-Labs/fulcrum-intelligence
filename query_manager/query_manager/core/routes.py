@@ -32,6 +32,7 @@ from query_manager.core.schemas import (
     TargetListResponse,
 )
 from query_manager.exceptions import DimensionNotFoundError, MetricNotFoundError
+from query_manager.services.cube import CubeClient, CubeJWTAuthType
 from query_manager.services.s3 import NoSuchKeyError
 
 logger = logging.getLogger(__name__)
@@ -270,3 +271,39 @@ async def get_metric_targets(
         return {"url": parquet_url}
 
     return {"results": res}
+
+
+@router.post(
+    "/cube/connect",
+    tags=["cube"],
+    dependencies=[Security(oauth2_auth().verify, scopes=[])],
+)
+async def connect_cube(
+    cube_api_url: str,
+    auth_type: CubeJWTAuthType,
+    key: str,
+):
+    """
+    This endpoint is used to test the connection to the Cube API using the provided client ID and secret key.
+    """
+    try:
+        # Determine the authentication options based on the provided auth_type
+        auth_options = {"secret_key": key} if auth_type == CubeJWTAuthType.SECRET_KEY else {"token": key}
+
+        # Create a new CubeClient instance with the provided API URL and authentication options
+        cube_client = CubeClient(
+            base_url=cube_api_url,
+            auth_type=auth_type,
+            auth_options=auth_options,
+        )
+
+        # Attempt to load a simple query or check connection to verify the credentials
+        await cube_client.load_query_data({"dimensions": ["metric_targets.grain"]})
+
+        # If the connection is successful, return a message indicating the successful connection
+        return {"message": "Connection successful"}
+
+    except Exception as e:
+        # If an exception is raised during the connection attempt, log the error and raise an HTTPException
+        logger.error("Connection failed: %s", str(e))
+        raise HTTPException(status_code=401, detail="Invalid credentials") from e
