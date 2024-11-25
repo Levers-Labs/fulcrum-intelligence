@@ -4,7 +4,7 @@ from typing import Any, TypeVar
 
 from fastapi import Request, Response
 
-from commons.auth.constants import TENANT_ID_HEADER
+from commons.auth.constants import TENANT_ID_HEADER, TENANT_VERIFICATION_BYPASS_ENDPOINTS
 from commons.utilities.context import reset_context, set_tenant_id
 
 F = TypeVar("F", bound=Callable[..., Any])
@@ -17,6 +17,11 @@ async def tenant_context_middleware(request: Request, call_next: F) -> Response:
     Processes the request
     Resets the tenant id in the context
     """
+
+    # Check if the request path matches any of the bypass endpoints
+    if any(endpoint in request.url.path for endpoint in TENANT_VERIFICATION_BYPASS_ENDPOINTS):
+        return await call_next(request)  # Skip tenant context setting
+
     # Set the tenant id in the context
     tenant_id_str = request.headers.get(TENANT_ID_HEADER)
     # convert the tenant id to int
