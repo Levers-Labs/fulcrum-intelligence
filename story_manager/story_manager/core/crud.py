@@ -5,7 +5,7 @@ from sqlalchemy import desc, func
 
 from commons.db.crud import CRUDBase
 from commons.models.enums import Granularity
-from story_manager.core.enums import StoryGroup, StoryType
+from story_manager.core.enums import StoryType
 from story_manager.core.filters import StoryConfigFilter, StoryFilter
 from story_manager.core.models import Story, StoryConfig
 
@@ -73,7 +73,6 @@ class CRUDStory(CRUDBase[Story, Story, Story, StoryFilter]):
     async def get_stories(
         self,
         metric_id: str,
-        story_group: StoryGroup,
         grain: Granularity,
         created_date: date,
         tenant_id: int,
@@ -83,9 +82,7 @@ class CRUDStory(CRUDBase[Story, Story, Story, StoryFilter]):
             self.get_select_query()
             .filter(func.date(Story.created_at) >= func.date(created_date))
             .filter(func.date(Story.created_at) < func.date(created_date + timedelta(days=1)))
-            .filter_by(
-                story_group=story_group, grain=grain, metric_id=metric_id, tenant_id=tenant_id, is_heuristic=True
-            )
+            .filter_by(grain=grain, metric_id=metric_id, tenant_id=tenant_id, is_heuristic=True)
         )
 
         # Order by story date in descending order and limit to 1 result

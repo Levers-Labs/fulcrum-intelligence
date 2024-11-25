@@ -1,3 +1,4 @@
+import json
 import logging
 import os.path
 from abc import ABC, abstractmethod
@@ -9,6 +10,7 @@ from jinja2 import (
     Template,
     TemplateError,
 )
+from slack_sdk import WebClient
 
 from commons.notifiers.constants import NotificationChannel
 
@@ -116,6 +118,8 @@ class BaseNotifier(ABC):
                 Returns:
             Any: The notifier client object.
         """
+        client = WebClient(token="xoxb-7976566008402-7962040521303-EKmzh6oZSFNp6QAXT7OpA3eq")  # noqa
+        return client
 
     @abstractmethod
     def send_notification_using_client(
@@ -133,3 +137,6 @@ class BaseNotifier(ABC):
         Returns:
             dict: The metadata of the notification.
         """
+        temp = json.loads(rendered_template)
+        _ = client.chat_postMessage(channel="C07UT2BPC92", blocks=temp["blocks"])
+        return {}

@@ -98,11 +98,11 @@ def fetch_group_meta(group: str, auth_header: dict[str, str]) -> dict[str, Any]:
     return response.json()
 
 
-def create_story_group_dag(group: str, meta: dict[str, Any]) -> None:
+def create_story_alerts_dag(group: str, meta: dict[str, Any]) -> None:
     dag_id = f"SLACK_ALERTS_{group}_DAG"
 
     @dag(dag_id=dag_id, start_date=datetime(2024, 11, 14), schedule_interval=meta["schedule_interval"], catchup=False)
-    def story_group_dag():
+    def story_alert_dag():
         @task(task_id="get_auth_header")
         def get_auth_header():
             return {"Authorization": f"Bearer {fetch_auth_token()}"}
@@ -143,8 +143,8 @@ def create_story_group_dag(group: str, meta: dict[str, Any]) -> None:
             logger.info("Successfully fetched metric IDs for all tenants")
             return results
 
-        @task(task_id="fetch_group_meta_task", multiple_outputs=True)
-        def fetch_group_meta_task(auth_header, tenants: list[int]) -> dict[str, list[str]]:
+        @task(task_id="fetch_grain_map_task", multiple_outputs=True)
+        def fetch_grain_map_task(auth_header, tenants: list[int]) -> dict[str, list[str]]:
             results = defaultdict(list)
             for tenant_id in tenants:
                 # Add tenant to auth header
@@ -179,11 +179,7 @@ def create_story_group_dag(group: str, meta: dict[str, Any]) -> None:
                 metrics = _metric_ids_map[tenant_id_str]
                 grains = _grains_map[tenant_id_str]
                 commands.extend(
-                    [
-                        f"story send-alert {group} {metric_id} {tenant_id} {grain}"
-                        for metric_id in metrics
-                        for grain in grains
-                    ]
+                    [f"story send-alert {metric_id} {tenant_id} {grain}" for metric_id in metrics for grain in grains]
                 )
                 logger.info("Prepared %s story alert commands for tenant %s", len(commands), tenant_id)
             logger.info("Successfully prepared story alert commands for all tenants")
@@ -192,7 +188,7 @@ def create_story_group_dag(group: str, meta: dict[str, Any]) -> None:
         auth_header = get_auth_header()
         tenants = fetch_tenants(auth_header)
         metric_ids_map = fetch_metric_ids(auth_header, tenants)
-        grains_map = fetch_group_meta_task(auth_header, tenants)
+        grains_map = fetch_grain_map_task(auth_header, tenants)
         commands = prepare_story_alerts_commands(tenants, metric_ids_map, grains_map)
 
         if ENV == "local":
@@ -238,8 +234,8 @@ def create_story_group_dag(group: str, meta: dict[str, Any]) -> None:
                 region_name=ECS_REGION,
             ).expand(overrides=ecs_overrides)
 
-    story_group_dag()
+    story_alert_dag()
 
 
 for story_group, group_meta in STORY_GROUP_META.items():
-    create_story_group_dag(story_group, group_meta)
+    create_story_alerts_dag(story_group, group_meta)

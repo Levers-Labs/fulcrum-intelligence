@@ -259,10 +259,6 @@ def upsert_story_config(tenant_id: int):
 
 @story_cli.command("send-alert")
 def send_alerts_for_group(
-    group: Annotated[
-        StoryGroup,
-        typer.Argument(help="The story group for which the builder should be run."),
-    ],
     metric_id: Annotated[
         str,
         typer.Argument(help="The metric id for which the builder should be run."),
@@ -284,7 +280,7 @@ def send_alerts_for_group(
     Run the builder for a specific story group and metric.
     """
     typer.secho(
-        f"Running builder for group {group} and metric {metric_id} and tenant {tenant_id}",
+        f"Running builder for metric {metric_id} and tenant {tenant_id}",
         fg=typer.colors.GREEN,
     )
     # Setup tenant context
@@ -293,16 +289,17 @@ def send_alerts_for_group(
         fg=typer.colors.GREEN,
     )
     set_tenant_id(tenant_id)
-    created_at_date = datetime.strptime(created_date, "%Y-%m-%d").date() if created_date else date.today()  # type: ignore
+    created_at_date = datetime.strptime(created_date, "%Y-%m-%d").date() if created_date else date(2024, 11, 6)  # type: ignore
+    sa = StoryAlerts()
     asyncio.run(
-        StoryAlerts.get_all_stories(
-            group=group, metric_id=metric_id, grain=grain, tenant_id=tenant_id, created_date=created_at_date
+        sa.process_and_send_alerts(
+            metric_id=metric_id, grain=grain, tenant_id=tenant_id, created_date=created_at_date
         )
     )  # type: ignore
     # Cleanup tenant context
     reset_context()
     typer.secho(
-        f"Execution for group {group} and metric {metric_id} finished",
+        f"Slack notification sent for metric {metric_id} successfully",
         fg=typer.colors.GREEN,
     )
 
