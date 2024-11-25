@@ -11,15 +11,14 @@ from story_manager.db.config import get_async_session
 # Initialize logger for the class
 logger = logging.getLogger(__name__)
 
+
 class StoryAlerts:
     """
     This class handles the fetching and sending of story alerts.
     """
 
     @staticmethod
-    async def get_all_stories(
-            metric_id: str, grain: Granularity, tenant_id: int, created_date: date
-    ) -> dict:
+    async def get_all_stories(metric_id: str, grain: Granularity, tenant_id: int, created_date: date) -> dict:
         """
         Fetches all stories based on the given metric_id, granularity, tenant_id, and created_date.
         Formats the stories into a dictionary for easier processing.
@@ -52,7 +51,7 @@ class StoryAlerts:
             template_name="stories_slack_template",
             config={"token": "xoxb-7976566008402-7962040521303-EKmzh6oZSFNp6QAXT7OpA3eq"},
             channel_config={"channel_id": "C07UT2BPC92"},
-            context=context
+            context=context,
         )
         return response
 

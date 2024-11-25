@@ -118,7 +118,7 @@ class BaseNotifier(ABC):
                 Returns:
             Any: The notifier client object.
         """
-        client = WebClient(token="xoxb-7976566008402-7962040521303-EKmzh6oZSFNp6QAXT7OpA3eq")  # noqa
+        client = WebClient(token="xoxb-7976566008402-7962040521303-EKmzh6oZSFNp6QAXT7OpA3eq")
         return client
 
     @abstractmethod

@@ -292,9 +292,7 @@ def send_alerts_for_group(
     created_at_date = datetime.strptime(created_date, "%Y-%m-%d").date() if created_date else date(2024, 11, 6)  # type: ignore
     sa = StoryAlerts()
     asyncio.run(
-        sa.process_and_send_alerts(
-            metric_id=metric_id, grain=grain, tenant_id=tenant_id, created_date=created_at_date
-        )
+        sa.process_and_send_alerts(metric_id=metric_id, grain=grain, tenant_id=tenant_id, created_date=created_at_date)
     )  # type: ignore
     # Cleanup tenant context
     reset_context()
