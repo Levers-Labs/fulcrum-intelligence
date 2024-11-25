@@ -34,6 +34,7 @@ from analysis_manager.core.schema import (
     SegmentDriftRequest,
     SegmentDriftResponse,
 )
+from analysis_manager.exceptions import ComplexValueError, MetricValueNotFoundError
 from commons.auth.scopes import ANALYSIS_MANAGER_ALL
 from fulcrum_core.execptions import InsufficientDataError
 from fulcrum_core.modules import LeverageIdCalculator
@@ -79,6 +80,7 @@ async def describe_analysis(
     """
     dimensions = [dimension.dimension for dimension in body.dimensions] if body.dimensions else []
     metric = await query_manager.get_metric(body.metric_id)
+
     metrics = await query_manager.get_metric_time_series(
         metric_id=str(body.metric_id),
         start_date=body.start_date,
@@ -102,7 +104,7 @@ async def describe_analysis(
         start_date=body.start_date,
         end_date=body.end_date,
         dimensions=dimensions,
-        aggregation_function=metric.get("grain_aggregation") or "sum",
+        aggregation_function=metric.get("grain_aggregation") or "sum",  # noqa
     )
     # convert the result to a list of dictionaries
     results = result_df.to_dict(orient="records")
@@ -143,7 +145,8 @@ async def correlate(
     )
     if not metric_values:
         return []
-    metrics_df = pd.DataFrame(metric_values, columns=["metric_id", "date", "value"])
+
+    metrics_df = pd.DataFrame(metric_values, columns=["metric_id", "date", "value"])  # noqa
     # return the correlation coefficient for each pair of metrics
     return analysis_manager.correlate(df=metrics_df)
 
@@ -168,11 +171,11 @@ async def process_control(
         grain=request.grain,
     )
     if values_df.empty:
-        raise HTTPException(status_code=400, detail="No data found for the given metric")
+        raise MetricValueNotFoundError(request.metric_id)
 
     # process control analysis
     try:
-        result_df = analysis_manager.process_control(df=values_df)
+        result_df = analysis_manager.process_control(df=values_df)  # noqa
     except InsufficientDataError as e:
         logger.error(f"Insufficient data for process control analysis: {e}")
         raise HTTPException(status_code=400, detail=e.message) from e
@@ -211,8 +214,9 @@ async def component_drift(
     """
     logger.debug(f"Component drift request: {drift_req}")
     metric = await query_manager.get_metric(drift_req.metric_id)
+
     return await component_drift_service.calculate_drift(
-        metric,
+        metric,  # noqa
         evaluation_start_date=drift_req.evaluation_start_date,
         evaluation_end_date=drift_req.evaluation_end_date,
         comparison_start_date=drift_req.comparison_start_date,
@@ -371,10 +375,12 @@ async def influence_attribution(
     """
     logger.debug(f"Influence attribution request: {request}")
     metric = await query_manager.get_metric(request.metric_id)
+
     # check if metric has influeces ie. influenced_by
-    influenced_by = metric.get("influenced_by", [])
+    influenced_by = metric.get("influenced_by", [])  # noqa
     if not influenced_by:
         raise HTTPException(status_code=400, detail="Metric is not influenced by any other metric.")
+
     # get metric time series df for output metric
     df = await query_manager.get_metric_time_series_df(
         metric_id=request.metric_id,
@@ -392,6 +398,7 @@ async def influence_attribution(
             grain=request.grain,
         )
         inputs_dfs.append(inputs_df)
+
     # get the evaluation and comparison values for all metrics
     metric_ids = [request.metric_id] + influenced_by
     eval_values = await query_manager.get_metrics_value(
@@ -448,12 +455,12 @@ async def leverage_id(
     Analyze LeverageResponse ID for a given metric.
     """
     logger.debug(f"LeverageResponse Id request: {request}")
-
+    expr = None
     # Fetch the metric details from the query manager
     metric = await query_manager.get_metric(request.metric_id)
-
     # Extract the metric expression from the fetched metric details
     expr = metric.get("metric_expression", None)
+
     if expr is None:
         # Raise an HTTP 404 error if the metric expression is not found
         raise HTTPException(status_code=400, detail=f"Metric expression not found for metric_id: {request.metric_id}")
@@ -469,11 +476,13 @@ async def leverage_id(
         metric_ids=metric_ids, start_date=request.start_date, end_date=request.end_date, grain=request.grain
     )
 
-    # Initialize the LeverageIdCalculator with the metric expression and max values
-    leverage_calculator = LeverageIdCalculator(metric_expression, max_values)  # type: ignore
+    try:
+        # Initialize the LeverageIdCalculator with the metric expression and max values
+        leverage_calculator = LeverageIdCalculator(metric_expression, max_values)  # type: ignore
 
-    # Run the leverage calculator with the time series data and get the result
-    result = leverage_calculator.run(values_df)
-
-    # Return the calculated leverage ID result
-    return result
+        # Run the leverage calculator with the time series data and get the result
+        result = leverage_calculator.run(values_df)
+        # Return the calculated leverage ID result
+        return result
+    except TypeError as t:
+        raise ComplexValueError(request.metric_id) from t

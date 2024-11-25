@@ -37,6 +37,11 @@ class LeverageIdCalculator(BaseAnalyzer):
         :param kwargs: Additional keyword arguments.
         :returns: Dictionary containing the leverage ID results.
         """
+        # Check if max_values is None or contains only zeros
+        if not self.max_values or all(value == 0 for value in self.max_values.values()):
+            logger.warning("Max values are None or all zeros. Exiting analysis.")
+            return {}
+
         # Initialize variable symbols for sympy
         self.metric_symbols = {var: sp.symbols(var) for var in df.columns if var != "date"}
 
@@ -150,8 +155,17 @@ class LeverageIdCalculator(BaseAnalyzer):
         :param values: Dictionary containing variable values.
         :returns: Computed value as float.
         """
+        # Filter out None values from the values dictionary
+        filtered_values = {var: value for var, value in values.items() if value is not None}
+
+        # Check if filtered_values is empty, return 0 or raise an exception
+        if not filtered_values:
+            logger.warning("No valid values provided for computation. Returning 0.")
+            return 0.0  # or raise an exception if preferred
+
         equation = sp.sympify(equation_str, locals=self.metric_symbols)
-        return float(equation.subs({self.metric_symbols[var]: value for var, value in values.items()}))
+        result = equation.subs({self.metric_symbols[var]: value for var, value in filtered_values.items()})
+        return float(result)
 
     def _compute_percentage_diff(self, equation_str: str, current_values: dict, var: str) -> float:
         """
