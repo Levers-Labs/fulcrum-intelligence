@@ -125,10 +125,11 @@ async def list_users(
 @user_router.delete("/{user_id}", dependencies=[Security(oauth2_auth().verify, scopes=[USER_WRITE])])  # type: ignore
 async def delete_user(user_id: int, user_crud_client: UsersCRUDDep):
     """
-    Retrieve a user by ID.
+    Delete a user by ID.
     """
     try:
         await user_crud_client.delete(id=user_id)
+        return {"detail": "User deleted successfully"}
     except NotFoundError as e:
         raise HTTPException(status_code=404, detail="User not found") from e
 

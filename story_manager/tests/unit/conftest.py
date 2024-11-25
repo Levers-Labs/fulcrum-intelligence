@@ -54,6 +54,7 @@ def setup_env(session_monkeypatch, postgres):  # noqa
     session_monkeypatch.setenv("BACKEND_CORS_ORIGINS", '["http://localhost"]')
     session_monkeypatch.setenv("QUERY_MANAGER_SERVER_HOST", "http://localhost:8001/v1/")
     session_monkeypatch.setenv("ANALYSIS_MANAGER_SERVER_HOST", "http://localhost:8000/v1/")
+    session_monkeypatch.setenv("INSIGHTS_BACKEND_SERVER_HOST", "http://localhost:8004/v1/")
     session_monkeypatch.setenv("DATABASE_URL", db_async_uri)
     session_monkeypatch.setenv("DSENSEI_BASE_URL", "localhost:5001")
     session_monkeypatch.setenv("AUTH0_API_AUDIENCE", "https://some_auth0_audience")

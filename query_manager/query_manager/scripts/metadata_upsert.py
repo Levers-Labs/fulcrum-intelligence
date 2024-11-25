@@ -8,6 +8,7 @@ from sqlalchemy.future import select
 from sqlalchemy.orm import selectinload
 
 from commons.utilities.context import reset_context, set_tenant_id
+from commons.utilities.tenant_utils import validate_tenant
 from query_manager.config import get_settings
 from query_manager.core.models import Dimension, Metric
 from query_manager.db.config import get_async_session
@@ -112,10 +113,14 @@ async def main(tenant_id: int) -> None:
     Args:
         tenant_id (int): The tenant identifier.
     """
-    settings = get_settings()
     # Set tenant id context in the db session
     logger.info("Setting tenant context, Tenant ID: %s", tenant_id)
     set_tenant_id(tenant_id)
+
+    settings = get_settings()
+    # Validate the tenant ID
+    logger.info("Validating Tenant ID: %s", tenant_id)
+    await validate_tenant(settings, tenant_id)
 
     dimensions_file_path = settings.PATHS.BASE_DIR / "data/dimensions.json"
     metrics_file_path = settings.PATHS.BASE_DIR / "data/metrics.json"

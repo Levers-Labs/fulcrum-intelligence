@@ -1,0 +1,35 @@
+name: Deploy Airflow DAG to S3
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'fulcrum_airflow/dags/**'
+  workflow_dispatch:
+env:
+  S3_BUCKET: "fulcrum-airflow"
+  DAG_FILE: "fulcrum_airflow/dags/story_builder_dags.py"
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-region: ${{ secrets.AWS_REGION }}
+          role-to-assume: ${{ secrets.DEV_DEPLOYMENT_ROLE }}
+          role-session-name: OIDCSession
+
+      - name: Upload DAG to S3
+        run: |
+          aws s3 cp ${{ env.DAG_FILE }} s3://${{ env.S3_BUCKET }}/airflow/dag/
