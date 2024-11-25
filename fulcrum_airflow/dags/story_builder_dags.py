@@ -2,6 +2,7 @@ import logging
 import os
 from collections import defaultdict
 from datetime import datetime
+from enum import Enum
 from typing import Any
 
 import requests
@@ -68,6 +69,16 @@ STORY_GROUP_META = {
 }
 
 
+class Granularity(str, Enum):
+    """
+    Defines the genre of the story
+    """
+
+    DAY = "day"
+    WEEK = "week"
+    MONTH = "month"
+
+
 def fetch_auth_token():
     url = f"{AUTH0_ISSUER.rstrip('/')}/oauth/token"
     headers = {"Content-Type": "application/json"}
@@ -83,7 +94,6 @@ def fetch_auth_token():
 
 
 def fetch_all_metrics(auth_header: dict[str, str]) -> list[str]:
-
     response = requests.get(f"{QUERY_MANAGER_SERVER_HOST.strip('/')}/metrics", headers=auth_header, timeout=30)
     response.raise_for_status()
     metrics_data = response.json().get("results", [])
@@ -114,11 +124,11 @@ def filter_grains(grains: list[str], today: datetime) -> list[str]:
         grain
         for grain in grains
         # Include 'week' grain if today is Monday (weekday() == 0)
-        if (grain == "week" and today.weekday() == 0)
+        if (grain == Granularity.WEEK.value and today.weekday() == 0)
         # Include 'month' grain if today is the first day of the month
-        or (grain == "month" and today.day == 1)
+        or (grain == Granularity.MONTH.value and today.day == 1)
         # Always include 'day' grain
-        or (grain == "day")
+        or (grain == Granularity.DAY.value)
     ]
 
 
