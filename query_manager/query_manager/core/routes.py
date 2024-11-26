@@ -296,7 +296,7 @@ async def verify_cube_connection(config: CubeConnectionConfig):
         cube_client = CubeClient(
             base_url=config.cube_api_url,
             auth_type=config.cube_auth_type,  # type: ignore
-            auth_options=auth_options,
+            auth_options=auth_options,  # type: ignore
         )
 
         # Attempt to load a simple query or check connection to verify the credentials
