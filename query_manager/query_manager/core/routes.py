@@ -238,6 +238,8 @@ async def get_metric_values(
         res = await client.get_metric_values(metric_id, start_date, end_date, grain=grain, dimensions=dimensions)
     except NoSuchKeyError as e:
         raise MetricNotFoundError(metric_id) from e
+    except MetricNotFoundError as MetricErr:
+        raise MetricNotFoundError(metric_id) from MetricErr
 
     if output_format == OutputFormat.PARQUET:
         parquet_url = await parquet_service.convert_and_upload(res, metric_id, request_id, folder="values")
