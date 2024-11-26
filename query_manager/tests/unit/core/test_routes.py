@@ -282,14 +282,23 @@ async def test_connect_cube(async_client: AsyncClient, mocker):
     mock_load_query_data = AsyncMock(return_value={"data": []})
     mocker.patch.object(CubeClient, "load_query_data", mock_load_query_data)
 
+    # Prepare the CubeConnectionConfig data
+    config_data = {
+        "cube_api_url": "http://localhost:4000/cubejs-api/v1",
+        "cube_auth_type": "SECRET_KEY",
+        "cube_auth_token": None,
+        "cube_auth_secret_key": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpYXQiOjE3Mjg1NzAzMzh9.qvRWKaXmRXrhCY5c"
+        "-K1NlodDN95mRv_utQAr99Pcr8c",
+    }
+
     # Act
     response = await async_client.post(
-        "/v1/cube/connect?cube_api_url=http://localhost:4000/cubejs-api/v1&auth_type=SECRET_KEY&key"
-        "=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpYXQiOjE3Mjg1NzAzMzh9.qvRWKaXmRXrhCY5c-K1NlodDN95mRv_utQAr99Pcr8c"
+        "/v1/connection/cube/verify",  # Updated to the correct endpoint
+        json=config_data,  # Send the config data as JSON
     )
 
     # Assert
-    assert response.status_code == 200
+    assert response.status_code == 200  # Expecting a 200 status code for success
     assert response.json() == {"message": "Connection successful"}
     mock_load_query_data.assert_awaited_once_with({"dimensions": ["metric_targets.grain"]})
 
@@ -300,11 +309,20 @@ async def test_connect_cube_invalid_credentials(async_client: AsyncClient, mocke
     mock_load_query_data = AsyncMock(side_effect=Exception("Invalid credentials"))
     mocker.patch.object(CubeClient, "load_query_data", mock_load_query_data)
 
+    # Prepare the CubeConnectionConfig data with invalid credentials
+    config_data = {
+        "cube_api_url": "https://your-cube-api-url",
+        "cube_auth_type": "SECRET_KEY",
+        "cube_auth_token": None,
+        "cube_auth_secret_key": "invalid_secret_key",
+    }
+
     # Act
     response = await async_client.post(
-        "/v1/cube/connect?cube_api_url=https://your-cube-api-url&auth_type=SECRET_KEY&key=invalid_secret_key"
+        "/v1/connection/cube/verify",  # Updated to the correct endpoint
+        json=config_data,  # Send the config data as JSON
     )
 
     # Assert
-    assert response.status_code == 401
+    assert response.status_code == 400  # Expecting a 400 status code for invalid credentials
     assert response.json()["detail"] == "Invalid credentials"

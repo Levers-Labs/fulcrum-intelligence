@@ -17,7 +17,7 @@ from commons.auth.scopes import (
     USER_WRITE,
 )
 from commons.db.crud import NotFoundError
-from commons.models.tenant import CubeConnectionConfig, TenantConfig
+from commons.models.tenant import TenantConfig
 from commons.utilities.context import get_tenant_id, set_tenant_id
 from commons.utilities.pagination import PaginationParams
 from insights_backend.core.crud import TenantCRUD
@@ -185,23 +185,16 @@ async def get_tenant_config(tenant_id: Annotated[int, Depends(get_tenant_id)], t
 )
 async def update_tenant_config(
     tenant_id: Annotated[int, Depends(get_tenant_id)],  # Retrieve tenant_id from the request context
-    cube_connection_config: CubeConnectionConfig,  # The new configuration for the tenant's cube connection
+    config: TenantConfig,  # The new configuration for the tenant's cube connection
     tenant_crud_client: TenantsCRUDDep,  # Dependency for the tenant CRUD operations
-):
+) -> TenantConfig | None:
     """
     Update the configuration for a tenant's cube connection.
     """
     try:
         # Attempt to update the tenant configuration
-        config = await tenant_crud_client.update_tenant_config(tenant_id, cube_connection_config)
+        updated_config = await tenant_crud_client.update_tenant_config(tenant_id, config)
+        return updated_config
     except NotFoundError as e:
         # Raise an HTTPException if the tenant is not found
         raise HTTPException(status_code=404, detail="Tenant not found") from e
-
-    # Check if the configuration update was successful
-    if not config:
-        # Raise an HTTPException if the tenant configuration is not found
-        raise HTTPException(status_code=404, detail="Tenant configuration not found")
-
-    # Return a success message if the configuration update is successful
-    return {"message": "Configuration Updated Successfully"}

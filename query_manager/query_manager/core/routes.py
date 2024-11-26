@@ -15,6 +15,7 @@ from sqlalchemy.exc import IntegrityError
 
 from commons.auth.scopes import QUERY_MANAGER_ALL
 from commons.models.enums import Granularity
+from commons.models.tenant import CubeConnectionConfig
 from commons.utilities.pagination import Page, PaginationParams
 from query_manager.core.dependencies import ParquetServiceDep, QueryClientDep, oauth2_auth
 from query_manager.core.enums import OutputFormat
@@ -276,26 +277,25 @@ async def get_metric_targets(
 
 
 @router.post(
-    "/cube/connect",
+    "/connection/cube/verify",
     tags=["cube"],
     dependencies=[Security(oauth2_auth().verify, scopes=[])],
 )
-async def connect_cube(
-    cube_api_url: str,
-    auth_type: CubeJWTAuthType,
-    key: str,
-):
+async def verify_cube_connection(config: CubeConnectionConfig):
     """
-    This endpoint is used to test the connection to the Cube API using the provided client ID and secret key.
+    This endpoint is used to verify the connection to the Cube API using the provided client ID and secret key.
     """
     try:
-        # Determine the authentication options based on the provided auth_type
-        auth_options = {"secret_key": key} if auth_type == CubeJWTAuthType.SECRET_KEY else {"token": key}
+        auth_options = (
+            {"secret_key": config.cube_auth_secret_key}
+            if config.cube_auth_type == CubeJWTAuthType.SECRET_KEY
+            else {"token": config.cube_auth_token}
+        )
 
         # Create a new CubeClient instance with the provided API URL and authentication options
         cube_client = CubeClient(
-            base_url=cube_api_url,
-            auth_type=auth_type,
+            base_url=config.cube_api_url,
+            auth_type=config.cube_auth_type,  # type: ignore
             auth_options=auth_options,
         )
 
@@ -308,4 +308,4 @@ async def connect_cube(
     except Exception as e:
         # If an exception is raised during the connection attempt, log the error and raise an HTTPException
         logger.error("Connection failed: %s", str(e))
-        raise HTTPException(status_code=401, detail="Invalid credentials") from e
+        raise HTTPException(status_code=400, detail="Invalid credentials") from e
