@@ -17,11 +17,11 @@ logger = logging.getLogger(__name__)
 def get_config(key: str, default: str | None = None) -> str:
     """
     Fetches configuration settings based on the environment.
-    
+
     Args:
     - key (str): The key for the configuration setting.
     - default (str | None): The default value to return if the key is not found.
-    
+
     Returns:
     - str: The configuration value for the given key.
     """
@@ -82,7 +82,7 @@ STORY_GROUP_META = {
 def fetch_auth_token():
     """
     Fetches an authentication token from Auth0.
-    
+
     Returns:
     - str: The fetched authentication token.
     """
@@ -94,23 +94,19 @@ def fetch_auth_token():
         "client_secret": AUTH0_CLIENT_SECRET,
         "grant_type": "client_credentials",
     }
-    try:
-        response = requests.post(url, headers=headers, json=data, timeout=30)
-        response.raise_for_status()
-        response_data = response.json()
-        return response_data["access_token"]
-    except Exception as e:
-        logger.error(f"Failed to fetch auth token: {str(e)}")
-        return None
+    response = requests.post(url, headers=headers, json=data, timeout=30)
+    response.raise_for_status()
+    response_data = response.json()
+    return response_data["access_token"]
 
 
 def fetch_all_metrics(auth_header: dict[str, str]) -> list[str]:
     """
     Fetches all metric IDs from the Query Manager.
-    
+
     Args:
     - auth_header (dict[str, str]): The authentication header for the request.
-    
+
     Returns:
     - list[str]: A list of metric IDs.
     """
@@ -124,27 +120,24 @@ def fetch_all_metrics(auth_header: dict[str, str]) -> list[str]:
 def fetch_group_meta(group: str, auth_header: dict[str, str]) -> dict[str, Any]:
     """
     Fetches metadata for a given story group.
-    
+
     Args:
     - group (str): The name of the story group.
     - auth_header (dict[str, str]): The authentication header for the request.
-    
+
     Returns:
     - dict[str, Any]: The metadata for the story group.
     """
     url = f"{STORY_MANAGER_SERVER_HOST.strip('/')}/stories/groups/{group}"
-    try:
-        response = requests.get(url, headers=auth_header, timeout=20)
-        response.raise_for_status()
-        return response.json()
-    except Exception as e:
-        logger.error(f"Failed to fetch group meta for group {group}: {str(e)}")
-        return {}
+    response = requests.get(url, headers=auth_header, timeout=20)
+    response.raise_for_status()
+    return response.json()
+
 
 def create_story_group_dag(group: str, meta: dict[str, Any]) -> None:
     """
     Creates a DAG for a given story group.
-    
+
     Args:
     - group (str): The name of the story group.
     - meta (dict[str, Any]): The metadata for the story group.
@@ -157,7 +150,7 @@ def create_story_group_dag(group: str, meta: dict[str, Any]) -> None:
         def get_auth_header():
             """
             Fetches the authentication header.
-            
+
             Returns:
             - dict[str, str]: The authentication header.
             """
@@ -167,36 +160,32 @@ def create_story_group_dag(group: str, meta: dict[str, Any]) -> None:
         def fetch_tenants(auth_header) -> list[int]:
             """
             Fetches all tenant IDs from the Insights Backend.
-            
+
             Args:
             - auth_header (dict[str, str]): The authentication header for the request.
-            
+
             Returns:
             - list[int]: A list of tenant IDs.
             """
             logger.info("Fetching tenant IDs from Insights Backend")
             url = f"{INSIGHTS_BACKEND_SERVER_HOST.strip('/')}/tenants/all?limit=100"
 
-            try:
-                response = requests.get(url, headers=auth_header, timeout=30)
-                response.raise_for_status()
-                tenants_data = response.json()
-                tenant_ids = [tenant["id"] for tenant in tenants_data.get("results", [])]
-                logger.info("Successfully fetched %s tenant IDs", len(tenant_ids))
-                return tenant_ids
-            except Exception as e:
-                logger.error(f"Failed to fetch tenants: {str(e)}")
-                return []
+            response = requests.get(url, headers=auth_header, timeout=30)
+            response.raise_for_status()
+            tenants_data = response.json()
+            tenant_ids = [tenant["id"] for tenant in tenants_data.get("results", [])]
+            logger.info("Successfully fetched %s tenant IDs", len(tenant_ids))
+            return tenant_ids
 
         @task(task_id="fetch_metric_ids", multiple_outputs=True)
         def fetch_metric_ids(auth_header, tenants: list[int]) -> dict[str, list[str]]:
             """
             Fetches metric IDs for each tenant.
-            
+
             Args:
             - auth_header (dict[str, str]): The authentication header for the request.
             - tenants (list[int]): A list of tenant IDs.
-            
+
             Returns:
             - dict[str, list[str]]: A dictionary mapping tenant IDs to lists of metric IDs.
             """
@@ -207,15 +196,11 @@ def create_story_group_dag(group: str, meta: dict[str, Any]) -> None:
                 tenant_auth_header["X-Tenant-Id"] = str(tenant_id)
                 logger.info("Fetching metric IDs for tenant %s", tenant_id)
                 url = f"{QUERY_MANAGER_SERVER_HOST.strip('/')}/metrics?limit=1000"
-                try:
-                    response = requests.get(url, headers=tenant_auth_header, timeout=30)
-                    response.raise_for_status()
-                    metrics_data = response.json()
-                    results[str(tenant_id)] = [metric["metric_id"] for metric in metrics_data.get("results", [])]
-                    logger.info("Successfully fetched %s metric IDs for tenant %s", len(results[str(tenant_id)]),
-                                tenant_id)
-                except Exception as e:
-                    logger.error(f"Failed to fetch metric IDs for tenant {tenant_id}: {str(e)}")
+                response = requests.get(url, headers=tenant_auth_header, timeout=30)
+                response.raise_for_status()
+                metrics_data = response.json()
+                results[str(tenant_id)] = [metric["metric_id"] for metric in metrics_data.get("results", [])]
+                logger.info("Successfully fetched %s metric IDs for tenant %s", len(results[str(tenant_id)]), tenant_id)
             logger.info("Successfully fetched metric IDs for all tenants")
             return results
 
@@ -223,11 +208,11 @@ def create_story_group_dag(group: str, meta: dict[str, Any]) -> None:
         def fetch_group_meta_task(auth_header, tenants: list[int]) -> dict[str, list[str]]:
             """
             Fetches group metadata for each tenant.
-            
+
             Args:
             - auth_header (dict[str, str]): The authentication header for the request.
             - tenants (list[int]): A list of tenant IDs.
-            
+
             Returns:
             - dict[str, list[str]]: A dictionary mapping tenant IDs to lists of group metadata.
             """
@@ -238,29 +223,26 @@ def create_story_group_dag(group: str, meta: dict[str, Any]) -> None:
                 tenant_auth_header["X-Tenant-Id"] = str(tenant_id)
                 url = f"{STORY_MANAGER_SERVER_HOST.strip('/')}/stories/groups/{group}"
                 logger.info("Fetching group meta for tenant %s", tenant_id)
-                try:
-                    response = requests.get(url, headers=tenant_auth_header, timeout=20)
-                    response.raise_for_status()
-                    _meta = response.json()
-                    results[str(tenant_id)] = _meta.get("grains", [])
-                    logger.info("Successfully fetched group meta for tenant %s", tenant_id)
-                except Exception as e:
-                    logger.error(f"Failed to fetch group meta for tenant {tenant_id}: {str(e)}")
+                response = requests.get(url, headers=tenant_auth_header, timeout=20)
+                response.raise_for_status()
+                _meta = response.json()
+                results[str(tenant_id)] = _meta.get("grains", [])
+                logger.info("Successfully fetched group meta for tenant %s", tenant_id)
             logger.info("Successfully fetched group meta for all tenants")
             return results
 
         @task(task_id="prepare_story_builder_commands")
         def prepare_story_builder_commands(
-                _tenants: list[int], _metric_ids_map: dict[str, list[str]], _grains_map: dict[str, list[str]]
+            _tenants: list[int], _metric_ids_map: dict[str, list[str]], _grains_map: dict[str, list[str]]
         ) -> list[str]:
             """
             Prepares story builder commands for all tenants.
-            
+
             Args:
             - _tenants (list[int]): A list of tenant IDs.
             - _metric_ids_map (dict[str, list[str]]): A dictionary mapping tenant IDs to lists of metric IDs.
             - _grains_map (dict[str, list[str]]): A dictionary mapping tenant IDs to lists of group metadata.
-            
+
             Returns:
             - list[str]: A list of story builder commands.
             """
@@ -322,10 +304,10 @@ def create_story_group_dag(group: str, meta: dict[str, Any]) -> None:
             def prepare_ecs_overrides(commands: list[str]) -> list[dict]:
                 """
                 Prepares the ECS overrides based on the commands.
-                
+
                 Args:
                 - commands (list[str]): A list of story builder commands.
-                
+
                 Returns:
                 - list[dict]: A list of ECS overrides.
                 """
