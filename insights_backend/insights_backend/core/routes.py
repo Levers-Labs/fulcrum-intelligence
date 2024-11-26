@@ -193,7 +193,7 @@ async def update_tenant_config(
     """
     try:
         # Attempt to update the tenant configuration
-        updated_config = await tenant_crud_client.update_tenant_config(tenant_id, config)
+        updated_config = await tenant_crud_client.update_tenant_config(tenant_id, config)  # type: ignore
         return updated_config
     except NotFoundError as e:
         # Raise an HTTPException if the tenant is not found
