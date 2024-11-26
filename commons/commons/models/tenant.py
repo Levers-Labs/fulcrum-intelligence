@@ -25,9 +25,20 @@ class CubeConnectionConfig(BaseModel):
     cube_auth_secret_key: str | None = None
 
 
+class SlackConnectionConfig(BaseModel):
+    # Slack connection details
+    bot_token: str
+    bot_user_id: str
+    app_id: str
+    team: dict
+    authed_user: dict
+
+
 class TenantConfig(BaseSQLModel):
     # Cube connection details
     cube_connection_config: CubeConnectionConfig = Field(sa_type=JSONB, default_factory=dict)
+    # Slack connection details
+    slack_connection: SlackConnectionConfig = Field(sa_type=JSONB, default_factory=dict, readonly=True)
 
     @field_validator("cube_connection_config")
     @classmethod
