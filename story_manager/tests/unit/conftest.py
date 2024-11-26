@@ -115,10 +115,10 @@ def app(setup_env, override_get_async_session: Callable) -> FastAPI:
 def mock_jwt_payload():
     return {
         "sub": "PN0CtJASlMDm9TEivb3izsDnIf5dcFYA@clients",
-        "permissions": ["user:read", "admin:read", "tenant:read", "story:*"],
+        "permissions": ["user:read", "admin:read", "story:*"],
         "iat": datetime.now(),
         "exp": datetime.now() + timedelta(hours=1),
-        "scope": "user:write user:read admin:read tenant:read story:*",
+        "scope": "user:write user:read admin:read story:*",
         "tenant_id": 1,  # Include tenant_id if needed
         "external_id": "auth0_123",
     }

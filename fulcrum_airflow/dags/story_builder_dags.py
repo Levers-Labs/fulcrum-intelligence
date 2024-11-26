@@ -2,6 +2,7 @@ import logging
 import os
 from collections import defaultdict
 from datetime import datetime
+from enum import Enum
 from typing import Any
 
 import requests
@@ -68,6 +69,16 @@ STORY_GROUP_META = {
 }
 
 
+class Granularity(str, Enum):
+    """
+    Defines the genre of the story
+    """
+
+    DAY = "day"
+    WEEK = "week"
+    MONTH = "month"
+
+
 def fetch_auth_token():
     url = f"{AUTH0_ISSUER.rstrip('/')}/oauth/token"
     headers = {"Content-Type": "application/json"}
@@ -83,7 +94,6 @@ def fetch_auth_token():
 
 
 def fetch_all_metrics(auth_header: dict[str, str]) -> list[str]:
-
     response = requests.get(f"{QUERY_MANAGER_SERVER_HOST.strip('/')}/metrics", headers=auth_header, timeout=30)
     response.raise_for_status()
     metrics_data = response.json().get("results", [])
@@ -96,6 +106,30 @@ def fetch_group_meta(group: str, auth_header: dict[str, str]) -> dict[str, Any]:
     response = requests.get(url, headers=auth_header, timeout=20)
     response.raise_for_status()
     return response.json()
+
+
+def filter_grains(grains: list[str], today: datetime) -> list[str]:
+    """
+    Filter grains based on the current date.
+
+    Args:
+        grains (list[str]): List of grains to filter.
+        today (datetime): Current date.
+
+    Returns:
+        list[str]: Filtered list of grains.
+    """
+    # Filter grains based on the current date
+    return [
+        grain
+        for grain in grains
+        # Include 'week' grain if today is Monday (weekday() == 0)
+        if (grain == Granularity.WEEK.value and today.weekday() == 0)
+        # Include 'month' grain if today is the first day of the month
+        or (grain == Granularity.MONTH.value and today.day == 1)
+        # Always include 'day' grain
+        or (grain == Granularity.DAY.value)
+    ]
 
 
 def create_story_group_dag(group: str, meta: dict[str, Any]) -> None:
@@ -165,6 +199,8 @@ def create_story_group_dag(group: str, meta: dict[str, Any]) -> None:
             _tenants: list[int], _metric_ids_map: dict[str, list[str]], _grains_map: dict[str, list[str]]
         ) -> list[str]:
             logger.info("Preparing story builder commands for all tenants")
+            today = datetime.utcnow()
+
             commands = []
             for tenant_id in _tenants:
                 logger.info("Preparing story builder commands for tenant %s", tenant_id)
@@ -178,11 +214,14 @@ def create_story_group_dag(group: str, meta: dict[str, Any]) -> None:
                 # Prepare story builder commands
                 metrics = _metric_ids_map[tenant_id_str]
                 grains = _grains_map[tenant_id_str]
+
+                # Filter grains based on the current date
+                filtered_grains = filter_grains(grains, today)
                 commands.extend(
                     [
                         f"story generate {group} {metric_id} {tenant_id} {grain}"
                         for metric_id in metrics
-                        for grain in grains
+                        for grain in filtered_grains
                     ]
                 )
                 logger.info("Prepared %s story builder commands for tenant %s", len(commands), tenant_id)
