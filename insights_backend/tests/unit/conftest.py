@@ -111,10 +111,10 @@ def setup_env(session_monkeypatch, postgres):  # noqa
 def mock_jwt_payload():
     return {
         "sub": "PN0CtJASlMDm9TEivb3izsDnIf5dcFYA@clients",
-        "permissions": ["user:write", "user:read", "admin:read", "tenant:read"],
+        "permissions": ["user:write", "user:read", "admin:read"],
         "iat": datetime.now(),
         "exp": datetime.now() + timedelta(hours=1),
-        "scope": "user:write user:read admin:read tenant:read",
+        "scope": "user:write user:read admin:read",
         "tenant_id": 1,  # Include tenant_id if needed
         "external_id": "auth0_123",
     }

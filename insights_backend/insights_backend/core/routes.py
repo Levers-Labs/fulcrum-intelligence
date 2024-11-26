@@ -10,12 +10,7 @@ from fastapi import (
 from sqlalchemy.exc import IntegrityError
 from starlette import status
 
-from commons.auth.scopes import (
-    ADMIN_READ,
-    TENANT_READ,
-    USER_READ,
-    USER_WRITE,
-)
+from commons.auth.scopes import ADMIN_READ, USER_READ, USER_WRITE
 from commons.db.crud import NotFoundError
 from commons.models.tenant import TenantConfig
 from commons.utilities.context import get_tenant_id, set_tenant_id
@@ -162,18 +157,36 @@ async def list_tenants(
 @router.get(
     "/tenant/config",
     response_model=TenantConfig,
-    dependencies=[Security(oauth2_auth().verify, scopes=[TENANT_READ])],  # type: ignore
+    dependencies=[Security(oauth2_auth().verify, scopes=[ADMIN_READ])],  # type: ignore
 )
 async def get_tenant_config(tenant_id: Annotated[int, Depends(get_tenant_id)], tenant_crud_client: TenantsCRUDDep):
     """
     Retrieve the configuration for the current tenant.
     """
     try:
-        config = await tenant_crud_client.get_tenant_config(tenant_id)
+        config: TenantConfig = await tenant_crud_client.get_tenant_config(tenant_id)
+        return config
     except NotFoundError as e:
         raise HTTPException(status_code=404, detail="Tenant not found") from e
 
-    if not config:
-        raise HTTPException(status_code=404, detail="Tenant configuration not found")
 
-    return config
+@router.put(
+    "/tenant/config",
+    response_model=TenantConfig,
+    dependencies=[Security(oauth2_auth().verify, scopes=[])],  # type: ignore
+)
+async def update_tenant_config(
+    tenant_id: Annotated[int, Depends(get_tenant_id)],  # Retrieve tenant_id from the request context
+    config: TenantConfig,  # The new configuration for the tenant's cube connection
+    tenant_crud_client: TenantsCRUDDep,  # Dependency for the tenant CRUD operations
+):
+    """
+    Update the configuration for a tenant's cube connection.
+    """
+    try:
+        # Attempt to update the tenant configuration
+        updated_config = await tenant_crud_client.update_tenant_config(tenant_id, config)  # type: ignore
+        return updated_config
+    except NotFoundError as e:
+        # Raise an HTTPException if the tenant is not found
+        raise HTTPException(status_code=404, detail="Tenant not found") from e
