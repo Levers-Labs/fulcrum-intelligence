@@ -169,31 +169,28 @@ async def get_tenant_config(tenant_id: Annotated[int, Depends(get_tenant_id)], t
     Retrieve the configuration for the current tenant.
     """
     try:
-        config = await tenant_crud_client.get_tenant_config(tenant_id)
+        config: TenantConfig = await tenant_crud_client.get_tenant_config(tenant_id)
+        return config
     except NotFoundError as e:
         raise HTTPException(status_code=404, detail="Tenant not found") from e
-
-    if not config:
-        raise HTTPException(status_code=404, detail="Tenant configuration not found")
-
-    return config
 
 
 @router.put(
     "/tenant/config",
+    response_model=TenantConfig,
     dependencies=[Security(oauth2_auth().verify, scopes=[])],  # type: ignore
 )
 async def update_tenant_config(
     tenant_id: Annotated[int, Depends(get_tenant_id)],  # Retrieve tenant_id from the request context
     config: TenantConfig,  # The new configuration for the tenant's cube connection
     tenant_crud_client: TenantsCRUDDep,  # Dependency for the tenant CRUD operations
-) -> TenantConfig | None:
+):
     """
     Update the configuration for a tenant's cube connection.
     """
     try:
         # Attempt to update the tenant configuration
-        updated_config = await tenant_crud_client.update_tenant_config(tenant_id, config)  # type: ignore
+        updated_config: TenantConfig = await tenant_crud_client.update_tenant_config(tenant_id, config)
         return updated_config
     except NotFoundError as e:
         # Raise an HTTPException if the tenant is not found

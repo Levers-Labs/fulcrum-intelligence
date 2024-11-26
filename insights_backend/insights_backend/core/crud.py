@@ -39,7 +39,7 @@ class TenantCRUD(CRUDBase[Tenant, Tenant, Tenant, None]):  # type: ignore
     CRUD for Tenant Model.
     """
 
-    async def get_tenant_config(self, tenant_id: int) -> TenantConfig | None:
+    async def get_tenant_config(self, tenant_id: int) -> TenantConfig:
         """
         Method to retrieve the config for a tenant.
         """
@@ -59,7 +59,7 @@ class TenantCRUD(CRUDBase[Tenant, Tenant, Tenant, None]):  # type: ignore
         result = await self.session.execute(statement=statement)
         return result.scalar_one_or_none()
 
-    async def update_tenant_config(self, tenant_id: int, new_config: TenantConfig) -> TenantConfig | None:
+    async def update_tenant_config(self, tenant_id: int, new_config: TenantConfig) -> TenantConfig:
         """
         Updates the configuration for a tenant based on the provided new configuration. This method first converts the
         new configuration into a dictionary,
