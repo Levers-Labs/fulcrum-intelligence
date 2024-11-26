@@ -15,6 +15,7 @@ from sqlalchemy.exc import IntegrityError
 
 from commons.auth.scopes import QUERY_MANAGER_ALL
 from commons.models.enums import Granularity
+from commons.models.tenant import CubeConnectionConfig
 from commons.utilities.pagination import Page, PaginationParams
 from query_manager.core.dependencies import ParquetServiceDep, QueryClientDep, oauth2_auth
 from query_manager.core.enums import OutputFormat
@@ -32,6 +33,7 @@ from query_manager.core.schemas import (
     TargetListResponse,
 )
 from query_manager.exceptions import DimensionNotFoundError, MetricNotFoundError
+from query_manager.services.cube import CubeClient, CubeJWTAuthType
 from query_manager.services.s3 import NoSuchKeyError
 
 logger = logging.getLogger(__name__)
@@ -272,3 +274,38 @@ async def get_metric_targets(
         return {"url": parquet_url}
 
     return {"results": res}
+
+
+@router.post(
+    "/connection/cube/verify",
+    tags=["cube"],
+    dependencies=[Security(oauth2_auth().verify, scopes=[])],
+)
+async def verify_cube_connection(config: CubeConnectionConfig):
+    """
+    This endpoint is used to verify the connection to the Cube API using the provided client ID and secret key.
+    """
+    try:
+        auth_options = (
+            {"secret_key": config.cube_auth_secret_key}
+            if config.cube_auth_type == CubeJWTAuthType.SECRET_KEY
+            else {"token": config.cube_auth_token}
+        )
+
+        # Create a new CubeClient instance with the provided API URL and authentication options
+        cube_client = CubeClient(
+            base_url=config.cube_api_url,
+            auth_type=config.cube_auth_type,  # type: ignore
+            auth_options=auth_options,  # type: ignore
+        )
+
+        # Attempt to load a simple query or check connection to verify the credentials
+        await cube_client.load_query_data({"dimensions": ["metric_targets.grain"]})
+
+        # If the connection is successful, return a message indicating the successful connection
+        return {"message": "Connection successful"}
+
+    except Exception as e:
+        # If an exception is raised during the connection attempt, log the error and raise an HTTPException
+        logger.error("Connection failed: %s", str(e))
+        raise HTTPException(status_code=400, detail="Invalid credentials") from e
