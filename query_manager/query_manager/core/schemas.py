@@ -128,7 +128,9 @@ class MetricCreate(MetricBase):
 
         for field in ["influences", "components", "inputs"]:
             if field in validated_data and validated_data[field]:
-                related_metrics = await db.execute(select(Metric).where(Metric.metric_id.in_(validated_data[field])))  # type: ignore
+                related_metrics = await db.execute(
+                    select(Metric).where(Metric.metric_id.in_(validated_data[field]))  # type: ignore
+                )
                 setattr(metric, field, related_metrics.scalars().all())
 
         db.add(metric)
@@ -175,7 +177,9 @@ class MetricUpdate(BaseModel):
 
         for field in ["influences", "influencers", "components", "inputs"]:
             if field in validated_data:
-                related_metrics = await db.execute(select(Metric).where(Metric.metric_id.in_(validated_data[field])))  # type: ignore
+                related_metrics = await db.execute(
+                    select(Metric).where(Metric.metric_id.in_(validated_data[field]))  # type: ignore
+                )
                 setattr(instance, field, related_metrics.scalars().all())
         db.add(instance)
         await db.commit()
@@ -230,3 +234,17 @@ class DimensionUpdate(DimensionBase):
         await db.commit()
         await db.refresh(instance)
         return instance
+
+
+class SlackChannelIds(BaseModel):
+    channel_ids: list[str]
+
+
+class SlackChannels(BaseModel):
+    channel_id: str
+    channel_name: str
+
+
+class SlackChannelsResponse(BaseModel):
+    slack_enabled: bool
+    slack_channels: list[SlackChannels]
