@@ -17,28 +17,46 @@ class Tenant(BaseSQLModel):
     external_id: str
 
 
-class CubeConnectionConfig(BaseModel):
-    # Cube connection details
+class CubeConnectionRead(BaseModel):
+    """
+    Cube connection details
+    """
+
     cube_api_url: str
     cube_auth_type: str
+
+
+class CubeConnectionConfig(CubeConnectionRead):
+    """
+    Cube connection details with secret key or token
+    """
+
     cube_auth_token: str | None = None
     cube_auth_secret_key: str | None = None
 
 
-class SlackConnectionConfig(BaseModel):
-    # Slack connection details
-    bot_token: str
+class SlackConnectionRead(BaseModel):
+    """
+    Slack connection details
+    """
+
     bot_user_id: str
     app_id: str
     team: dict
     authed_user: dict
 
 
-class TenantConfig(BaseSQLModel):
+class SlackConnectionConfig(SlackConnectionRead):
+    """
+    Slack connection details with token
+    """
+
+    bot_token: str
+
+
+class TenantConfigUpdate(BaseSQLModel):
     # Cube connection details
     cube_connection_config: CubeConnectionConfig = Field(sa_type=JSONB, default_factory=dict)
-    # Slack connection details
-    slack_connection: SlackConnectionConfig = Field(sa_type=JSONB, default_factory=dict, readonly=True)
 
     @field_validator("cube_connection_config")
     @classmethod
@@ -50,3 +68,17 @@ class TenantConfig(BaseSQLModel):
             if not value.cube_auth_secret_key:
                 raise ValueError("cube_auth_secret_key is required when auth_type is SECRET_KEY")
         return value
+
+
+class TenantConfig(TenantConfigUpdate):
+    # Slack connection details
+    slack_connection: SlackConnectionConfig | None = Field(sa_type=JSONB, default_factory=dict, nullable=True)
+
+
+class TenantConfigRead(BaseModel):
+    """
+    Tenant config details
+    """
+
+    cube_connection_config: CubeConnectionRead
+    slack_connection: SlackConnectionRead | None = None

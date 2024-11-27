@@ -10,13 +10,29 @@ from fastapi import (
 from sqlalchemy.exc import IntegrityError
 from starlette import status
 
-from commons.auth.scopes import ADMIN_READ, USER_READ, USER_WRITE
+from commons.auth.scopes import (
+    ADMIN_READ,
+    ADMIN_WRITE,
+    USER_READ,
+    USER_WRITE,
+)
 from commons.db.crud import NotFoundError
-from commons.models.tenant import TenantConfig
+from commons.models.tenant import (
+    SlackConnectionConfig,
+    TenantConfig,
+    TenantConfigRead,
+    TenantConfigUpdate,
+)
 from commons.utilities.context import get_tenant_id, set_tenant_id
 from commons.utilities.pagination import PaginationParams
 from insights_backend.core.crud import TenantCRUD
-from insights_backend.core.dependencies import TenantsCRUDDep, UsersCRUDDep, oauth2_auth
+from insights_backend.core.dependencies import (
+    SlackClientDep,
+    SlackOAuthServiceDep,
+    TenantsCRUDDep,
+    UsersCRUDDep,
+    oauth2_auth,
+)
 from insights_backend.core.models import (
     TenantList,
     TenantRead,
@@ -25,9 +41,11 @@ from insights_backend.core.models import (
     UserList,
 )
 from insights_backend.core.models.users import UserRead, UserUpdate
+from insights_backend.core.schemas import SlackChannelResponse
 
 user_router = APIRouter(prefix="/users", tags=["users"])
 router = APIRouter(tags=["tenants"])
+slack_router = APIRouter(prefix="/slack", tags=["slack"])
 logger = logging.getLogger(__name__)
 
 
@@ -156,7 +174,7 @@ async def list_tenants(
 
 @router.get(
     "/tenant/config",
-    response_model=TenantConfig,
+    response_model=TenantConfigRead,
     dependencies=[Security(oauth2_auth().verify, scopes=[ADMIN_READ])],  # type: ignore
 )
 async def get_tenant_config(tenant_id: Annotated[int, Depends(get_tenant_id)], tenant_crud_client: TenantsCRUDDep):
@@ -172,12 +190,12 @@ async def get_tenant_config(tenant_id: Annotated[int, Depends(get_tenant_id)], t
 
 @router.put(
     "/tenant/config",
-    response_model=TenantConfig,
+    response_model=TenantConfigRead,
     dependencies=[Security(oauth2_auth().verify, scopes=[])],  # type: ignore
 )
 async def update_tenant_config(
     tenant_id: Annotated[int, Depends(get_tenant_id)],  # Retrieve tenant_id from the request context
-    config: TenantConfig,  # The new configuration for the tenant's cube connection
+    config: TenantConfigUpdate,  # The new configuration for the tenant's cube connection
     tenant_crud_client: TenantsCRUDDep,  # Dependency for the tenant CRUD operations
 ):
     """
@@ -190,3 +208,82 @@ async def update_tenant_config(
     except NotFoundError as e:
         # Raise an HTTPException if the tenant is not found
         raise HTTPException(status_code=404, detail="Tenant not found") from e
+
+
+# Slack OAuth Routes
+@slack_router.post(
+    "/oauth/authorize",
+    response_model=dict[str, str],
+    dependencies=[Security(oauth2_auth().verify, scopes=[ADMIN_WRITE])],  # type: ignore
+)
+async def generate_authorize_url(service: SlackOAuthServiceDep):
+    """Generate Slack OAuth URL for authorization."""
+    # todo: need to store tenant_id in the state for the callback context to retrieve it
+    # Generate OAuth URL
+    auth_url = service.generate_oauth_url()
+    logger.info("Slack OAuth URL: %s", auth_url)
+    return {"authorization_url": auth_url}
+
+
+@slack_router.post(
+    "/oauth/callback",
+    response_model=TenantConfigRead,
+    dependencies=[Security(oauth2_auth().verify, scopes=[ADMIN_WRITE])],  # type: ignore
+)
+async def oauth_callback(
+    code: str,
+    service: SlackOAuthServiceDep,
+    tenant_crud: TenantsCRUDDep,
+    tenant_id: Annotated[int, Depends(get_tenant_id)],
+):
+    """Handle Slack OAuth callback."""
+
+    # Authorize OAuth code
+    slack_config = await service.authorize_oauth_code(code)
+
+    # Update tenant config with Slack connection details
+    tenant_config = await tenant_crud.update_slack_connection(tenant_id, slack_config)
+
+    return tenant_config
+
+
+@slack_router.post(
+    "/disconnect",
+    response_model=TenantConfigRead,
+    dependencies=[Security(oauth2_auth().verify, scopes=[ADMIN_WRITE])],  # type: ignore
+)
+async def disconnect_slack(
+    service: SlackOAuthServiceDep,
+    tenant_crud: TenantsCRUDDep,
+    tenant_id: Annotated[int, Depends(get_tenant_id)],
+):
+    """
+    Disconnect Slack integration for a tenant by clearing the Slack connection config.
+    """
+    tenant_config = await tenant_crud.get_tenant_config(tenant_id)
+    # check if tenant config has slack connection details
+    if not tenant_config.slack_connection:
+        raise HTTPException(status_code=400, detail="Slack connection details not found")
+    # call revoke token endpoint
+    slack_connection = SlackConnectionConfig.parse_obj(tenant_config.slack_connection)
+    await service.revoke_oauth_token(slack_connection.bot_token)
+    # clear the slack connection details
+    tenant_config = await tenant_crud.revoke_slack_connection(tenant_config)
+    return tenant_config
+
+
+@slack_router.get(
+    "/channels",
+    response_model=SlackChannelResponse,
+    dependencies=[Security(oauth2_auth().verify, scopes=[ADMIN_READ])],  # type: ignore
+)
+async def list_channels(
+    slack_client: SlackClientDep,
+    name: str | None = None,
+    cursor: str | None = None,
+    limit: int = 100,
+):
+    """
+    List Slack channels with optional name filtering and pagination support.
+    """
+    return await slack_client.list_channels(cursor=cursor, limit=limit, name=name)

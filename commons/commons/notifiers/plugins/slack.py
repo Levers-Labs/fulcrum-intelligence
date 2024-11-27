@@ -2,8 +2,8 @@ import json
 from typing import Any
 
 from jinja2 import Template
-from slack_sdk import WebClient
 
+from commons.clients.slack import SlackClient
 from commons.notifiers import BaseNotifier
 from commons.notifiers.constants import NotificationChannel
 
@@ -25,9 +25,11 @@ class SlackNotifier(BaseNotifier):
             ValueError: If the webhook_url is not provided in the configuration.
 
         """
-        slack_token = config.get("token")
+        slack_token = config.get("bot_token")
+        if not slack_token:
+            raise ValueError("Slack bot token not provided in the configuration.")
         # Initialize Slack client
-        client = WebClient(token=slack_token)
+        client = SlackClient(token=slack_token)
 
         return client
 
@@ -38,6 +40,7 @@ class SlackNotifier(BaseNotifier):
         Args:
             client (Any): The Slack client session.
             rendered_template (dict): The rendered notification template.
+            channel_config (Dict[str, Any]): The configuration for the Slack channel.
 
         Returns:
             dict: The response from the Slack client.
@@ -54,9 +57,8 @@ class SlackNotifier(BaseNotifier):
             kwargs["text"] = rendered_template["text"]
         if "attachments" in rendered_template:
             kwargs["attachments"] = rendered_template["attachments"]
-        response = client.chat_postMessage(channel=channel_id, blocks=rendered_template["blocks"])
-
-        return response["ok"]
+        # Send a message to Slack
+        return client.chat_postMessage(channel=channel_id, **kwargs)
 
     def render_template(self, template: Template, context: dict[str, Any]) -> str:
         """
