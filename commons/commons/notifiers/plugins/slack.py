@@ -49,6 +49,8 @@ class SlackNotifier(BaseNotifier):
 
         """
         channel_id = channel_config.get("channel_id")
+        if not channel_id:
+            raise ValueError("Channel ID is not provided in the configuration.")
         # Send a message
         kwargs = {}
         if "blocks" in rendered_template:
@@ -58,7 +60,7 @@ class SlackNotifier(BaseNotifier):
         if "attachments" in rendered_template:
             kwargs["attachments"] = rendered_template["attachments"]
         # Send a message to Slack
-        return client.chat_postMessage(channel=channel_id, **kwargs)
+        return client.post_message(channel_id=channel_id, **kwargs)
 
     def render_template(self, template: Template, context: dict[str, Any]) -> str:
         """
