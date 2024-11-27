@@ -54,6 +54,7 @@ def setup_env(session_monkeypatch, postgres):  # noqa
     session_monkeypatch.setenv("BACKEND_CORS_ORIGINS", '["http://localhost"]')
     session_monkeypatch.setenv("QUERY_MANAGER_SERVER_HOST", "http://localhost:8001/v1/")
     session_monkeypatch.setenv("ANALYSIS_MANAGER_SERVER_HOST", "http://localhost:8000/v1/")
+    session_monkeypatch.setenv("INSIGHTS_BACKEND_SERVER_HOST", "http://localhost:8004/v1/")
     session_monkeypatch.setenv("DATABASE_URL", db_async_uri)
     session_monkeypatch.setenv("DSENSEI_BASE_URL", "localhost:5001")
     session_monkeypatch.setenv("AUTH0_API_AUDIENCE", "https://some_auth0_audience")
@@ -114,10 +115,10 @@ def app(setup_env, override_get_async_session: Callable) -> FastAPI:
 def mock_jwt_payload():
     return {
         "sub": "PN0CtJASlMDm9TEivb3izsDnIf5dcFYA@clients",
-        "permissions": ["user:read", "admin:read", "tenant:read", "story:*"],
+        "permissions": ["user:read", "admin:read", "story:*"],
         "iat": datetime.now(),
         "exp": datetime.now() + timedelta(hours=1),
-        "scope": "user:write user:read admin:read tenant:read story:*",
+        "scope": "user:write user:read admin:read story:*",
         "tenant_id": 1,  # Include tenant_id if needed
         "external_id": "auth0_123",
     }

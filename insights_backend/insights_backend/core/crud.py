@@ -1,4 +1,4 @@
-from sqlalchemy import select
+from sqlalchemy import select, update
 
 from commons.db.crud import CRUDBase, NotFoundError
 from insights_backend.core.models import (
@@ -39,7 +39,7 @@ class TenantCRUD(CRUDBase[Tenant, Tenant, Tenant, None]):  # type: ignore
     CRUD for Tenant Model.
     """
 
-    async def get_tenant_config(self, tenant_id: int) -> TenantConfig | None:
+    async def get_tenant_config(self, tenant_id: int) -> TenantConfig:
         """
         Method to retrieve the config for a tenant.
         """
@@ -58,3 +58,32 @@ class TenantCRUD(CRUDBase[Tenant, Tenant, Tenant, None]):  # type: ignore
         statement = select(Tenant).filter_by(external_id=external_id)
         result = await self.session.execute(statement=statement)
         return result.scalar_one_or_none()
+
+    async def update_tenant_config(self, tenant_id: int, new_config: TenantConfig) -> TenantConfig:
+        """
+        Updates the configuration for a tenant based on the provided new configuration. This method first converts the
+        new configuration into a dictionary,
+        then prepares and executes an update statement to modify the tenant configuration in the database. Finally, it
+        retrieves and returns the updated tenant configuration.
+        """
+
+        # Convert the new configuration into a dictionary for easier manipulation
+        new_config_dict = new_config.dict()
+
+        # Prepare the update statement to modify the tenant configuration
+        update_stmt = (
+            update(TenantConfig)
+            .filter_by(tenant_id=tenant_id)
+            .values(
+                cube_connection_config=new_config_dict.get("cube_connection_config", {})
+            )  # Use the dictionary to update the cube_connection_config field
+        )
+
+        # Execute the update statement to modify the tenant configuration in the database
+        await self.session.execute(update_stmt)
+        await self.session.commit()
+
+        # Retrieve the updated tenant configuration
+        updated_config = await self.get_tenant_config(tenant_id)
+
+        return updated_config

@@ -352,7 +352,9 @@ async def test_process_control_route_insufficient_data(client, mocker, metric_va
     )
     assert response.status_code == 400
     # case 2
-    mocker.patch.object(QueryManagerClient, "get_metric_time_series_df", AsyncMock(return_value=pd.DataFrame()))
+    mocker.patch.object(
+        QueryManagerClient, "get_metric_time_series_df", AsyncMock(return_value=pd.DataFrame(metric_values_netmrr[:1]))
+    )
     response = client.post(
         "/v1/analyze/process-control",
         json={"metric_id": "NewMRR", "start_date": "2022-09-01", "end_date": "2022-12-30", "grain": "quarter"},

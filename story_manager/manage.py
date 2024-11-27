@@ -17,6 +17,7 @@ from alembic.util import CommandError
 from commons.models.enums import Granularity
 from commons.utilities.context import reset_context, set_tenant_id
 from commons.utilities.migration_utils import add_rls_policies
+from commons.utilities.tenant_utils import validate_tenant
 from story_manager.config import get_settings
 from story_manager.core.enums import StoryGroup
 from story_manager.db.config import MODEL_PATHS
@@ -114,7 +115,7 @@ def create_alembic_revision(
             version_path=version_path,
             rev_id=rev_id,
             depends_on=depends_on,
-            process_revision_directives=add_rls_policies,
+            process_revision_directives=add_rls_policies,  # type: ignore
         )
     except CommandError as exc:
         typer.secho(f"Error: {exc}", fg=typer.colors.RED, bold=True)
@@ -194,6 +195,11 @@ def run_builder_for_group(
         fg=typer.colors.GREEN,
     )
     set_tenant_id(tenant_id)
+
+    settings = get_settings()
+    typer.secho(f"Validating tenant ID: {tenant_id}", fg=typer.colors.GREEN)
+    asyncio.run(validate_tenant(settings, tenant_id))
+
     story_date = datetime.strptime(story_date, "%Y-%m-%d").date() if story_date else date.today()  # type: ignore
     asyncio.run(StoryManager.run_builder_for_story_group(group, metric_id, grain=grain, story_date=story_date))  # type: ignore
     # Cleanup tenant context
@@ -247,6 +253,17 @@ def upsert_story_config(tenant_id: int):
     import asyncio
 
     from story_manager.scripts.upsert_story_config import main as upsert_config
+
+    set_tenant_id(tenant_id)
+
+    # Retrieve settings for the application
+    settings = get_settings()
+    # Validate the tenant ID
+    typer.secho(
+        f"Validating Tenant ID: {tenant_id}",
+        fg=typer.colors.GREEN,
+    )
+    asyncio.run(validate_tenant(settings, tenant_id))
 
     typer.secho(f"Starting story config update for tenant {tenant_id}...", fg=typer.colors.BLUE)
     try:

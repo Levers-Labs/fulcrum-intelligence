@@ -15,7 +15,7 @@ pytestmark = pytest.mark.asyncio
 async def insert_tenant_fixture(db_session: AsyncSession, jwt_payload: dict):
     set_tenant_id(jwt_payload["tenant_id"])
     tenant = await db_session.execute(select(Tenant).filter_by(external_id=jwt_payload["external_id"]))
-    tenant = tenant.scalar_one_or_none()
+    tenant = tenant.scalar_one_or_none()  # type: ignore
     if not tenant:
         tenant = Tenant(
             external_id=jwt_payload["external_id"], name="test_tenant", identifier="test_tenant", domains=["test.com"]
@@ -139,3 +139,33 @@ async def test_get_tenant_config(insert_tenant, async_client: AsyncClient, db_se
     assert response.status_code == status.HTTP_200_OK
     data = response.json()
     assert "cube_connection_config" in data
+
+
+async def test_update_tenant_config(insert_tenant, async_client: AsyncClient, db_session: AsyncSession):
+    # Prepare the new configuration data
+    new_config_data = {
+        "cube_connection_config": {
+            "cube_api_url": "http://new-cube-api.com",
+            "cube_auth_type": "SECRET_KEY",
+            "cube_auth_secret_key": "new-secret-key",
+        }
+    }
+
+    # Act: Update the tenant configuration with tenant_id in the headers
+    response = await async_client.put(
+        "/v1/tenant/config", json=new_config_data, headers={"X-Tenant-Id": str(insert_tenant.id)}
+    )
+
+    # Assert: Check the response status code
+    assert response.status_code == status.HTTP_200_OK
+
+    # Assert: Check the response data
+    updated_config = response.json()
+    assert (
+        updated_config["cube_connection_config"]["cube_api_url"]
+        == new_config_data["cube_connection_config"]["cube_api_url"]
+    )
+    assert (
+        updated_config["cube_connection_config"]["cube_auth_secret_key"]
+        == new_config_data["cube_connection_config"]["cube_auth_secret_key"]
+    )
