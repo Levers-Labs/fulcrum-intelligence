@@ -19,6 +19,8 @@ SERVER_HOST=http://localhost:8002
 SECRET_KEY=qwtqwubYA0pN1GMmKsFKHMw_WCbboJvdTAgM9Fq
 BACKEND_CORS_ORIGINS=["http://localhost"]
 DATABASE_URL=postgres://postgres:password@localhost/fulcrum_db
+SLACK_CLIENT_ID=1234567890.1234567890
+SLACK_CLIENT_SECRET=sxfewewdsfsdfdfsdfs
 ```
 
 ### Initialize db
