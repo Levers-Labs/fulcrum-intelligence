@@ -48,6 +48,12 @@ class Settings(BaseSettings):
     AUTH0_CLIENT_ID: str
     AUTH0_CLIENT_SECRET: str
 
+    # Slack OAuth
+    SLACK_CLIENT_ID: str
+    SLACK_CLIENT_SECRET: str
+    SLACK_OAUTH_SCOPES: list[str] = ["chat:write", "chat:write.public", "channels:read", "channels:join"]
+    SLACK_OAUTH_REDIRECT_PATH: str = "slack/oauth/callback"
+
     @field_validator("BACKEND_CORS_ORIGINS", mode="before")
     @classmethod
     def assemble_cors_origins(cls, v: str | list[str]) -> list[str] | str:

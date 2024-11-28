@@ -5,6 +5,7 @@ from typing import (
     cast,
 )
 
+from fastapi import HTTPException
 from pydantic import BaseModel
 from sqlalchemy import Select, func, select
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -19,10 +20,10 @@ CreateSchemaType = TypeVar("CreateSchemaType", bound=BaseModel)
 UpdateSchemaType = TypeVar("UpdateSchemaType", bound=BaseModel)
 
 
-class NotFoundError(Exception):
+class NotFoundError(HTTPException):
     def __init__(self, id: Any) -> None:
         self.id = id
-        super().__init__(f"Object with id {id} not found")
+        super().__init__(404, f"Object with id {id} not found")
 
 
 class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType, FilterType]):

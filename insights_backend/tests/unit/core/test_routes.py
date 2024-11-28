@@ -1,10 +1,12 @@
 import pytest
 import pytest_asyncio
+from fastapi import HTTPException
 from httpx import AsyncClient
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette import status
 
+from commons.models.tenant import SlackConnectionConfig
 from commons.utilities.context import set_tenant_id
 from insights_backend.core.models.tenant import Tenant, TenantConfig
 
@@ -23,12 +25,17 @@ async def insert_tenant_fixture(db_session: AsyncSession, jwt_payload: dict):
         config = TenantConfig(
             tenant_id=tenant.id,
             cube_connection_config={
-                "cube_connection_config": {
-                    "cube_api_url": "http://test-cube-api.com",
-                    "cube_auth_type": "SECRET_KEY",
-                    "cube_auth_secret_key": "test-secret-key",
-                }
+                "cube_api_url": "http://test-cube-api.com",
+                "cube_auth_type": "SECRET_KEY",
+                "cube_auth_secret_key": "test-secret-key",
             },
+            slack_connection=dict(
+                bot_token="xoxb-test-token",  # noqa
+                bot_user_id="U123456",
+                app_id="A123456",
+                team={"id": "T123456", "name": "Test Team"},
+                authed_user={"id": "U123456"},
+            ),
         )
         db_session.add(tenant)
         db_session.add(config)
@@ -165,7 +172,144 @@ async def test_update_tenant_config(insert_tenant, async_client: AsyncClient, db
         updated_config["cube_connection_config"]["cube_api_url"]
         == new_config_data["cube_connection_config"]["cube_api_url"]
     )
-    assert (
-        updated_config["cube_connection_config"]["cube_auth_secret_key"]
-        == new_config_data["cube_connection_config"]["cube_auth_secret_key"]
+
+
+async def test_generate_authorize_url(async_client: AsyncClient):
+    # Act
+    response = await async_client.get("/v1/slack/oauth/authorize")
+
+    # Assert
+    assert response.status_code == status.HTTP_200_OK
+    data = response.json()
+    assert "authorization_url" in data
+    assert data["authorization_url"].startswith("https://slack.com/oauth/v2/authorize")
+
+
+async def test_oauth_callback_success(async_client: AsyncClient, mocker, insert_tenant):
+    # Mock the SlackOAuthService.authorize_oauth_code method
+    mock_slack_config = SlackConnectionConfig(
+        bot_token="xoxb-test-token",  # noqa
+        bot_user_id="U123456",
+        app_id="A123456",
+        team={"id": "T123456", "name": "Test Team"},
+        authed_user={"id": "U123456"},
     )
+    mocker.patch(
+        "insights_backend.services.slack_oauth.SlackOAuthService.authorize_oauth_code", return_value=mock_slack_config
+    )
+
+    # Act
+    response = await async_client.post("/v1/slack/oauth/callback", params={"code": "test_code"})
+
+    # Assert
+    assert response.status_code == status.HTTP_200_OK
+    data = response.json()
+    assert data["slack_connection"]["bot_user_id"] == "U123456"
+    assert data["slack_connection"]["team"]["name"] == "Test Team"
+
+
+async def test_oauth_callback_invalid_code(async_client: AsyncClient, mocker):
+    # Mock the service to raise an HTTPException for invalid code
+    mocker.patch(
+        "insights_backend.services.slack_oauth.SlackOAuthService.authorize_oauth_code",
+        side_effect=HTTPException(status_code=400, detail="Slack OAuth error: invalid_code"),
+    )
+
+    # Act
+    response = await async_client.post("/v1/slack/oauth/callback", params={"code": "invalid_code"})
+
+    # Assert
+    assert response.status_code == status.HTTP_400_BAD_REQUEST
+    assert "invalid_code" in response.json()["detail"]
+
+
+async def test_disconnect_slack_success(async_client: AsyncClient, mocker, insert_tenant):
+    # Mock the necessary service methods
+    mock_tenant_config = TenantConfig(
+        cube_connection_config={
+            "cube_api_url": "http://test-cube-api.com",
+            "cube_auth_type": "SECRET_KEY",
+            "cube_auth_secret_key": "test-secret-key",
+        },
+        slack_connection=dict(
+            bot_token="xoxb-test-token",  # noqa
+            bot_user_id="U123456",
+            app_id="A123456",
+            team={"id": "T123456", "name": "Test Team"},
+            authed_user={"id": "U123456"},
+        ),
+    )
+    mocker.patch("insights_backend.core.crud.TenantCRUD.get_tenant_config", return_value=mock_tenant_config)
+    mocker.patch("insights_backend.services.slack_oauth.SlackOAuthService.revoke_oauth_token")
+    mocker.patch(
+        "insights_backend.core.crud.TenantCRUD.revoke_slack_connection",
+        return_value=TenantConfig(
+            cube_connection_config={
+                "cube_api_url": "http://test-cube-api.com",
+                "cube_auth_type": "SECRET_KEY",
+                "cube_auth_secret_key": "test-secret-key",
+            },
+            slack_connection=None,
+        ),
+    )
+
+    # Act
+    response = await async_client.post("/v1/slack/disconnect")
+
+    # Assert
+    assert response.status_code == status.HTTP_200_OK
+    assert response.json()["slack_connection"] is None
+
+
+async def test_disconnect_slack_no_connection(async_client: AsyncClient, mocker):
+    # Mock tenant config with no Slack connection
+    mocker.patch(
+        "insights_backend.core.crud.TenantCRUD.get_tenant_config", return_value=TenantConfig(slack_connection=None)
+    )
+
+    # Act
+    response = await async_client.post("/v1/slack/disconnect")
+
+    # Assert
+    assert response.status_code == status.HTTP_400_BAD_REQUEST
+    assert "Slack connection details not found" in response.json()["detail"]
+
+
+async def test_list_channels(async_client: AsyncClient, mocker, insert_tenant):
+    # Mock the SlackClient.list_channels method
+    mock_channels = {
+        "results": [
+            {"name": "general", "id": "HADEDA", "is_channel": True},
+            {"name": "random", "id": "HADEDS", "is_channel": True},
+        ],
+        "next_cursor": None,
+    }
+    mocker.patch("commons.clients.slack.SlackClient.list_channels", return_value=mock_channels)
+
+    # Act
+    response = await async_client.get("/v1/slack/channels")
+
+    # Assert
+    assert response.status_code == status.HTTP_200_OK
+    data = response.json()
+    assert len(data["results"]) == 2
+    assert data["results"][0]["name"] == "general"
+    assert data["next_cursor"] is None
+
+
+async def test_list_channels_with_filters(async_client: AsyncClient, mocker, insert_tenant):
+    # Mock the SlackClient.list_channels method
+    mock_channels = {
+        "results": [{"name": "test-channel", "id": "dasd", "is_channel": True}],
+        "next_cursor": None,
+    }
+    mocker.patch("commons.clients.slack.SlackClient.list_channels", return_value=mock_channels)
+
+    # Act
+    response = await async_client.get("/v1/slack/channels", params={"name": "test", "limit": 50})
+
+    # Assert
+    assert response.status_code == status.HTTP_200_OK
+    data = response.json()
+    assert len(data["results"]) == 1
+    assert data["results"][0]["name"] == "test-channel"

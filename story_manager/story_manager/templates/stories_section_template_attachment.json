@@ -1,0 +1,83 @@
+{
+	"blocks": [
+		{
+			"type": "header",
+			"text": {
+				"type": "plain_text",
+				"text": "📊 Overview Stories • Weekly (4 Nov - 10 Nov)",
+				"emoji": true
+			}
+		},
+		{
+			"type": "section",
+			"text": {
+				"type": "mrkdwn",
+				"text": "*Trend Changes*"
+			}
+		},
+		{
+			"type": "section",
+			"text": {
+				"type": "mrkdwn",
+				"text": "[_*newInqs*_] *Beats 6 weeks target*\nAs of EOW, newInqs was at 5096, up 49.0% w/w and beating its target of 0 by 0%."
+			}
+		},
+		{
+			"type": "section",
+			"text": {
+				"type": "mrkdwn",
+				"text": "[_*CAC*_] *Significant spike detected*\nCustomer Acquisition Cost increased by 25% compared to last week, reaching $150 per customer."
+			}
+		},
+		{
+			"type": "section",
+			"text": {
+				"type": "mrkdwn",
+				"text": "[_*MRR*_] *Steady growth continues*\nMonthly Recurring Revenue grew by 5% this week, maintaining the upward trend observed over the past month."
+			}
+		},
+		{
+			"type": "divider"
+		},
+		{
+			"type": "section",
+			"text": {
+				"type": "mrkdwn",
+				"text": "*Goal vs Actual*"
+			}
+		},
+		{
+			"type": "section",
+			"text": {
+				"type": "mrkdwn",
+				"text": "[_*SalesSpend*_] *Monthly target missed*\nCurrent spend is 15% below projected target for this period, with significant variance in PPC channels."
+			}
+		},
+		{
+			"type": "section",
+			"text": {
+				"type": "mrkdwn",
+				"text": "[_*NewBizDeals*_] *Exceeding expectations*\nNew business deals are 20% above target this week, driven by successful outreach campaigns and product demos."
+			}
+		},
+		{
+			"type": "divider"
+		},
+		{
+			"type": "context",
+			"elements": [
+				{
+					"type": "mrkdwn",
+					"text": "Generated on Nov 10, 2023 at 11:59 PM UTC"
+				}
+			]
+		},
+		{
+			"type": "section",
+			"text": {
+				"type": "mrkdwn",
+				"text": "<https://app-dev.leverslabs.com?grain=week&section=OVERVIEW|View in app>"
+			}
+		}
+	]
+}

@@ -21,6 +21,8 @@ class Paths:
     ROOT_DIR: Path = Path(__file__).parent.parent
     # story_manager/story_manager
     BASE_DIR: Path = ROOT_DIR / "story_manager"
+    # story_manager/story_manager/templates
+    TEMPLATES_DIR: Path = BASE_DIR / "templates"
 
 
 class Settings(BaseSettings):
