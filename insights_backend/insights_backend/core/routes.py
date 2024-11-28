@@ -211,7 +211,7 @@ async def update_tenant_config(
 
 
 # Slack OAuth Routes
-@slack_router.post(
+@slack_router.get(
     "/oauth/authorize",
     response_model=dict[str, str],
     dependencies=[Security(oauth2_auth().verify, scopes=[ADMIN_WRITE])],  # type: ignore

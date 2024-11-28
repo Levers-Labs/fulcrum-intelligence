@@ -104,6 +104,9 @@ def setup_env(session_monkeypatch, postgres):  # noqa
     session_monkeypatch.setenv("AUTH0_ISSUER", "https://some_auth0_domain.com")
     session_monkeypatch.setenv("AUTH0_CLIENT_ID", "client_id")
     session_monkeypatch.setenv("AUTH0_CLIENT_SECRET", "client_secret")
+    session_monkeypatch.setenv("SLACK_CLIENT_ID", "slack_client_id")
+    session_monkeypatch.setenv("SLACK_CLIENT_SECRET", "slack_client_secret")
+    session_monkeypatch.setenv("SLACK_OAUTH_REDIRECT_PATH", "slack/oauth/callback")
     yield
 
 
@@ -111,10 +114,10 @@ def setup_env(session_monkeypatch, postgres):  # noqa
 def mock_jwt_payload():
     return {
         "sub": "PN0CtJASlMDm9TEivb3izsDnIf5dcFYA@clients",
-        "permissions": ["user:write", "user:read", "admin:read"],
+        "permissions": ["user:write", "user:read", "admin:read", "admin:write"],
         "iat": datetime.now(),
         "exp": datetime.now() + timedelta(hours=1),
-        "scope": "user:write user:read admin:read",
+        "scope": "user:write user:read admin:read admin:write",
         "tenant_id": 1,  # Include tenant_id if needed
         "external_id": "auth0_123",
     }
