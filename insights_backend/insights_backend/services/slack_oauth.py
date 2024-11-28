@@ -37,7 +37,12 @@ class SlackOAuthService:
                 # Send the request to Slack
                 response = await client.post(
                     SlackOAuthService.SLACK_ACCESS_TOKEN_URL,
-                    data={"code": code, "client_id": self.client_id, "client_secret": self.client_secret},
+                    data={
+                        "code": code,
+                        "client_id": self.client_id,
+                        "client_secret": self.client_secret,
+                        "redirect_uri": self.redirect_uri,
+                    },
                 )
                 response.raise_for_status()
                 # Parse the response
