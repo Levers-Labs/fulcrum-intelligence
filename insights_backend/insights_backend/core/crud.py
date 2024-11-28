@@ -1,6 +1,7 @@
 from sqlalchemy import select, update
 
 from commons.db.crud import CRUDBase, NotFoundError
+from commons.models.tenant import SlackConnectionConfig, TenantConfigUpdate
 from insights_backend.core.models import (
     Tenant,
     TenantConfig,
@@ -59,7 +60,7 @@ class TenantCRUD(CRUDBase[Tenant, Tenant, Tenant, None]):  # type: ignore
         result = await self.session.execute(statement=statement)
         return result.scalar_one_or_none()
 
-    async def update_tenant_config(self, tenant_id: int, new_config: TenantConfig) -> TenantConfig:
+    async def update_tenant_config(self, tenant_id: int, new_config: TenantConfigUpdate) -> TenantConfig:
         """
         Updates the configuration for a tenant based on the provided new configuration. This method first converts the
         new configuration into a dictionary,
@@ -68,7 +69,7 @@ class TenantCRUD(CRUDBase[Tenant, Tenant, Tenant, None]):  # type: ignore
         """
 
         # Convert the new configuration into a dictionary for easier manipulation
-        new_config_dict = new_config.dict()
+        new_config_dict = new_config.model_dump(mode="json")
 
         # Prepare the update statement to modify the tenant configuration
         update_stmt = (
@@ -87,3 +88,35 @@ class TenantCRUD(CRUDBase[Tenant, Tenant, Tenant, None]):  # type: ignore
         updated_config = await self.get_tenant_config(tenant_id)
 
         return updated_config
+
+    async def update_slack_connection(self, tenant_id: int, slack_config: SlackConnectionConfig) -> TenantConfig:
+        """
+        Updates the Slack connection details for a tenant.
+        Finds the tenant config,
+        updates the Slack connection details,
+        and saves the updated tenant config.
+        """
+        # Find the tenant config
+        tenant_config = await self.get_tenant_config(tenant_id)
+
+        # Update the tenant config with the new Slack connection details
+        tenant_config.slack_connection = slack_config.model_dump(mode="json")  # type: ignore
+
+        # Save the updated tenant config
+        self.session.add(tenant_config)
+        await self.session.commit()
+        await self.session.refresh(tenant_config)
+
+        return tenant_config
+
+    async def revoke_slack_connection(self, tenant_config: TenantConfig) -> TenantConfig:
+        """
+        Revokes the Slack connection for a tenant.
+        """
+        # clear the slack connection details
+        tenant_config.slack_connection = None
+        # save the updated tenant config
+        self.session.add(tenant_config)
+        await self.session.commit()
+        await self.session.refresh(tenant_config)
+        return tenant_config
