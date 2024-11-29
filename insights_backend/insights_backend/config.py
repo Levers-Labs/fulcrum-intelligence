@@ -52,7 +52,7 @@ class Settings(BaseSettings):
     SLACK_CLIENT_ID: str
     SLACK_CLIENT_SECRET: str
     SLACK_OAUTH_SCOPES: list[str] = ["chat:write", "chat:write.public", "channels:read", "channels:join"]
-    SLACK_OAUTH_REDIRECT_PATH: str = "slack/oauth/callback"
+    SLACK_OAUTH_REDIRECT_PATH: str = "api/slack/oauth/callback"
 
     @field_validator("BACKEND_CORS_ORIGINS", mode="before")
     @classmethod
