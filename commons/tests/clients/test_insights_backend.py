@@ -38,7 +38,7 @@ async def test_get_tenant_config_success(mock_client):
 
     # Assert
     assert result == expected_config
-    mock_client.get.assert_called_once_with("/tenant/config")
+    mock_client.get.assert_called_once_with("/tenant/config/internal")
 
 
 @pytest.mark.asyncio
@@ -50,7 +50,7 @@ async def test_get_tenant_config_not_found(mock_client):
     with pytest.raises(InvalidTenantError):
         await mock_client.get_tenant_config()
 
-    mock_client.get.assert_called_once_with("/tenant/config")
+    mock_client.get.assert_called_once_with("/tenant/config/internal")
 
 
 @pytest.mark.asyncio
@@ -62,4 +62,4 @@ async def test_get_tenant_config_other_error(mock_client):
     with pytest.raises(HttpClientError):
         await mock_client.get_tenant_config()
 
-    mock_client.get.assert_called_once_with("/tenant/config")
+    mock_client.get.assert_called_once_with("/tenant/config/internal")

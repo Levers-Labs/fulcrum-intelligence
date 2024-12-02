@@ -15,7 +15,7 @@ class InsightBackendClient(AsyncHttpClient):
         :return: dict
         """
         try:
-            config = await self.get("/tenant/config")
+            config = await self.get("/tenant/config/internal")
             return config
         except HttpClientError as e:
             if e.status_code == 404:
