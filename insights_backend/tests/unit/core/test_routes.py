@@ -6,6 +6,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette import status
 
+from commons.db.crud import NotFoundError
 from commons.models.tenant import SlackConnectionConfig
 from commons.utilities.context import set_tenant_id
 from insights_backend.core.models.tenant import Tenant, TenantConfig
@@ -139,13 +140,47 @@ async def test_list_tenants(insert_tenant, async_client: AsyncClient, db_session
     assert data["results"][0]["id"] == insert_tenant.id
 
 
-async def test_get_tenant_config(insert_tenant, async_client: AsyncClient, db_session: AsyncSession):
+async def test_get_tenant_config(mocker, insert_tenant, async_client: AsyncClient, db_session: AsyncSession):
     # Act
     response = await async_client.get("/v1/tenant/config")
     # Assert
     assert response.status_code == status.HTTP_200_OK
     data = response.json()
     assert "cube_connection_config" in data
+
+    # Assert
+    mocker.patch(
+        "insights_backend.core.crud.TenantCRUD.get_tenant_config", side_effect=NotFoundError("Tenant not found")
+    )
+
+    # Act
+    response = await async_client.get("/v1/tenant/config")
+    # Assert
+    assert response.status_code == status.HTTP_404_NOT_FOUND
+    assert response.json()["detail"] == "Tenant not found"
+
+
+async def test_get_tenant_config_internal(insert_tenant, async_client: AsyncClient, db_session: AsyncSession):
+    # Act
+    response = await async_client.get("/v1/tenant/config/internal")
+    # Assert
+    assert response.status_code == status.HTTP_200_OK
+    data = response.json()
+    assert "cube_connection_config" in data
+    assert "cube_auth_secret_key" in data["cube_connection_config"]
+
+
+async def test_get_tenant_config_internal_not_found(mocker, async_client: AsyncClient, db_session: AsyncSession):
+    # Prepare
+    # Mock tenant config to raise NotFoundError
+    mocker.patch(
+        "insights_backend.core.crud.TenantCRUD.get_tenant_config", side_effect=NotFoundError("Tenant not found")
+    )
+    # Act
+    response = await async_client.get("/v1/tenant/config/internal")
+    # Assert
+    assert response.status_code == status.HTTP_404_NOT_FOUND
+    assert response.json()["detail"] == "Tenant not found"
 
 
 async def test_update_tenant_config(insert_tenant, async_client: AsyncClient, db_session: AsyncSession):
