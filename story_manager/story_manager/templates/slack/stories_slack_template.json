@@ -4,7 +4,7 @@
 			"type": "header",
 			"text": {
 				"type": "plain_text",
-				"text": "📊Stories • {{ grain }}",
+				"text": "🚀 Story Updates for {{ grain }} Grain - Metric ID: {{ metric_id }}",
 				"emoji": true
 			}
 		},
@@ -44,7 +44,7 @@
 			"type": "section",
 			"text": {
 				"type": "mrkdwn",
-				"text": "<https://app-dev.leverslabs.com?grain=week&section=OVERVIEW|View in app>"
+				"text": "<https://app-dev.leverslabs.com?grains={{grain}}&metric_ids={{metric_id}}&story_date_start={{time}}|View in app>"
 			}
 		}
 	]
