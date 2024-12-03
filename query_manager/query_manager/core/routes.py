@@ -21,7 +21,7 @@ from query_manager.core.dependencies import (
     CRUDMetricNotificationsDep,
     ParquetServiceDep,
     QueryClientDep,
-    oauth2_auth,
+    oauth2_auth, InsightBackendClientDep,
 )
 from query_manager.core.enums import OutputFormat
 from query_manager.core.models import Dimension, Metric
@@ -330,6 +330,7 @@ async def create_metric_slack_notifications(
     slack_enabled: bool,
     channel_ids: SlackChannelIds,
     notification_crud: CRUDMetricNotificationsDep,
+    insights_client: InsightBackendClientDep,
 ):
     """
     This endpoint is used to create Slack notifications for a specific metric.
@@ -346,14 +347,15 @@ async def create_metric_slack_notifications(
     if slack_enabled and not channel_ids.channel_ids:
         raise HTTPException(status_code=422, detail="Channel Ids cannot be blank.")
 
-    # Create a dictionary of Slack channels
-    channels_dict = [
-        {"channel_id": channel_id, "channel_name": "test"}  # TODO: use slack list API
-        for channel_id in channel_ids.channel_ids
-    ]
+    channels_dict = []
+    for channel_id in channel_ids.channel_ids:
+        channel_name = await insights_client.get_channel_name(channel_id)
+        if channel_name is None:
+            raise HTTPException(status_code=404, detail=f"Channel with ID '{channel_id}' not found.")
+        channels_dict.append({"channel_id": channel_id, "channel_name": channel_name})
 
     # Create the Slack notifications
-    return await notification_crud.create_notifications(
+    return await notification_crud.create_metric_notifications(
         metric_id=metric.id, slack_enabled=slack_enabled, slack_channels=channels_dict  # type: ignore
     )
 
@@ -381,7 +383,7 @@ async def get_metric_slack_notifications(
         raise MetricNotFoundError(metric_id) from MetricErr
 
     # Get the Slack notifications for the metric
-    res = await notification_crud.get_notifications(
+    res = await notification_crud.get_metric_notifications(
         metric_id=metric.id,
     )
 

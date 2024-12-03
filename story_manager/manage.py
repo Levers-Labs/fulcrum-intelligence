@@ -274,8 +274,8 @@ def upsert_story_config(tenant_id: int):
         raise typer.Exit(code=1) from e
 
 
-@story_cli.command("send-alert")
-def send_alerts_for_group(
+@story_cli.command("send-slack-alert")
+def send_slack_alerts_for_group(
     metric_id: Annotated[
         str,
         typer.Argument(help="The metric id for which the builder should be run."),

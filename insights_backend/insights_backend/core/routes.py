@@ -41,7 +41,7 @@ from insights_backend.core.models import (
     UserList,
 )
 from insights_backend.core.models.users import UserRead, UserUpdate
-from insights_backend.core.schemas import SlackChannelResponse
+from insights_backend.core.schemas import SlackChannelResponse, SlackChannel
 
 user_router = APIRouter(prefix="/users", tags=["users"])
 router = APIRouter(tags=["tenants"])
@@ -287,3 +287,18 @@ async def list_channels(
     List Slack channels with optional name filtering and pagination support.
     """
     return await slack_client.list_channels(cursor=cursor, limit=limit, name=name)
+
+
+@slack_router.get(
+    "/channels/{channel_id}",
+    response_model=SlackChannel | dict,  # noqa
+    dependencies=[Security(oauth2_auth().verify, scopes=[ADMIN_READ])],  # type: ignore
+)
+async def list_channels(
+    slack_client: SlackClientDep,
+    channel_id: str,
+):
+    """
+    List Slack channels with optional name filtering and pagination support.
+    """
+    return await slack_client.get_channel_info(channel_id=channel_id)

@@ -4,7 +4,8 @@ from typing import Any
 
 from commons.models.enums import Granularity
 from story_manager.core.crud import CRUDStory
-from story_manager.core.dependencies import SlackNotifierDep, get_slack_notifier
+from story_manager.core.dependencies import SlackNotifierDep, get_slack_notifier, \
+    get_query_manager_client
 from story_manager.core.models import Story
 from story_manager.db.config import get_async_session
 
@@ -16,6 +17,8 @@ class StoryAlerts:
     """
     This class handles the fetching and sending of story alerts.
     """
+
+    SLACK_MSG_TEMPLATE = "stories_slack_template"
 
     @staticmethod
     async def get_all_stories(metric_id: str, grain: Granularity, tenant_id: int, created_date: date) -> dict:
@@ -42,15 +45,17 @@ class StoryAlerts:
         }
         return context
 
-    @staticmethod
-    async def _send_slack_alerts(client: SlackNotifierDep, context: dict) -> Any:
+    async def _send_slack_alerts(self, client: SlackNotifierDep,
+                                 context: dict,
+                                 channel_config: dict) -> Any:
         """
         Sends Slack notifications using the provided client and context.
         """
         response = await client.send_notification(
-            template_name="stories_slack_template",
-            config={"token": "xoxb-7976566008402-7962040521303-EKmzh6oZSFNp6QAXT7OpA3eq"},
-            channel_config={"channel_id": "C07UT2BPC92"},
+            template_name=self.SLACK_MSG_TEMPLATE,
+            # TODO: should we move this get config in commons? or create insights client in SM
+            config={"bot_token": "xoxb-7976566008402-7962040521303-EKmzh6oZSFNp6QAXT7OpA3eq"},
+            channel_config=channel_config,
             context=context,
         )
         return response
@@ -59,14 +64,24 @@ class StoryAlerts:
         """
         Fetches all stories for the given parameters and sends Slack alerts.
         """
-        try:
-            # Fetch stories created today
-            stories = await self.get_all_stories(metric_id, grain, tenant_id, created_date)
+        # try:
+        query_service = await get_query_manager_client()
+        config = await query_service.get_metric_slack_notification_details(metric_id)
+        slack_enabled = config.get("slack_enabled")
+        channels_config = config.get("slack_channels", [])
+        if not slack_enabled:
+            logger.info(f"Slack notifications are not enabled for Metric: {metric_id}")
+            return
 
-            # Get the Slack notifier client
-            notifier = await get_slack_notifier()
-            # Call the method to send alerts
-            _ = await self._send_slack_alerts(notifier, stories)
-        except Exception as e:
-            # Log any errors that occur during the process
-            logger.error(f"Failed to process and send alerts: {e}")
+        # Fetch stories created for the date
+        stories = await self.get_all_stories(metric_id, grain, tenant_id, created_date)
+
+        # Get the Slack notifier client
+        notifier = await get_slack_notifier()
+        # Call the method to send alerts
+        for channel_config in channels_config:
+            _ = await self._send_slack_alerts(client=notifier,
+                                              context=stories,
+                                              channel_config=channel_config)
+        # except Exception as e:
+        #     logger.error(f"Failed to process and send alerts: {e}")

@@ -61,7 +61,7 @@ class CRUDMetricNotifications(
 
     filter_class = MetricNotificationsFilter
 
-    async def create_notifications(
+    async def create_metric_notifications(
         self, metric_id: str, slack_enabled: bool, slack_channels: dict
     ) -> MetricNotifications:
         """
@@ -98,7 +98,7 @@ class CRUDMetricNotifications(
 
         return new_notification
 
-    async def get_notifications(self, metric_id: str) -> MetricNotifications | None:
+    async def get_metric_notifications(self, metric_id: str) -> MetricNotifications | None:
         """
         Retrieves MetricNotifications for a given metric_id.
 

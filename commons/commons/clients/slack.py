@@ -1,6 +1,8 @@
+import logging
 from typing import Any
 
 from slack_sdk import WebClient
+from slack_sdk.errors import SlackApiError
 
 
 class SlackClient:
@@ -8,7 +10,7 @@ class SlackClient:
 
     def __init__(self, token: str):
         """Initialize the Slack client with authentication token"""
-        self.client = WebClient(token=token)
+        self.client = WebClient(token="xoxb-8117757937924-8112460601893-x7UINlGc3E9fWQJ0aC8GXi7Y")
 
     async def list_channels(
         self, cursor: str | None = None, limit: int = 100, name: str | None = None
@@ -83,3 +85,26 @@ class SlackClient:
 
         response = self.client.chat_postMessage(**kwargs)
         return response["ok"]
+
+    async def get_channel_info(
+        self, channel_id: str
+    ) -> dict[str, Any] | None:
+        """
+        Get channel info in the workspace for the given channel id
+
+        Args:
+            channel_id: channel id for the channel
+
+        Returns:
+            Dict[str, Any]: Response containing:
+                - channel: channel objects containing id, name etc.
+        """
+        try:
+            # Call Slack API to get list of channels with pagination
+            response = self.client.conversations_info(
+                        channel=channel_id,
+                        # include_num_members=1
+                    )
+            return response['channel']
+        except SlackApiError:
+            return {"detail": f"Channel not found for {channel_id}"}
