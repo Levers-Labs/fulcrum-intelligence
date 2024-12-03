@@ -50,6 +50,5 @@ class InsightBackendClient(AsyncHttpClient):
         :return: dict
         """
         response = await self.get(f"slack/channels/{channel_id}")
-        name = response.get('name', None)
+        name = response.get("name", None)
         return name
-

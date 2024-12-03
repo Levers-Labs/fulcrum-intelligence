@@ -86,9 +86,7 @@ class SlackClient:
         response = self.client.chat_postMessage(**kwargs)
         return response["ok"]
 
-    async def get_channel_info(
-        self, channel_id: str
-    ) -> dict[str, Any] | None:
+    async def get_channel_info(self, channel_id: str) -> dict[str, Any] | None:
         """
         Get channel info in the workspace for the given channel id
 
@@ -102,9 +100,9 @@ class SlackClient:
         try:
             # Call Slack API to get list of channels with pagination
             response = self.client.conversations_info(
-                        channel=channel_id,
-                        # include_num_members=1
-                    )
-            return response['channel']
+                channel=channel_id,
+                # include_num_members=1
+            )
+            return response["channel"]
         except SlackApiError:
             return {"detail": f"Channel not found for {channel_id}"}

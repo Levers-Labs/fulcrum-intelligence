@@ -19,9 +19,10 @@ from commons.models.tenant import CubeConnectionConfig
 from commons.utilities.pagination import Page, PaginationParams
 from query_manager.core.dependencies import (
     CRUDMetricNotificationsDep,
+    InsightBackendClientDep,
     ParquetServiceDep,
     QueryClientDep,
-    oauth2_auth, InsightBackendClientDep,
+    oauth2_auth,
 )
 from query_manager.core.enums import OutputFormat
 from query_manager.core.models import Dimension, Metric

@@ -4,8 +4,7 @@ from typing import Any
 
 from commons.models.enums import Granularity
 from story_manager.core.crud import CRUDStory
-from story_manager.core.dependencies import SlackNotifierDep, get_slack_notifier, \
-    get_query_manager_client
+from story_manager.core.dependencies import SlackNotifierDep, get_query_manager_client, get_slack_notifier
 from story_manager.core.models import Story
 from story_manager.db.config import get_async_session
 
@@ -45,9 +44,7 @@ class StoryAlerts:
         }
         return context
 
-    async def _send_slack_alerts(self, client: SlackNotifierDep,
-                                 context: dict,
-                                 channel_config: dict) -> Any:
+    async def _send_slack_alerts(self, client: SlackNotifierDep, context: dict, channel_config: dict) -> Any:
         """
         Sends Slack notifications using the provided client and context.
         """
@@ -80,8 +77,6 @@ class StoryAlerts:
         notifier = await get_slack_notifier()
         # Call the method to send alerts
         for channel_config in channels_config:
-            _ = await self._send_slack_alerts(client=notifier,
-                                              context=stories,
-                                              channel_config=channel_config)
+            _ = await self._send_slack_alerts(client=notifier, context=stories, channel_config=channel_config)
         # except Exception as e:
         #     logger.error(f"Failed to process and send alerts: {e}")

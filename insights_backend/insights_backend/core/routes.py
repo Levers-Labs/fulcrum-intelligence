@@ -41,7 +41,7 @@ from insights_backend.core.models import (
     UserList,
 )
 from insights_backend.core.models.users import UserRead, UserUpdate
-from insights_backend.core.schemas import SlackChannelResponse, SlackChannel
+from insights_backend.core.schemas import SlackChannel, SlackChannelResponse
 
 user_router = APIRouter(prefix="/users", tags=["users"])
 router = APIRouter(tags=["tenants"])

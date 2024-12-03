@@ -179,7 +179,11 @@ def create_story_alerts_dag(group: str, meta: dict[str, Any]) -> None:
                 metrics = _metric_ids_map[tenant_id_str]
                 grains = _grains_map[tenant_id_str]
                 commands.extend(
-                    [f"story send-slack-alert {metric_id} {tenant_id} {grain}" for metric_id in metrics for grain in grains]
+                    [
+                        f"story send-slack-alert {metric_id} {tenant_id} {grain}"
+                        for metric_id in metrics
+                        for grain in grains
+                    ]
                 )
                 logger.info("Prepared %s story alert commands for tenant %s", len(commands), tenant_id)
             logger.info("Successfully prepared story alert commands for all tenants")
