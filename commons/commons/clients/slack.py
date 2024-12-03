@@ -1,4 +1,3 @@
-import logging
 from typing import Any
 
 from slack_sdk import WebClient
@@ -10,7 +9,7 @@ class SlackClient:
 
     def __init__(self, token: str):
         """Initialize the Slack client with authentication token"""
-        self.client = WebClient(token="xoxb-8117757937924-8112460601893-x7UINlGc3E9fWQJ0aC8GXi7Y")
+        self.client = WebClient(token=token)
 
     async def list_channels(
         self, cursor: str | None = None, limit: int = 100, name: str | None = None

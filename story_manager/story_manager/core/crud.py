@@ -1,4 +1,4 @@
-from datetime import date, timedelta
+from datetime import date
 from typing import Any
 
 from sqlalchemy import desc, func
@@ -69,32 +69,6 @@ class CRUDStory(CRUDBase[Story, Story, Story, StoryFilter]):
         instance: Story | None = result.unique().scalar_one_or_none()  # noqa
 
         return instance
-
-    async def get_stories(
-        self,
-        metric_id: str,
-        grain: Granularity,
-        created_date: date,
-        tenant_id: int,
-    ) -> Any:
-
-        statement = (
-            self.get_select_query()
-            .filter(func.date(Story.created_at) >= func.date(created_date))
-            .filter(func.date(Story.created_at) < func.date(created_date + timedelta(days=1)))
-            .filter_by(grain=grain, metric_id=metric_id, tenant_id=tenant_id, is_heuristic=True)
-        )
-
-        # Order by story date in descending order and limit to 1 result
-        statement = statement.order_by(desc("story_date"))
-
-        # Execute the query
-        result = await self.session.execute(statement=statement)
-
-        # Get the unique result or None if no result is found
-        instances: list(Story) | None = result.scalars().all()  # type: ignore
-
-        return instances
 
 
 class CRUDStoryConfig(CRUDBase[StoryConfig, StoryConfig, StoryConfig, StoryConfigFilter]):
