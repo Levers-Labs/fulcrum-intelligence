@@ -357,7 +357,7 @@ async def create_metric_slack_notifications(
 
     # Create the Slack notifications
     return await notification_crud.create_metric_notifications(
-        metric_id=metric.id, slack_enabled=slack_enabled, slack_channels=channels_dict  # type: ignore
+        metric_id=metric["id"], slack_enabled=slack_enabled, slack_channels=channels_dict  # type: ignore
     )
 
 
@@ -385,7 +385,7 @@ async def get_metric_slack_notifications(
 
     # Get the Slack notifications for the metric
     res = await notification_crud.get_metric_notifications(
-        metric_id=metric.id,
+        metric_id=metric.id,  # type: ignore
     )
 
     # If no notifications are found, raise an exception
