@@ -21,7 +21,6 @@ from commons.utilities.tenant_utils import validate_tenant
 from story_manager.config import get_settings
 from story_manager.core.enums import StoryGroup
 from story_manager.db.config import MODEL_PATHS
-from story_manager.story_builder.alerts import StoryAlerts
 from story_manager.story_builder.manager import StoryManager
 
 cli = typer.Typer()
@@ -272,51 +271,6 @@ def upsert_story_config(tenant_id: int):
     except Exception as e:
         typer.secho(f"Error during story config update: {str(e)}", fg=typer.colors.RED)
         raise typer.Exit(code=1) from e
-
-
-@story_cli.command("send-slack-alert")
-def send_slack_alerts_for_group(
-    metric_id: Annotated[
-        str,
-        typer.Argument(help="The metric id for which the builder should be run."),
-    ],
-    tenant_id: Annotated[
-        int,
-        typer.Argument(help="The tenant id for which the builder should be run."),
-    ],
-    grain: Annotated[
-        Optional[Granularity],  # noqa
-        typer.Argument(help="The grain for which the builder should be run."),
-    ],
-    created_date: Annotated[
-        str,
-        typer.Argument(help="The created at date for generated stories"),
-    ] = "",
-):
-    """
-    Run the builder for a specific story group and metric.
-    """
-    typer.secho(
-        f"Running builder for metric {metric_id} and tenant {tenant_id}",
-        fg=typer.colors.GREEN,
-    )
-    # Setup tenant context
-    typer.secho(
-        f"Setting up tenant context for tenant {tenant_id}",
-        fg=typer.colors.GREEN,
-    )
-    set_tenant_id(tenant_id)
-    created_at_date = datetime.strptime(created_date, "%Y-%m-%d").date() if created_date else date(2024, 11, 6)  # type: ignore
-    sa = StoryAlerts()
-    asyncio.run(
-        sa.process_and_send_alerts(metric_id=metric_id, grain=grain, tenant_id=tenant_id, created_date=created_at_date)
-    )  # type: ignore
-    # Cleanup tenant context
-    reset_context()
-    typer.secho(
-        f"Slack notification sent for metric {metric_id} successfully",
-        fg=typer.colors.GREEN,
-    )
 
 
 if __name__ == "__main__":
