@@ -4,6 +4,8 @@ import pytest
 from httpx import AsyncClient
 from sqlalchemy.exc import IntegrityError
 
+from commons.clients.insight_backend import InsightBackendClient
+from query_manager.core.crud import CRUDMetricNotifications
 from query_manager.core.enums import TargetAim
 from query_manager.core.models import Metric
 from query_manager.core.schemas import (
@@ -326,3 +328,50 @@ async def test_connect_cube_invalid_credentials(async_client: AsyncClient, mocke
     # Assert
     assert response.status_code == 400  # Expecting a 400 status code for invalid credentials
     assert response.json()["detail"] == "Invalid credentials"
+
+
+@pytest.mark.asyncio
+async def test_metric_slack_notifications(async_client: AsyncClient, mocker, metric):
+    # Mock the necessary dependencies
+    mock_get_metric_details = AsyncMock(return_value=metric)
+    mocker.patch.object(QueryClient, "get_metric_details", mock_get_metric_details)
+
+    mock_get_channel_name = AsyncMock(return_value="test-channel")
+    mocker.patch.object(InsightBackendClient, "get_channel_name", mock_get_channel_name)
+
+    mock_create_notifications = AsyncMock(
+        return_value={
+            "slack_enabled": True,
+            "slack_channels": [{"channel_id": "channel1", "channel_name": "test-channel"}],
+        }
+    )
+    mocker.patch.object(CRUDMetricNotifications, "create_metric_notifications", mock_create_notifications)
+
+    metric_id = metric["id"]
+
+    # Test successful creation
+    response = await async_client.post(
+        f"/v1/metrics/{metric_id}/notifications/slack?slack_enabled=true",
+        json={"channel_ids": ["channel1"]},
+    )
+    assert response.status_code == 200
+    assert response.json() == {
+        "slack_enabled": True,
+        "slack_channels": [{"channel_id": "channel1", "channel_name": "test-channel"}],
+    }
+
+    # Test invalid request (empty channel_ids when slack_enabled is True)
+    response = await async_client.post(
+        f"/v1/metrics/{metric_id}/notifications/slack?slack_enabled=true",
+        json={"channel_ids": []},
+    )
+    assert response.status_code == 422
+
+    # Test invalid channel_id
+    mock_get_channel_name.return_value = None
+    response = await async_client.post(
+        f"/v1/metrics/{metric_id}/notifications/slack?slack_enabled=true",
+        json={"channel_ids": ["invalid_channel"]},
+    )
+    assert response.status_code == 404
+    assert response.json()["detail"] == "Channel with ID 'invalid_channel' not found."

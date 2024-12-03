@@ -25,8 +25,7 @@ class SlackNotifier(BaseNotifier):
             ValueError: If the webhook_url is not provided in the configuration.
 
         """
-        # slack_token = config.get("bot_token")
-        slack_token = "xoxb-7976566008402-7962040521303-EKmzh6oZSFNp6QAXT7OpA3eq"
+        slack_token = config.get("bot_token")
         if not slack_token:
             raise ValueError("Slack bot token not provided in the configuration.")
         # Initialize Slack client

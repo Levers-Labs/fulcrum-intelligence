@@ -337,27 +337,34 @@ async def create_metric_slack_notifications(
     This endpoint is used to create Slack notifications for a specific metric.
     """
     try:
-        # Get the details of the metric
+        # Attempt to get the details of the metric
         metric = await client.get_metric_details(metric_id)
     except NoSuchKeyError as e:
+        # If the metric is not found, raise a MetricNotFoundError
         raise MetricNotFoundError(metric_id) from e
     except MetricNotFoundError as MetricErr:
+        # If a MetricNotFoundError is raised, re-raise it with the metric ID
         raise MetricNotFoundError(metric_id) from MetricErr
 
     # Validate that channel_ids is not empty if slack_enabled is true
     if slack_enabled and not channel_ids.channel_ids:
+        # If channel_ids is empty and slack_enabled is true, raise an HTTPException
         raise HTTPException(status_code=422, detail="Channel Ids cannot be blank.")
 
+    # Initialize an empty list to store channel details
     channels_dict = []
     for channel_id in channel_ids.channel_ids:
+        # Attempt to get the channel name for each channel ID
         channel_name = await insights_client.get_channel_name(channel_id)
         if channel_name is None:
+            # If the channel name is not found, raise an HTTPException
             raise HTTPException(status_code=404, detail=f"Channel with ID '{channel_id}' not found.")
+        # Append the channel details to the channels_dict list
         channels_dict.append({"channel_id": channel_id, "channel_name": channel_name})
 
-    # Create the Slack notifications
+    # Create the Slack notifications using the notification_crud dependency
     return await notification_crud.create_metric_notifications(
-        metric_id=metric.id, slack_enabled=slack_enabled, slack_channels=channels_dict  # type: ignore
+        metric_id=metric["id"], slack_enabled=slack_enabled, slack_channels=channels_dict  # type: ignore
     )
 
 
@@ -376,19 +383,21 @@ async def get_metric_slack_notifications(
     This endpoint is used to get the Slack notifications for a specific metric.
     """
     try:
-        # Get the details of the metric
+        # Attempt to get the details of the metric
         metric = await client.get_metric_details(metric_id)
     except NoSuchKeyError as e:
+        # If the metric is not found, raise a MetricNotFoundError
         raise MetricNotFoundError(metric_id) from e
     except MetricNotFoundError as MetricErr:
+        # If a MetricNotFoundError is raised, re-raise it with the metric ID
         raise MetricNotFoundError(metric_id) from MetricErr
 
-    # Get the Slack notifications for the metric
+    # Attempt to get the Slack notifications for the metric using the notification_crud dependency
     res = await notification_crud.get_metric_notifications(
-        metric_id=metric.id,
+        metric_id=metric.id,  # type: ignore
     )
 
-    # If no notifications are found, raise an exception
+    # If no notifications are found, raise a MetricNotificationNotFoundError
     if not res:
         raise MetricNotificationNotFoundError(metric_id)
 
