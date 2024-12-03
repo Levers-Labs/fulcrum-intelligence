@@ -53,7 +53,7 @@ class CRUDMetric(CRUDBase[Metric, Metric, Metric, MetricFilter]):  # noqa
 
 
 class CRUDMetricNotifications(
-    CRUDBase[MetricNotifications, MetricNotifications, MetricNotifications, MetricNotificationsFilter]
+    CRUDBase[MetricNotifications, MetricNotifications, MetricNotifications, MetricNotificationsFilter]  # noqa
 ):
     """
     CRUD operations for MetricNotifications model.

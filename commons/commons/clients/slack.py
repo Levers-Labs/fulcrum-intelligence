@@ -1,5 +1,6 @@
 from typing import Any
 
+from fastapi import HTTPException
 from slack_sdk import WebClient
 from slack_sdk.errors import SlackApiError
 
@@ -85,7 +86,7 @@ class SlackClient:
         response = self.client.chat_postMessage(**kwargs)
         return response["ok"]
 
-    async def get_channel_info(self, channel_id: str) -> dict[str, Any] | None:
+    async def get_channel_info(self, channel_id: str) -> dict[str, Any]:
         """
         Get channel info in the workspace for the given channel id
 
@@ -97,11 +98,12 @@ class SlackClient:
                 - channel: channel objects containing id, name etc.
         """
         try:
-            # Call Slack API to get list of channels with pagination
+            # Call Slack API to get channel info
             response = self.client.conversations_info(
                 channel=channel_id,
-                # include_num_members=1
             )
+            # Return the channel info
             return response["channel"]
-        except SlackApiError:
-            return {"detail": f"Channel not found for {channel_id}"}
+        except SlackApiError as SlackErr:
+            # If the channel is not found, raise an HTTPException
+            raise HTTPException(status_code=404, detail=f"Channel not found for {channel_id}") from SlackErr

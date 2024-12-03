@@ -318,6 +318,14 @@ async def get_channel_info(
     channel_id: str,
 ):
     """
-    List Slack channels with optional name filtering and pagination support.
+    Retrieve detailed information about a specific Slack channel by its ID.
+
+    Args:
+        slack_client (SlackClientDep): The Slack client dependency.
+        channel_id (str): The ID of the Slack channel to retrieve information about.
+
+    Returns:
+        SlackChannel | dict: The detailed information about the specified Slack channel,
+        or a dictionary if the channel is not found.
     """
     return await slack_client.get_channel_info(channel_id=channel_id)

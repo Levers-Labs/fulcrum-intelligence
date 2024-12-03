@@ -142,9 +142,9 @@ class Dimension(DimensionBase, QuerySchemaBaseModel, table=True):  # type: ignor
         @event.listens_for(cls, "load", propagate=True)
         def receive_load(target: Dimension, context: Any):
             if isinstance(target.meta_data, dict):  # type: ignore
-                target.meta_data = TypeAdapter(DimensionMetadata).validate_python(
+                target.meta_data = TypeAdapter(DimensionMetadata).validate_python(  # type: ignore[unreachable]
                     target.meta_data
-                )  # type: ignore[unreachable]
+                )
 
 
 class MetricBase(BaseSQLModel):
