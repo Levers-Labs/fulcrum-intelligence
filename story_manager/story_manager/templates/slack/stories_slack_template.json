@@ -4,7 +4,7 @@
 			"type": "header",
 			"text": {
 				"type": "plain_text",
-				"text": "🚀 Story Updates for {{ grain }} Grain - Metric ID: {{ metric_id }}",
+				"text": "🚀 Story Updates for {{ grain }} Grain - Metric : {{ metric_label }}",
 				"emoji": true
 			}
 		},
@@ -24,7 +24,7 @@
 			"type": "section",
 			"text": {
 			  "type": "mrkdwn",
-			  "text": "[_*{{ story.metric_id }}*_] *{{ story.title }}*\n{{ story.detail }}"
+			  "text": "*{{ metric_label }}* [_*{{ story.metric_id }}*_] *{{ story.title }}*\n{{ story.detail }}"
 			}
 		  },
 		{% endfor %}

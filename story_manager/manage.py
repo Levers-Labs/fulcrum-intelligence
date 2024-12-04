@@ -19,6 +19,7 @@ from commons.utilities.context import reset_context, set_tenant_id
 from commons.utilities.migration_utils import add_rls_policies
 from commons.utilities.tenant_utils import validate_tenant
 from story_manager.config import get_settings
+from story_manager.core.dependencies import get_insights_backend_client, get_query_manager_client
 from story_manager.core.enums import StoryGroup
 from story_manager.db.config import MODEL_PATHS
 from story_manager.notifications.slack_alerts import StorySlackAlerts
@@ -306,10 +307,12 @@ def send_slack_alerts(
         fg=typer.colors.GREEN,
     )
     set_tenant_id(tenant_id)
-    created_at_date = datetime.strptime(created_date, "%Y-%m-%d").date() if created_date else date(2024, 11, 7)  # type: ignore
-    sa = StorySlackAlerts()
+    created_at_date = datetime.strptime(created_date, "%Y-%m-%d").date() if created_date else date(2024, 11, 6)  # type: ignore
+    query_client = asyncio.run(get_query_manager_client())
+    insights_backend = asyncio.run(get_insights_backend_client())
+    slack_alerts = StorySlackAlerts(query_client, insights_backend, metric_id)
     asyncio.run(
-        sa.process_and_send_alerts(metric_id=metric_id, grain=grain, tenant_id=tenant_id, created_date=created_at_date)
+        slack_alerts.process_and_send_alerts(grain=grain, tenant_id=tenant_id, created_date=created_at_date)
     )  # type: ignore
     # Cleanup tenant context
     reset_context()
