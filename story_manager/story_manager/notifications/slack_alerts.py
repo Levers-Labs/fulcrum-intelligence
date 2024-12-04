@@ -108,7 +108,7 @@ class StorySlackAlerts:
             Response from Slack API
         """
         try:
-            response = await client.send_notification(
+            response = await client.send_notification(  # type: ignore
                 template_name=self.SLACK_MSG_TEMPLATE,
                 config=slack_config,
                 channel_config=channel_config,
