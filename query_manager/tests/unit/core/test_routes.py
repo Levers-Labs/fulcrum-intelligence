@@ -2,6 +2,7 @@ from unittest.mock import ANY, AsyncMock
 
 import pytest
 from httpx import AsyncClient
+from slack_sdk.errors import SlackApiError
 from sqlalchemy.exc import IntegrityError
 
 from commons.clients.insight_backend import InsightBackendClient
@@ -13,6 +14,7 @@ from query_manager.core.schemas import (
     DimensionDetail,
     MetricDetail,
     MetricList,
+    MetricSlackNotificationRequest,
 )
 from query_manager.exceptions import DimensionNotFoundError, MetricNotFoundError
 from query_manager.services.cube import CubeClient
@@ -336,28 +338,27 @@ async def test_metric_slack_notifications(async_client: AsyncClient, mocker, met
     mock_get_metric_details = AsyncMock(return_value=metric)
     mocker.patch.object(QueryClient, "get_metric_details", mock_get_metric_details)
 
-    mock_get_channel_name = AsyncMock(return_value="test-channel")
-    mocker.patch.object(InsightBackendClient, "get_channel_name", mock_get_channel_name)
+    mock_get_slack_channel_details = AsyncMock(return_value="test-channel")
+    mocker.patch.object(InsightBackendClient, "get_slack_channel_details", mock_get_slack_channel_details)
 
     mock_create_notifications = AsyncMock(
         return_value={
             "slack_enabled": True,
-            "slack_channels": [{"channel_id": "channel1", "channel_name": "test-channel"}],
+            "slack_channels": [{"id": "channel1", "name": "test-channel"}],
         }
     )
     mocker.patch.object(CRUDMetricNotifications, "create_metric_notifications", mock_create_notifications)
 
-    metric_id = metric["id"]
+    metric_id = metric["metric_id"]
+
+    req = MetricSlackNotificationRequest(metric_id=metric_id, slack_enabled=True, channel_ids=["channel1"])
 
     # Test successful creation
-    response = await async_client.post(
-        f"/v1/metrics/{metric_id}/notifications/slack?slack_enabled=true",
-        json={"channel_ids": ["channel1"]},
-    )
+    response = await async_client.post(f"/v1/metrics/{metric_id}/notifications/slack", json=req.dict())
     assert response.status_code == 200
     assert response.json() == {
         "slack_enabled": True,
-        "slack_channels": [{"channel_id": "channel1", "channel_name": "test-channel"}],
+        "slack_channels": [{"id": "channel1", "name": "test-channel"}],
     }
 
     # Test invalid request (empty channel_ids when slack_enabled is True)
@@ -368,10 +369,17 @@ async def test_metric_slack_notifications(async_client: AsyncClient, mocker, met
     assert response.status_code == 422
 
     # Test invalid channel_id
-    mock_get_channel_name.return_value = None
+    mock_get_slack_channel_details = AsyncMock(
+        side_effect=SlackApiError("Channel not found", {"error": "channel_not_found"})
+    )
+    mocker.patch.object(InsightBackendClient, "get_slack_channel_details", mock_get_slack_channel_details)
+
+    invalid_req = MetricSlackNotificationRequest(
+        metric_id=metric_id, slack_enabled=True, channel_ids=["invalid_channel"]
+    )
     response = await async_client.post(
-        f"/v1/metrics/{metric_id}/notifications/slack?slack_enabled=true",
-        json={"channel_ids": ["invalid_channel"]},
+        f"/v1/metrics/{metric_id}/notifications/slack",
+        json=invalid_req.dict(),
     )
     assert response.status_code == 404
-    assert response.json()["detail"] == "Channel with ID 'invalid_channel' not found."
+    assert response.json()["detail"] == "Channel not found for invalid_channel"

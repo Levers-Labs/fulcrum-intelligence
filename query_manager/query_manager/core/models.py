@@ -22,6 +22,7 @@ from sqlmodel import Field, Relationship, SQLModel
 from commons.db.models import BaseSQLModel, BaseTimeStampedTenantModel
 from commons.models import BaseModel
 from commons.models.enums import Granularity
+from commons.models.slack import SlackChannel
 from query_manager.core.enums import Complexity, SemanticMemberType
 
 
@@ -245,7 +246,7 @@ class Metric(MetricBase, QuerySchemaBaseModel, table=True):  # type: ignore
                 target.meta_data = TypeAdapter(MetricMetadata).validate_python(target.meta_data)  # type: ignore
 
 
-class MetricNotifications(SQLModel, table=True):
+class MetricNotifications(QuerySchemaBaseModel, table=True):
     """
     Represents metric notifications settings in the database.
 
@@ -255,7 +256,12 @@ class MetricNotifications(SQLModel, table=True):
         slack_channels (dict): A dictionary containing Slack channel IDs and their corresponding names.
     """
 
-    __table_args__ = {"schema": "query_store"}
+    __table_args__ = (
+        # Unique constraint for metric_id and tenant_id
+        UniqueConstraint("metric_id", "tenant_id", name="uq_metric_id_tenant_id_notify"),  # type: ignore
+        {"schema": "query_store"},
+    )
+
     metric_id: int = Field(foreign_key="query_store.metric.id", primary_key=True)
     slack_enabled: bool = Field(default=False, sa_column=Column(Boolean, default=False))
-    slack_channels: dict = Field(default_factory=dict, sa_type=JSONB)
+    slack_channels: list[SlackChannel] = Field(default_factory=dict, sa_type=JSONB)

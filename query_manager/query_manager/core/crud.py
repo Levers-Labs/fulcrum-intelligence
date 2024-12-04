@@ -3,6 +3,7 @@ from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import selectinload
 
 from commons.db.crud import CRUDBase, NotFoundError
+from commons.utilities.context import get_tenant_id
 from query_manager.core.filters import DimensionFilter, MetricFilter, MetricNotificationsFilter
 from query_manager.core.models import Dimension, Metric, MetricNotifications
 
@@ -62,48 +63,54 @@ class CRUDMetricNotifications(
     filter_class = MetricNotificationsFilter
 
     async def create_metric_notifications(
-        self, metric_id: str, slack_enabled: bool, slack_channels: dict
+        self, metric_id: int, slack_enabled: bool, slack_channels: dict
     ) -> MetricNotifications:
         """
         Creates or updates MetricNotifications for a given metric_id.
 
         Args:
-            metric_id (str): The ID of the metric for which to create or update notifications.
+            metric_id (int): The ID of the metric for which to create or update notifications.
             slack_enabled (bool): Indicates if Slack notifications are enabled.
             slack_channels (dict): A dictionary containing Slack channel IDs and names.
 
         Returns:
             MetricNotifications: The created or updated MetricNotifications instance.
         """
-        # Create a new MetricNotifications instance
-        new_notification = MetricNotifications(
-            metric_id=metric_id,  # Assuming dimension_id is used as metric_id
-            slack_enabled=slack_enabled,
-            slack_channels=slack_channels,
-        )
+        tenant_id = get_tenant_id()
+        data = {
+            "metric_id": metric_id,
+            "slack_enabled": slack_enabled,
+            "slack_channels": slack_channels,
+            "tenant_id": tenant_id,
+        }
 
         # Prepare the insert statement with on conflict handling
-        stmt = insert(MetricNotifications).values(
-            metric_id=metric_id, slack_enabled=slack_enabled, slack_channels=slack_channels
+        stmt = (
+            insert(MetricNotifications)
+            .values(**data)
+            .on_conflict_do_update(
+                index_elements=["metric_id", "tenant_id"],
+                set_={
+                    "slack_enabled": slack_enabled,
+                    "slack_channels": slack_channels,
+                },
+            )
+            .returning(MetricNotifications)
         )
-        # Specify the fields to update in case of a conflict
-        stmt = stmt.on_conflict_do_update(
-            index_elements=["metric_id"],  # Adjust this to your unique constraint
-            set_={"slack_enabled": slack_enabled, "slack_channels": slack_channels},
-        )
 
-        # Execute the statement
-        await self.session.execute(stmt)
-        await self.session.commit()  # Ensure to commit the transaction
+        # Execute the statement and get the result
+        result = await self.session.execute(stmt)
+        notification = result.scalar_one()
+        await self.session.commit()
 
-        return new_notification
+        return notification
 
-    async def get_metric_notifications(self, metric_id: str) -> MetricNotifications | None:
+    async def get_metric_notifications(self, metric_id: int) -> MetricNotifications | None:
         """
         Retrieves MetricNotifications for a given metric_id.
 
         Args:
-            metric_id (str): The ID of the metric for which to retrieve notifications.
+            metric_id (int): The ID of the metric for which to retrieve notifications.
 
         Returns:
             MetricNotifications | None: The MetricNotifications instance if found, otherwise None.

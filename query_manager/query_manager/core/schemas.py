@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from commons.models import BaseModel
 from commons.models.enums import Granularity
+from commons.models.slack import SlackChannel
 from query_manager.core.enums import Complexity, TargetAim
 from query_manager.core.models import (
     Dimension,
@@ -236,15 +237,21 @@ class DimensionUpdate(DimensionBase):
         return instance
 
 
-class SlackChannelIds(BaseModel):
+# class SlackChannelIds(BaseModel):
+#     channel_ids: list[str]
+
+
+# class SlackChannel(BaseModel):
+#     id: str
+#     name: str
+
+
+class MetricSlackNotificationRequest(BaseModel):
+    metric_id: str
+    slack_enabled: bool
     channel_ids: list[str]
 
 
-class SlackChannels(BaseModel):
-    channel_id: str
-    channel_name: str
-
-
-class SlackChannelsResponse(BaseModel):
+class MetricSlackNotificationResponse(BaseModel):
     slack_enabled: bool
-    slack_channels: list[SlackChannels]
+    slack_channels: list[SlackChannel]
