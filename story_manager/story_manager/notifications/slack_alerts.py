@@ -135,7 +135,7 @@ class StorySlackAlerts:
                     client=notifier,
                     context=stories,
                     channel_config=channel_config,
-                    slack_config=slack_notification_config,
+                    slack_config=slack_connection_config,  # type: ignore
                 )
         except Exception as e:
             logger.error(
