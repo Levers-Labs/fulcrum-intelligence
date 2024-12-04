@@ -69,5 +69,5 @@ def add_exception_handlers(app):
         )
 
     @app.exception_handler(ValueError)
-    async def http_client_error_handler(request, exc: ValueError):
+    async def value_error_handler(request, exc: ValueError):
         raise QueryManagerError(404, ErrorCode.MISSING_CONFIGURATION, str(exc.args[0])) from exc  # type: ignore

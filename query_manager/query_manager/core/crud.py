@@ -95,15 +95,14 @@ class CRUDMetricNotifications(
                     "slack_channels": slack_channels,
                 },
             )
-            .returning(MetricNotifications)
+            # .returning(MetricNotifications)
         )
 
         # Execute the statement and get the result
-        result = await self.session.execute(stmt)
-        notification = result.scalar_one()
+        await self.session.execute(stmt)
         await self.session.commit()
-
-        return notification
+        obj = MetricNotifications(**data)
+        return obj
 
     async def get_metric_notifications(self, metric_id: int) -> MetricNotifications | None:
         """

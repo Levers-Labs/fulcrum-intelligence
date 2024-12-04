@@ -15,6 +15,7 @@ from slack_sdk.errors import SlackApiError
 from sqlalchemy.exc import IntegrityError
 
 from commons.auth.scopes import QUERY_MANAGER_ALL
+from commons.clients.base import HttpClientError
 from commons.models.enums import Granularity
 from commons.models.tenant import CubeConnectionConfig
 from commons.utilities.pagination import Page, PaginationParams
@@ -352,8 +353,8 @@ async def create_metric_slack_notifications(
         try:
             # Attempt to get the channel name for each channel ID
             channel_details = await insights_client.get_slack_channel_details(channel_id)
-        except SlackApiError as SlackErr:
-            raise HTTPException(status_code=404, detail=f"Channel not found for {channel_id}") from SlackErr
+        except (SlackApiError, HttpClientError) as Err:
+            raise HTTPException(status_code=404, detail=f"Channel not found for {channel_id}") from Err
 
         # Append the channel details to the channels list
         channels.append(channel_details)

@@ -262,6 +262,6 @@ class MetricNotifications(QuerySchemaBaseModel, table=True):
         {"schema": "query_store"},
     )
 
-    metric_id: int = Field(foreign_key="query_store.metric.id", primary_key=True)
+    metric_id: int = Field(foreign_key="query_store.metric.id")
     slack_enabled: bool = Field(default=False, sa_column=Column(Boolean, default=False))
     slack_channels: list[SlackChannel] = Field(default_factory=dict, sa_type=JSONB)

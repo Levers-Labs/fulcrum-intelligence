@@ -1,8 +1,8 @@
-"""Metric_Notifications
+"""metric_notification
 
-Revision ID: f35934428788
+Revision ID: 197233d812d4
 Revises: 7e7a22650c1c
-Create Date: 2024-12-04 15:02:58.939366
+Create Date: 2024-12-04 17:06:55.528305
 
 """
 
@@ -13,7 +13,7 @@ from alembic import op
 from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
-revision: str = "f35934428788"
+revision: str = "197233d812d4"
 down_revision: str | None = "7e7a22650c1c"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
@@ -34,7 +34,7 @@ def upgrade() -> None:
             ["metric_id"],
             ["query_store.metric.id"],
         ),
-        sa.PrimaryKeyConstraint("id", "metric_id"),
+        sa.PrimaryKeyConstraint("id"),
         sa.UniqueConstraint("metric_id", "tenant_id", name="uq_metric_id_tenant_id_notify"),
         schema="query_store",
     )
