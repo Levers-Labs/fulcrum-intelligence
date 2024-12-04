@@ -328,9 +328,6 @@ async def verify_cube_connection(config: CubeConnectionConfig):
 async def create_metric_slack_notifications(
     client: QueryClientDep,
     request: MetricSlackNotificationRequest,
-    # metric_id: str,
-    # slack_enabled: bool,
-    # channel_ids: SlackChannelIds,
     notification_crud: CRUDMetricNotificationsDep,
     insights_client: InsightBackendClientDep,
 ):
@@ -363,7 +360,7 @@ async def create_metric_slack_notifications(
 
     # Create the Slack notifications using the notification_crud dependency
     return await notification_crud.create_metric_notifications(
-        metric_id=metric["id"], slack_enabled=request.slack_enabled, slack_channels=channels  # type: ignore
+        metric_id=metric.id, slack_enabled=request.slack_enabled, slack_channels=channels  # type: ignore
     )
 
 

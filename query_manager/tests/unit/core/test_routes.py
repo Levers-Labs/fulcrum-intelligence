@@ -334,6 +334,7 @@ async def test_connect_cube_invalid_credentials(async_client: AsyncClient, mocke
 
 @pytest.mark.asyncio
 async def test_metric_slack_notifications(async_client: AsyncClient, mocker, metric):
+    metric = Metric(id=1, tenant_id=1, metric_id="metric1", label="Metric 1")
     # Mock the necessary dependencies
     mock_get_metric_details = AsyncMock(return_value=metric)
     mocker.patch.object(QueryClient, "get_metric_details", mock_get_metric_details)
@@ -349,7 +350,7 @@ async def test_metric_slack_notifications(async_client: AsyncClient, mocker, met
     )
     mocker.patch.object(CRUDMetricNotifications, "create_metric_notifications", mock_create_notifications)
 
-    metric_id = metric["metric_id"]
+    metric_id = metric.metric_id
 
     req = MetricSlackNotificationRequest(metric_id=metric_id, slack_enabled=True, channel_ids=["channel1"])
 
