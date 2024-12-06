@@ -3,14 +3,14 @@ from typing import Any
 from commons.llm.exceptions import LLMValidationError
 from commons.llm.provider import LLMProvider
 from commons.llm.service import LLMService
-from query_manager.llm.prompts import ParsedExpression
+from query_manager.llm.prompts import ParsedExpressionOutput
 
 
-class ExpressionParserService(LLMService[str, ParsedExpression]):
+class ExpressionParserService(LLMService[str, ParsedExpressionOutput]):
     """Service to parse metric expressions using LLM."""
 
     def __init__(self, provider: LLMProvider, metric_ids: set[str]):
-        super().__init__(provider=provider, prompt_name="expression_parser", output_model=ParsedExpression)
+        super().__init__(provider=provider, prompt_name="expression_parser", output_model=ParsedExpressionOutput)
         self.metric_ids = metric_ids
 
     async def validate_input(self, expression: str) -> None:
@@ -26,7 +26,7 @@ class ExpressionParserService(LLMService[str, ParsedExpression]):
         """Prepare the expression and available metrics."""
         return {"expression": expression, "metrics_ids": self.metric_ids}
 
-    async def validate_output(self, parsed: ParsedExpression) -> None:
+    async def validate_output(self, parsed: ParsedExpressionOutput) -> None:
         """Validate the parsed expression."""
 
         async def validate_operand(operand: Any) -> None:
@@ -58,5 +58,5 @@ class ExpressionParserService(LLMService[str, ParsedExpression]):
                         await validate_operand(nested_operand)
 
         # Validate each top-level operand in the parsed expression
-        for _operand in parsed.operands:
+        for _operand in parsed.expression.operands:
             await validate_operand(_operand)

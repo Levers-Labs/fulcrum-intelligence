@@ -47,12 +47,10 @@ from query_manager.core.schemas import (  # SlackChannelIds,; SlackChannelsRespo
     MetricUpdate,
     MetricValuesResponse,
     TargetListResponse,
-    from,
-    import,
-    query_manager.core.models,
-    query_manager.core.schemas,
 )
 from query_manager.exceptions import DimensionNotFoundError, MetricNotFoundError, MetricNotificationNotFoundError
+from query_manager.exceptions import DimensionNotFoundError, MetricNotFoundError
+from query_manager.llm.prompts import ParsedExpressionOutput
 from query_manager.services.cube import CubeClient, CubeJWTAuthType
 from query_manager.services.s3 import NoSuchKeyError
 
@@ -412,7 +410,7 @@ async def get_metric_slack_notifications(
 
 @router.post(
     "/metrics/{metric_id}/expression/parse",
-    response_model=Expression,
+    response_model=ParsedExpressionOutput,
     tags=["expression"],
     dependencies=[Security(oauth2_auth().verify, scopes=[QUERY_MANAGER_ALL])],
 )

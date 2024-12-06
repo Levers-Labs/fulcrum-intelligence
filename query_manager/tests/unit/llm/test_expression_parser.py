@@ -5,7 +5,7 @@ import pytest
 
 from commons.llm.exceptions import LLMValidationError
 from commons.llm.provider import LLMResponse
-from query_manager.llm.services.expression_parser import ExpressionParserService, ParsedExpression
+from query_manager.llm.services.expression_parser import ExpressionParserService, ParsedExpressionOutput
 
 
 @pytest.mark.asyncio
@@ -13,13 +13,16 @@ async def test_expression_parser():
     """Test expression parsing."""
     mock_llm_provider = AsyncMock()
     expr_json = {
-        "type": "expression",
-        "operator": "*",
-        "operands": [
-            {"type": "metric", "metric_id": "Revenue", "coefficient": 1.0, "period": 0, "power": 1.0},
-            {"type": "metric", "metric_id": "Margin", "coefficient": 1.0, "period": 0, "power": 1.0},
-            {"type": "constant", "value": 2.0, "coefficient": 1.0, "period": 0, "power": 1.0},
-        ],
+        "expression_str": "{Revenue} * {Margin} + 2",
+        "expression": {
+            "type": "expression",
+            "operator": "*",
+            "operands": [
+                {"type": "metric", "metric_id": "Revenue", "coefficient": 1.0, "period": 0, "power": 1.0},
+                {"type": "metric", "metric_id": "Margin", "coefficient": 1.0, "period": 0, "power": 1.0},
+                {"type": "constant", "value": 2.0, "coefficient": 1.0, "period": 0, "power": 1.0},
+            ],
+        },
     }
     mock_llm_provider.generate.return_value = LLMResponse(
         content=json.dumps(expr_json), model="GPT4", usage={"token_usage": {"total_tokens": 100}}
@@ -27,10 +30,10 @@ async def test_expression_parser():
     metric_ids = {"Revenue", "Margin"}
     service = ExpressionParserService(provider=mock_llm_provider, metric_ids=metric_ids)
 
-    result = await service.process("{Revenue} * {Margin} + 2")
-    assert isinstance(result, ParsedExpression)
-    assert result == ParsedExpression(**expr_json)
-    assert len(result.operands) == 3
+    result = await service.process("{Revenue} * {Margin} * 2")
+    assert isinstance(result, ParsedExpressionOutput)
+    assert result == ParsedExpressionOutput(**expr_json)
+    assert len(result.expression.operands) == 3
 
 
 @pytest.mark.asyncio
@@ -41,12 +44,15 @@ async def test_expression_parser_validation():
     mock_llm_provider.generate.return_value = LLMResponse(
         content=json.dumps(
             {
-                "type": "expression",
-                "operator": "*",
-                "operands": [
-                    {"type": "metric", "metric_id": "Revenue", "coefficient": 1.0, "period": 0, "power": 1.0},
-                    {"type": "metric", "metric_id": "Margin", "coefficient": 1.0, "period": 0, "power": 1.0},
-                ],
+                "expression_str": "{Revenue} * {Margin}",
+                "expression": {
+                    "type": "expression",
+                    "operator": "*",
+                    "operands": [
+                        {"type": "metric", "metric_id": "Revenue", "coefficient": 1.0, "period": 0, "power": 1.0},
+                        {"type": "metric", "metric_id": "Margin", "coefficient": 1.0, "period": 0, "power": 1.0},
+                    ],
+                },
             }
         ),
         model="GPT4",
@@ -67,12 +73,15 @@ async def test_expression_parser_validation():
     mock_llm_provider.generate.return_value = LLMResponse(
         content=json.dumps(
             {
-                "type": "expression",
-                "operator": "*",
-                "operands": [
-                    {"type": "metric", "metric_id": "Revenue", "coefficient": 1.0, "period": 0, "power": 1.0},
-                    {"type": "metric", "metric_id": "Invalid", "coefficient": 1.0, "period": 0, "power": 1.0},
-                ],
+                "expression_str": "{Revenue} * {Invalid}",
+                "expression": {
+                    "type": "expression",
+                    "operator": "*",
+                    "operands": [
+                        {"type": "metric", "metric_id": "Revenue", "coefficient": 1.0, "period": 0, "power": 1.0},
+                        {"type": "metric", "metric_id": "Invalid", "coefficient": 1.0, "period": 0, "power": 1.0},
+                    ],
+                },
             }
         ),
         model="GPT4",

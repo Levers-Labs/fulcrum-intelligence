@@ -38,10 +38,17 @@ class ParsedExpression(BaseModel):
     )
 
 
+class ParsedExpressionOutput(BaseModel):
+    """Represents the parsed output of a metric expression."""
+
+    expression_str: str = Field(..., description="Metric expression string")
+    expression: ParsedExpression = Field(..., description="Parsed metric expression")
+
+
 EXPRESSION_PARSER_PROMPT = BasePrompt(
     system_message="""You are an expert at parsing mathematical expressions involving metrics.
-    Your task is to parse expressions into a structured JSON format.""",
-    template="""Parse the following metric expression into JSON:
+    Your task is to parse expressions into a structured JSON format and output the cleaned expression string.""",
+    template="""Parse the following metric expression into JSON and output the cleaned expression string:
     Expression: {expression}
 
     Available metrics: {metrics_ids}
@@ -66,6 +73,11 @@ EXPRESSION_PARSER_PROMPT = BasePrompt(
         - Expressions may or may contain nested expressions
         - Nested expressions are represented as 'expression' type
         - Nested expressions can contain metrics, constants, and other nested expressions
+    8. BODMAS Priority:
+       - Brackets first
+       - Orders (powers)
+       - Division and Multiplication (left to right)
+       - Addition and Subtraction (left to right)
 
     Rules for Parsing:
         1. All metrics should be properly identified even if not in braces
@@ -75,98 +87,122 @@ EXPRESSION_PARSER_PROMPT = BasePrompt(
         5. Supported operators: +, -, *, /
         6. Convert all variations to standard format
         7. Nested expressions are supported
+        8. For cleaned expression string, add curly braces around metric IDs and no need for any time period indicators,
+        9. Build cleaned expression string using the JSON structure
+
     Expected Output Structure:
     {{
-        "type": "expression",
-        "operator": "one of: +, -, *, /",
-        "operands": [
-            {{
-                "type": "metric or constant",
-                "metric_id": "if type is metric",
-                "value": "if type is constant",
-                "coefficient": "multiplier, default 1",
-                "period": "time offset, default 0",
-                "power": "exponent, default 1"
-            }}
-        ]
+        "expression_str": "{{{{metric_id}}}} * 2",
         "expression": {{
             "type": "expression",
-            ...
+            "operator": "one of: +, -, *, /",
+            "operands": [
+                {{
+                    "type": "metric or constant",
+                    "metric_id": "if type is metric",
+                    "value": "if type is constant",
+                    "coefficient": "multiplier, default 1",
+                    "period": "time offset, default 0",
+                    "power": "exponent, default 1"
+                }}
+            ],
+            "expression": {{
+                "type": "expression",
+                ...
+            }}
         }}
     }}
 
     Examples:
     1. Input: "{{Revenue}} * {{Margin}}"
         Output: {{
-            "type": "expression",
-            "operator": "*",
-            "operands": [
-                {{"type": "metric", "metric_id": "Revenue", "coefficient": 1, "period": 0, "power": 1}},
-                {{"type": "metric", "metric_id": "Margin", "coefficient": 1, "period": 0, "power": 1}}
-            ]
+            "expression_str": "{{Revenue}} * {{Margin}}",
+            "expression": {{
+                "type": "expression",
+                "operator": "*",
+                "operands": [
+                    {{"type": "metric", "metric_id": "Revenue", "coefficient": 1, "period": 0, "power": 1}},
+                    {{"type": "metric", "metric_id": "Margin", "coefficient": 1, "period": 0, "power": 1}}
+                ]
+            }}
         }}
     2.  Input: "2 * {{Revenueₜ}}^2"
         Output: {{
-            "type": "expression",
-            "operator": "*",
-            "operands": [
-                {{"type": "metric", "metric_id": "Revenue", "coefficient": 2, "period": 0, "power": 2}}
-            ]
+            "expression_str": "2 * {{Revenue}}^2",
+            "expression": {{
+                "type": "expression",
+                "operator": "*",
+                "operands": [
+                    {{"type": "metric", "metric_id": "Revenue", "coefficient": 2, "period": 0, "power": 2}}
+                ]
+            }}
         }}
     3.  Input: "{{A}} + B/C" → Identify B and C as metrics
         Output: {{
-            "type": "expression",
-            "operator": "+",
-            "operands": [
-                {{ "type": "metric", "metric_id": "A", "coefficient": 1, "period": 0, "power": 1}},
-                {{
-                    "type": "expression",
-                    "operator": "/",
-                    "operands": [
-                        {{"type": "metric", "metric_id": "B", "coefficient": 1, "period": 0, "power": 1}},
-                        {{"type": "metric", "metric_id": "C", "coefficient": 1, "period": 0, "power": 1}}
-                    ]
-                }}
-            ]
+            "expression_str": "{{A}} + {{B}}/{{C}}",
+            "expression": {{
+                "type": "expression",
+                "operator": "+",
+                "operands": [
+                    {{ "type": "metric", "metric_id": "A", "coefficient": 1, "period": 0, "power": 1}},
+                    {{
+                        "type": "expression",
+                        "operator": "/",
+                        "operands": [
+                            {{"type": "metric", "metric_id": "B", "coefficient": 1, "period": 0, "power": 1}},
+                            {{"type": "metric", "metric_id": "C", "coefficient": 1, "period": 0, "power": 1}}
+                        ]
+                    }}
+                ]
+            }}
         }}
     4.  Input: "2 * {{AcceptOppsₜ}} * {{SQOToWinRateₜ}}"
         Output: {{
-            "type": "expression",
-            "operator": "*",
-            "operands": [
-                {{"type": "metric", "metric_id": "AcceptOpps", "coefficient": 2, "period": 0, "power": 1}},
-                {{"type": "metric", "metric_id": "SQOToWinRate", "coefficient": 1, "period": 0, "power": 1}}
-            ]
+            "expression_str": "2 * {{AcceptOpps}} * {{SQOToWinRate}}",
+            "expression": {{
+                "type": "expression",
+                "operator": "*",
+                "operands": [
+                    {{"type": "metric", "metric_id": "AcceptOpps", "coefficient": 2, "period": 0, "power": 1}},
+                    {{"type": "metric", "metric_id": "SQOToWinRate", "coefficient": 1, "period": 0, "power": 1}}
+                ]
+            }}
         }}
     5.  Input: "{{AcceptOpps^2}} * {{SQOToWinRate}}"
         Output: {{
-            "type": "expression",
-            "operator": "*",
-            "operands": [
-                {{"type": "metric", "metric_id": "AcceptOpps", "coefficient": 1, "period": 0, "power": 2}},
-                {{"type": "metric", "metric_id": "SQOToWinRate", "coefficient": 1, "period": 0, "power": 1}}
-            ]
+            "expression_str": "{{AcceptOpps}}^2 * {{SQOToWinRate}}",
+            "expression": {{
+                "type": "expression",
+                "operator": "*",
+                "operands": [
+                    {{"type": "metric", "metric_id": "AcceptOpps", "coefficient": 1, "period": 0, "power": 2}},
+                    {{"type": "metric", "metric_id": "SQOToWinRate", "coefficient": 1, "period": 0, "power": 1}}
+                ]
+            }}
         }}
     6.  Input: "2.5 + {{AcceptOpps}} * {{SQOToWinRate}}"
         Output: {{
-            "type": "expression",
-            "operator": "+",
-            "operands": [
-                {{"type": "constant", "value": 2.5}},
-                {{
-                    "type": "expression",
-                    "operator": "*",
-                    "operands": [
-                        {{"type": "metric", "metric_id": "AcceptOpps", "coefficient": 1, "period": 0, "power": 1}},
-                        {{"type": "metric", "metric_id": "SQOToWinRate", "coefficient": 1, "period": 0, "power": 1}}
-                    ]
-                }}
-            ]
+            "expression_str": "2.5 + {{AcceptOpps}} * {{SQOToWinRate}}",
+            "expression": {{
+                "type": "expression",
+                "operator": "+",
+                "operands": [
+                    {{"type": "constant", "value": 2.5}},
+                    {{
+                        "type": "expression",
+                        "operator": "*",
+                        "operands": [
+                            {{"type": "metric", "metric_id": "AcceptOpps", "coefficient": 1, "period": 0, "power": 1}},
+                            {{"type": "metric", "metric_id": "SQOToWinRate", "coefficient": 1, "period": 0, "power": 1}}
+                        ]
+                    }}
+                ]
+            }}
         }}
     Please parse the given expression following these rules and format specifications.
     IMPORTANT: Return ONLY the JSON output, with no additional text or explanation.
     """,
-    output_schema=ParsedExpression,
+    output_schema=ParsedExpressionOutput,
 )
 
 # Register the prompt
