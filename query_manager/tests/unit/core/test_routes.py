@@ -391,7 +391,7 @@ async def test_metric_slack_notifications(async_client: AsyncClient, mocker, met
 async def test_parse_expression_success(async_client: AsyncClient, mocker, metric):
     """Test successful expression parsing."""
     # Mock expression parser service
-    mock_process = AsyncMock(return_value=metric["metric_expression"]["expression"])
+    mock_process = AsyncMock(return_value=metric["metric_expression"])
     mocker.patch("query_manager.llm.services.expression_parser.ExpressionParserService.process", mock_process)
 
     # Test data
@@ -404,28 +404,29 @@ async def test_parse_expression_success(async_client: AsyncClient, mocker, metri
     # Assert
     assert response.status_code == 200
     assert response.json() == {
-        "operands": [
-            {
-                "coefficient": 1,
-                "expression": None,
-                "expression_str": None,
-                "metric_id": "SalesMktSpend",
-                "period": 0,
-                "power": 1,
-                "type": "metric",
-            },
-            {
-                "coefficient": 1,
-                "expression": None,
-                "expression_str": None,
-                "metric_id": "NewCust",
-                "period": 0,
-                "power": 1,
-                "type": "metric",
-            },
-        ],
-        "operator": "/",
-        "type": "expression",
+        "expression_str": "{SalesMktSpend\u209c} / {NewCust\u209c}",
+        "expression": {
+            "operands": [
+                {
+                    "coefficient": 1,
+                    "expression": None,
+                    "metric_id": "SalesMktSpend",
+                    "period": 0,
+                    "power": 1,
+                    "type": "metric",
+                },
+                {
+                    "coefficient": 1,
+                    "expression": None,
+                    "metric_id": "NewCust",
+                    "period": 0,
+                    "power": 1,
+                    "type": "metric",
+                },
+            ],
+            "operator": "/",
+            "type": "expression",
+        },
     }
     mock_process.assert_awaited_once_with(expression)
 

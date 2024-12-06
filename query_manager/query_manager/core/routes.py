@@ -29,14 +29,12 @@ from query_manager.core.dependencies import (
     oauth2_auth,
 )
 from query_manager.core.enums import OutputFormat
-from query_manager.core.models import Dimension, Metric
 from query_manager.core.schemas import (  # SlackChannelIds,; SlackChannelsResponse,
     Dimension,
     DimensionCompact,
     DimensionCreate,
     DimensionDetail,
     DimensionUpdate,
-    Expression,
     ExpressionParseRequest,
     Metric,
     MetricCreate,
@@ -49,7 +47,6 @@ from query_manager.core.schemas import (  # SlackChannelIds,; SlackChannelsRespo
     TargetListResponse,
 )
 from query_manager.exceptions import DimensionNotFoundError, MetricNotFoundError, MetricNotificationNotFoundError
-from query_manager.exceptions import DimensionNotFoundError, MetricNotFoundError
 from query_manager.llm.prompts import ParsedExpressionOutput
 from query_manager.services.cube import CubeClient, CubeJWTAuthType
 from query_manager.services.s3 import NoSuchKeyError
