@@ -1,8 +1,6 @@
 from typing import Any
 
-from fastapi import HTTPException
 from slack_sdk import WebClient
-from slack_sdk.errors import SlackApiError
 
 
 class SlackClient:
@@ -97,13 +95,9 @@ class SlackClient:
             Dict[str, Any]: Response containing:
                 - channel: channel objects containing id, name etc.
         """
-        try:
-            # Call Slack API to get channel info
-            response = self.client.conversations_info(
-                channel=channel_id,
-            )
-            # Return the channel info
-            return response["channel"]
-        except SlackApiError as SlackErr:
-            # If the channel is not found, raise an HTTPException
-            raise HTTPException(status_code=404, detail=f"Channel not found for {channel_id}") from SlackErr
+        # Call Slack API to get channel info
+        response = self.client.conversations_info(
+            channel=channel_id,
+        )
+        # Return the channel info
+        return response["channel"]

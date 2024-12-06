@@ -16,6 +16,7 @@ class ErrorCode(str, Enum):
     METRIC_METADATA_ERROR = "metric_metadata_error"
     METRIC_TARGET_ERROR = "metric_target_error"
     METRIC_NOTIFICATION_NOT_FOUND = "metric_notification_not_found"
+    MISSING_CONFIGURATION = "missing_configuration"
 
 
 class QueryManagerError(HTTPException):
@@ -66,3 +67,7 @@ def add_exception_handlers(app):
             status_code=exc.status_code,
             content={"error": exc.code, "detail": exc.detail},
         )
+
+    @app.exception_handler(ValueError)
+    async def value_error_handler(request, exc: ValueError):
+        raise QueryManagerError(404, ErrorCode.MISSING_CONFIGURATION, str(exc.args[0])) from exc  # type: ignore

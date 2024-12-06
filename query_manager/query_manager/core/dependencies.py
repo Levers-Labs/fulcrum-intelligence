@@ -41,8 +41,10 @@ InsightBackendClientDep = Annotated[InsightBackendClient, Depends(get_insights_b
 
 async def get_cube_client(insights_backend_client: InsightBackendClientDep) -> CubeClient:
     tenant_config = await insights_backend_client.get_tenant_config()
-    cube_connection_config = tenant_config.get("cube_connection_config", {})
-    auth_type = CubeJWTAuthType(cube_connection_config.get("cube_auth_type", ""))
+    if tenant_config["cube_connection_config"] is None:
+        raise ValueError("Cube connection config is not configured for tenant")
+    cube_connection_config = tenant_config["cube_connection_config"]
+    auth_type = CubeJWTAuthType(cube_connection_config["cube_auth_type"])
     auth_options = (
         dict(secret_key=cube_connection_config.get("cube_auth_secret_key", ""))
         if auth_type == CubeJWTAuthType.SECRET_KEY

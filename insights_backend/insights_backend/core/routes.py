@@ -7,6 +7,7 @@ from fastapi import (
     HTTPException,
     Security,
 )
+from slack_sdk.errors import SlackApiError
 from sqlalchemy.exc import IntegrityError
 from starlette import status
 
@@ -319,13 +320,8 @@ async def get_channel_info(
 ):
     """
     Retrieve detailed information about a specific Slack channel by its ID.
-
-    Args:
-        slack_client (SlackClientDep): The Slack client dependency.
-        channel_id (str): The ID of the Slack channel to retrieve information about.
-
-    Returns:
-        SlackChannel | dict: The detailed information about the specified Slack channel,
-        or a dictionary if the channel is not found.
     """
-    return await slack_client.get_channel_info(channel_id=channel_id)
+    try:
+        return await slack_client.get_channel_info(channel_id=channel_id)
+    except SlackApiError as SlackErr:
+        raise HTTPException(status_code=404, detail=f"Channel not found for {channel_id}") from SlackErr
