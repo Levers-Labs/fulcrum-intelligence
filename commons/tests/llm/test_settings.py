@@ -5,7 +5,7 @@ def test_llm_settings_defaults():
     """Test LLM settings default values."""
     settings = LLMSettings()
     assert settings.provider == "openai"
-    assert settings.default_model == "gpt-4"
+    assert settings.model == "gpt-4"
     assert settings.openai_api_key is None
 
 

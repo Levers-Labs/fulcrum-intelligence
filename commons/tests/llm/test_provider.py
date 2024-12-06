@@ -58,7 +58,7 @@ def test_provider_missing_credentials(provider_type: str, missing_key: str):
 
 def test_provider_from_settings_openai():
     """Test creating OpenAI provider from settings."""
-    settings = LLMSettings(provider=LLMProviderType.OPENAI, openai_api_key="test-key", default_model=OpenAIModels.GPT4)
+    settings = LLMSettings(provider=LLMProviderType.OPENAI, openai_api_key="test-key", model=OpenAIModels.GPT4)
     provider = LLMProvider.from_settings(settings)
     assert isinstance(provider, LLMProvider)
     assert provider.model.model_name == OpenAIModels.GPT4

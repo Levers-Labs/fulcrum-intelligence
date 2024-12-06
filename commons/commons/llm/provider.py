@@ -53,14 +53,14 @@ class LLMProvider:
             case LLMProviderType.OPENAI:
                 if not settings.openai_api_key:
                     raise LLMValidationError("OpenAI API key not configured")
-                return cls(api_key=settings.openai_api_key, model_name=settings.default_model)
+                return cls(api_key=settings.openai_api_key, model_name=settings.model)
 
             case LLMProviderType.ANTHROPIC:
                 from langchain_anthropic import ChatAnthropic  # noqa: E402
 
                 if not settings.anthropic_api_key:
                     raise LLMValidationError("Anthropic API key not configured")
-                model = ChatAnthropic(anthropic_api_key=settings.anthropic_api_key, model_name=settings.default_model)  # type: ignore
+                model = ChatAnthropic(anthropic_api_key=settings.anthropic_api_key, model_name=settings.model)  # type: ignore
                 return cls(model=model)
 
             case LLMProviderType.AZURE_OPENAI:
@@ -71,7 +71,7 @@ class LLMProvider:
                 model = AzureChatOpenAI(  # type: ignore
                     azure_api_key=settings.azure_openai_api_key,
                     azure_endpoint=settings.azure_openai_endpoint,
-                    deployment_name=settings.default_model,
+                    deployment_name=settings.model,
                 )
                 return cls(model=model)
 
