@@ -1,9 +1,30 @@
+import logging
 from collections import defaultdict
+from datetime import datetime
 
+import requests
 from airflow.decorators import dag, task
 from airflow.providers.amazon.aws.operators.ecs import EcsRunTaskOperator
 from airflow.providers.docker.operators.docker import DockerOperator
-from utils.story_utils import *
+from utils.config import (
+    AUTH0_API_AUDIENCE,
+    AUTH0_CLIENT_ID,
+    AUTH0_CLIENT_SECRET,
+    AUTH0_ISSUER,
+    DATABASE_URL,
+    DOCKER_HOST,
+    ECS_CLUSTER_NAME,
+    ECS_REGION,
+    ECS_SUBNETS,
+    ECS_TASK_DEFINITION_NAME,
+    ENV,
+    INSIGHTS_BACKEND_SERVER_HOST,
+    QUERY_MANAGER_SERVER_HOST,
+    SECRET_KEY,
+    SERVER_HOST,
+    STORY_BUILDER_IMAGE,
+)
+from utils.story_utils import Granularity, fetch_auth_token, filter_grains
 
 logger = logging.getLogger(__name__)
 
