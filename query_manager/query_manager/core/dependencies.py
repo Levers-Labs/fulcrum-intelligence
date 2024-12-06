@@ -6,8 +6,8 @@ from commons.auth.auth import Oauth2Auth
 from commons.clients.auth import ClientCredsAuth
 from commons.clients.insight_backend import InsightBackendClient
 from query_manager.config import get_settings
-from query_manager.core.crud import CRUDDimensions, CRUDMetric
-from query_manager.core.models import Dimension, Metric
+from query_manager.core.crud import CRUDDimensions, CRUDMetric, CRUDMetricNotifications
+from query_manager.core.models import Dimension, Metric, MetricNotifications
 from query_manager.db.config import AsyncSessionDep
 from query_manager.services.cube import CubeClient, CubeJWTAuthType
 from query_manager.services.parquet import ParquetService
@@ -41,6 +41,8 @@ InsightBackendClientDep = Annotated[InsightBackendClient, Depends(get_insights_b
 
 async def get_cube_client(insights_backend_client: InsightBackendClientDep) -> CubeClient:
     tenant_config = await insights_backend_client.get_tenant_config()
+    if tenant_config["cube_connection_config"] is None:
+        raise ValueError("Cube connection config is not configured for tenant")
     cube_connection_config = tenant_config["cube_connection_config"]
     auth_type = CubeJWTAuthType(cube_connection_config["cube_auth_type"])
     auth_options = (
@@ -81,5 +83,10 @@ def oauth2_auth() -> Oauth2Auth:
     return Oauth2Auth(issuer=settings.AUTH0_ISSUER, api_audience=settings.AUTH0_API_AUDIENCE)
 
 
+async def get_metric_notification_crud(session: AsyncSessionDep) -> CRUDMetricNotifications:
+    return CRUDMetricNotifications(model=MetricNotifications, session=session)
+
+
 ParquetServiceDep = Annotated[ParquetService, Depends(get_parquet_service)]
 QueryClientDep = Annotated[QueryClient, Depends(get_query_client)]
+CRUDMetricNotificationsDep = Annotated[CRUDMetricNotifications, Depends(get_metric_notification_crud)]

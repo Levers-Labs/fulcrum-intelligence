@@ -20,11 +20,11 @@ async def insert_tenant_fixture(db_session: AsyncSession, jwt_payload: dict):
     tenant = await db_session.execute(select(Tenant).filter_by(external_id=jwt_payload["external_id"]))
     tenant = tenant.scalar_one_or_none()  # type: ignore
     if not tenant:
-        tenant = Tenant(
+        tenant = Tenant(  # type: ignore
             external_id=jwt_payload["external_id"], name="test_tenant", identifier="test_tenant", domains=["test.com"]
         )
         config = TenantConfig(
-            tenant_id=tenant.id,
+            tenant_id=tenant.id,  # type: ignore
             cube_connection_config={
                 "cube_api_url": "http://test-cube-api.com",
                 "cube_auth_type": "SECRET_KEY",
@@ -348,3 +348,28 @@ async def test_list_channels_with_filters(async_client: AsyncClient, mocker, ins
     data = response.json()
     assert len(data["results"]) == 1
     assert data["results"][0]["name"] == "test-channel"
+
+
+async def test_get_channel_info(async_client: AsyncClient, mocker, insert_tenant):
+    mock_channel = {"id": "HADEDA", "name": "general"}
+
+    mocker.patch("commons.clients.slack.SlackClient.get_channel_info", return_value=mock_channel)
+
+    # Act
+    response = await async_client.get("/v1/slack/channels/HADEDA")
+
+    # Assert
+    assert response.status_code == status.HTTP_200_OK
+    data = response.json()
+    assert data["id"] == "HADEDA"
+    assert data["name"] == "general"
+
+
+async def test_get_invalid_channel_info(async_client: AsyncClient, mocker, insert_tenant):
+    channel_id = "NOCHANNEL"
+
+    # Act
+    response = await async_client.get(f"/v1/slack/channels/{channel_id}")
+
+    # Assert
+    assert response.status_code == status.HTTP_404_NOT_FOUND

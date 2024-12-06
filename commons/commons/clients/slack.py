@@ -83,3 +83,21 @@ class SlackClient:
 
         response = self.client.chat_postMessage(**kwargs)
         return response["ok"]
+
+    async def get_channel_info(self, channel_id: str) -> dict[str, Any]:
+        """
+        Get channel info in the workspace for the given channel id
+
+        Args:
+            channel_id: channel id for the channel
+
+        Returns:
+            Dict[str, Any]: Response containing:
+                - channel: channel objects containing id, name etc.
+        """
+        # Call Slack API to get channel info
+        response = self.client.conversations_info(
+            channel=channel_id,
+        )
+        # Return the channel info
+        return response["channel"]

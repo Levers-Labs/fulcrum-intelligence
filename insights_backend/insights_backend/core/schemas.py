@@ -1,9 +1,5 @@
 from commons.models import BaseModel
-
-
-class SlackChannel(BaseModel):
-    id: str
-    name: str
+from commons.models.slack import SlackChannel
 
 
 class SlackChannelResponse(BaseModel):

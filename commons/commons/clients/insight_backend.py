@@ -1,3 +1,5 @@
+from typing import Any
+
 from commons.clients.base import AsyncHttpClient, HttpClientError
 from commons.exceptions import InvalidTenantError
 from commons.utilities.context import get_tenant_id
@@ -40,3 +42,12 @@ class InsightBackendClient(AsyncHttpClient):
                 tenant_id = get_tenant_id()
                 raise InvalidTenantError(tenant_id) from e
             raise
+
+    async def get_slack_channel_details(self, channel_id: str) -> Any:
+        """
+        Get tenant configuration for tenant from context.
+        Raises an InvalidTenant exception if the tenant is not found.
+        :return: dict
+        """
+        response = await self.get(f"slack/channels/{channel_id}")
+        return response

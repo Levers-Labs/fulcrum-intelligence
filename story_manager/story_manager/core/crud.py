@@ -33,6 +33,8 @@ class CRUDStory(CRUDBase[Story, Story, Story, StoryFilter]):
         Retrieve the latest story of a specific type and granularity before the current date,
         with optional filters for salience, cool-down status, and heuristic flag.
 
+        :param tenant_id:
+        :param metric_id:
         :param story_type: The type of the story.
         :param grain: The granularity of the story.
         :param story_date: The current date to compare against.

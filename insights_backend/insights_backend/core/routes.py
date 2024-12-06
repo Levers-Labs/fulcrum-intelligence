@@ -7,6 +7,7 @@ from fastapi import (
     HTTPException,
     Security,
 )
+from slack_sdk.errors import SlackApiError
 from sqlalchemy.exc import IntegrityError
 from starlette import status
 
@@ -41,7 +42,7 @@ from insights_backend.core.models import (
     UserList,
 )
 from insights_backend.core.models.users import UserRead, UserUpdate
-from insights_backend.core.schemas import SlackChannelResponse
+from insights_backend.core.schemas import SlackChannel, SlackChannelResponse
 
 user_router = APIRouter(prefix="/users", tags=["users"])
 router = APIRouter(tags=["tenants"])
@@ -306,3 +307,21 @@ async def list_channels(
     List Slack channels with optional name filtering and pagination support.
     """
     return await slack_client.list_channels(cursor=cursor, limit=limit, name=name)
+
+
+@slack_router.get(
+    "/channels/{channel_id}",
+    response_model=SlackChannel | dict,  # noqa
+    dependencies=[Security(oauth2_auth().verify, scopes=[ADMIN_READ])],  # type: ignore
+)
+async def get_channel_info(
+    slack_client: SlackClientDep,
+    channel_id: str,
+):
+    """
+    Retrieve detailed information about a specific Slack channel by its ID.
+    """
+    try:
+        return await slack_client.get_channel_info(channel_id=channel_id)
+    except SlackApiError as SlackErr:
+        raise HTTPException(status_code=404, detail=f"Channel not found for {channel_id}") from SlackErr

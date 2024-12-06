@@ -334,3 +334,10 @@ class QueryManagerClient(AsyncHttpClient):
 
         # Return the result and the list of all involved metric IDs
         return expr, list(set(involved_metrics))
+
+    async def get_metric_slack_notification_details(self, metric_id: str) -> dict[str, Any]:
+        """
+        Get metric details.
+        metric_id: metric id
+        """
+        return await self.get(endpoint=f"/metrics/{metric_id}/notifications/slack")
