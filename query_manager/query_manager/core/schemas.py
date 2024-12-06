@@ -245,3 +245,7 @@ class MetricSlackNotificationRequest(BaseModel):
 class MetricSlackNotificationResponse(BaseModel):
     slack_enabled: bool
     slack_channels: list[SlackChannel]
+
+
+class ExpressionParseRequest(BaseModel):
+    expression: str

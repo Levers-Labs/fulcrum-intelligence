@@ -52,6 +52,11 @@ class CRUDMetric(CRUDBase[Metric, Metric, Metric, MetricFilter]):  # noqa
 
         return instance
 
+    async def get_all_metric_ids(self) -> set[str]:
+        statement = select(Metric.metric_id)  # type: ignore
+        results = await self.session.execute(statement=statement)
+        return {metric_id for metric_id, in results}
+
 
 class CRUDMetricNotifications(
     CRUDBase[MetricNotifications, MetricNotifications, MetricNotifications, MetricNotificationsFilter]  # type: ignore
