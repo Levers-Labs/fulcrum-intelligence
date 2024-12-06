@@ -28,7 +28,5 @@ jobs:
           role-session-name: OIDCSession
 
       - name: Upload DAG to S3
-          run: |
-            aws s3 cp ${{ secrets.DAG_DIR }} s3://${{ secrets.S3_BUCKET }}/airflow/dag/ --recursive
-
-            aws s3 cp ${{ secrets.DAG_UTILS_DIR }} s3://${{ secrets.S3_BUCKET }}/airflow/dags/utils/ --recursive
+        run: |
+          aws s3 cp ${{ secrets.DAG_FILE }} s3://${{ secrets.S3_BUCKET }}/airflow/dag/
