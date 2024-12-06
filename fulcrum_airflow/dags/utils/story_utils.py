@@ -66,8 +66,8 @@ def filter_grains(grains: list[str], today: datetime) -> list[str]:
         for grain in grains
         # Include 'week' grain if today is Monday (weekday() == 0)
         if (grain == Granularity.WEEK.value and today.weekday() == 0)
-           # Include 'month' grain if today is the first day of the month
-           or (grain == Granularity.MONTH.value and today.day == 1)
-           # Always include 'day' grain
-           or (grain == Granularity.DAY.value)
-        ]
+        # Include 'month' grain if today is the first day of the month
+        or (grain == Granularity.MONTH.value and today.day == 1)
+        # Always include 'day' grain
+        or (grain == Granularity.DAY.value)
+    ]

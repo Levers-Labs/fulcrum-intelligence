@@ -3,7 +3,6 @@ from collections import defaultdict
 from airflow.decorators import dag, task
 from airflow.providers.amazon.aws.operators.ecs import EcsRunTaskOperator
 from airflow.providers.docker.operators.docker import DockerOperator
-
 from utils.story_utils import *
 
 logger = logging.getLogger(__name__)
@@ -90,7 +89,7 @@ def create_story_group_dag(group: str, meta: dict[str, Any]) -> None:
 
         @task(task_id="prepare_story_builder_commands")
         def prepare_story_builder_commands(
-                _tenants: list[int], _metric_ids_map: dict[str, list[str]], _grains_map: dict[str, list[str]]
+            _tenants: list[int], _metric_ids_map: dict[str, list[str]], _grains_map: dict[str, list[str]]
         ) -> list[str]:
             logger.info("Preparing story builder commands for all tenants")
             today = datetime.utcnow()

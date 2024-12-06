@@ -1,14 +1,15 @@
 from collections import defaultdict
+
 from airflow.decorators import dag, task
 from airflow.providers.amazon.aws.operators.ecs import EcsRunTaskOperator
 from airflow.providers.docker.operators.docker import DockerOperator
 from utils.story_utils import *
 
-
 logger = logging.getLogger(__name__)
 
 # Define the schedule for the send-alerts task, running at 9 AM every day
 ALERT_DAG_SCHEDULE = "0 9 * * *"  # 9:00 AM every day
+
 
 def create_slack_alert_dag() -> None:
     dag_id = "SEND_SLACK_ALERTS_DAG"
@@ -66,7 +67,9 @@ def create_slack_alert_dag() -> None:
             return results
 
         @task(task_id="prepare_alert_commands")
-        def prepare_alert_commands(_tenants: list[int], _metric_ids_map: dict[str, list[str]], _grains_map: dict[str, list[str]]) -> list[str]:
+        def prepare_alert_commands(
+            _tenants: list[int], _metric_ids_map: dict[str, list[str]], _grains_map: dict[str, list[str]]
+        ) -> list[str]:
             """
             Prepare the commands for sending Slack alerts for each tenant and metric.
             """
