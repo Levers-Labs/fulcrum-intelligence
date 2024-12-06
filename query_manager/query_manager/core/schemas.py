@@ -237,17 +237,7 @@ class DimensionUpdate(DimensionBase):
         return instance
 
 
-# class SlackChannelIds(BaseModel):
-#     channel_ids: list[str]
-
-
-# class SlackChannel(BaseModel):
-#     id: str
-#     name: str
-
-
 class MetricSlackNotificationRequest(BaseModel):
-    metric_id: str
     slack_enabled: bool
     channel_ids: list[str]
 

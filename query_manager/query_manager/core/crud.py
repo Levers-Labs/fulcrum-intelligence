@@ -95,7 +95,6 @@ class CRUDMetricNotifications(
                     "slack_channels": slack_channels,
                 },
             )
-            # .returning(MetricNotifications)
         )
 
         # Execute the statement and get the result

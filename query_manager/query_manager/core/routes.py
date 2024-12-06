@@ -328,6 +328,7 @@ async def verify_cube_connection(config: CubeConnectionConfig):
 )
 async def create_metric_slack_notifications(
     client: QueryClientDep,
+    metric_id: str,
     request: MetricSlackNotificationRequest,
     notification_crud: CRUDMetricNotificationsDep,
     insights_client: InsightBackendClientDep,
@@ -337,10 +338,10 @@ async def create_metric_slack_notifications(
     """
     try:
         # Attempt to get the details of the metric
-        metric = await client.get_metric_details(request.metric_id)
+        metric = await client.get_metric_details(metric_id)
     except (NoSuchKeyError, MetricNotFoundError) as e:
         # If the metric is not found, raise a MetricNotFoundError
-        raise MetricNotFoundError(request.metric_id) from e
+        raise MetricNotFoundError(metric_id) from e
 
     # Validate that channel_ids is not empty if slack_enabled is true
     if request.slack_enabled and not request.channel_ids:
