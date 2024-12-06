@@ -5,6 +5,7 @@ from airflow.providers.amazon.aws.operators.ecs import EcsRunTaskOperator
 from airflow.providers.docker.operators.docker import DockerOperator
 from utils.story_utils import *
 
+# Initialize logger for the DAG
 logger = logging.getLogger(__name__)
 
 # Define the schedule for each story group, running every 30 minutes starting from 12:00 AM
@@ -26,22 +27,38 @@ STORY_GROUP_META = {
 
 
 def create_story_group_dag(group: str, meta: dict[str, Any]) -> None:
+    """
+    Creates a DAG for a given story group.
+
+    Args:
+    - group (str): The name of the story group.
+    - meta (dict[str, Any]): The metadata for the story group.
+    """
     dag_id = f"GROUP_{group}_STORY_DAG"
 
     @dag(dag_id=dag_id, start_date=datetime(2024, 9, 26), schedule_interval=meta["schedule_interval"], catchup=False)
     def story_group_dag():
         @task(task_id="get_auth_header")
         def get_auth_header():
+            """
+            Fetches the authentication header.
+
+            Returns:
+            - dict[str, str]: The authentication header.
+            """
             return {"Authorization": f"Bearer {fetch_auth_token()}"}
 
         @task(task_id="fetch_tenants")
         def fetch_tenants(auth_header) -> list[int]:
             """
-            Fetch all tenant IDs from the Insights Backend.
-            Returns:
-                list[int]: A list of tenant IDs.
-            """
+            Fetches all tenant IDs from the Insights Backend.
 
+            Args:
+            - auth_header (dict[str, str]): The authentication header for the request.
+
+            Returns:
+            - list[int]: A list of tenant IDs.
+            """
             logger.info("Fetching tenant IDs from Insights Backend")
             url = f"{INSIGHTS_BACKEND_SERVER_HOST.strip('/')}/tenants/all?limit=100"
 
@@ -54,15 +71,24 @@ def create_story_group_dag(group: str, meta: dict[str, Any]) -> None:
 
         @task(task_id="fetch_metric_ids", multiple_outputs=True)
         def fetch_metric_ids(auth_header, tenants: list[int]) -> dict[str, list[str]]:
+            """
+            Fetches metric IDs for each tenant.
+
+            Args:
+            - auth_header (dict[str, str]): The authentication header for the request.
+            - tenants (list[int]): A list of tenant IDs.
+
+            Returns:
+            - dict[str, list[str]]: A dictionary mapping tenant IDs to lists of metric IDs.
+            """
             results = defaultdict(list)
             for tenant_id in tenants:
                 # Add tenant to auth header
                 tenant_auth_header = auth_header.copy()
                 tenant_auth_header["X-Tenant-Id"] = str(tenant_id)
                 logger.info("Fetching metric IDs for tenant %s", tenant_id)
-                response = requests.get(
-                    f"{QUERY_MANAGER_SERVER_HOST.strip('/')}/metrics?limit=1000", headers=tenant_auth_header, timeout=30
-                )
+                url = f"{QUERY_MANAGER_SERVER_HOST.strip('/')}/metrics?limit=1000"
+                response = requests.get(url, headers=tenant_auth_header, timeout=30)
                 response.raise_for_status()
                 metrics_data = response.json()
                 results[str(tenant_id)] = [metric["metric_id"] for metric in metrics_data.get("results", [])]
@@ -72,6 +98,16 @@ def create_story_group_dag(group: str, meta: dict[str, Any]) -> None:
 
         @task(task_id="fetch_group_meta_task", multiple_outputs=True)
         def fetch_group_meta_task(auth_header, tenants: list[int]) -> dict[str, list[str]]:
+            """
+            Fetches group metadata for each tenant.
+
+            Args:
+            - auth_header (dict[str, str]): The authentication header for the request.
+            - tenants (list[int]): A list of tenant IDs.
+
+            Returns:
+            - dict[str, list[str]]: A dictionary mapping tenant IDs to lists of group metadata.
+            """
             results = defaultdict(list)
             for tenant_id in tenants:
                 # Add tenant to auth header
@@ -91,6 +127,17 @@ def create_story_group_dag(group: str, meta: dict[str, Any]) -> None:
         def prepare_story_builder_commands(
             _tenants: list[int], _metric_ids_map: dict[str, list[str]], _grains_map: dict[str, list[str]]
         ) -> list[str]:
+            """
+            Prepares story builder commands for all tenants.
+
+            Args:
+            - _tenants (list[int]): A list of tenant IDs.
+            - _metric_ids_map (dict[str, list[str]]): A dictionary mapping tenant IDs to lists of metric IDs.
+            - _grains_map (dict[str, list[str]]): A dictionary mapping tenant IDs to lists of group metadata.
+
+            Returns:
+            - list[str]: A list of story builder commands.
+            """
             logger.info("Preparing story builder commands for all tenants")
             today = datetime.utcnow()
 
@@ -152,6 +199,15 @@ def create_story_group_dag(group: str, meta: dict[str, Any]) -> None:
             # For production, we use ECS to run tasks in a managed container environment
             @task
             def prepare_ecs_overrides(commands: list[str]) -> list[dict]:
+                """
+                Prepares the ECS overrides based on the commands.
+
+                Args:
+                - commands (list[str]): A list of story builder commands.
+
+                Returns:
+                - list[dict]: A list of ECS overrides.
+                """
                 # Prepare the ECS overrides based on the commands
                 return [
                     {"containerOverrides": [{"name": "story-builder-manager", "command": command.split(" ")}]}
@@ -173,5 +229,6 @@ def create_story_group_dag(group: str, meta: dict[str, Any]) -> None:
     story_group_dag()
 
 
+# Iterate through each story group and its metadata to create a DAG for each
 for story_group, group_meta in STORY_GROUP_META.items():
     create_story_group_dag(story_group, group_meta)

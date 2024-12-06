@@ -7,9 +7,6 @@ on:
     paths:
       - 'fulcrum_airflow/dags/**'
   workflow_dispatch:
-env:
-  S3_BUCKET: "fulcrum-airflow"
-  DAG_FILE: "fulcrum_airflow/dags/story_builder_dags.py"
 
 permissions:
   contents: read
@@ -32,4 +29,4 @@ jobs:
 
       - name: Upload DAG to S3
         run: |
-          aws s3 cp ${{ env.DAG_FILE }} s3://${{ env.S3_BUCKET }}/airflow/dag/
+          aws s3 cp ${{ secrets.DAG_FILE }} s3://${{ secrets.S3_BUCKET }}/airflow/dag/
