@@ -22,7 +22,7 @@ from story_manager.config import get_settings
 from story_manager.core.dependencies import get_insights_backend_client, get_query_manager_client
 from story_manager.core.enums import StoryGroup
 from story_manager.db.config import MODEL_PATHS
-from story_manager.notifications.slack_alerts import StorySlackAlerts
+from story_manager.notifications.slack_alerts import SlackAlertsService
 from story_manager.story_builder.manager import StoryManager
 
 cli = typer.Typer()
@@ -202,7 +202,11 @@ def run_builder_for_group(
     asyncio.run(validate_tenant(settings, tenant_id))
 
     story_date = datetime.strptime(story_date, "%Y-%m-%d").date() if story_date else date.today()  # type: ignore
-    asyncio.run(StoryManager.run_builder_for_story_group(group, metric_id, grain=grain, story_date=story_date))  # type: ignore
+    asyncio.run(
+        StoryManager.run_builder_for_story_group(
+            group=group, metric_id=metric_id, grain=grain, story_date=story_date  # type: ignore
+        )
+    )
     # Cleanup tenant context
     reset_context()
     typer.secho(
@@ -279,45 +283,59 @@ def upsert_story_config(tenant_id: int):
 def send_slack_alerts(
     metric_id: Annotated[
         str,
-        typer.Argument(help="The metric id for which the builder should be run."),
+        typer.Argument(help="The metric ID for which to send Slack alerts"),
     ],
     tenant_id: Annotated[
         int,
-        typer.Argument(help="The tenant id for which the builder should be run."),
+        typer.Argument(help="The tenant ID for which to send Slack alerts"),
     ],
     grain: Annotated[
         Optional[Granularity],  # noqa
-        typer.Argument(help="The grain for which the builder should be run."),
+        typer.Argument(help="The time granularity (e.g. daily, weekly) for the alerts"),
     ],
     created_date: Annotated[
         str,
-        typer.Argument(help="The created at date for generated stories"),
+        typer.Argument(help="The date (YYYY-MM-DD) for which to send alerts. Defaults to Nov 6, 2024 if not provided."),
     ] = "",
 ):
     """
-    Run the builder for a specific story group and metric.
+    Send Slack alerts for stories generated for a specific metric, tenant and time granularity.
+
+    This command processes stories for the given metric and sends relevant alerts to configured
+    Slack channels based on the story content and alert rules.
     """
     typer.secho(
-        f"Running builder for metric {metric_id} and tenant {tenant_id}",
+        f"Preparing to send Slack alerts for metric {metric_id} and tenant {tenant_id}",
         fg=typer.colors.GREEN,
     )
-    # Setup tenant context
+    # Initialize tenant context for proper data isolation
     typer.secho(
         f"Setting up tenant context for tenant {tenant_id}",
         fg=typer.colors.GREEN,
     )
     set_tenant_id(tenant_id)
-    created_at_date = datetime.strptime(created_date, "%Y-%m-%d").date() if created_date else date(2024, 11, 6)  # type: ignore
+
+    # Parse created date or use default
+    created_at_date = (
+        datetime.strptime(created_date, "%Y-%m-%d").date() if created_date else datetime.today().date()
+    )  # type: ignore
+
+    # Initialize API clients
     query_client = asyncio.run(get_query_manager_client())
     insights_backend = asyncio.run(get_insights_backend_client())
-    slack_alerts = StorySlackAlerts(query_client, insights_backend, metric_id)
+
+    # Create alerts handler and process alerts
+    slack_alert_service = SlackAlertsService(query_client, insights_backend)
     asyncio.run(
-        slack_alerts.process_and_send_alerts(grain=grain, tenant_id=tenant_id, created_date=created_at_date)
+        slack_alert_service.send_metric_stories_notification(
+            grain=grain, tenant_id=tenant_id, created_date=created_at_date, metric_id=metric_id
+        )
     )  # type: ignore
-    # Cleanup tenant context
+
+    # Clean up tenant context after processing
     reset_context()
     typer.secho(
-        f"Slack notification sent for metric {metric_id} successfully",
+        f"Successfully sent Slack alerts for metric {metric_id}",
         fg=typer.colors.GREEN,
     )
 

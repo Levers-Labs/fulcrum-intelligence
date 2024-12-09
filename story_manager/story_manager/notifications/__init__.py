@@ -1,3 +1,3 @@
-from story_manager.notifications.slack_alerts import StorySlackAlerts
+from story_manager.notifications.slack_alerts import SlackAlertsService
 
-__all__ = ["StorySlackAlerts"]
+__all__ = ["SlackAlertsService"]
