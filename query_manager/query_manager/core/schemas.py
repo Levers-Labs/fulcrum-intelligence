@@ -34,11 +34,11 @@ class MetricList(MetricBase):
 
 class MetricDetail(MetricBase):
     id: int
-    outputs: list[str] | None = Field(default_factory=list)
-    inputs: list[str] | None = Field(default_factory=list)
-    influences: list[str] | None = Field(default_factory=list)
-    influencers: list[str] | None = Field(default_factory=list)
-    dimensions: list[DimensionDetail] | None = Field(default_factory=list)
+    outputs: list[str] | None = Field(default_factory=list)  # type: ignore
+    inputs: list[str] | None = Field(default_factory=list)  # type: ignore
+    influences: list[str] | None = Field(default_factory=list)  # type: ignore
+    influencers: list[str] | None = Field(default_factory=list)  # type: ignore
+    dimensions: list[DimensionDetail] | None = Field(default_factory=list)  # type: ignore
 
     @field_validator("inputs", "outputs", "influences", "influencers", mode="before")
     @classmethod
@@ -245,3 +245,7 @@ class MetricSlackNotificationRequest(BaseModel):
 class MetricSlackNotificationResponse(BaseModel):
     slack_enabled: bool
     slack_channels: list[SlackChannel]
+
+
+class ExpressionParseRequest(BaseModel):
+    expression: str

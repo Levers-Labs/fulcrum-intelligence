@@ -64,6 +64,7 @@ def setup_env(session_monkeypatch, postgres):
     session_monkeypatch.setenv("AUTH0_API_AUDIENCE", "https://some_auth0_audience")
     session_monkeypatch.setenv("AUTH0_CLIENT_ID", "client_id")
     session_monkeypatch.setenv("AUTH0_CLIENT_SECRET", "client_secret")
+    session_monkeypatch.setenv("LLM_OPENAI_API_KEY", "openai_key")
     yield
 
 
@@ -118,10 +119,10 @@ def app(setup_env, override_get_async_session: Callable) -> FastAPI:
 def mock_jwt_payload():
     return {
         "sub": "PN0CtJASlMDm9TEivb3izsDnIf5dcFYA@clients",
-        "permissions": ["user:write", "user:read", "admin:read", "query:*"],
+        "permissions": ["user:write", "user:read", "admin:read", "admin:write", "query:*"],
         "iat": datetime.now(),
         "exp": datetime.now() + timedelta(hours=1),
-        "scope": "user:write user:read admin:read query:*",
+        "scope": "user:write user:read admin:read admin:write query:*",
         "tenant_id": 1,  # Include tenant_id if needed
         "external_id": "auth0_123",
     }

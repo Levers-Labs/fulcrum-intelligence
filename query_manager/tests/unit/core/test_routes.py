@@ -6,6 +6,7 @@ from slack_sdk.errors import SlackApiError
 from sqlalchemy.exc import IntegrityError
 
 from commons.clients.insight_backend import InsightBackendClient
+from commons.llm.exceptions import LLMError
 from query_manager.core.crud import CRUDMetricNotifications
 from query_manager.core.enums import TargetAim
 from query_manager.core.models import Metric
@@ -384,3 +385,67 @@ async def test_metric_slack_notifications(async_client: AsyncClient, mocker, met
     )
     assert response.status_code == 404
     assert response.json()["detail"] == "Channel not found for invalid_channel"
+
+
+@pytest.mark.asyncio
+async def test_parse_expression_success(async_client: AsyncClient, mocker, metric):
+    """Test successful expression parsing."""
+    # Mock expression parser service
+    mock_process = AsyncMock(return_value=metric["metric_expression"])
+    mocker.patch("query_manager.llm.services.expression_parser.ExpressionParserService.process", mock_process)
+
+    # Test data
+    metric_id = "test_metric"
+    expression = "revenue"
+
+    # Act
+    response = await async_client.post(f"/v1/metrics/{metric_id}/expression/parse", json={"expression": expression})
+
+    # Assert
+    assert response.status_code == 200
+    assert response.json() == {
+        "expression_str": "{SalesMktSpend\u209c} / {NewCust\u209c}",
+        "expression": {
+            "operands": [
+                {
+                    "coefficient": 1,
+                    "expression": None,
+                    "metric_id": "SalesMktSpend",
+                    "period": 0,
+                    "power": 1,
+                    "type": "metric",
+                },
+                {
+                    "coefficient": 1,
+                    "expression": None,
+                    "metric_id": "NewCust",
+                    "period": 0,
+                    "power": 1,
+                    "type": "metric",
+                },
+            ],
+            "operator": "/",
+            "type": "expression",
+        },
+    }
+    mock_process.assert_awaited_once_with(expression)
+
+
+@pytest.mark.asyncio
+async def test_parse_expression_llm_error(async_client: AsyncClient, mocker):
+    """Test expression parsing with LLM error."""
+    # Mock expression parser service to raise LLM error
+    mock_process = AsyncMock(side_effect=LLMError("Failed to parse expression"))
+    mocker.patch("query_manager.llm.services.expression_parser.ExpressionParserService.process", mock_process)
+
+    # Test data
+    metric_id = "test_metric"
+    expression = "invalid expression"
+
+    # Act
+    response = await async_client.post(f"/v1/metrics/{metric_id}/expression/parse", json={"expression": expression})
+
+    # Assert
+    assert response.status_code == 400
+    assert response.json()["detail"] == "Failed to parse expression"
+    mock_process.assert_awaited_once_with(expression)

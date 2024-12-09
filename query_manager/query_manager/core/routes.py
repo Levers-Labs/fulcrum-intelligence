@@ -16,23 +16,27 @@ from sqlalchemy.exc import IntegrityError
 
 from commons.auth.scopes import QUERY_MANAGER_ALL
 from commons.clients.base import HttpClientError
+from commons.llm.exceptions import LLMError
 from commons.models.enums import Granularity
 from commons.models.tenant import CubeConnectionConfig
 from commons.utilities.pagination import Page, PaginationParams
 from query_manager.core.dependencies import (
     CRUDMetricNotificationsDep,
+    ExpressionParserServiceDep,
     InsightBackendClientDep,
     ParquetServiceDep,
     QueryClientDep,
     oauth2_auth,
 )
 from query_manager.core.enums import OutputFormat
-from query_manager.core.models import Dimension, Metric
 from query_manager.core.schemas import (  # SlackChannelIds,; SlackChannelsResponse,
+    Dimension,
     DimensionCompact,
     DimensionCreate,
     DimensionDetail,
     DimensionUpdate,
+    ExpressionParseRequest,
+    Metric,
     MetricCreate,
     MetricDetail,
     MetricList,
@@ -43,6 +47,7 @@ from query_manager.core.schemas import (  # SlackChannelIds,; SlackChannelsRespo
     TargetListResponse,
 )
 from query_manager.exceptions import DimensionNotFoundError, MetricNotFoundError, MetricNotificationNotFoundError
+from query_manager.llm.prompts import ParsedExpressionOutput
 from query_manager.services.cube import CubeClient, CubeJWTAuthType
 from query_manager.services.s3 import NoSuchKeyError
 
@@ -398,3 +403,24 @@ async def get_metric_slack_notifications(
 
     # Return the Slack notifications
     return res
+
+
+@router.post(
+    "/metrics/{metric_id}/expression/parse",
+    response_model=ParsedExpressionOutput,
+    tags=["expression"],
+    dependencies=[Security(oauth2_auth().verify, scopes=[QUERY_MANAGER_ALL])],
+)
+async def parse_expression(
+    metric_id: str,
+    request: ExpressionParseRequest,
+    expression_parser_service: ExpressionParserServiceDep,
+):
+    """
+    Parse a string expression and return the parsed JSON.
+    """
+    logger.info("Parsing expression for metric %s: %s", metric_id, request.expression)
+    try:
+        return await expression_parser_service.process(request.expression)
+    except LLMError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e

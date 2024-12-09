@@ -3,6 +3,7 @@ omit=
     # no need to data files
     */data/*
     scripts/*
+    query_manager/scripts/metadata_upsert.py
 
 [report]
 fail_under = 80
