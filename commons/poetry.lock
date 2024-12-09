@@ -2314,4 +2314,4 @@ db = ["alembic", "asyncpg", "greenlet", "psycopg2-binary", "sqlalchemy", "sqlmod
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.10,<3.12"
-content-hash = "7cc5210d0e47babf808400b9e7e16bc0ab7168327faae76c5eca0c936989bb7f"
+content-hash = "97c0307fbb345e7a748f4a211aff9f70ddc0c3be7c4d30bc046c2707e6133431"
