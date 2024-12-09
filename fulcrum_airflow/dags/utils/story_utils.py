@@ -5,7 +5,13 @@ from typing import Any
 
 import requests
 
-from .config import *
+from .config import (
+    AUTH0_CLIENT_ID,
+    AUTH0_CLIENT_SECRET,
+    AUTH0_ISSUER,
+    QUERY_MANAGER_SERVER_HOST,
+    STORY_MANAGER_SERVER_HOST,
+)
 
 logger = logging.getLogger(__name__)
 
