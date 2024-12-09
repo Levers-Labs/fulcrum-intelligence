@@ -5,10 +5,13 @@ from fastapi import Depends
 from commons.auth.auth import Oauth2Auth
 from commons.clients.auth import ClientCredsAuth
 from commons.clients.insight_backend import InsightBackendClient
+from commons.llm.provider import LLMProvider
+from commons.llm.settings import LLMSettings, get_llm_settings
 from query_manager.config import get_settings
 from query_manager.core.crud import CRUDDimensions, CRUDMetric, CRUDMetricNotifications
 from query_manager.core.models import Dimension, Metric, MetricNotifications
 from query_manager.db.config import AsyncSessionDep
+from query_manager.llm.services.expression_parser import ExpressionParserService
 from query_manager.services.cube import CubeClient, CubeJWTAuthType
 from query_manager.services.parquet import ParquetService
 from query_manager.services.query_client import QueryClient
@@ -41,8 +44,10 @@ InsightBackendClientDep = Annotated[InsightBackendClient, Depends(get_insights_b
 
 async def get_cube_client(insights_backend_client: InsightBackendClientDep) -> CubeClient:
     tenant_config = await insights_backend_client.get_tenant_config()
-    cube_connection_config = tenant_config.get("cube_connection_config", {})
-    auth_type = CubeJWTAuthType(cube_connection_config.get("cube_auth_type", ""))
+    if tenant_config["cube_connection_config"] is None:
+        raise ValueError("Cube connection config is not configured for tenant")
+    cube_connection_config = tenant_config["cube_connection_config"]
+    auth_type = CubeJWTAuthType(cube_connection_config["cube_auth_type"])
     auth_options = (
         dict(secret_key=cube_connection_config.get("cube_auth_secret_key", ""))
         if auth_type == CubeJWTAuthType.SECRET_KEY
@@ -88,3 +93,14 @@ async def get_metric_notification_crud(session: AsyncSessionDep) -> CRUDMetricNo
 ParquetServiceDep = Annotated[ParquetService, Depends(get_parquet_service)]
 QueryClientDep = Annotated[QueryClient, Depends(get_query_client)]
 CRUDMetricNotificationsDep = Annotated[CRUDMetricNotifications, Depends(get_metric_notification_crud)]
+
+
+async def get_expression_parser_service(
+    settings: Annotated[LLMSettings, Depends(get_llm_settings)], metric_crud: CRUDMetricDep
+) -> ExpressionParserService:
+    provider = LLMProvider.from_settings(settings)
+    metric_ids = await metric_crud.get_all_metric_ids()
+    return ExpressionParserService(provider=provider, metric_ids=metric_ids)
+
+
+ExpressionParserServiceDep = Annotated[ExpressionParserService, Depends(get_expression_parser_service)]

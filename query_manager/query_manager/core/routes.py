@@ -11,36 +11,43 @@ from fastapi import (
     Request,
     Security,
 )
+from slack_sdk.errors import SlackApiError
 from sqlalchemy.exc import IntegrityError
 
 from commons.auth.scopes import QUERY_MANAGER_ALL
+from commons.clients.base import HttpClientError
+from commons.llm.exceptions import LLMError
 from commons.models.enums import Granularity
 from commons.models.tenant import CubeConnectionConfig
 from commons.utilities.pagination import Page, PaginationParams
 from query_manager.core.dependencies import (
     CRUDMetricNotificationsDep,
+    ExpressionParserServiceDep,
     InsightBackendClientDep,
     ParquetServiceDep,
     QueryClientDep,
     oauth2_auth,
 )
 from query_manager.core.enums import OutputFormat
-from query_manager.core.models import Dimension, Metric
-from query_manager.core.schemas import (
+from query_manager.core.schemas import (  # SlackChannelIds,; SlackChannelsResponse,
+    Dimension,
     DimensionCompact,
     DimensionCreate,
     DimensionDetail,
     DimensionUpdate,
+    ExpressionParseRequest,
+    Metric,
     MetricCreate,
     MetricDetail,
     MetricList,
+    MetricSlackNotificationRequest,
+    MetricSlackNotificationResponse,
     MetricUpdate,
     MetricValuesResponse,
-    SlackChannelIds,
-    SlackChannelsResponse,
     TargetListResponse,
 )
 from query_manager.exceptions import DimensionNotFoundError, MetricNotFoundError, MetricNotificationNotFoundError
+from query_manager.llm.prompts import ParsedExpressionOutput
 from query_manager.services.cube import CubeClient, CubeJWTAuthType
 from query_manager.services.s3 import NoSuchKeyError
 
@@ -245,10 +252,9 @@ async def get_metric_values(
     request_id = request.state.request_id
     try:
         res = await client.get_metric_values(metric_id, start_date, end_date, grain=grain, dimensions=dimensions)
-    except NoSuchKeyError as e:
+    except (NoSuchKeyError, MetricNotFoundError) as e:
+        # If the metric is not found, raise a MetricNotFoundError
         raise MetricNotFoundError(metric_id) from e
-    except MetricNotFoundError as MetricErr:
-        raise MetricNotFoundError(metric_id) from MetricErr
 
     if output_format == OutputFormat.PARQUET:
         parquet_url = await parquet_service.convert_and_upload(res, metric_id, request_id, folder="values")
@@ -321,15 +327,14 @@ async def verify_cube_connection(config: CubeConnectionConfig):
 
 @router.post(
     "/metrics/{metric_id}/notifications/slack",
-    response_model=SlackChannelsResponse,
+    response_model=MetricSlackNotificationResponse,
     tags=["metrics"],
     dependencies=[Security(oauth2_auth().verify, scopes=[QUERY_MANAGER_ALL])],
 )
 async def create_metric_slack_notifications(
     client: QueryClientDep,
     metric_id: str,
-    slack_enabled: bool,
-    channel_ids: SlackChannelIds,
+    request: MetricSlackNotificationRequest,
     notification_crud: CRUDMetricNotificationsDep,
     insights_client: InsightBackendClientDep,
 ):
@@ -339,38 +344,36 @@ async def create_metric_slack_notifications(
     try:
         # Attempt to get the details of the metric
         metric = await client.get_metric_details(metric_id)
-    except NoSuchKeyError as e:
+    except (NoSuchKeyError, MetricNotFoundError) as e:
         # If the metric is not found, raise a MetricNotFoundError
         raise MetricNotFoundError(metric_id) from e
-    except MetricNotFoundError as MetricErr:
-        # If a MetricNotFoundError is raised, re-raise it with the metric ID
-        raise MetricNotFoundError(metric_id) from MetricErr
 
     # Validate that channel_ids is not empty if slack_enabled is true
-    if slack_enabled and not channel_ids.channel_ids:
+    if request.slack_enabled and not request.channel_ids:
         # If channel_ids is empty and slack_enabled is true, raise an HTTPException
         raise HTTPException(status_code=422, detail="Channel Ids cannot be blank.")
 
     # Initialize an empty list to store channel details
-    channels_dict = []
-    for channel_id in channel_ids.channel_ids:
-        # Attempt to get the channel name for each channel ID
-        channel_name = await insights_client.get_channel_name(channel_id)
-        if channel_name is None:
-            # If the channel name is not found, raise an HTTPException
-            raise HTTPException(status_code=404, detail=f"Channel with ID '{channel_id}' not found.")
-        # Append the channel details to the channels_dict list
-        channels_dict.append({"channel_id": channel_id, "channel_name": channel_name})
+    channels = []
+    for channel_id in request.channel_ids:
+        try:
+            # Attempt to get the channel name for each channel ID
+            channel_details = await insights_client.get_slack_channel_details(channel_id)
+        except (SlackApiError, HttpClientError) as Err:
+            raise HTTPException(status_code=404, detail=f"Channel not found for {channel_id}") from Err
+
+        # Append the channel details to the channels list
+        channels.append(channel_details)
 
     # Create the Slack notifications using the notification_crud dependency
     return await notification_crud.create_metric_notifications(
-        metric_id=metric.id, slack_enabled=slack_enabled, slack_channels=channels_dict  # type: ignore
+        metric_id=metric.id, slack_enabled=request.slack_enabled, slack_channels=channels  # type: ignore
     )
 
 
 @router.get(
     "/metrics/{metric_id}/notifications/slack",
-    response_model=SlackChannelsResponse,
+    response_model=MetricSlackNotificationResponse,
     tags=["metrics"],
     dependencies=[Security(oauth2_auth().verify, scopes=[QUERY_MANAGER_ALL])],
 )
@@ -385,12 +388,9 @@ async def get_metric_slack_notifications(
     try:
         # Attempt to get the details of the metric
         metric = await client.get_metric_details(metric_id)
-    except NoSuchKeyError as e:
+    except (NoSuchKeyError, MetricNotFoundError) as e:
         # If the metric is not found, raise a MetricNotFoundError
         raise MetricNotFoundError(metric_id) from e
-    except MetricNotFoundError as MetricErr:
-        # If a MetricNotFoundError is raised, re-raise it with the metric ID
-        raise MetricNotFoundError(metric_id) from MetricErr
 
     # Attempt to get the Slack notifications for the metric using the notification_crud dependency
     res = await notification_crud.get_metric_notifications(
@@ -403,3 +403,24 @@ async def get_metric_slack_notifications(
 
     # Return the Slack notifications
     return res
+
+
+@router.post(
+    "/metrics/{metric_id}/expression/parse",
+    response_model=ParsedExpressionOutput,
+    tags=["expression"],
+    dependencies=[Security(oauth2_auth().verify, scopes=[QUERY_MANAGER_ALL])],
+)
+async def parse_expression(
+    metric_id: str,
+    request: ExpressionParseRequest,
+    expression_parser_service: ExpressionParserServiceDep,
+):
+    """
+    Parse a string expression and return the parsed JSON.
+    """
+    logger.info("Parsing expression for metric %s: %s", metric_id, request.expression)
+    try:
+        return await expression_parser_service.process(request.expression)
+    except LLMError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
