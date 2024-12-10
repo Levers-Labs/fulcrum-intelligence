@@ -18,7 +18,7 @@ def mock_config():
 @pytest.fixture
 def channel_config():
     return {
-        "channel_id": "test-channel",
+        "id": "test-channel",
         "name": "Test Channel",
     }
 

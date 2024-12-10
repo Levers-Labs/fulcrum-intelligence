@@ -51,3 +51,19 @@ class InsightBackendClient(AsyncHttpClient):
         """
         response = await self.get(f"slack/channels/{channel_id}")
         return response
+
+    async def get_slack_config(self) -> dict:
+        """
+        Get tenant configuration for tenant from context.
+        Raises an InvalidTenant exception if the tenant is not found.
+        :return: dict
+        """
+        try:
+            config = await self.get("/tenant/config/internal")
+            slack_config = config["slack_connection"]
+            return slack_config
+        except HttpClientError as e:
+            if e.status_code == 404:
+                tenant_id = get_tenant_id()
+                raise InvalidTenantError(tenant_id) from e
+            raise
