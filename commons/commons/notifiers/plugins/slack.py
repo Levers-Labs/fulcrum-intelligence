@@ -48,7 +48,7 @@ class SlackNotifier(BaseNotifier):
             SlackApiError: If there is an error sending the message.
 
         """
-        channel_id = channel_config.get("channel_id")
+        channel_id = channel_config.get("id")
         if not channel_id:
             raise ValueError("Channel ID is not provided in the configuration.")
         # Send a message

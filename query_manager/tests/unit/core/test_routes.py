@@ -353,7 +353,7 @@ async def test_metric_slack_notifications(async_client: AsyncClient, mocker, met
 
     metric_id = metric.metric_id
 
-    req = MetricSlackNotificationRequest(metric_id=metric_id, slack_enabled=True, channel_ids=["channel1"])
+    req = MetricSlackNotificationRequest(slack_enabled=True, channel_ids=["channel1"])
 
     # Test successful creation
     response = await async_client.post(f"/v1/metrics/{metric_id}/notifications/slack", json=req.dict())
@@ -376,9 +376,7 @@ async def test_metric_slack_notifications(async_client: AsyncClient, mocker, met
     )
     mocker.patch.object(InsightBackendClient, "get_slack_channel_details", mock_get_slack_channel_details)
 
-    invalid_req = MetricSlackNotificationRequest(
-        metric_id=metric_id, slack_enabled=True, channel_ids=["invalid_channel"]
-    )
+    invalid_req = MetricSlackNotificationRequest(slack_enabled=True, channel_ids=["invalid_channel"])
     response = await async_client.post(
         f"/v1/metrics/{metric_id}/notifications/slack",
         json=invalid_req.dict(),
