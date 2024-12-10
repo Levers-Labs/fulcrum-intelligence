@@ -295,8 +295,8 @@ def send_slack_alerts(
     ],
     created_date: Annotated[
         str,
-        typer.Argument(help="The date (YYYY-MM-DD) for which to send alerts. Defaults to Nov 6, 2024 if not provided."),
-    ] = "",
+        typer.Argument(help="The date (YYYY-MM-DD) for which to send alerts. Defaults to today if not provided."),
+    ],
 ):
     """
     Send Slack alerts for stories generated for a specific metric, tenant and time granularity.
@@ -323,14 +323,15 @@ def send_slack_alerts(
     # Initialize API clients
     query_client = asyncio.run(get_query_manager_client())
     insights_backend = asyncio.run(get_insights_backend_client())
+    slack_connection_config = asyncio.run(insights_backend.get_slack_config())
 
     # Create alerts handler and process alerts
-    slack_alert_service = SlackAlertsService(query_client, insights_backend)
+    slack_alert_service = SlackAlertsService(query_client, slack_connection_config)
     asyncio.run(
         slack_alert_service.send_metric_stories_notification(
-            grain=grain, tenant_id=tenant_id, created_date=created_at_date, metric_id=metric_id
+            grain=grain, tenant_id=tenant_id, created_date=created_at_date, metric_id=metric_id  # type: ignore
         )
-    )  # type: ignore
+    )
 
     # Clean up tenant context after processing
     reset_context()

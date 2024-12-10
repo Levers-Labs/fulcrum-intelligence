@@ -4,7 +4,7 @@
 			"type": "header",
 			"text": {
 				"type": "plain_text",
-				"text": "🚀 Story Updates for {{ grain }} Grain - Metric : {{ metric_label }}",
+				"text": "🚀 [{{ metric.label }}] Stories • {{ grain|title }}",
 				"emoji": true
 			}
 		},
@@ -15,7 +15,7 @@
 			  "type": "section",
 			  "text": {
 				"type": "mrkdwn",
-				"text": "*{{ story.story_group }}*"
+				"text": "*{{ story.story_group| replace('_', ' ') | title }}*"
 			  }
 			},
 			{% set previous_group = story.story_group %}
@@ -24,7 +24,7 @@
 			"type": "section",
 			"text": {
 			  "type": "mrkdwn",
-			  "text": "*{{ metric_label }}* [_*{{ story.metric_id }}*_] *{{ story.title }}*\n{{ story.detail }}"
+			  "text": "*{{ story.title }}*\n{{ story.detail }}"
 			}
 		  },
 		{% endfor %}

@@ -2,7 +2,6 @@ import logging
 from datetime import date, datetime
 from typing import Any
 
-from commons.clients.insight_backend import InsightBackendClient
 from commons.clients.query_manager import QueryManagerClient
 from commons.models.enums import Granularity
 from story_manager.core.crud import CRUDStory
@@ -30,20 +29,15 @@ class SlackAlertsService:
 
     SLACK_MSG_TEMPLATE = "stories_slack_template"
 
-    def __init__(
-        self,
-        query_client: QueryManagerClient,
-        insights_client: InsightBackendClient,
-    ) -> None:
+    def __init__(self, query_client: QueryManagerClient, slack_connection_config: dict) -> None:
         """
         Initialize the Slack alerts service with required API clients.
 
         Args:
             query_client: Client for accessing metric metadata and notification settings
-            insights_client: Client for retrieving tenant configurations and insights
         """
         self.query_client = query_client
-        self.insights_client = insights_client
+        self.slack_connection_config = slack_connection_config
 
     async def _get_stories(self, metric_id: str, grain: Granularity, tenant_id: int, created_date: date) -> list:
         """
@@ -65,37 +59,32 @@ class SlackAlertsService:
                 - title: The story headline
                 - detail: The detailed story content
         """
-        try:
-            async with get_async_session() as db_session:
-                # Query stories using CRUD operations
-                story_crud = CRUDStory(model=Story, session=db_session)
-                stories = await story_crud.get_stories(metric_id, grain, created_date, tenant_id, is_heuristic=True)
+        async with get_async_session() as db_session:
+            # Query stories using CRUD operations
+            story_crud = CRUDStory(model=Story, session=db_session)
+            stories = await story_crud.get_stories(metric_id, grain, created_date, tenant_id, is_heuristic=True)
 
-                logger.debug(
-                    "Fetched %d stories for metric_id=%s, grain=%s, tenant_id=%d, created_date=%s",
-                    len(stories),
-                    metric_id,
-                    grain,
-                    tenant_id,
-                    created_date,
-                )
+            logger.debug(
+                "Fetched %d stories for metric_id=%s, grain=%s, tenant_id=%d, created_date=%s",
+                len(stories),
+                metric_id,
+                grain,
+                tenant_id,
+                created_date,
+            )
 
-                # Format stories for template rendering
-                formatted_stories = [
-                    {
-                        "story_group": story.story_group.value,
-                        "metric_id": story.metric_id,
-                        "title": story.title,
-                        "detail": story.detail,
-                    }
-                    for story in stories
-                ]
+            # Format stories for template rendering
+            formatted_stories = [
+                {
+                    "story_group": story.story_group.value,
+                    "metric_id": story.metric_id,
+                    "title": story.title,
+                    "detail": story.detail,
+                }
+                for story in stories
+            ]
 
-            return formatted_stories
-
-        except Exception as e:
-            logger.exception("Failed to fetch stories for metric_id=%s: %s", metric_id, str(e))
-            return []
+        return formatted_stories
 
     async def _prepare_context(self, stories, grain, metric_id):
         """
@@ -122,21 +111,8 @@ class SlackAlertsService:
             "stories": stories,
             "grain": grain.value,
             "time": datetime.utcnow(),
-            "metric_id": metric_id,
-            "metric_label": metric["label"],
+            "metric": metric,
         }
-
-    async def is_metric_slack_notification_enabled(self, slack_notification_config):
-        """
-        Verify if Slack notifications are enabled for a metric.
-
-        Args:
-            slack_notification_config: The metric's notification settings
-
-        Returns:
-            bool: True if Slack notifications are enabled, False otherwise
-        """
-        return slack_notification_config.get("slack_enabled")
 
     async def _send_slack_alerts(
         self,
@@ -160,24 +136,14 @@ class SlackAlertsService:
         Returns:
             Any: Slack API response on success, None on failure
         """
-        try:
-            response = await client.send_notification(  # type: ignore
-                template_name=self.SLACK_MSG_TEMPLATE,
-                config=slack_config,
-                channel_config=channel_config,
-                context=context,
-            )
-            logger.debug("Slack notification sent successfully to channel %s", channel_config["channel_id"])
-            return response
-
-        except Exception as e:
-            logger.exception(
-                "Failed to send Slack notification for metric_id=%s to channel=%s: %s",
-                context["metric_id"],
-                channel_config["channel_id"],
-                str(e),
-            )
-            return None
+        response = await client.send_notification(  # type: ignore
+            template_name=self.SLACK_MSG_TEMPLATE,
+            config=slack_config,
+            channel_config=channel_config,
+            context=context,
+        )
+        logger.debug("Slack notification sent successfully to channel %s", channel_config["id"])
+        return response
 
     async def _get_slack_config(self, metric_id: str) -> list:
         """
@@ -241,16 +207,13 @@ class SlackAlertsService:
             created_date,
         )
 
+        if not self.slack_connection_config:
+            logger.error("Slack connection not configured for tenant_id=%d", tenant_id)
+            return
+
         try:
             channels_config = await self._get_slack_config(metric_id)
         except ValueError:
-            return
-
-        # Retrieve tenant-specific Slack configuration
-        tenant_config = await self.insights_client.get_tenant_config()
-        slack_connection_config = tenant_config.get("slack_connection")
-        if not slack_connection_config:
-            logger.error("Slack connection not configured for tenant_id=%d", tenant_id)
             return
 
         # Fetch stories and prepare notifications
@@ -260,13 +223,13 @@ class SlackAlertsService:
             return
 
         context = await self._prepare_context(stories, grain, metric_id)
-        notifier = await get_slack_notifier()
+        notifier_client = await get_slack_notifier()
         for channel_config in channels_config:
             await self._send_slack_alerts(
-                client=notifier,
+                client=notifier_client,
                 context=context,
                 channel_config=channel_config,
-                slack_config=slack_connection_config,
+                slack_config=self.slack_connection_config,
             )
 
         logger.info("Successfully processed alerts for metric_id=%s", metric_id)

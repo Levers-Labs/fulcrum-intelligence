@@ -26,7 +26,7 @@ async def get_stories_crud(session: AsyncSessionDep) -> CRUDStory:
 async def get_query_manager_client() -> QueryManagerClient:
     settings = get_settings()
     return QueryManagerClient(
-        base_url=settings.QUERY_MANAGER_SERVER_HOST,
+        base_url=settings.QUERY_MANAGER_SERVER_HOST,  # type: ignore
         auth=ClientCredsAuth(
             auth0_issuer=settings.AUTH0_ISSUER,
             client_id=settings.AUTH0_CLIENT_ID,
@@ -39,7 +39,7 @@ async def get_query_manager_client() -> QueryManagerClient:
 async def get_analysis_manager_client() -> AnalysisManagerClient:
     settings = get_settings()
     return AnalysisManagerClient(
-        base_url=settings.ANALYSIS_MANAGER_SERVER_HOST,
+        base_url=settings.ANALYSIS_MANAGER_SERVER_HOST,  # type: ignore
         auth=ClientCredsAuth(
             auth0_issuer=settings.AUTH0_ISSUER,
             client_id=settings.AUTH0_CLIENT_ID,
@@ -72,7 +72,7 @@ async def get_slack_notifier() -> BaseNotifier:
 async def get_insights_backend_client() -> InsightBackendClient:
     settings = get_settings()
     return InsightBackendClient(
-        settings.INSIGHTS_BACKEND_SERVER_HOST,
+        settings.INSIGHTS_BACKEND_SERVER_HOST,  # type: ignore
         auth=ClientCredsAuth(
             auth0_issuer=settings.AUTH0_ISSUER,
             client_id=settings.AUTH0_CLIENT_ID,
