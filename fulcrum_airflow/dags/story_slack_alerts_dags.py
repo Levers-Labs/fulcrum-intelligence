@@ -58,25 +58,51 @@ def create_slack_alert_dag() -> None:
             logger.info("Successfully fetched %s tenant IDs", len(tenant_ids))
             return tenant_ids
 
-        @task(task_id="fetch_metric_ids", multiple_outputs=True)
-        def fetch_metric_ids(auth_header, tenants: list[int]) -> dict[str, list[str]]:
+        @task(task_id="filter_metric_ids", multiple_outputs=True)
+        def filter_metric_ids(auth_header, tenants: list[int]) -> dict[str, list[str]]:
             """
             Fetch metric IDs for all tenants. These will be used to send alerts.
             """
-            results = defaultdict(list)
+            tenant_metrics_map = defaultdict(list)
             for tenant_id in tenants:
+                # Prepare tenant-specific auth header
                 tenant_auth_header = auth_header.copy()
                 tenant_auth_header["X-Tenant-Id"] = str(tenant_id)
+
                 logger.info("Fetching metric IDs for tenant %s", tenant_id)
-                response = requests.get(
+
+                # Get all metrics for tenant
+                metrics_response = requests.get(
                     f"{QUERY_MANAGER_SERVER_HOST.strip('/')}/metrics?limit=1000", headers=tenant_auth_header, timeout=30
                 )
-                response.raise_for_status()
-                metrics_data = response.json()
-                results[str(tenant_id)] = [metric["metric_id"] for metric in metrics_data.get("results", [])]
-                logger.info("Successfully fetched %s metric IDs for tenant %s", len(results[str(tenant_id)]), tenant_id)
-            logger.info("Successfully fetched metric IDs for all tenants")
-            return results
+                metrics_response.raise_for_status()
+                metrics_data = metrics_response.json()
+                all_metric_ids = [metric["metric_id"] for metric in metrics_data.get("results", [])]
+
+                # Filter metrics with enabled Slack notifications
+                slack_enabled_metrics = []
+                for metric_id in all_metric_ids:
+                    slack_config_response = requests.get(
+                        f"{QUERY_MANAGER_SERVER_HOST.strip('/')}/metrics/{metric_id}/notifications/slack",
+                        headers=tenant_auth_header,
+                        timeout=30,
+                    )
+                    if slack_config_response.status_code == 404:
+                        continue
+
+                    slack_config = slack_config_response.json()
+                    if slack_config["slack_enabled"]:
+                        slack_enabled_metrics.append(metric_id)
+
+                tenant_metrics_map[str(tenant_id)] = slack_enabled_metrics
+                logger.info(
+                    "Found %s metrics with Slack notifications enabled for tenant %s",
+                    len(slack_enabled_metrics),
+                    tenant_id,
+                )
+
+            logger.info("Successfully fetched Slack-enabled metrics for all tenants")
+            return tenant_metrics_map
 
         @task(task_id="fetch_grains", multiple_outputs=True)
         def fetch_grains(tenants: list[int]) -> dict[str, list[str]]:
@@ -113,7 +139,7 @@ def create_slack_alert_dag() -> None:
                 filtered_grains = filter_grains(grains, today)
                 commands.extend(
                     [
-                        f"send-slack-alert {metric_id} {tenant_id} {grain} {today.date()}"
+                        f"story send-slack-alert {metric_id} {tenant_id} {grain} {today.date()}"
                         for metric_id in metrics
                         for grain in filtered_grains
                     ]
@@ -126,7 +152,7 @@ def create_slack_alert_dag() -> None:
         # Fetch the necessary data
         auth_header = get_auth_header()
         tenants = fetch_tenants(auth_header)
-        metric_ids_map = fetch_metric_ids(auth_header, tenants)
+        metric_ids_map = filter_metric_ids(auth_header, tenants)
         grains_map = fetch_grains(tenants)
         commands = prepare_alert_commands(tenants, metric_ids_map, grains_map)
 
