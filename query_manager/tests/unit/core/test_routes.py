@@ -471,4 +471,4 @@ async def test_list_metrics_slack_enabled_single_metric(async_client: AsyncClien
     }
 
     # Ensure that the mock was called with the correct parameters
-    mock_list_metrics.assert_called_once_with(slack_enabled=True)
+    mock_list_metrics.assert_called_once_with(slack_enabled=True, metric_ids=None, metric_label=None, params=mocker.ANY)
