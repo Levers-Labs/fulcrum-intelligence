@@ -9,6 +9,13 @@ class DimensionFilter(BaseFilter[Dimension]):
 class MetricFilter(BaseFilter[Metric]):
     metric_ids: list[str] | None = FilterField(Metric.metric_id, operator="in", default=None)  # type: ignore
     metric_label: str | None = FilterField(Metric.label, operator="ilike", default=None)  # type: ignore
+    slack_enabled: bool | None = FilterField(
+        MetricNotifications.slack_enabled,  # type: ignore
+        operator="is",
+        default=None,
+        join_model=MetricNotifications,
+        join_condition=lambda: Metric.id == MetricNotifications.metric_id,
+    )
 
 
 class MetricNotificationsFilter(BaseFilter[MetricNotifications]):

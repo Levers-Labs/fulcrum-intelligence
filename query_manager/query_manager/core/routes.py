@@ -69,11 +69,14 @@ async def list_metrics(
         list[str],
         Query(description="List of metric ids"),
     ] = None,  # type: ignore
+    slack_enabled: bool = None,  # type: ignore
 ):
     """
     Retrieve a list of metrics.
     """
-    results, count = await client.list_metrics(metric_ids=metric_ids, metric_label=metric_label, params=params)
+    results, count = await client.list_metrics(
+        metric_ids=metric_ids, metric_label=metric_label, slack_enabled=slack_enabled, params=params
+    )
     return Page[Metric].create(items=results, total_count=count, params=params)
 
 

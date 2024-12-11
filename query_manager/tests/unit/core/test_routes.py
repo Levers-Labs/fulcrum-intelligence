@@ -447,3 +447,28 @@ async def test_parse_expression_llm_error(async_client: AsyncClient, mocker):
     assert response.status_code == 400
     assert response.json()["detail"] == "Failed to parse expression"
     mock_process.assert_awaited_once_with(expression)
+
+
+@pytest.mark.asyncio
+async def test_list_metrics_slack_enabled_single_metric(async_client: AsyncClient, mocker, metric):
+    # Mock the list_metrics method to return a specific response
+    mock_list_metrics = AsyncMock(return_value=([Metric.parse_obj(metric)], 1))
+    mocker.patch.object(QueryClient, "list_metrics", mock_list_metrics)
+
+    # Make the API call
+    response = await async_client.get("/v1/metrics?slack_enabled=true")
+
+    # Assert the response status code
+    assert response.status_code == 200
+
+    # Assert the response JSON structure
+    assert response.json() == {
+        "count": 1,
+        "limit": 10,
+        "offset": 0,
+        "pages": 1,
+        "results": [MetricList(**metric).model_dump(mode="json")],
+    }
+
+    # Ensure that the mock was called with the correct parameters
+    mock_list_metrics.assert_called_once_with(slack_enabled=True)
