@@ -7,6 +7,7 @@ from airflow.decorators import dag, task
 from airflow.providers.amazon.aws.operators.ecs import EcsRunTaskOperator
 from airflow.providers.docker.operators.docker import DockerOperator
 from utils.config import (
+    ANALYSIS_MANAGER_SERVER_HOST,
     AUTH0_API_AUDIENCE,
     AUTH0_CLIENT_ID,
     AUTH0_CLIENT_SECRET,
@@ -168,6 +169,8 @@ def create_slack_alert_dag() -> None:
                     "SERVER_HOST": SERVER_HOST,
                     "SECRET_KEY": SECRET_KEY,
                     "QUERY_MANAGER_SERVER_HOST": QUERY_MANAGER_SERVER_HOST,
+                    "ANALYSIS_MANAGER_SERVER_HOST": ANALYSIS_MANAGER_SERVER_HOST,
+                    "INSIGHTS_BACKEND_SERVER_HOST": INSIGHTS_BACKEND_SERVER_HOST,
                     "DATABASE_URL": DATABASE_URL,
                     "AUTH0_API_AUDIENCE": AUTH0_API_AUDIENCE,
                     "AUTH0_ISSUER": AUTH0_ISSUER,
