@@ -279,6 +279,8 @@ class CubeMeasure(CubeMember):
     """Schema for cube measures"""
 
     type: Literal["number"] = "number"
+    metric_id: str
+    grain_aggregation: str
 
     model_config = ConfigDict(
         from_attributes=True,
@@ -298,6 +300,7 @@ class CubeDimension(CubeMember):
     """Schema for cube dimensions"""
 
     type: Literal["time", "string", "number"]
+    dimension_id: str
 
     model_config = ConfigDict(
         from_attributes=True,

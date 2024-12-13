@@ -22,7 +22,6 @@ from commons.models.tenant import CubeConnectionConfig
 from commons.utilities.pagination import Page, PaginationParams
 from query_manager.core.dependencies import (
     CRUDMetricNotificationsDep,
-    CubeClientDep,
     ExpressionParserServiceDep,
     InsightBackendClientDep,
     ParquetServiceDep,
@@ -440,22 +439,22 @@ async def parse_expression(
 @router.get(
     "/meta/cubes",
     response_model=list[Cube],
-    tags=["meta"],
+    tags=["cube"],
     dependencies=[Security(oauth2_auth().verify, scopes=[QUERY_MANAGER_ALL])],
 )
 async def list_cubes(
-    cube_client: CubeClientDep,
+    client: QueryClientDep,
     cube_name: str | None = None,
 ):
     """
     List all available cubes.
 
     Args:
-        cube_client: Cube API client dependency
+        client: QueryClient dependency
         cube_name: Optional filter to get a specific cube by name
     """
     try:
-        cubes = await cube_client.list_cubes()
+        cubes = await client.list_cubes(cube_name=cube_name)
         if cube_name:
             cubes = [cube for cube in cubes if cube["name"] == cube_name or cube["title"] == cube_name]
         return cubes
