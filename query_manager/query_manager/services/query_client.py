@@ -195,3 +195,47 @@ class QueryClient:
             self.dimensions_crud.session, dimension, dimension_data.model_dump()
         )
         return updated_dimension
+
+    async def list_cubes(self, cube_name: str | None = None) -> list[dict]:
+        """
+        Fetches a list of all cubes.
+        """
+        cubes = await self.cube_client.list_cubes()
+        if cube_name:
+            cubes = [cube for cube in cubes if cube["name"] == cube_name or cube["title"] == cube_name]
+        # post process the cubes
+        for cube in cubes:
+            for measure in cube["measures"]:
+                title = measure["title"]
+                # e.g. "Total Revenue" -> "TotalRevenue"
+                measure["metric_id"] = title.title().replace(" ", "")
+                # Convert cube measure aggregation type to grain_aggregation
+                measure["grain_aggregation"] = self.map_cube_aggregation_to_grain(measure["type"])
+
+            for dimension in cube["dimensions"]:
+                title = dimension["title"]
+                # e.g. "Customer Region" -> "CustomerRegion"
+                dimension["dimension_id"] = title.title().replace(" ", "")
+        return cubes
+
+    @staticmethod
+    def map_cube_aggregation_to_grain(agg_type: str) -> str:
+        """
+        Maps cube measure aggregation type to grain_aggregation.
+
+        Args:
+            agg_type: The aggregation type from cube measure
+
+        Returns:
+            str: The corresponding grain aggregation type
+        """
+        agg_type = agg_type.lower()
+        if agg_type in ("count", "sum"):
+            return "sum"
+        elif agg_type == "avg":
+            return "avg"
+        elif agg_type == "min":
+            return "min"
+        elif agg_type == "max":
+            return "max"
+        return "sum"  # default

@@ -464,3 +464,85 @@ async def test_load_dimension_members_from_cube_error(mocker, dimension, cube_cl
     # Assert
     assert members == []
     load_query_data_mock.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_list_cubes(mocker, cube_client):
+    # Prepare
+    cube_client = await cube_client
+    mock_response = {
+        "cubes": [
+            {
+                "name": "cube1",
+                "title": "Cube One",
+                "measures": [
+                    {
+                        "name": "revenue",
+                        "title": "Total Revenue",
+                        "shortTitle": "Revenue",
+                        "type": "number",
+                        "description": "Total revenue from all sources",
+                    }
+                ],
+                "dimensions": [
+                    {
+                        "name": "created_at",
+                        "title": "Created Date",
+                        "shortTitle": "Created",
+                        "type": "time",
+                        "description": "Date when record was created",
+                    }
+                ],
+            }
+        ]
+    }
+
+    # Mock the get method
+    get_mock = AsyncMock(return_value=mock_response)
+    mocker.patch.object(cube_client, "get", get_mock)
+
+    # Execute
+    cubes = await cube_client.list_cubes()
+
+    # Assert
+    assert len(cubes) == 1
+    assert cubes[0]["name"] == "cube1"
+    assert cubes[0]["title"] == "Cube One"
+    assert len(cubes[0]["measures"]) == 1
+    assert cubes[0]["measures"][0]["name"] == "revenue"
+    assert len(cubes[0]["dimensions"]) == 1
+    assert cubes[0]["dimensions"][0]["name"] == "created_at"
+    get_mock.assert_called_once_with("/meta")
+
+
+@pytest.mark.asyncio
+async def test_list_cubes_error(mocker, cube_client):
+    # Prepare
+    cube_client = await cube_client
+
+    # Mock the get method to raise error
+    get_mock = AsyncMock(side_effect=HttpClientError("Error"))
+    mocker.patch.object(cube_client, "get", get_mock)
+
+    # Execute and Assert
+    with pytest.raises(HttpClientError):
+        await cube_client.list_cubes()
+    get_mock.assert_called_once_with("/meta")
+
+
+@pytest.mark.asyncio
+async def test_list_cubes_empty(mocker, cube_client):
+    # Prepare
+    cube_client = await cube_client
+    mock_response = {"cubes": []}
+
+    # Mock the get method
+    get_mock = AsyncMock(return_value=mock_response)
+    mocker.patch.object(cube_client, "get", get_mock)
+
+    # Execute
+    cubes = await cube_client.list_cubes()
+
+    # Assert
+    assert len(cubes) == 0
+    get_mock.assert_called_once_with("/meta")

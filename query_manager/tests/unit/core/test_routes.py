@@ -5,6 +5,7 @@ from httpx import AsyncClient
 from slack_sdk.errors import SlackApiError
 from sqlalchemy.exc import IntegrityError
 
+from commons.clients.base import HttpClientError
 from commons.clients.insight_backend import InsightBackendClient
 from commons.llm.exceptions import LLMError
 from query_manager.core.crud import CRUDMetricNotifications
@@ -472,3 +473,84 @@ async def test_list_metrics_slack_enabled_single_metric(async_client: AsyncClien
 
     # Ensure that the mock was called with the correct parameters
     mock_list_metrics.assert_called_once_with(slack_enabled=True, metric_ids=None, metric_label=None, params=mocker.ANY)
+
+
+@pytest.mark.asyncio
+async def test_list_cubes(async_client: AsyncClient, mocker):
+    """Test listing all cubes."""
+    # Mock data
+    mock_cubes = [
+        {
+            "name": "cube1",
+            "title": "Cube One",
+            "measures": [
+                {
+                    "name": "revenue",
+                    "title": "Total Revenue",
+                    "shortTitle": "Revenue",
+                    "type": "number",
+                    "description": "Total revenue from all sources",
+                }
+            ],
+            "dimensions": [
+                {
+                    "name": "created_at",
+                    "title": "Created Date",
+                    "shortTitle": "Created",
+                    "type": "time",
+                    "description": "Date when record was created",
+                }
+            ],
+        }
+    ]
+
+    # Mock the cube client list_cubes method
+    mock_list_cubes = AsyncMock(return_value=mock_cubes)
+    mocker.patch.object(CubeClient, "list_cubes", mock_list_cubes)
+
+    # Act
+    response = await async_client.get("/v1/meta/cubes")
+
+    # Assert
+    assert response.status_code == 200
+    assert response.json() == mock_cubes
+    mock_list_cubes.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_list_cubes_with_name_filter(async_client: AsyncClient, mocker):
+    """Test listing cubes filtered by name."""
+    # Mock data
+    mock_cubes = [
+        {"name": "cube1", "title": "Cube One", "measures": [], "dimensions": []},
+        {"name": "cube2", "title": "Cube Two", "measures": [], "dimensions": []},
+    ]
+
+    # Mock the cube client list_cubes method
+    mock_list_cubes = AsyncMock(return_value=mock_cubes)
+    mocker.patch.object(CubeClient, "list_cubes", mock_list_cubes)
+
+    # Act
+    response = await async_client.get("/v1/meta/cubes?cube_name=cube1")
+
+    # Assert
+    assert response.status_code == 200
+    assert len(response.json()) == 1
+    assert response.json()[0]["name"] == "cube1"
+    mock_list_cubes.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_list_cubes_error(async_client: AsyncClient, mocker):
+    """Test listing cubes with API error."""
+    # Mock the cube client to raise error
+    mock_list_cubes = AsyncMock(side_effect=HttpClientError("Failed to fetch cubes"))
+    mocker.patch.object(CubeClient, "list_cubes", mock_list_cubes)
+
+    # Act
+    response = await async_client.get("/v1/meta/cubes")
+
+    # Assert
+    assert response.status_code == 500
+    assert response.json()["detail"] == "Failed to fetch cubes from Cube API"
+    mock_list_cubes.assert_awaited_once()

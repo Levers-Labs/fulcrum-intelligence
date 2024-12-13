@@ -30,6 +30,7 @@ from query_manager.core.dependencies import (
 )
 from query_manager.core.enums import OutputFormat
 from query_manager.core.schemas import (  # SlackChannelIds,; SlackChannelsResponse,
+    Cube,
     Dimension,
     DimensionCompact,
     DimensionCreate,
@@ -46,7 +47,13 @@ from query_manager.core.schemas import (  # SlackChannelIds,; SlackChannelsRespo
     MetricValuesResponse,
     TargetListResponse,
 )
-from query_manager.exceptions import DimensionNotFoundError, MetricNotFoundError, MetricNotificationNotFoundError
+from query_manager.exceptions import (
+    DimensionNotFoundError,
+    ErrorCode,
+    MetricNotFoundError,
+    MetricNotificationNotFoundError,
+    QueryManagerError,
+)
 from query_manager.llm.prompts import ParsedExpressionOutput
 from query_manager.services.cube import CubeClient, CubeJWTAuthType
 from query_manager.services.s3 import NoSuchKeyError
@@ -427,3 +434,30 @@ async def parse_expression(
         return await expression_parser_service.process(request.expression)
     except LLMError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
+
+
+@router.get(
+    "/meta/cubes",
+    response_model=list[Cube],
+    tags=["cube"],
+    dependencies=[Security(oauth2_auth().verify, scopes=[QUERY_MANAGER_ALL])],
+)
+async def list_cubes(
+    client: QueryClientDep,
+    cube_name: str | None = None,
+):
+    """
+    List all available cubes.
+
+    Args:
+        client: QueryClient dependency
+        cube_name: Optional filter to get a specific cube by name
+    """
+    try:
+        cubes = await client.list_cubes(cube_name=cube_name)
+        if cube_name:
+            cubes = [cube for cube in cubes if cube["name"] == cube_name or cube["title"] == cube_name]
+        return cubes
+    except HttpClientError as exc:
+        logger.error("Failed to fetch cubes from Cube API: %s", exc)
+        raise QueryManagerError(500, ErrorCode.MISSING_CONFIGURATION, "Failed to fetch cubes from Cube API") from exc

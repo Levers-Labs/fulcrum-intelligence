@@ -377,3 +377,38 @@ class CubeClient(AsyncHttpClient):
         members = [row[key] for row in response if row[key] is not None]
         logger.debug("Dimension members: %s for dimension_id: %s", members, dimension.dimension_id)
         return members
+
+    async def list_cubes(self) -> list[dict]:
+        """
+        Get all available cube names from the Cube API.
+        """
+        cubes = []
+        meta = await self.get("/meta")
+        for cube in meta.get("cubes", []):
+            cube_meta = {
+                "name": cube["name"],
+                "title": cube["title"],
+            }
+            cube_meta["measures"] = [
+                {
+                    "name": m["name"],
+                    "title": m.get("title", m["name"]),
+                    "short_title": m.get("shortTitle", m["name"]),
+                    "type": m.get("type", "number"),
+                    "description": m.get("description"),
+                }
+                for m in cube.get("measures", [])
+            ]
+            cube_meta["dimensions"] = [
+                {
+                    "name": d["name"],
+                    "title": d.get("title", d["name"]),
+                    "short_title": d.get("shortTitle", d["name"]),
+                    "type": d.get("type", "string"),
+                    "description": d.get("description"),
+                }
+                for d in cube.get("dimensions", [])
+            ]
+            cubes.append(cube_meta)
+
+        return cubes

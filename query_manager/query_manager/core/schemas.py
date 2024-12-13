@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import datetime
+from typing import Literal
 
 from pydantic import ConfigDict, Field, field_validator
 from sqlalchemy import select
@@ -249,3 +250,74 @@ class MetricSlackNotificationResponse(BaseModel):
 
 class ExpressionParseRequest(BaseModel):
     expression: str
+
+
+class CubeMember(BaseModel):
+    """Base schema for cube members (measures and dimensions)"""
+
+    name: str
+    title: str
+    short_title: str = Field(alias="shortTitle")
+    type: str
+    description: str | None = None
+
+    model_config = ConfigDict(
+        from_attributes=True,
+        json_schema_extra={
+            "example": {
+                "name": "revenue",
+                "title": "Revenue",
+                "shortTitle": "Rev",
+                "type": "number",
+                "description": "Total revenue from all sources",
+            }
+        },
+    )
+
+
+class CubeMeasure(CubeMember):
+    """Schema for cube measures"""
+
+    type: Literal["number"] = "number"
+    metric_id: str
+    grain_aggregation: str
+
+    model_config = ConfigDict(
+        from_attributes=True,
+        json_schema_extra={
+            "example": {
+                "name": "total_revenue",
+                "title": "Total Revenue",
+                "shortTitle": "Revenue",
+                "type": "number",
+                "description": "Sum of all revenue",
+            }
+        },
+    )
+
+
+class CubeDimension(CubeMember):
+    """Schema for cube dimensions"""
+
+    type: Literal["time", "string", "number"]
+    dimension_id: str
+
+    model_config = ConfigDict(
+        from_attributes=True,
+        json_schema_extra={
+            "example": {
+                "name": "created_at",
+                "title": "Created Date",
+                "shortTitle": "Created",
+                "type": "time",
+                "description": "Date when the record was created",
+            }
+        },
+    )
+
+
+class Cube(BaseModel):
+    name: str
+    title: str
+    measures: list[CubeMeasure]
+    dimensions: list[CubeDimension]
