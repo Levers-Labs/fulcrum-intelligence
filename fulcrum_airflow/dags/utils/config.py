@@ -36,6 +36,7 @@ ECS_SUBNETS = get_config("ECS_SUBNETS").split(",") if get_config("ECS_SUBNETS") 
 ECS_REGION = get_config("ECS_REGION")
 ECS_TASK_DEFINITION_NAME = get_config("ECS_TASK_DEFINITION_NAME")
 ECS_CLUSTER_NAME = get_config("ECS_CLUSTER_NAME")
+ECS_SLACK_ALERTS_TASK_DEFINITION_NAME = get_config("ECS_SLACK_ALERTS_TASK_DEFINITION_NAME")
 
 # Default schedule for midnight
 DEFAULT_SCHEDULE = get_config("DEFAULT_SCHEDULE", "0 0 * * *")  # Every day at 12:00 AM

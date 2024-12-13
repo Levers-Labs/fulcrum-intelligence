@@ -16,8 +16,8 @@ from utils.config import (
     DOCKER_HOST,
     ECS_CLUSTER_NAME,
     ECS_REGION,
+    ECS_SLACK_ALERTS_TASK_DEFINITION_NAME,
     ECS_SUBNETS,
-    ECS_TASK_DEFINITION_NAME,
     ENV,
     INSIGHTS_BACKEND_SERVER_HOST,
     QUERY_MANAGER_SERVER_HOST,
@@ -182,7 +182,7 @@ def create_slack_alert_dag() -> None:
             EcsRunTaskOperator.partial(
                 task_id="send_slack_alerts",
                 cluster=ECS_CLUSTER_NAME,
-                task_definition=ECS_TASK_DEFINITION_NAME,
+                task_definition=ECS_SLACK_ALERTS_TASK_DEFINITION_NAME,
                 launch_type="FARGATE",
                 network_configuration={"awsvpcConfiguration": {"subnets": ECS_SUBNETS, "assignPublicIp": "ENABLED"}},
                 region_name=ECS_REGION,
