@@ -16,7 +16,13 @@ class FilterField(FieldInfo):
     """
 
     def __init__(
-        self, field: Column, operator: str = "eq", filter_fn: Callable[[Select, Any], Select] | None = None, **kwargs
+        self,
+        field: Column,
+        operator: str = "eq",
+        filter_fn: Callable[[Select, Any], Select] | None = None,
+        join_model: Any = None,
+        join_condition: Any = None,
+        **kwargs,
     ):
         """
         Initialize the FilterField.
@@ -33,6 +39,8 @@ class FilterField(FieldInfo):
         self.field = field
         self.operator = operator
         self.filter_fn = filter_fn or self.get_filter_function()
+        self.join_model = join_model
+        self.join_condition = join_condition
 
     def get_filter_function(self) -> Callable[[Select, Any], Select]:
         """
@@ -101,15 +109,31 @@ class BaseFilter(BaseModel, Generic[T]):
         :return: The modified query.
         """
 
+        # Iterate through each field name and value in the provided dictionary
         for field_name, value in values.items():
+            # Check if the value is not None and if the field name exists in the model fields
             if value is not None and cls.model_fields.get(field_name):
                 filter_field = cls.model_fields[field_name]
+                # Ensure the filter field is an instance of FilterField
                 if not isinstance(filter_field, FilterField):
                     logger.error("Field %s is not a FilterField", field_name)
                     continue
+
+                # If the filter field has a join model specified, apply the join
+                if hasattr(filter_field, "join_model") and filter_field.join_model:
+                    join_condition = (
+                        filter_field.join_condition()
+                        if callable(filter_field.join_condition)
+                        else filter_field.join_condition
+                    )
+                    query = query.join(filter_field.join_model, join_condition)
+
+                # Attempt to apply the filter to the query
                 try:
                     query = filter_field.apply_filter(query, value)
                 except Exception as exc:
+                    # Log any errors that occur during filter application
                     logger.error("Error applying filter %s: %s", field_name, exc)
                     continue
+        # Return the modified query after applying all filters
         return query

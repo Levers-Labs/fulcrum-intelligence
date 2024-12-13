@@ -54,7 +54,7 @@ async def test_list_metrics(mocker, metric, query_client):
     assert result[0] == metric
     assert count == 1
 
-    filter_params = {"metric_ids": [metric["metric_id"]], "metric_label": None}
+    filter_params = {"metric_ids": [metric["metric_id"]], "metric_label": None, "slack_enabled": None}
     mock_paginate.assert_called_once_with(params, filter_params=filter_params)
 
 
@@ -73,7 +73,9 @@ async def test_list_metrics_with_metric_id_filter(mocker, metric, query_client):
     assert result[0] == metric2
     assert count == 1
 
-    mock_paginate.assert_called_once_with(params, filter_params={"metric_ids": ["metric_id2"], "metric_label": None})
+    mock_paginate.assert_called_once_with(
+        params, filter_params={"metric_ids": ["metric_id2"], "metric_label": None, "slack_enabled": None}
+    )
 
 
 @pytest.mark.asyncio
@@ -398,7 +400,9 @@ async def test_list_metrics_with_metric_label_filter(mocker, metric, query_clien
     assert result[0] == metric2
     assert count == 1
 
-    mock_paginate.assert_called_once_with(params, filter_params={"metric_ids": None, "metric_label": "metric_id2"})
+    mock_paginate.assert_called_once_with(
+        params, filter_params={"metric_ids": None, "metric_label": "metric_id2", "slack_enabled": None}
+    )
 
 
 @pytest.mark.asyncio
@@ -416,4 +420,26 @@ async def test_list_metrics_with_fuzzy_label_search(mocker, metric, query_client
     assert result[0] == metric2
     assert count == 1
 
-    mock_paginate.assert_called_once_with(params, filter_params={"metric_ids": None, "metric_label": "met"})
+    mock_paginate.assert_called_once_with(
+        params, filter_params={"metric_ids": None, "metric_label": "met", "slack_enabled": None}
+    )
+
+
+@pytest.mark.asyncio
+async def test_list_metrics_with_slack_enabled_filter(mocker, metric, query_client):
+    client = await query_client
+    metric2 = deepcopy(metric)
+    metric2["id"] = 2
+    metric2["metric_id"] = "metric_id2"
+    mock_paginate = AsyncMock(return_value=([metric2], 1))
+    mocker.patch.object(client.metric_crud, "paginate", mock_paginate)
+
+    params = PaginationParams(page=1, size=10)
+    result, count = await client.list_metrics(metric_ids=None, slack_enabled=True, params=params)
+    assert len(result) == 1
+    assert result[0] == metric2
+    assert count == 1
+
+    mock_paginate.assert_called_once_with(
+        params, filter_params={"metric_ids": None, "metric_label": None, "slack_enabled": True}
+    )

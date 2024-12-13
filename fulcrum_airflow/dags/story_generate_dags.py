@@ -1,66 +1,36 @@
 import logging
-import os
 from collections import defaultdict
 from datetime import datetime
-from enum import Enum
 from typing import Any
 
 import requests
 from airflow.decorators import dag, task
-from airflow.models import Variable
 from airflow.providers.amazon.aws.operators.ecs import EcsRunTaskOperator
 from airflow.providers.docker.operators.docker import DockerOperator
+from utils.config import (
+    ANALYSIS_MANAGER_SERVER_HOST,
+    AUTH0_API_AUDIENCE,
+    AUTH0_CLIENT_ID,
+    AUTH0_CLIENT_SECRET,
+    AUTH0_ISSUER,
+    DATABASE_URL,
+    DOCKER_HOST,
+    ECS_CLUSTER_NAME,
+    ECS_REGION,
+    ECS_SUBNETS,
+    ECS_TASK_DEFINITION_NAME,
+    ENV,
+    INSIGHTS_BACKEND_SERVER_HOST,
+    QUERY_MANAGER_SERVER_HOST,
+    SECRET_KEY,
+    SERVER_HOST,
+    STORY_BUILDER_IMAGE,
+    STORY_MANAGER_SERVER_HOST,
+)
+from utils.story_utils import fetch_auth_token, filter_grains
 
 # Initialize logger for the DAG
 logger = logging.getLogger(__name__)
-
-
-def get_config(key: str, default: str | None = None) -> str:
-    """
-    Fetches configuration settings based on the environment.
-
-    Args:
-    - key (str): The key for the configuration setting.
-    - default (str | None): The default value to return if the key is not found.
-
-    Returns:
-    - str: The configuration value for the given key.
-    """
-    # Check if running locally or in production
-    if os.getenv("AIRFLOW_ENV") == "local":
-        return os.getenv(key, default)  # type: ignore
-    return Variable.get(key, default)
-
-
-# Fetch environment-specific settings
-# Common configurations
-ENV = get_config("AIRFLOW_ENV")
-DEFAULT_SCHEDULE = get_config("DEFAULT_SCHEDULE", "0 0 * * *")
-SECRET_KEY = get_config("SECRET_KEY")
-STORY_MANAGER_SERVER_HOST = get_config("STORY_MANAGER_SERVER_HOST")
-ANALYSIS_MANAGER_SERVER_HOST = get_config("ANALYSIS_MANAGER_SERVER_HOST")
-QUERY_MANAGER_SERVER_HOST = get_config("QUERY_MANAGER_SERVER_HOST")
-DSENSEI_BASE_URL = get_config("DSENSEI_BASE_URL")
-DATABASE_URL = get_config("DATABASE_URL")
-AUTH0_API_AUDIENCE = get_config("AUTH0_API_AUDIENCE")
-AUTH0_ISSUER = get_config("AUTH0_ISSUER")
-AUTH0_CLIENT_SECRET = get_config("AUTH0_CLIENT_SECRET")
-AUTH0_CLIENT_ID = get_config("AUTH0_CLIENT_ID")
-INSIGHTS_BACKEND_SERVER_HOST = get_config("INSIGHTS_BACKEND_SERVER_HOST")
-
-# Local (Docker run) configurations
-STORY_BUILDER_IMAGE = get_config("STORY_BUILDER_IMAGE", "story-builder-manager:latest")
-DOCKER_HOST = get_config("DOCKER_HOST", "")
-SERVER_HOST = get_config("SERVER_HOST", "http://localhost:8003")
-
-# ECS configurations
-ECS_SUBNETS = get_config("ECS_SUBNETS").split(",") if get_config("ECS_SUBNETS") else None
-ECS_REGION = get_config("ECS_REGION")
-ECS_TASK_DEFINITION_NAME = get_config("ECS_TASK_DEFINITION_NAME")
-ECS_CLUSTER_NAME = get_config("ECS_CLUSTER_NAME")
-
-# Default schedule for midnight
-DEFAULT_SCHEDULE = get_config("DEFAULT_SCHEDULE", "0 0 * * *")  # Every day at 12:00 AM
 
 # Define the schedule for each story group, running every 30 minutes starting from 12:00 AM
 STORY_GROUP_META = {
@@ -78,95 +48,6 @@ STORY_GROUP_META = {
     "SIGNIFICANT_SEGMENTS": {"schedule_interval": "30 5 * * *"},  # 5:30 AM
     "LIKELY_STATUS": {"schedule_interval": "0 6 * * *"},  # 6:00 AM
 }
-
-
-class Granularity(str, Enum):
-    """
-    Defines the genre of the story
-    """
-
-    DAY = "day"
-    WEEK = "week"
-    MONTH = "month"
-
-
-def fetch_auth_token():
-    """
-    Fetches an authentication token from Auth0.
-
-    Returns:
-    - str: The fetched authentication token.
-    """
-    url = f"{AUTH0_ISSUER.rstrip('/')}/oauth/token"
-    headers = {"Content-Type": "application/json"}
-
-    data = {
-        "client_id": AUTH0_CLIENT_ID,
-        "client_secret": AUTH0_CLIENT_SECRET,
-        "grant_type": "client_credentials",
-    }
-    response = requests.post(url, headers=headers, json=data, timeout=30)
-    response.raise_for_status()
-    response_data = response.json()
-    return response_data["access_token"]
-
-
-def fetch_all_metrics(auth_header: dict[str, str]) -> list[str]:
-    """
-    Fetches all metric IDs from the Query Manager.
-
-    Args:
-    - auth_header (dict[str, str]): The authentication header for the request.
-
-    Returns:
-    - list[str]: A list of metric IDs.
-    """
-    response = requests.get(f"{QUERY_MANAGER_SERVER_HOST.strip('/')}/metrics", headers=auth_header, timeout=30)
-    response.raise_for_status()
-    metrics_data = response.json().get("results", [])
-
-    return [metric["metric_id"] for metric in metrics_data]
-
-
-def fetch_group_meta(group: str, auth_header: dict[str, str]) -> dict[str, Any]:
-    """
-    Fetches metadata for a given story group.
-
-    Args:
-    - group (str): The name of the story group.
-    - auth_header (dict[str, str]): The authentication header for the request.
-
-    Returns:
-    - dict[str, Any]: The metadata for the story group.
-    """
-    url = f"{STORY_MANAGER_SERVER_HOST.strip('/')}/stories/groups/{group}"
-    response = requests.get(url, headers=auth_header, timeout=20)
-    response.raise_for_status()
-    return response.json()
-
-
-def filter_grains(grains: list[str], today: datetime) -> list[str]:
-    """
-    Filter grains based on the current date.
-
-    Args:
-        grains (list[str]): List of grains to filter.
-        today (datetime): Current date.
-
-    Returns:
-        list[str]: Filtered list of grains.
-    """
-    # Filter grains based on the current date
-    return [
-        grain
-        for grain in grains
-        # Include 'week' grain if today is Monday (weekday() == 0)
-        if (grain == Granularity.WEEK.value and today.weekday() == 0)
-        # Include 'month' grain if today is the first day of the month
-        or (grain == Granularity.MONTH.value and today.day == 1)
-        # Always include 'day' grain
-        or (grain == Granularity.DAY.value)
-    ]
 
 
 def create_story_group_dag(group: str, meta: dict[str, Any]) -> None:
