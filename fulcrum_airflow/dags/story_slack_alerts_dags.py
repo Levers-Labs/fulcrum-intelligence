@@ -6,7 +6,7 @@ import requests
 from airflow.decorators import dag, task
 from airflow.providers.amazon.aws.operators.ecs import EcsRunTaskOperator
 from airflow.providers.docker.operators.docker import DockerOperator
-from utils.config import (
+from utils.config import (  # ECS_SLACK_ALERTS_TASK_DEFINITION_NAME,
     ANALYSIS_MANAGER_SERVER_HOST,
     AUTH0_API_AUDIENCE,
     AUTH0_CLIENT_ID,
@@ -16,7 +16,6 @@ from utils.config import (
     DOCKER_HOST,
     ECS_CLUSTER_NAME,
     ECS_REGION,
-    ECS_SLACK_ALERTS_TASK_DEFINITION_NAME,
     ECS_SUBNETS,
     ENV,
     INSIGHTS_BACKEND_SERVER_HOST,
@@ -182,7 +181,7 @@ def create_slack_alert_dag() -> None:
             EcsRunTaskOperator.partial(
                 task_id="send_slack_alerts",
                 cluster=ECS_CLUSTER_NAME,
-                task_definition=ECS_SLACK_ALERTS_TASK_DEFINITION_NAME,
+                task_definition="airflow-story-slack-alerts",
                 launch_type="FARGATE",
                 network_configuration={"awsvpcConfiguration": {"subnets": ECS_SUBNETS, "assignPublicIp": "ENABLED"}},
                 region_name=ECS_REGION,
