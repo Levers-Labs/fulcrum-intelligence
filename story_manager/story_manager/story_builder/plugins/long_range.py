@@ -74,7 +74,7 @@ class LongRangeStoryBuilder(StoryBuilderBase):
         df["slope"] = slope
 
         story_type = StoryType.IMPROVING_PERFORMANCE if slope > 0 else StoryType.WORSENING_PERFORMANCE
-        story_details = self.prepare_story_dict(
+        story_details = await self.prepare_story_dict(
             story_type=story_type,
             grain=grain,  # type: ignore
             metric=metric,

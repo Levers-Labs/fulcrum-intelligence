@@ -5,13 +5,7 @@ from typing import Any
 import pandas as pd
 
 from commons.models.enums import Granularity
-from story_manager.core.enums import (
-    Movement,
-    Pressure,
-    StoryGenre,
-    StoryGroup,
-    StoryType,
-)
+from story_manager.core.enums import StoryGenre, StoryGroup, StoryType  # Movement,; Pressure,
 from story_manager.story_builder import StoryBuilderBase
 
 logger = logging.getLogger(__name__)
@@ -146,24 +140,21 @@ class InfluenceDriftStoryBuilder(StoryBuilderBase):
                 else StoryType.WEAKER_INFLUENCE
             )
             # Create and append the Stronger/Weaker Influence Relationship story
-            stories.append(
-                self.prepare_story_dict(
-                    story_type,
-                    grain=grain,
-                    metric=metric,
-                    df=df,
-                    current_value=float(df["value"].iloc[-1]),
-                    influence_metric=influence_metric["label"],
-                    output_metric=metric["label"],
-                    influence_deviation=influence_deviation,
-                    movement=Movement.INCREASE.value if output_deviation > 0 else Movement.DECREASE.value,
-                    pressure=Pressure.UPWARD.value if output_deviation > 0 else Pressure.DOWNWARD.value,
-                    prev_output_deviation=prev_output_deviation,
-                    output_deviation=output_deviation,
-                    latest_strength=latest_strength,
-                    previous_strength=previous_strength,
-                )
+            story_dict = await self.prepare_story_dict(
+                story_type,
+                grain=grain,
+                metric=metric,
+                df=df,
+                current_value=float(df["value"].iloc[-1]),
+                influence_metric=influence_metric["label"],
+                output_metric=metric["label"],
+                influence_deviation=influence_deviation,
+                prev_output_deviation=prev_output_deviation,
+                output_deviation=output_deviation,
+                latest_strength=latest_strength,
+                previous_strength=previous_strength,
             )
+            stories.append(story_dict)
             logger.info("Appended %s story for influence metric '%s'", story_type, influence_metric_id)
 
             # Calculate the marginal contribution by multiplying the influence change with the latest strength
@@ -171,24 +162,21 @@ class InfluenceDriftStoryBuilder(StoryBuilderBase):
             # Determine the type of influence metric story based on the marginal contribution
             story_type = StoryType.IMPROVING_INFLUENCE if marginal_contribution > 0 else StoryType.WORSENING_INFLUENCE
             # Create and append the Improving/Worsening Influence Metric story
-            stories.append(
-                self.prepare_story_dict(
-                    story_type,
-                    grain=grain,
-                    metric=metric,
-                    df=df,
-                    current_value=float(df["value"].iloc[-1]),
-                    influence_metric=influence_metric["label"],
-                    output_metric=metric["label"],
-                    influence_deviation=influence_deviation,
-                    movement=Movement.INCREASE.value if output_deviation > 0 else Movement.DECREASE.value,
-                    pressure=Pressure.UPWARD.value if output_deviation > 0 else Pressure.DOWNWARD.value,
-                    prev_output_deviation=prev_output_deviation,
-                    output_deviation=output_deviation,
-                    latest_strength=latest_strength,
-                    previous_strength=previous_strength,
-                )
+            story_dict = await self.prepare_story_dict(
+                story_type,
+                grain=grain,
+                metric=metric,
+                df=df,
+                current_value=float(df["value"].iloc[-1]),
+                influence_metric=influence_metric["label"],
+                output_metric=metric["label"],
+                influence_deviation=influence_deviation,
+                prev_output_deviation=prev_output_deviation,
+                output_deviation=output_deviation,
+                latest_strength=latest_strength,
+                previous_strength=previous_strength,
             )
+            stories.append(story_dict)
             logger.info("Appended %s story for influence metric '%s'", story_type, influence_metric_id)
 
         return stories

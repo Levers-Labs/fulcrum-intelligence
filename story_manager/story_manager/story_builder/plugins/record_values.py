@@ -83,7 +83,7 @@ class RecordValuesStoryBuilder(StoryBuilderBase):
 
         # Calculate deviation % between reference value and prior value
         deviation = self.analysis_manager.calculate_percentage_difference(ref_value, prior_value)
-        story_details = self.prepare_story_dict(
+        story_details = await self.prepare_story_dict(
             story_type,
             grain=grain,
             metric=metric,

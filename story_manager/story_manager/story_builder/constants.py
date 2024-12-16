@@ -85,3 +85,19 @@ STORY_GROUP_TIME_DURATIONS: dict[str, Any] = {
         Granularity.MONTH: {"min": 2, "input": 2, "output": 2},
     },
 }
+
+STORY_GROUP_META: dict[str, dict[str, Any]] = {
+    StoryGroup.TREND_CHANGES: {"label": "Trend Changes"},
+    StoryGroup.GROWTH_RATES: {"label": "Growth Rates"},
+    StoryGroup.GOAL_VS_ACTUAL: {"label": "Goal Vs Actual"},
+    StoryGroup.RECORD_VALUES: {"label": "Record Values"},
+    StoryGroup.TREND_EXCEPTIONS: {"label": "Trend Exceptions"},
+    StoryGroup.LONG_RANGE: {"label": "Long Range"},
+    StoryGroup.STATUS_CHANGE: {"label": "Status Change"},
+    StoryGroup.LIKELY_STATUS: {"label": "Likely Status"},
+    StoryGroup.REQUIRED_PERFORMANCE: {"label": "Required Performance"},
+    StoryGroup.SEGMENT_DRIFT: {"label": "Segment Drift"},
+    StoryGroup.SIGNIFICANT_SEGMENTS: {"label": "Significant Segments"},
+    StoryGroup.COMPONENT_DRIFT: {"label": "Component Drift"},
+    StoryGroup.INFLUENCE_DRIFT: {"label": "Influence Drift"},
+}

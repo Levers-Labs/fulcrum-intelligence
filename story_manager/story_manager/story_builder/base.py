@@ -6,7 +6,6 @@ from typing import Any
 
 import numpy as np
 import pandas as pd
-from jinja2 import Template
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from commons.clients.analysis_manager import AnalysisManagerClient
@@ -21,6 +20,7 @@ from story_manager.core.enums import (
 )
 from story_manager.core.models import Story
 from story_manager.story_builder.constants import GRAIN_META, STORY_GROUP_TIME_DURATIONS
+from story_manager.story_builder.llm.services.story_text_generator import StoryTextGeneratorService
 
 logger = logging.getLogger(__name__)
 
@@ -44,6 +44,7 @@ class StoryBuilderBase(ABC):
         analysis_service: AnalysisManagerClient,
         analysis_manager: AnalysisManager,
         db_session: AsyncSession,
+        story_text_generator_service: StoryTextGeneratorService,
         story_date: date | None = None,
     ):
         """
@@ -59,6 +60,7 @@ class StoryBuilderBase(ABC):
         self.analysis_manager = analysis_manager
         self.db_session = db_session
         self.story_date = story_date or date.today()
+        self.story_text_generator_service = story_text_generator_service
 
     async def _get_time_series_data(
         self, metric_id: str, grain: Granularity, start_date: date, end_date: date, set_index: bool = False
@@ -147,34 +149,57 @@ class StoryBuilderBase(ABC):
         _context.update(context)
         return _context
 
-    def _render_story_texts(
-        self, story_type: StoryType, grain: Granularity, metric: dict, **extra_context
+    async def _render_story_texts(
+        self, story_type: StoryType, grain: Granularity, metric: dict[str, Any], **extra_context
     ) -> dict[str, Any]:
         """
-        Render the story title and detail using the story type and context variables
+        Render the story title and detail using the story type and context variables.
 
-        :param story_type: The type of the story
-        :param context: Additional context variables required for rendering the story title and detail
-        :return: The dict containing the rendered story title and detail as well as the context variables
+        Args:
+            story_type: The type of story to generate
+            grain: Time granularity for the story
+            metric: Dictionary containing metric information
+            **extra_context: Additional context variables for story rendering
+
+        Returns:
+            dict: Contains rendered story title, detail, templates and context variables
+                Keys:
+                - title: Rendered story title
+                - detail: Rendered story detail
+                - title_template: Template used for title
+                - detail_template: Template used for detail
+                - variables: Context variables used in rendering
+
+        Raises:
+            KeyError: If required story metadata is missing
         """
-        logger.debug(f"Rendering story texts for story type '{story_type}'")
+        logger.debug("Rendering story texts for story type '%s'", story_type)
 
-        context = self.get_story_context(grain, metric, **extra_context)
+        # Get base context and create immutable copy
+        base_context = self.get_story_context(grain, metric, **extra_context)
+        context_vars = base_context.copy()
 
-        # get the story meta-data
+        # Build final context with templates
         story_meta = STORY_TYPES_META[story_type]
-        # render the story title and detail
-        title = Template(story_meta["title"])
-        detail = Template(story_meta["detail"])
-        return {
-            "title": title.render(context),
-            "detail": detail.render(context),
+        context = {
+            "variables": base_context,
+            "story_group": self.group.value,
             "title_template": story_meta["title"],
             "detail_template": story_meta["detail"],
-            "variables": context,
         }
 
-    def prepare_story_dict(
+        # Generate story text
+        story_text_output = await self.story_text_generator_service.process(context)
+
+        return {
+            "title": story_text_output.title,
+            "detail": story_text_output.detail,
+            "title_template": story_text_output.title_template,
+            "detail_template": story_text_output.detail_template,
+            "variables": context_vars,
+        }
+
+    async def prepare_story_dict(
         self,
         story_type: StoryType,
         grain: Granularity,
@@ -196,7 +221,7 @@ class StoryBuilderBase(ABC):
         logger.debug(f"Preparing story dictionary for story type '{story_type}'")
 
         series = self.get_story_series(df, grain)
-        story_texts = self._render_story_texts(story_type, grain=grain, metric=metric, **extra_context)
+        story_texts = await self._render_story_texts(story_type, grain=grain, metric=metric, **extra_context)
 
         return {
             "metric_id": metric["metric_id"],

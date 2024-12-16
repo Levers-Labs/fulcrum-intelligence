@@ -8,17 +8,22 @@
 				"emoji": true
 			}
 		},
-        {% set previous_group = None %}
+        {% set current_group = namespace(value=None) %}
 		{% for story in stories %}
-		  {% if story.story_group != previous_group %}
+		  {% if story.story_group != current_group.value %}
+            {% if not loop.first %}
+            {
+                "type": "divider"
+            },
+            {% endif %}
 			{
 			  "type": "section",
 			  "text": {
 				"type": "mrkdwn",
-				"text": "*{{ story.story_group| replace('_', ' ') | title }}*"
+				"text": "*{{ story.story_group }}*"
 			  }
 			},
-			{% set previous_group = story.story_group %}
+			{% set current_group.value = story.story_group %}
 		  {% endif %}
 		  {
 			"type": "section",

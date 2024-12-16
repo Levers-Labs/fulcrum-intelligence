@@ -9,6 +9,7 @@ from commons.clients.analysis_manager import AnalysisManagerClient
 from commons.clients.auth import ClientCredsAuth
 from commons.clients.insight_backend import InsightBackendClient
 from commons.clients.query_manager import QueryManagerClient
+from commons.llm.provider import LLMProvider
 from commons.notifiers.base import BaseNotifier
 from commons.notifiers.constants import NotificationChannel
 from commons.notifiers.factory import NotifierFactory
@@ -17,6 +18,7 @@ from story_manager.config import get_settings
 from story_manager.core.crud import CRUDStory, CRUDStoryConfig
 from story_manager.core.models import Story, StoryConfig
 from story_manager.db.config import AsyncSessionDep
+from story_manager.story_builder.llm.services.story_text_generator import StoryTextGeneratorService
 
 
 async def get_stories_crud(session: AsyncSessionDep) -> CRUDStory:
@@ -82,6 +84,23 @@ async def get_insights_backend_client() -> InsightBackendClient:
     )
 
 
+def get_story_text_generator_service(
+    llm_provider: LLMProvider,
+) -> StoryTextGeneratorService:
+    """
+    Create a story text generator service for a specific story group.
+
+    Args:
+        llm_provider (LLMProvider): LLM provider for text generation
+
+    Returns:
+        StoryTextGeneratorService: Configured story text generator service
+    """
+    return StoryTextGeneratorService(
+        provider=llm_provider,
+    )
+
+
 InsightsBackendClientDep = Annotated[InsightBackendClient, Depends(get_insights_backend_client)]
 SlackNotifierDep = Annotated[BaseNotifier, Depends(get_slack_notifier)]
 CRUDStoryDep = Annotated[CRUDStory, Depends(get_stories_crud)]
@@ -89,3 +108,4 @@ QueryManagerClientDep = Annotated[QueryManagerClient, Depends(get_query_manager_
 AnalysisManagerClientDep = Annotated[AnalysisManagerClient, Depends(get_analysis_manager_client)]
 AnalysisManagerDep = Annotated[AnalysisManager, Depends(get_analysis_manager)]
 CRUDStoryConfigDep = Annotated[CRUDStoryConfig, Depends(get_story_config_crud)]
+StoryTextGeneratorDep = Annotated[StoryTextGeneratorService, Depends(get_story_text_generator_service)]

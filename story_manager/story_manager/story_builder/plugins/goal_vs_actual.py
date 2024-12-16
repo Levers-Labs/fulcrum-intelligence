@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 
 from commons.models.enums import Granularity
-from story_manager.core.enums import Direction, StoryGenre, StoryGroup
+from story_manager.core.enums import StoryGenre, StoryGroup
 from story_manager.story_builder import StoryBuilderBase
 from story_manager.story_builder.utils import determine_status_for_value_and_target
 
@@ -84,13 +84,12 @@ class GoalVsActualStoryBuilder(StoryBuilderBase):
 
         story_type = ref_data["status"]
         growth = ref_data["growth_rate"].item()
-        story_details = self.prepare_story_dict(
+        story_details = await self.prepare_story_dict(
             story_type,  # type: ignore
             grain=grain,
             metric=metric,
             df=df,
             current_value=value,
-            direction=Direction.UP.value if growth > 0 else Direction.DOWN.value,
             current_growth=growth,
             target=target,
             deviation=abs(deviation),

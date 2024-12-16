@@ -7,10 +7,15 @@ from story_manager.story_builder.plugins.growth_rates import GrowthStoryBuilder
 
 
 def test_story_factory_create_story_builder_growth(
-    mock_query_service, mock_analysis_service, mock_analysis_manager, mock_db_session
+    mock_query_service, mock_analysis_service, mock_analysis_manager, mock_db_session, mock_llm_provider
 ):
     story_builder = StoryFactory.create_story_builder(
-        StoryGroup.GROWTH_RATES.value, mock_query_service, mock_analysis_service, mock_analysis_manager, mock_db_session
+        StoryGroup.GROWTH_RATES.value,
+        mock_query_service,
+        mock_analysis_service,
+        mock_analysis_manager,
+        mock_db_session,
+        mock_llm_provider,
     )
     assert isinstance(story_builder, GrowthStoryBuilder)
 
