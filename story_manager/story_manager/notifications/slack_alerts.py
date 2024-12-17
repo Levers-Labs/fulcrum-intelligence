@@ -81,6 +81,7 @@ class SlackAlertsService:
                     "metric_id": story.metric_id,
                     "title": story.title,
                     "detail": story.detail,
+                    "story_date": story.story_date,
                 }
                 for story in stories
             ]
@@ -109,11 +110,17 @@ class SlackAlertsService:
                 - metric_label: Human-readable metric name
         """
         metric = await self.query_client.get_metric(metric_id)
+
+        # Calculate the min and max story_date
+        start_date = min(stories, key=lambda x: x["story_date"])["story_date"].strftime("%Y-%m-%d")
+        end_date = max(stories, key=lambda x: x["story_date"])["story_date"].strftime("%Y-%m-%d")
         return {
             "stories": stories,
             "grain": grain.value,
             "time": datetime.utcnow(),
             "metric": metric,
+            "start_date": start_date,
+            "end_date": end_date,
         }
 
     async def _send_slack_alerts(
