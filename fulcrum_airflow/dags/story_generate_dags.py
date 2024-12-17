@@ -107,6 +107,8 @@ def create_story_group_dag(group: str, meta: dict[str, Any]) -> None:
             """
             results = defaultdict(list)
             for tenant_id in tenants:
+                if tenant_id != 1:
+                    continue
                 # Add tenant to auth header
                 tenant_auth_header = auth_header.copy()
                 tenant_auth_header["X-Tenant-Id"] = str(tenant_id)

@@ -67,8 +67,6 @@ def create_slack_alert_dag() -> None:
             """
             tenant_metrics_map = defaultdict(list)
             for tenant_id in tenants:
-                if tenant_id != 1:
-                    continue
                 # Creates a tenant-specific auth header by copying the original auth header and adding the tenant ID.
                 tenant_auth_header = auth_header.copy()
                 tenant_auth_header["X-Tenant-Id"] = str(tenant_id)
