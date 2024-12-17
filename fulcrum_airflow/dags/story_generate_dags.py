@@ -1,6 +1,6 @@
 import logging
 from collections import defaultdict
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Any
 
 import requests
@@ -248,6 +248,8 @@ def create_story_group_dag(group: str, meta: dict[str, Any]) -> None:
                 launch_type="FARGATE",
                 network_configuration={"awsvpcConfiguration": {"subnets": ECS_SUBNETS, "assignPublicIp": "ENABLED"}},
                 region_name=ECS_REGION,
+                retries=2,
+                retry_delay=timedelta(minutes=1),
             ).expand(overrides=ecs_overrides)
 
     story_group_dag()
