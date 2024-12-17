@@ -249,7 +249,7 @@ def create_story_group_dag(group: str, meta: dict[str, Any]) -> None:
                 network_configuration={"awsvpcConfiguration": {"subnets": ECS_SUBNETS, "assignPublicIp": "ENABLED"}},
                 region_name=ECS_REGION,
                 retries=3,
-                retry_delay=timedelta(minutes=1),
+                retry_delay=timedelta(minutes=2),
             ).expand(overrides=ecs_overrides)
 
     story_group_dag()
