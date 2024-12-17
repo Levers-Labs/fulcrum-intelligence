@@ -89,7 +89,7 @@ def create_story_group_dag(group: str, meta: dict[str, Any]) -> None:
             response = requests.get(url, headers=auth_header, timeout=30)
             response.raise_for_status()
             tenants_data = response.json()
-            tenant_ids = [tenant["id"] for tenant in tenants_data.get("results", [])]
+            tenant_ids = [tenant["id"] for tenant in tenants_data.get("results", []) if tenant["id"] != 2]
             logger.info("Successfully fetched %s tenant IDs", len(tenant_ids))
             return tenant_ids
 
@@ -107,8 +107,6 @@ def create_story_group_dag(group: str, meta: dict[str, Any]) -> None:
             """
             results = defaultdict(list)
             for tenant_id in tenants:
-                if tenant_id != 1:
-                    continue
                 # Add tenant to auth header
                 tenant_auth_header = auth_header.copy()
                 tenant_auth_header["X-Tenant-Id"] = str(tenant_id)
