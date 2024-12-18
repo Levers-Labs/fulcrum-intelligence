@@ -76,8 +76,9 @@ class TenantCRUD(CRUDBase[Tenant, Tenant, Tenant, None]):  # type: ignore
             update(TenantConfig)
             .filter_by(tenant_id=tenant_id)
             .values(
-                cube_connection_config=new_config_dict.get("cube_connection_config", {})
-            )  # Use the dictionary to update the cube_connection_config field
+                cube_connection_config=new_config_dict.get("cube_connection_config", {}),
+                enable_story_creation=new_config_dict.get("enable_story_creation"),
+            )
         )
 
         # Execute the update statement to modify the tenant configuration in the database

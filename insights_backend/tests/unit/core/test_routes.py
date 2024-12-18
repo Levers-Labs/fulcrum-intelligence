@@ -190,7 +190,8 @@ async def test_update_tenant_config(insert_tenant, async_client: AsyncClient, db
             "cube_api_url": "http://new-cube-api.com",
             "cube_auth_type": "SECRET_KEY",
             "cube_auth_secret_key": "new-secret-key",
-        }
+        },
+        "enable_story_creation": True,
     }
 
     # Act: Update the tenant configuration with tenant_id in the headers
@@ -203,10 +204,9 @@ async def test_update_tenant_config(insert_tenant, async_client: AsyncClient, db
 
     # Assert: Check the response data
     updated_config = response.json()
-    assert (
-        updated_config["cube_connection_config"]["cube_api_url"]
-        == new_config_data["cube_connection_config"]["cube_api_url"]
-    )
+    cube_config = updated_config["cube_connection_config"]
+    assert "cube_api_url" in cube_config
+    assert cube_config["cube_api_url"] == new_config_data["cube_connection_config"]["cube_api_url"]  # type: ignore
 
 
 async def test_generate_authorize_url(async_client: AsyncClient):

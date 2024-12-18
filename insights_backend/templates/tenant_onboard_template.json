@@ -1,17 +1,29 @@
 {
-  "identifier": "vercel",
-  "name": "Vercel",
+  "identifier": "vercel-flag-3",
+  "name": "Vercel-falg-3",
   "description": "Vercel Tenant to be used for testing",
   "domains": [
     "vercel.com",
     "velotio.com"
   ],
-  "external_id": "vercel-123",
+  "external_id": "vercel-123-flag-3",
   "config": {
     "cube_connection_config": {
       "cube_api_url": "https://api.cubecloud.dev",
       "cube_auth_type": "TOKEN",
       "cube_auth_token": "your_token_here"
+    },
+    "slack_connection": {
+      "team": {
+        "id": "ID",
+        "name": "Slack App Namr"
+      },
+      "app_id": "Slack App ID",
+      "bot_token": "BOT_TOKEN",
+      "authed_user": {
+        "id": "USER_ID"
+      },
+      "bot_user_id": "BOT_USER_ID"
     }
   }
 }
