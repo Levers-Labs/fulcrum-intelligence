@@ -37,6 +37,7 @@ from insights_backend.core.dependencies import (
 from insights_backend.core.filters import TenantConfigFilter
 from insights_backend.core.models import (
     TenantList,
+    TenantRead,
     User,
     UserCreate,
     UserList,
@@ -174,8 +175,9 @@ async def list_tenants(
     results, count = await tenant_crud_client.paginate(
         params=params, filter_params=tenant_config_filter.dict(exclude_unset=True)
     )
+    tenants: list[TenantRead] = [TenantRead.model_validate(tenant) for tenant in results]
 
-    return TenantList(results=results, count=count)
+    return TenantList(results=tenants, count=count)
 
 
 @router.get(
