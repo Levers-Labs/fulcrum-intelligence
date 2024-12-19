@@ -38,4 +38,4 @@ class TenantConfig(TenantConfigBase, InsightsSchemaBaseModel, table=True):  # ty
     )
 
     tenant: Tenant = Relationship(back_populates="config")
-    enable_story_creation: bool = Field(default=False, sa_column=Column(Boolean, default=False))
+    is_stories_enabled: bool = Field(default=False, sa_column=Column(Boolean, default=False))

@@ -191,7 +191,7 @@ async def test_update_tenant_config(insert_tenant, async_client: AsyncClient, db
             "cube_auth_type": "SECRET_KEY",
             "cube_auth_secret_key": "new-secret-key",
         },
-        "enable_story_creation": True,
+        "is_stories_enabled": True,
     }
 
     # Act: Update the tenant configuration with tenant_id in the headers
@@ -373,3 +373,23 @@ async def test_get_invalid_channel_info(async_client: AsyncClient, mocker, inser
 
     # Assert
     assert response.status_code == status.HTTP_404_NOT_FOUND
+
+
+async def test_list_tenants_with_stories_enabled_filter(mocker, insert_tenant, async_client: AsyncClient):
+    # Mock the paginate method to return a predefined result
+    mock_tenant = Tenant(
+        id=2, external_id="test-external-id-2", name="test_tenant_2", identifier="test_tenant_2", domains=["test2.com"]
+    )
+
+    # Mock the paginate method in TenantCRUD
+    mocker.patch("insights_backend.core.crud.TenantCRUD.paginate", return_value=([mock_tenant], 1))
+
+    # Test filtering for stories enabled
+    response = await async_client.get("/v1/tenants/all?is_stories_enabled=True")
+
+    # Assert
+    assert response.status_code == status.HTTP_200_OK
+    data = response.json()
+    assert data["count"] == 1
+    assert len(data["results"]) == 1
+    assert data["results"][0]["identifier"] == "test_tenant_2"
