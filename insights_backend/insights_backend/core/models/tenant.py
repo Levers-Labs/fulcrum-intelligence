@@ -1,4 +1,9 @@
-from sqlalchemy import Column, ForeignKey, Integer
+from sqlalchemy import (
+    Boolean,
+    Column,
+    ForeignKey,
+    Integer,
+)
 from sqlmodel import Field, Relationship
 
 from commons.db.models import BaseTimeStampedModel
@@ -33,3 +38,4 @@ class TenantConfig(TenantConfigBase, InsightsSchemaBaseModel, table=True):  # ty
     )
 
     tenant: Tenant = Relationship(back_populates="config")
+    enable_story_generation: bool = Field(default=False, sa_column=Column(Boolean, default=False))
