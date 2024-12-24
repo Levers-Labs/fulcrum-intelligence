@@ -166,12 +166,12 @@ async def list_tenants(
         PaginationParams,
         Depends(PaginationParams),
     ],
-    is_stories_enabled: bool | None = None,
+    enable_story_generation: bool | None = None,
 ):
     """
     Retrieve all tenants in DB.
     """
-    tenant_config_filter = TenantConfigFilter(is_stories_enabled=is_stories_enabled)
+    tenant_config_filter = TenantConfigFilter(enable_story_generation=enable_story_generation)
     results, count = await tenant_crud_client.paginate(
         params=params, filter_params=tenant_config_filter.dict(exclude_unset=True)
     )

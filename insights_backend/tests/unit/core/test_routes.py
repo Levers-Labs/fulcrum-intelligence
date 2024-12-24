@@ -191,7 +191,7 @@ async def test_update_tenant_config(insert_tenant, async_client: AsyncClient, db
             "cube_auth_type": "SECRET_KEY",
             "cube_auth_secret_key": "new-secret-key",
         },
-        "is_stories_enabled": True,
+        "enable_story_generation": True,
     }
 
     # Act: Update the tenant configuration with tenant_id in the headers
@@ -385,7 +385,7 @@ async def test_list_tenants_with_stories_enabled_filter(mocker, insert_tenant, a
     mocker.patch("insights_backend.core.crud.TenantCRUD.paginate", return_value=([mock_tenant], 1))
 
     # Test filtering for stories enabled
-    response = await async_client.get("/v1/tenants/all?is_stories_enabled=True")
+    response = await async_client.get("/v1/tenants/all?enable_story_generation=True")
 
     # Assert
     assert response.status_code == status.HTTP_200_OK

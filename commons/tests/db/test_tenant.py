@@ -43,7 +43,7 @@ def test_tenant_config_validation():
         cube_connection_config=CubeConnectionConfig(
             cube_api_url="http://cube.example.com", cube_auth_type="TOKEN", cube_auth_token="test-token"  # noqa
         ),
-        is_stories_enabled=True,
+        enable_story_generation=True,
     )
     assert config.cube_connection_config.cube_auth_type == "TOKEN"
     assert config.cube_connection_config.cube_auth_token == "test-token"  # noqa

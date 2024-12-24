@@ -57,7 +57,7 @@ class SlackConnectionConfig(SlackConnectionRead):
 class TenantConfigUpdate(BaseSQLModel):
     # Cube connection details
     cube_connection_config: CubeConnectionConfig = Field(sa_type=JSONB, default_factory=dict)
-    is_stories_enabled: bool
+    enable_story_generation: bool
 
     @field_validator("cube_connection_config")
     @classmethod
@@ -83,4 +83,4 @@ class TenantConfigRead(BaseModel):
 
     cube_connection_config: CubeConnectionRead
     slack_connection: SlackConnectionRead | None = None
-    is_stories_enabled: bool
+    enable_story_generation: bool

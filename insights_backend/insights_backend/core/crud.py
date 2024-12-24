@@ -80,7 +80,7 @@ class TenantCRUD(CRUDBase[Tenant, Tenant, Tenant, TenantConfigFilter]):  # type:
             .filter_by(tenant_id=tenant_id)
             .values(
                 cube_connection_config=new_config_dict.get("cube_connection_config", {}),
-                is_stories_enabled=new_config_dict.get("is_stories_enabled"),
+                enable_story_generation=new_config_dict.get("enable_story_generation"),
             )
         )
 
