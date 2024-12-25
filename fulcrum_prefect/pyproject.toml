@@ -1,0 +1,23 @@
+[tool.poetry]
+name = "fulcrum-jobs"
+version = "0.1.0"
+description = "Fullcrum Prefect is a tool for running scheduled jobs asynchronously"
+authors = ["leverslabs"]
+package-mode = false
+
+
+[tool.poetry.dependencies]
+python = ">=3.10,<3.12"
+prefect = "^3.1.7"
+story-manager = { path = "../story_manager"}
+commons = { path = "../commons"}
+
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+
+[tool.pytest.ini_options]
+addopts = "--cov=fulcrum_prefect"
+filterwarnings = "ignore::DeprecationWarning"
