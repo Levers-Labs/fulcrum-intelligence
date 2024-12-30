@@ -2,7 +2,7 @@ from datetime import datetime
 
 from commons.clients.auth import ClientCredsAuth
 from commons.models.enums import Granularity
-from fulcrum_prefect.config import AppConfig
+from tasks_manager.config import AppConfig
 
 
 def get_eligible_grains(grains: list[str], today: datetime) -> list[str]:

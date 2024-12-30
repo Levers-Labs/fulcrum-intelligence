@@ -25,11 +25,12 @@ class InsightBackendClient(AsyncHttpClient):
                 raise InvalidTenantError(tenant_id) from e
             raise
 
-    async def get_tenants(self, limit: int = 100) -> dict:
+    async def get_tenants(self, limit: int = 100, **params) -> dict:
         """
         Get all tenants. This endpoint bypasses tenant context validation.
         """
-        return await self.get("/tenants/all", params={"limit": limit})
+        params.update({"limit": limit})
+        return await self.get("/tenants/all", params=params)
 
     async def validate_tenant(self):
         """

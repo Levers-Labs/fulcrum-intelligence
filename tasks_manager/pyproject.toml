@@ -1,7 +1,7 @@
 [tool.poetry]
-name = "fulcrum-jobs"
+name = "tasks-manager"
 version = "0.1.0"
-description = "Fullcrum Prefect is a tool for running scheduled jobs asynchronously"
+description = "Tasks Manager is a tool for running scheduled/background jobs asynchronously"
 authors = ["leverslabs"]
 package-mode = false
 
@@ -19,5 +19,5 @@ build-backend = "poetry.core.masonry.api"
 
 
 [tool.pytest.ini_options]
-addopts = "--cov=fulcrum_prefect"
+addopts = "--cov=tasks_manager"
 filterwarnings = "ignore::DeprecationWarning"

@@ -1,7 +1,7 @@
 import asyncio
 import logging
 
-from fulcrum_prefect.gen_stories import generate_stories
+from tasks_manager.flows.stories import generate_stories
 
 logger = logging.getLogger(__name__)
 if __name__ == "__main__":

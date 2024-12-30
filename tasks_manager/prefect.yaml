@@ -1,19 +1,17 @@
 # Generic metadata about this project
-name: fulcrum_prefect
+name: tasks_manager
 prefect-version: 3.1.7
 
 pull:
   - prefect.deployments.steps.set_working_directory:
-      directory: /opt/prefect/fulcrum_prefect
+      directory: /opt/prefect/tasks_manager
 
 # the definitions section allows you to provide reusable definitions for your project
 definitions:
   work_pools:
     ecs_work_pool: &ecs_work_pool
-      name: ecs-pool
+      name: tasks-manager-ecs-pool
       work_queue_name: default
-      job_variables:
-        image: "{{ $IMAGE_URI }}:{{ $TAG }}"
   schedules:
     daily_midnight: &daily_midnight
       - cron: "0 0 * * *"
@@ -27,7 +25,7 @@ deployments:
       - daily
       - story-generation
     description: "Generate stories for Growth Rates"
-    entrypoint: fulcrum_prefect.gen_stories:generate_stories
+    entrypoint: tasks_manager.flows.stories:generate_stories
     parameters:
       group: "GROWTH_RATES"
     work_pool: *ecs_work_pool
@@ -39,7 +37,7 @@ deployments:
       - daily
       - story-generation
     description: "Generate stories for Trend Changes"
-    entrypoint: fulcrum_prefect.gen_stories:generate_stories
+    entrypoint: tasks_manager.flows.stories:generate_stories
     parameters:
       group: "TREND_CHANGES"
     work_pool: *ecs_work_pool
@@ -51,7 +49,7 @@ deployments:
       - daily
       - story-generation
     description: "Generate stories for Trend Exceptions"
-    entrypoint: fulcrum_prefect.gen_stories:generate_stories
+    entrypoint: tasks_manager.flows.stories:generate_stories
     parameters:
       group: "TREND_EXCEPTIONS"
     work_pool: *ecs_work_pool
@@ -63,7 +61,7 @@ deployments:
       - daily
       - story-generation
     description: "Generate stories for Long Range"
-    entrypoint: fulcrum_prefect.gen_stories:generate_stories
+    entrypoint: tasks_manager.flows.stories:generate_stories
     parameters:
       group: "LONG_RANGE"
     work_pool: *ecs_work_pool
@@ -75,7 +73,7 @@ deployments:
       - daily
       - story-generation
     description: "Generate stories for Goal vs Actual"
-    entrypoint: fulcrum_prefect.gen_stories:generate_stories
+    entrypoint: tasks_manager.flows.stories:generate_stories
     parameters:
       group: "GOAL_VS_ACTUAL"
     work_pool: *ecs_work_pool
@@ -87,7 +85,7 @@ deployments:
       - daily
       - story-generation
     description: "Generate stories for Likely Status"
-    entrypoint: fulcrum_prefect.gen_stories:generate_stories
+    entrypoint: tasks_manager.flows.stories:generate_stories
     parameters:
       group: "LIKELY_STATUS"
     work_pool: *ecs_work_pool
@@ -99,7 +97,7 @@ deployments:
       - daily
       - story-generation
     description: "Generate stories for Record Values"
-    entrypoint: fulcrum_prefect.gen_stories:generate_stories
+    entrypoint: tasks_manager.flows.stories:generate_stories
     parameters:
       group: "RECORD_VALUES"
     work_pool: *ecs_work_pool
@@ -111,7 +109,7 @@ deployments:
       - daily
       - story-generation
     description: "Generate stories for Status Change"
-    entrypoint: fulcrum_prefect.gen_stories:generate_stories
+    entrypoint: tasks_manager.flows.stories:generate_stories
     parameters:
       group: "STATUS_CHANGE"
     work_pool: *ecs_work_pool
@@ -123,7 +121,7 @@ deployments:
       - daily
       - story-generation
     description: "Generate stories for Segment Drift"
-    entrypoint: fulcrum_prefect.gen_stories:generate_stories
+    entrypoint: tasks_manager.flows.stories:generate_stories
     parameters:
       group: "SEGMENT_DRIFT"
     work_pool: *ecs_work_pool
@@ -135,7 +133,7 @@ deployments:
       - daily
       - story-generation
     description: "Generate stories for Influence Drift"
-    entrypoint: fulcrum_prefect.gen_stories:generate_stories
+    entrypoint: tasks_manager.flows.stories:generate_stories
     parameters:
       group: "INFLUENCE_DRIFT"
     work_pool: *ecs_work_pool
@@ -147,7 +145,7 @@ deployments:
       - daily
       - story-generation
     description: "Generate stories for Required Performance"
-    entrypoint: fulcrum_prefect.gen_stories:generate_stories
+    entrypoint: tasks_manager.flows.stories:generate_stories
     parameters:
       group: "REQUIRED_PERFORMANCE"
     work_pool: *ecs_work_pool
@@ -159,7 +157,7 @@ deployments:
       - daily
       - story-generation
     description: "Generate stories for Significant Segments"
-    entrypoint: fulcrum_prefect.gen_stories:generate_stories
+    entrypoint: tasks_manager.flows.stories:generate_stories
     parameters:
       group: "SIGNIFICANT_SEGMENTS"
     work_pool: *ecs_work_pool
@@ -171,7 +169,7 @@ deployments:
       - daily
       - story-generation
     description: "Generate stories for Component Drift"
-    entrypoint: fulcrum_prefect.gen_stories:generate_stories
+    entrypoint: tasks_manager.flows.stories:generate_stories
     parameters:
       group: "COMPONENT_DRIFT"
     work_pool: *ecs_work_pool

@@ -14,7 +14,7 @@ config:  ## Configure Prefect API URL
 	prefect config set PREFECT_API_URL=http://localhost:4200/api
 
 register-blocks:  ## Register Prefect blocks (requires server to be running)
-	prefect blocks register --file fulcrum_prefect/config.py
+	prefect blocks register --file tasks_manager/config.py
 
 run:  ## Run the flow
 	python run.py

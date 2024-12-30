@@ -1,5 +1,4 @@
-# Fulcrum Prefect
-
+# Tasks Manager
 Fulcrum Prefect is a scalable workflow and job manager application designed to streamline the generation of stories
 across various metrics and groups. Leveraging [Prefect](https://www.prefect.io/) for orchestrating complex workflows,
 this project ensures efficient task management, deployment, and scalability.
@@ -23,7 +22,7 @@ source .venv/bin/activate
 2. Install the dependencies:
 
 ```bash
-cd fulcrum_prefect
+cd tasks_manager
 poetry install
 ```
 
@@ -44,8 +43,8 @@ prefect config set PREFECT_API_URL=http://localhost:4200/api
 5. Deploy the app config block to configure secrets used by the flows.
 
 ```bash
-cd fulcrum_prefect
-prefect blocks register --file fulcrum_prefect/config.py
+cd tasks_manager
+prefect blocks register --file tasks_manager/config.py
 ```
 
 6. Create a 'default' AppConfig block in the UI.
@@ -62,7 +61,7 @@ prefect blocks register --file fulcrum_prefect/config.py
 
 1. Deploy the flow using the CLI:
    ```bash
-   prefect deployment build fulcrum_prefect/gen_stories.py:generate_stories -n story-generator
+   prefect deployment build tasks_manager/stories.py:generate_stories -n story-generator
    prefect deployment apply story-generator-deployment.yaml
    ```
 2. Start a worker to execute flows:
@@ -74,7 +73,7 @@ prefect blocks register --file fulcrum_prefect/config.py
 
    Via Python:
    ```python
-   from fulcrum_prefect.gen_stories import generate_stories
+   from tasks_manager.gen_stories import generate_stories
 
    # Run the flow with a specific group
    await generate_stories(group="daily")
@@ -101,7 +100,7 @@ To add a new flow for production:
 
 1. Create flow and task definitions:
    ```python
-   # fulcrum_prefect/flows/your_flow.py
+   # tasks_manager/flows/your_flow.py
    from prefect import flow, task
    from typing import Dict, Any
 
@@ -124,7 +123,7 @@ To add a new flow for production:
        tags:
          - daily
        description: "Generate stories for Your Flow"
-       entrypoint: fulcrum_prefect.flows.your_flow:your_flow
+       entrypoint: tasks_manager.flows.your_flow:your_flow
        parameters:
          group: "YOUR_GROUP"
        work_pool: *ecs_work_pool
