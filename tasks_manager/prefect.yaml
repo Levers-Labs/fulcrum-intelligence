@@ -27,3 +27,19 @@ deployments:
     entrypoint: tasks_manager.flows.stories:generate_stories
     work_pool: *ecs_work_pool
     schedules: *daily_midnight
+  - name: "send-metric-stories-alert"
+    version: "1.0.0"
+    description: "Send metric stories alert to slack"
+    entrypoint: tasks_manager.flows.alerts:send_metric_stories_alert
+    work_pool: *ecs_work_pool
+    triggers:
+      - type: event
+        name: "metric-story-generated-alert-trigger"
+        description: "Triggered when a stories are generated for a metric"
+        enabled: true
+        expect:
+          - metric.story.generated
+        parameters:
+          metric_id: "{{ event.resource.metric_id }}"
+          tenant_id: "{{ event.resource.tenant_id }}"
+          story_date: "{{ event.resource.story_date }}"

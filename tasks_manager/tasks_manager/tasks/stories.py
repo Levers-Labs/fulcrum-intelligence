@@ -26,10 +26,9 @@ async def generate_story(
     """Generate a story for specific tenant, metric and group"""
     logger = get_run_logger()
     config = await AppConfig.load("default")
+    # Setup tenant context
     set_tenant_id(tenant_id)
     os.environ["SERVER_HOST"] = config.story_manager_server_host
-    # Setup tenant context
-    logger.info("Setting up tenant context for tenant %s", tenant_id)
     logger.info(f"Generating story for tenant {tenant_id}, metric {metric_id}, grain {grain}")
 
     # Generate a story for tenant, metric and grain
@@ -52,6 +51,7 @@ async def generate_story(
     ]
     # Filter story dicts to keep only the keys we want and heuristic stories
     story_records = [{key: story[key] for key in artifact_keys} for story in story_dicts if story["is_heuristic"]]
+    # Clean up tenant context
     reset_context()
     return {
         "tenant_id": tenant_id,
