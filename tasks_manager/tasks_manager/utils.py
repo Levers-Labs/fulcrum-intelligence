@@ -5,12 +5,12 @@ from commons.models.enums import Granularity
 from tasks_manager.config import AppConfig
 
 
-def get_eligible_grains(grains: list[str], today: date) -> list[str]:
+def get_eligible_grains(grains: list[Granularity], today: date) -> list[str]:
     """
     filter grains based on the current date.
 
     Args:
-        grains (list[str]): List of grains to filter.
+        grains (list[Granularity]): List of grains to filter.
         today (date): Current date.
 
     Returns:
@@ -21,11 +21,11 @@ def get_eligible_grains(grains: list[str], today: date) -> list[str]:
         grain
         for grain in grains
         # Include 'week' grain if today is Monday (weekday() == 0)
-        if (grain == Granularity.WEEK.value and today.weekday() == 0)
+        if (grain == Granularity.WEEK and today.weekday() == 0)
         # Include 'month' grain if today is the first day of the month
-        or (grain == Granularity.MONTH.value and today.day == 1)
+        or (grain == Granularity.MONTH and today.day == 1)
         # Always include 'day' grain
-        or (grain == Granularity.DAY.value)
+        or (grain == Granularity.DAY)
     ]
 
 

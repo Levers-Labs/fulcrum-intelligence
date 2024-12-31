@@ -1,7 +1,7 @@
 import os
 from datetime import date
 
-from prefect import get_run_logger, task
+from prefect import get_run_logger, task, unmapped
 from prefect.events import emit_event
 from prefect.futures import PrefectFutureList
 
@@ -21,7 +21,7 @@ from tasks_manager.tasks.query import fetch_metrics_for_tenant
     task_run_name="gen_story_tenant:{tenant_id}_metric:{metric_id}_grain:{grain}_group:{group}",
 )
 async def generate_story(
-    tenant_id: int, metric_id: int, grain: str, group: str, story_date: date | None = None
+    tenant_id: int, metric_id: int, grain: Granularity, group: StoryGroup, story_date: date | None = None
 ) -> dict:
     """Generate a story for specific tenant, metric and group"""
     logger = get_run_logger()
@@ -29,7 +29,13 @@ async def generate_story(
     # Setup tenant context
     set_tenant_id(tenant_id)
     os.environ["SERVER_HOST"] = config.story_manager_server_host
-    logger.info(f"Generating story for tenant {tenant_id}, metric {metric_id}, grain {grain}")
+    logger.info(
+        "Generating story for tenant %s, metric %s, grain %s, group %s",
+        tenant_id,
+        metric_id,
+        grain.value,
+        group.value,
+    )
 
     # Generate a story for tenant, metric and grain
     story_date = story_date or date.today()
@@ -53,6 +59,14 @@ async def generate_story(
     story_records = [{key: story[key] for key in artifact_keys} for story in story_dicts if story["is_heuristic"]]
     # Clean up tenant context
     reset_context()
+
+    logger.info(
+        "Story generated for tenant %s, metric %s, grain %s, group %s",
+        tenant_id,
+        metric_id,
+        grain.value,
+        group.value,
+    )
     return {
         "tenant_id": tenant_id,
         "metric_id": metric_id,
@@ -64,13 +78,15 @@ async def generate_story(
 
 
 @task(task_run_name="gen_stories_tenant:{tenant_id}_metric:{metric_id}")  # type: ignore
-async def generate_stories_for_metric(tenant_id: int, metric_id: str, story_date: date | None = None) -> list[dict]:
+async def generate_stories_for_metric(
+    tenant_id: int, metric_id: str, story_date: date | None = None, groups: list[StoryGroup] | None = None
+):
     """Generate stories for a specific tenant and metric across all grains and groups"""
     logger = get_run_logger()
     story_date = story_date or date.today()
     grains = get_grains(tenant_id, story_date)  # type: ignore
     # In the future, we can fetch from tenant config
-    groups = [StoryGroup.TREND_CHANGES.value]
+    groups = groups or list(StoryGroup.__members__.values())
     logger.info(
         "Generating stories for tenant %s, metric %s, grains %s, groups %s, story_date %s",
         tenant_id,
@@ -113,7 +129,9 @@ async def generate_stories_for_metric(tenant_id: int, metric_id: str, story_date
 
 
 @task(task_run_name="gen_stories_tenant:{tenant_id}")  # type: ignore
-async def generate_stories_for_tenant(tenant_id: int, story_date: date | None = None):
+async def generate_stories_for_tenant(
+    tenant_id: int, story_date: date | None = None, groups: list[StoryGroup] | None = None
+):
     """Generate stories for a specific tenant and group"""
     story_date = story_date or date.today()
     # Fetch metrics and groups concurrently using submit
@@ -126,7 +144,7 @@ async def generate_stories_for_tenant(tenant_id: int, story_date: date | None = 
 
     # Generate and save stories concurrently
     metric_story_futures: PrefectFutureList = generate_stories_for_metric.map(
-        tenant_id=tenant_id, metric_id=metric_ids, story_date=story_date
+        tenant_id=tenant_id, metric_id=metric_ids, story_date=story_date, groups=unmapped(groups)
     )
 
     # Wait for all save operations to complete
