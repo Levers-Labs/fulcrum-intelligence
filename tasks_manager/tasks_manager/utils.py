@@ -1,17 +1,17 @@
-from datetime import datetime
+from datetime import date
 
 from commons.clients.auth import ClientCredsAuth
 from commons.models.enums import Granularity
 from tasks_manager.config import AppConfig
 
 
-def get_eligible_grains(grains: list[str], today: datetime) -> list[str]:
+def get_eligible_grains(grains: list[str], today: date) -> list[str]:
     """
-    Filter grains based on the current date.
+    filter grains based on the current date.
 
     Args:
         grains (list[str]): List of grains to filter.
-        today (datetime): Current date.
+        today (date): Current date.
 
     Returns:
         list[str]: Filtered list of grains.

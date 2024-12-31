@@ -1,4 +1,7 @@
+from datetime import date
+
 from prefect import flow, get_run_logger
+from prefect.artifacts import create_table_artifact
 
 from tasks_manager.tasks.common import fetch_tenants
 from tasks_manager.tasks.stories import generate_stories_for_tenant
@@ -19,7 +22,18 @@ async def generate_stories(group: str):
         tenant_future = generate_stories_for_tenant.submit(tenant_id=tenant["id"], group=group)  # type: ignore
         tenant_futures.append(tenant_future)
 
+    stories = []
     for future in tenant_futures:
-        future.wait()
+        stories.extend(future.result())
+    # Add stories as table artifact
+    today = date.today()
+    group_str = group.replace("_", "-").lower()
+    await create_table_artifact(
+        key=f"{today}-{group_str}-stories",
+        table=stories,
+        description=f"Heuristic stories generated for group {group} for {today}",
+    )
 
     logger.info("All stories generated for group %s", group)
+
+    return stories

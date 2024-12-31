@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import date, timedelta
 
 from prefect import get_run_logger, task
 from prefect.tasks import task_input_hash
@@ -34,7 +34,7 @@ def get_grains(tenant_id: int, group: str) -> list[str]:
     set_tenant_id(tenant_id)
     logger = get_run_logger()
     logger.info(f"Getting grains for tenant {tenant_id} and group {group}")
-    today = datetime.now()
+    today = date.today()
     grains = get_eligible_grains(list(Granularity.__members__.values()), today)
     logger.info("Eligible grains: %s, day: %s", grains, today)
     reset_context()
