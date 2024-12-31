@@ -28,13 +28,13 @@ async def fetch_tenants(**params) -> list[dict]:
     return tenants
 
 
-@task(task_run_name="get_grains_tenant:{tenant_id}_group:{group}")  # type: ignore
-def get_grains(tenant_id: int, group: str) -> list[str]:
+@task(task_run_name="get_grains_tenant:{tenant_id}")  # type: ignore
+def get_grains(tenant_id: int, day: date | None = None) -> list[str]:
     """Get available grains for a tenant and group."""
     set_tenant_id(tenant_id)
     logger = get_run_logger()
-    logger.info(f"Getting grains for tenant {tenant_id} and group {group}")
-    today = date.today()
+    logger.info(f"Getting grains for tenant {tenant_id}")
+    today = day or date.today()
     grains = get_eligible_grains(list(Granularity.__members__.values()), today)
     logger.info("Eligible grains: %s, day: %s", grains, today)
     reset_context()

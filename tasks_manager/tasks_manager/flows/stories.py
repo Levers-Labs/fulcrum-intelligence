@@ -2,38 +2,38 @@ from datetime import date
 
 from prefect import flow, get_run_logger
 from prefect.artifacts import create_table_artifact
+from prefect.futures import PrefectFutureList
 
 from tasks_manager.tasks.common import fetch_tenants
 from tasks_manager.tasks.stories import generate_stories_for_tenant
 
 
 @flow(  # type: ignore
-    name="Generate Stories",
+    name="generate-stories",
     description="Generate stories for all tenants, metrics and groups",
 )
-async def generate_stories(group: str):
+async def generate_stories(story_date: date | None = None):
     """Main flow to generate stories for all combinations"""
+    story_date = story_date or date.today()
     tenants = await fetch_tenants(enable_story_generation=True)  # type: ignore
+    tenants_ids = [tenant["id"] for tenant in tenants]
     logger = get_run_logger()
-    logger.info("Fetched %d tenants", len(tenants))
-    tenant_futures = []
-    for tenant in tenants:
-        logger.info("Generating stories for tenant %d and group %s", tenant["id"], group)
-        tenant_future = generate_stories_for_tenant.submit(tenant_id=tenant["id"], group=group)  # type: ignore
-        tenant_futures.append(tenant_future)
+    tenant_futures: PrefectFutureList = generate_stories_for_tenant.map(tenant_id=tenants_ids, story_date=story_date)  # type: ignore
 
+    # Wait for all stories to be generated
+    results = tenant_futures.result()
+    # Flatten the results
     stories = []
-    for future in tenant_futures:
-        stories.extend(future.result())
+    for result in results:
+        stories.extend(result)
     # Add stories as table artifact
     today = date.today()
-    group_str = group.replace("_", "-").lower()
     await create_table_artifact(
-        key=f"{today}-{group_str}-stories",
+        key=f"{today}-stories",
         table=stories,
-        description=f"Heuristic stories generated for group {group} for {today}",
+        description=f"Heuristic stories generated for {today}",
     )
 
-    logger.info("All stories generated for group %s", group)
+    logger.info("All stories generated for %s", today)
 
     return stories

@@ -1,14 +1,9 @@
 import os
 from datetime import date
 
-from prefect import (
-    State,
-    Task,
-    get_run_logger,
-    task,
-)
-from prefect.client.schemas import TaskRun
+from prefect import get_run_logger, task
 from prefect.events import emit_event
+from prefect.futures import PrefectFutureList
 
 from commons.models.enums import Granularity
 from commons.utilities.context import reset_context, set_tenant_id
@@ -68,61 +63,75 @@ async def generate_story(
     }
 
 
-@task(task_run_name="gen_stories_tenant:{tenant_id}_group:{group}")  # type: ignore
-async def generate_stories_for_tenant(tenant_id: int, group: str):
-    """Generate stories for a specific tenant and group"""
-    # Fetch metrics and groups concurrently using submit
-    metrics_future = fetch_metrics_for_tenant.submit(tenant_id)  # type: ignore
-    grains_future = get_grains.submit(tenant_id, group)  # type: ignore
-    # Get results from futures
-    metrics = metrics_future.result()
-    grains = grains_future.result()
+@task(task_run_name="gen_stories_tenant:{tenant_id}_metric:{metric_id}")  # type: ignore
+async def generate_stories_for_metric(tenant_id: int, metric_id: str, story_date: date | None = None) -> list[dict]:
+    """Generate stories for a specific tenant and metric across all grains and groups"""
     logger = get_run_logger()
-    logger.info("Metrics: %s, grains: %s", metrics, grains)
+    story_date = story_date or date.today()
+    grains = get_grains(tenant_id, story_date)  # type: ignore
+    # In the future, we can fetch from tenant config
+    groups = [StoryGroup.TREND_CHANGES.value]
+    logger.info(
+        "Generating stories for tenant %s, metric %s, grains %s, groups %s, story_date %s",
+        tenant_id,
+        metric_id,
+        grains,
+        groups,
+        story_date,
+    )
 
-    # Generate and save stories concurrently
+    # Generate stories concurrently
     story_futures = []
-    for metric in metrics:
-        for grain in grains:
-            # Submit story generation
+    for grain in grains:
+        for group in groups:
             story_future = generate_story.submit(  # type: ignore
-                tenant_id=tenant_id,
-                metric_id=metric["metric_id"],
-                grain=grain,
-                group=group,
+                tenant_id=tenant_id, metric_id=metric_id, grain=grain, group=group, story_date=story_date
             )
             story_futures.append(story_future)
 
-    # Wait for all save operations to complete
-    all_stories = []
+    # Collect stories
+    stories = []
     if story_futures:
         for future in story_futures:
             res = future.result()
-            all_stories.extend(res["stories"])
-    return all_stories
+            stories.extend(res["stories"])
+
+    # If we have stories, we can emit an event
+    if stories:
+        emit_event(
+            event="metric.story.generated",
+            resource={
+                "prefect.resource.id": f"{tenant_id}.{metric_id}",
+                "metric_id": metric_id,
+                "tenant_id": str(tenant_id),
+                "story_date": story_date.isoformat(),
+            },
+        )
+
+    logger.info("Generated %d stories for tenant %s, metric %s", len(stories), tenant_id, metric_id)
+    return stories
 
 
-@generate_story.on_completion
-async def on_metric_story_generated(tsk: Task, run: TaskRun, state: State):
-    """
-    Emit an event when a story is generated for a metric.
-    """
+@task(task_run_name="gen_stories_tenant:{tenant_id}")  # type: ignore
+async def generate_stories_for_tenant(tenant_id: int, story_date: date | None = None):
+    """Generate stories for a specific tenant and group"""
+    story_date = story_date or date.today()
+    # Fetch metrics and groups concurrently using submit
+    metrics_future = fetch_metrics_for_tenant.submit(tenant_id)  # type: ignore
+    # Get results from futures
+    metrics = metrics_future.result()
+    metric_ids = [metric["metric_id"] for metric in metrics]
     logger = get_run_logger()
-    result = await state.result()
-    tenant_id = result["tenant_id"]
-    metric_id = result["metric_id"]
-    story_date = result["story_date"]
-    stories = result.get("stories", [])
-    if not stories or len(stories) < 1:
-        return
-    event = emit_event(
-        event="metric.story.generated",
-        resource={
-            "prefect.resource.id": f"{tenant_id}.{metric_id}",
-            "metric_id": metric_id,
-            "tenant_id": str(tenant_id),
-            "story_date": story_date.isoformat(),
-        },
+    logger.info("Tenant %s, metrics %s", tenant_id, metric_ids)
+
+    # Generate and save stories concurrently
+    metric_story_futures: PrefectFutureList = generate_stories_for_metric.map(
+        tenant_id=tenant_id, metric_id=metric_ids, story_date=story_date
     )
-    if event:
-        logger.debug("metric.story.generated event emitted id: %s", event.id)
+
+    # Wait for all save operations to complete
+    results = metric_story_futures.result()
+    all_stories: list[dict] = []
+    for result in results:
+        all_stories.extend(result)
+    return all_stories
