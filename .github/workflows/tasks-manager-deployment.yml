@@ -4,7 +4,7 @@ on:
   push:
     branches:
       - main
-      - surajpatil/lev-483-prefect-poc
+      - "surajpatil/lev-483-prefect-poc"
     paths:
       - "tasks_manager/**"
       - "commons/**"
