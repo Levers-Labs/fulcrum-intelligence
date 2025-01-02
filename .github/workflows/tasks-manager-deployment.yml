@@ -120,7 +120,7 @@ jobs:
           PREFECT_API_KEY: ${{ secrets.PREFECT_API_KEY }}
           PREFECT_API_URL: ${{ secrets.PREFECT_API_URL }}
         run: |
-          prefect blocks register --file ${ tasks_manager }/config.py
+          prefect blocks register --file ${{ needs.set-vars.outputs.app_name }}/config.py
 
       - name: Run Prefect Deploy
         uses: PrefectHQ/actions-prefect-deploy@v4
