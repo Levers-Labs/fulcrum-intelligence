@@ -103,8 +103,7 @@ jobs:
 
       - name: Install Prefect
         run: |
-          python -m pip install --upgrade pip
-          pip install "prefect>=3.1.7,<4.0.0"
+          pip install prefect -U "prefect>=3,<4"
 
       - name: Update Amazon ECS task definition with latest image id
         id: render-task-definition
@@ -113,6 +112,13 @@ jobs:
           task-definition: ./${{ needs.set-vars.outputs.app_name }}/deployment/ecs/task.json
           container-name: tasks-manager-task
           image: ${{ secrets.ECR_REGISTRY }}/${{ needs.set-vars.outputs.ecr_repo }}:${{ needs.generate-tag.outputs.tag_id }}
+
+      - run: cat ${{ steps.render-task-definition.outputs.task-definition }}
+
+      - name: Deploy Task Definition
+        uses: aws-actions/amazon-ecs-deploy-task-definition@v1
+        with:
+          task-definition: ${{ steps.render-task-definition.outputs.task-definition }}
 
       - name: Register Prefect blocks
         working-directory: ${{ needs.set-vars.outputs.app_name }}
@@ -123,10 +129,9 @@ jobs:
           prefect blocks register --file ${{ needs.set-vars.outputs.app_name }}/config.py
 
       - name: Run Prefect Deploy
-        uses: PrefectHQ/actions-prefect-deploy@v4
-        with:
-          all-deployments: "true"
-          deployment-file-path: ./${{ needs.set-vars.outputs.app_name }}/prefect.yaml
+        working-directory: ${{ needs.set-vars.outputs.app_name }}
+        run: |
+          prefect --no-prompt deploy --all
         env:
           PREFECT_API_KEY: ${{ secrets.PREFECT_API_KEY }}
           PREFECT_API_URL: ${{ secrets.PREFECT_API_URL }}
