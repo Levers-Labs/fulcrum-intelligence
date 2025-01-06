@@ -60,13 +60,22 @@ async def generate_story(
     # Clean up tenant context
     reset_context()
 
-    logger.info(
-        "Story generated for tenant %s, metric %s, grain %s, group %s",
-        tenant_id,
-        metric_id,
-        grain.value,
-        group.value,
-    )
+    if story_records:
+        logger.info(
+            "Story generated for tenant %s, metric %s, grain %s, group %s",
+            tenant_id,
+            metric_id,
+            grain.value,
+            group.value,
+        )
+    else:
+        logger.info(
+            "No story generated for tenant %s, metric %s, grain %s, group %s",
+            tenant_id,
+            metric_id,
+            grain.value,
+            group.value,
+        )
     return {
         "tenant_id": tenant_id,
         "metric_id": metric_id,

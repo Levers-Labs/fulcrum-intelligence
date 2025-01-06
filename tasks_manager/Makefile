@@ -10,6 +10,9 @@ install:  ## Install dependencies using Poetry
 server:  ## Start Prefect server
 	prefect server start
 
+worker: ## Start a Prefect worker
+	prefect worker start --pool "tasks-manager-ecs-pool"
+
 config:  ## Configure Prefect API URL
 	prefect config set PREFECT_API_URL=http://localhost:4200/api
 
