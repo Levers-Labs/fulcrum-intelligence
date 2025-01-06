@@ -39,7 +39,6 @@ install-all-deps:
 	@make install-deps path=analysis_manager
 	@make install-deps path=story_manager
 	@make install-deps path=insights_backend
-	@make install-deps path=fulcrum_airflow
 
 port ?= 8000
 run:
@@ -64,7 +63,6 @@ format-all:
 	@make format path=analysis_manager
 	@make format path=story_manager
 	@make format path=insights_backend
-	@make format path=fulcrum_airflow
 
 lint:
 	@python manage.py lint $(path)
@@ -76,7 +74,6 @@ lint-all:
 	@make lint path=analysis_manager
 	@make lint path=story_manager
 	@make lint path=insights_backend
-	@make lint path=fulcrum_airflow
 
 
 build-story-builder-image:
