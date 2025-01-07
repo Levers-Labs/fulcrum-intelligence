@@ -17,6 +17,8 @@ class ErrorCode(str, Enum):
     METRIC_TARGET_ERROR = "metric_target_error"
     METRIC_NOTIFICATION_NOT_FOUND = "metric_notification_not_found"
     MISSING_CONFIGURATION = "missing_configuration"
+    INVALID_YAML = "invalid_yaml"
+    VALIDATION_ERROR = "validation_error"
 
 
 class QueryManagerError(HTTPException):
