@@ -29,7 +29,7 @@ from query_manager.core.dependencies import (
     oauth2_auth,
 )
 from query_manager.core.enums import OutputFormat
-from query_manager.core.schemas import (  # SlackChannelIds,; SlackChannelsResponse,
+from query_manager.core.schemas import (
     Cube,
     Dimension,
     DimensionCompact,
@@ -38,12 +38,10 @@ from query_manager.core.schemas import (  # SlackChannelIds,; SlackChannelsRespo
     DimensionUpdate,
     ExpressionParseRequest,
     Metric,
-    MetricCreate,
     MetricDetail,
     MetricList,
     MetricSlackNotificationRequest,
     MetricSlackNotificationResponse,
-    MetricUpdate,
     MetricValuesResponse,
     TargetListResponse,
 )
@@ -55,6 +53,7 @@ from query_manager.exceptions import (
     QueryManagerError,
 )
 from query_manager.llm.prompts import ParsedExpressionOutput
+from query_manager.parsers.yaml_parser import YAMLMetricParser
 from query_manager.services.cube import CubeClient, CubeJWTAuthType
 from query_manager.services.s3 import NoSuchKeyError
 
@@ -102,27 +101,56 @@ async def get_metric(metric_id: str, client: QueryClientDep):
 
 @router.post(
     "/metrics",
-    response_model=MetricDetail,
+    # response_model=MetricDetail,
     tags=["metrics"],
     status_code=201,
     dependencies=[Security(oauth2_auth().verify, scopes=[QUERY_MANAGER_ALL])],
 )
 async def create_metric(
-    metric_data: MetricCreate,
     client: QueryClientDep,
+    metric_data: str = Body(
+        default="""
+                metric_id: example_metric
+                label: Example Metric
+                complexity: ATOMIC
+                definition: Example metric definition
+                unit_of_measure: COUNT
+                periods:
+                  - day
+                abbreviation: EX
+                grain_aggregation: sum
+                aggregations:
+                  - sum
+                unit: n
+                meta_data:
+                  semantic_meta:
+                    cube: ExampleCube
+                    member: exampleMember
+                    member_type: measure
+                    time_dimension:
+                      cube: ExampleCube
+                      member: dateField
+                """,
+        description="YAML content for metric creation",
+        media_type="application/x-yaml",
+    ),
 ):
     """
-    Create a new metric.
+    Create a new metric using YAML definition.
     """
     try:
-        created_metric = await client.create_metric(metric_data)
+        # Parse and validate YAML
+        parsed_metric_data = YAMLMetricParser.parse_yaml_string(metric_data)
+
+        created_metric = await client.create_metric(parsed_metric_data)
+
         return created_metric
     except IntegrityError as e:
         raise HTTPException(
             status_code=422,
             detail={
                 "loc": ["body", "metric_id"],
-                "msg": f"Metric with id '{metric_data.metric_id}' already exists.",
+                "msg": f"Metric with id '{metric_data.metric_id}' already exists.",  # type: ignore
                 "type": "already_exists",
             },
         ) from e
@@ -130,20 +158,48 @@ async def create_metric(
 
 @router.patch(
     "/metrics/{metric_id}",
-    response_model=MetricDetail,
+    # response_model=MetricDetail,
     tags=["metrics"],
     dependencies=[Security(oauth2_auth().verify, scopes=[QUERY_MANAGER_ALL])],
 )
 async def update_metric(
     metric_id: str,
-    metric_data: MetricUpdate,
     client: QueryClientDep,
+    metric_data: str = Body(
+        default="""
+                metric_id: example_metric
+                label: Example Metric
+                complexity: ATOMIC
+                definition: Example metric definition
+                unit_of_measure: COUNT
+                periods:
+                  - day
+                abbreviation: EX
+                grain_aggregation: sum
+                aggregations:
+                  - sum
+                unit: n
+                meta_data:
+                  semantic_meta:
+                    cube: ExampleCube
+                    member: exampleMember
+                    member_type: measure
+                    time_dimension:
+                      cube: ExampleCube
+                      member: dateField
+                """,
+        description="YAML content for metric updation",
+        media_type="application/x-yaml",
+    ),
 ):
     """
     Update a metric by ID.
     """
     try:
-        updated_metric = await client.update_metric(metric_id, metric_data)
+        # Parse and validate YAML
+        parsed_metric_data = YAMLMetricParser.parse_yaml_string(metric_data)
+
+        updated_metric = await client.update_metric(metric_id, parsed_metric_data)
         return updated_metric
     except MetricNotFoundError as e:
         raise HTTPException(status_code=404, detail=f"Metric with ID {metric_id} not found") from e

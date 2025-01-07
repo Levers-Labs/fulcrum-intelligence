@@ -321,3 +321,63 @@ class Cube(BaseModel):
     title: str
     measures: list[CubeMeasure]
     dimensions: list[CubeDimension]
+
+
+class MetricYAMLSchema(BaseModel):
+    """
+    Schema for metrics defined in YAML format.
+
+    This schema defines the structure for metrics as they are represented in YAML files.
+    It includes required fields such as metric_id, label, and complexity, as well as optional fields for additional
+    metadata and relationships.
+    """
+
+    # Required fields
+    metric_id: str = Field(description="Unique identifier for the metric")
+    label: str = Field(description="Display label for the metric")
+    complexity: Complexity = Field(description="Complexity level of the metric")
+
+    # Optional fields with validation
+    abbreviation: str | None = Field(description="Short form of metric name")
+    definition: str | None = Field(description="Detailed metric definition")
+    unit_of_measure: str | None = Field(description="Unit of measurement")
+    unit: str | None = Field(description="Alternative unit specification")
+    terms: list[str] = Field(default_factory=list, description="Related terms")
+    metric_expression: MetricExpression | None = None
+    periods: list[Granularity] | None = Field(default_factory=list)  # type: ignore
+    grain_aggregation: str = Field(default="sum")
+    aggregations: list[str] = Field(default_factory=list)  # type: ignore
+    owned_by_team: list[str] = Field(default_factory=list)  # type: ignore
+    meta_data: MetricMetadata = Field(default_factory=dict)  # type: ignore
+    hypothetical_max: float | None = None
+
+    # Relationship fields
+    dimensions: list[str] | None = Field(default_factory=list, description="List of dimension IDs")  # type: ignore
+    influences: list[str] | None = Field(default_factory=list, description="List of influencing metric IDs")  # type: ignore
+    components: list[str] | None = Field(default_factory=list, description="List of component metric IDs")  # type: ignore
+    inputs: list[str] | None = Field(default_factory=list, description="List of input metric IDs")  # type: ignore
+
+    @staticmethod
+    def validate_metric_id(v: str) -> str:
+        """
+        Validates the metric_id field.
+
+        Ensures the metric_id is not empty and does not exceed 255 characters.
+        """
+        if not v.strip():
+            raise ValueError("metric_id cannot be empty")
+        if len(v) > 255:
+            raise ValueError("metric_id must be less than 255 characters")
+        return v
+
+    @staticmethod
+    def validate_grain_aggregation(v: str) -> str:
+        """
+        Validates the grain_aggregation field.
+
+        Ensures the grain_aggregation is one of the valid aggregation types.
+        """
+        valid_aggregations = {"sum", "avg", "min", "max", "count"}
+        if v not in valid_aggregations:
+            raise ValueError(f"grain_aggregation must be one of {valid_aggregations}")
+        return v
