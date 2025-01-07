@@ -139,11 +139,13 @@ async def create_metric(
     Create a new metric using YAML definition.
     """
     try:
-        # Parse and validate YAML
+        # Parse the YAML string into a Python dictionary
         parsed_metric_data = YAMLMetricParser.parse_yaml_string(metric_data)
 
+        # Use the parsed metric data to create a new metric
         created_metric = await client.create_metric(parsed_metric_data)
 
+        # Return the newly created metric
         return created_metric
     except IntegrityError as e:
         raise HTTPException(
@@ -196,10 +198,13 @@ async def update_metric(
     Update a metric by ID.
     """
     try:
-        # Parse and validate YAML
+        # Parse the YAML string into a Python object
         parsed_metric_data = YAMLMetricParser.parse_yaml_string(metric_data)
 
+        # Update the metric with the parsed data
         updated_metric = await client.update_metric(metric_id, parsed_metric_data)
+
+        # Return the updated metric
         return updated_metric
     except MetricNotFoundError as e:
         raise HTTPException(status_code=404, detail=f"Metric with ID {metric_id} not found") from e
