@@ -23,6 +23,7 @@ pyarrow = "^15.0.2"
 mangum = "^0.17.0"
 commons = { path = "../commons", extras = ["db"] }
 jinja2 = "^3.1.4"
+types-pyyaml = "^6.0.12.20241230"
 
 [tool.poetry.group.dev.dependencies]
 moto = "^5.0.4"
