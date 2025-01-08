@@ -81,7 +81,7 @@ class StoryManager:
     @classmethod
     async def run_builder_for_story_group(
         cls, group: StoryGroup, metric_id, grain: Granularity, story_date: date | None = None
-    ):
+    ) -> list[dict]:
         """
         Run the story generation builder for a specific story group.
 
@@ -114,5 +114,6 @@ class StoryManager:
 
             # Run the story builder for the metrics
             logger.info(f"Generating stories for grain: {grain}")
-            await story_builder.run(metric_id, grain)
+            stories = await story_builder.run(metric_id, grain)
             logger.info(f"Stories generated for metric {metric_id} with grain {grain}")
+            return [story.model_dump(mode="json") for story in stories]

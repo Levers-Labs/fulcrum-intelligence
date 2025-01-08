@@ -13,6 +13,7 @@ from httpx import (
 from pydantic import AnyHttpUrl
 
 from commons.auth.auth import UnauthorizedException
+from commons.auth.constants import TENANT_ID_HEADER, TENANT_VERIFICATION_BYPASS_ENDPOINTS
 from commons.utilities.context import get_tenant_id
 from commons.utilities.json_utils import serialize_json
 
@@ -41,24 +42,29 @@ class AsyncHttpClient:
         path = str(base_url).rstrip("/") + "/" + endpoint.lstrip("/")
         return path
 
-    def _add_tenant_id_to_headers(self, headers: dict[str, Any]) -> dict[str, Any]:
+    def _add_tenant_id_to_headers(self, headers: dict[str, Any], endpoint: str) -> dict[str, Any]:
         """
-        Fetch the tenant ID and add it to the headers.
+        Fetch the tenant ID and add it to the headers, unless the endpoint is in the bypass list.
 
         Args:
             headers (dict[str, Any]): The original headers.
+            endpoint (str): The API endpoint being called.
 
         Returns:
-            dict[str, Any]: The headers with the tenant ID added.
+            dict[str, Any]: The headers with the tenant ID added if required.
 
         Raises:
-            UnauthorizedException: If the tenant ID is not found.
+            UnauthorizedException: If the tenant ID is not found for non-bypassed endpoints.
         """
+        # Check if endpoint is in bypass list
+        if any(endpoint in bypass_endpoint for bypass_endpoint in TENANT_VERIFICATION_BYPASS_ENDPOINTS):
+            return headers
+
         tenant_id = get_tenant_id()
         if not tenant_id:
             raise UnauthorizedException(detail="Tenant ID not found in context")
 
-        headers["X-Tenant-Id"] = str(tenant_id)
+        headers[TENANT_ID_HEADER] = str(tenant_id)
         return headers
 
     async def _make_request(self, method: str, endpoint: str, **kwargs) -> Response:
@@ -70,7 +76,7 @@ class AsyncHttpClient:
 
         # Add tenant ID to headers
         headers = kwargs.get("headers", {})
-        kwargs["headers"] = self._add_tenant_id_to_headers(headers)
+        kwargs["headers"] = self._add_tenant_id_to_headers(headers, endpoint)
 
         async with AsyncClient(auth=self.auth) as client:
             url = self._get_url(self.base_url, endpoint)
