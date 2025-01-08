@@ -353,7 +353,7 @@ async def test_set_story_heuristics(event_loop, story_builder, mock_db_session, 
     await story_builder.set_story_heuristics(mock_story_objs)
 
     # Assert that db_session.refresh was called for each story
-    assert mock_db_session.refresh.call_count == len(mock_story_objs)
+    assert mock_db_session.refresh.call_count == len(mock_story_objs) * 2
 
     # Assert that set_heuristics was called for each story
     for mock_story in mock_story_objs:

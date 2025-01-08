@@ -9,7 +9,7 @@ license = "Proprietary"
 python = ">=3.10,<3.12"
 pydantic = { extras = ["email", "dotenv"], version = "^2.7.4" }
 httpx = "^0.27.0"
-fastapi = { version = "^0.110.1" }
+fastapi = "^0.115.6"
 sqlalchemy = { version = "^2.0.29", optional = true }
 sqlmodel = { version = "^0.0.16", optional = true }
 psycopg2-binary = { version = "^2.9.9", optional = true }
@@ -31,7 +31,7 @@ pydantic-settings = "^2.6.1"
 db = ["sqlmodel", "sqlalchemy", "psycopg2-binary", "alembic", "asyncpg", "greenlet"]
 
 [build-system]
-requires = ["poetry-core>=1.0.0"]
+requires = ["poetry-core>=1.0.0,<2.0.0"]
 build-backend = "poetry.core.masonry.api"
 
 [tool.pytest.ini_options]

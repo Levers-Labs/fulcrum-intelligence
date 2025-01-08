@@ -299,7 +299,7 @@ class CubeMeasure(CubeMember):
 class CubeDimension(CubeMember):
     """Schema for cube dimensions"""
 
-    type: Literal["time", "string", "number"]
+    type: Literal["time", "string", "number", "boolean"]
     dimension_id: str
 
     model_config = ConfigDict(
