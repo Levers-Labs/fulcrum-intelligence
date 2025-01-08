@@ -56,7 +56,7 @@ jobs:
         working-directory: ${{ inputs.app_name }}
         run: |
           pip install --upgrade pip
-          pip install poetry
+          pip install poetry poetry-plugin-export
           poetry install  # Or use pip if you're not using Poetry
 
       - name: Run migrations

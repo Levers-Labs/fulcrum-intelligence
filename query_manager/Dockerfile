@@ -1,7 +1,7 @@
 FROM public.ecr.aws/lambda/python:3.10
 
 # Install poetry
-RUN pip install --no-cache-dir --upgrade pip poetry
+RUN pip install --no-cache-dir --upgrade pip poetry poetry-plugin-export
 
 # Copy the local package dependencies
 COPY ./commons ${LAMBDA_TASK_ROOT}/commons
