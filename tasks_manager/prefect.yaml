@@ -1,0 +1,45 @@
+# Generic metadata about this project
+name: tasks_manager
+prefect-version: 3.1.7
+
+pull:
+  - prefect.deployments.steps.set_working_directory:
+      directory: /opt/prefect/tasks_manager
+
+# the definitions section allows you to provide reusable definitions for your project
+definitions:
+  work_pools:
+    ecs_work_pool: &ecs_work_pool
+      name: tasks-manager-ecs-pool
+      work_queue_name: default
+  schedules:
+    daily_midnight: &daily_midnight
+      - cron: "0 0 * * *"
+        timezone: "UTC"
+
+# the deployments section allows you to provide configuration for deploying flows
+deployments:
+  - name: "generate-stories"
+    version: "1.0.0"
+    tags:
+      - daily
+    description: "Generate stories for all tenants, metrics and groups"
+    entrypoint: tasks_manager.flows.stories:generate_stories
+    work_pool: *ecs_work_pool
+    schedules: *daily_midnight
+  - name: "send-metric-stories-alert"
+    version: "1.0.0"
+    description: "Send metric stories alert to slack"
+    entrypoint: tasks_manager.flows.alerts:send_metric_stories_alert
+    work_pool: *ecs_work_pool
+    triggers:
+      - type: event
+        name: "metric-story-generated-alert-trigger"
+        description: "Triggered when a stories are generated for a metric"
+        enabled: true
+        expect:
+          - metric.story.generated
+        parameters:
+          metric_id: "{{ event.resource.metric_id }}"
+          tenant_id: "{{ event.resource.tenant_id }}"
+          story_date: "{{ event.resource.story_date }}"
