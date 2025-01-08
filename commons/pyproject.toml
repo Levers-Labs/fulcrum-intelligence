@@ -31,7 +31,7 @@ pydantic-settings = "^2.6.1"
 db = ["sqlmodel", "sqlalchemy", "psycopg2-binary", "alembic", "asyncpg", "greenlet"]
 
 [build-system]
-requires = ["poetry-core>=1.0.0"]
+requires = ["poetry-core>=1.0.0,<2.0.0"]
 build-backend = "poetry.core.masonry.api"
 
 [tool.pytest.ini_options]

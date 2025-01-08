@@ -8,7 +8,7 @@ RUN mkdir -p /opt/prefect/tasks_manager/
 WORKDIR /opt/prefect/tasks_manager/
 
 # Install poetry
-RUN pip install --no-cache-dir --upgrade pip poetry
+RUN pip install --no-cache-dir --upgrade pip "poetry<2.0.0"
 
 # Copy the shared dependencies first
 COPY ./commons /opt/prefect/commons
