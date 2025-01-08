@@ -167,26 +167,31 @@ class MetricUpdate(BaseModel):
     async def update(cls, db: AsyncSession, instance: Metric, validated_data: dict):
         # Update simple fields
         for attr, value in validated_data.items():
-            if attr not in ["dimensions", "influences", "components", "inputs"]:
+            if attr not in ["dimensions", "influences", "influencers", "components", "inputs"]:
                 setattr(instance, attr, value)
 
-        # Update M2M relationships
-        if "dimensions" in validated_data:
-            dimensions = await db.execute(
-                select(Dimension).where(Dimension.dimension_id.in_(validated_data["dimensions"]))  # type: ignore
-            )
-            instance.dimensions = dimensions.scalars().all()  # type: ignore
+        # Update M2M relationships asynchronously
+        if "dimensions" in validated_data and validated_data["dimensions"]:
+            stmt = select(Dimension).where(Dimension.dimension_id.in_(validated_data["dimensions"]))  # type: ignore
+            result = await db.execute(stmt)
+            instance.dimensions = result.scalars().all()  # type: ignore
 
-        for field in ["influences", "influencers", "components", "inputs"]:
-            if field in validated_data:
-                related_metrics = await db.execute(
-                    select(Metric).where(Metric.metric_id.in_(validated_data[field]))  # type: ignore
-                )
-                setattr(instance, field, related_metrics.scalars().all())
-        db.add(instance)
-        await db.commit()
-        await db.refresh(instance)
-        return instance
+        # Handle metric relationships
+        relation_fields = ["influences", "influencers", "components", "inputs"]
+        for field in relation_fields:
+            if field in validated_data and validated_data[field]:
+                stmt = select(Metric).where(Metric.metric_id.in_(validated_data[field]))  # type: ignore
+                result = await db.execute(stmt)
+                setattr(instance, field, result.scalars().all())
+
+        try:
+            db.add(instance)
+            await db.commit()
+            await db.refresh(instance)
+            return instance
+        except Exception as e:
+            await db.rollback()
+            raise e
 
 
 class DimensionCreate(DimensionBase):

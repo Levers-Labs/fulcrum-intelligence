@@ -101,7 +101,7 @@ async def get_metric(metric_id: str, client: QueryClientDep):
 
 @router.post(
     "/metrics",
-    # response_model=MetricDetail,
+    response_model=MetricDetail,
     tags=["metrics"],
     status_code=201,
     dependencies=[Security(oauth2_auth().verify, scopes=[QUERY_MANAGER_ALL])],
@@ -145,14 +145,14 @@ async def create_metric(
         # Use the parsed metric data to create a new metric
         created_metric = await client.create_metric(parsed_metric_data)
 
-        # Return the newly created metric
-        return created_metric
+        # Return the newly created metric with full metric details
+        return await client.get_metric_details(created_metric.metric_id)
     except IntegrityError as e:
         raise HTTPException(
             status_code=422,
             detail={
                 "loc": ["body", "metric_id"],
-                "msg": f"Metric with id '{metric_data.metric_id}' already exists.",  # type: ignore
+                "msg": f"Metric with id '{parsed_metric_data.metric_id}' already exists.",  # noqa
                 "type": "already_exists",
             },
         ) from e
@@ -160,7 +160,7 @@ async def create_metric(
 
 @router.patch(
     "/metrics/{metric_id}",
-    # response_model=MetricDetail,
+    response_model=MetricDetail,
     tags=["metrics"],
     dependencies=[Security(oauth2_auth().verify, scopes=[QUERY_MANAGER_ALL])],
 )
@@ -205,7 +205,7 @@ async def update_metric(
         updated_metric = await client.update_metric(metric_id, parsed_metric_data)
 
         # Return the updated metric
-        return updated_metric
+        return await client.get_metric_details(updated_metric.metric_id)
     except MetricNotFoundError as e:
         raise HTTPException(status_code=404, detail=f"Metric with ID {metric_id} not found") from e
 
