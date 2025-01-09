@@ -206,16 +206,16 @@ class QueryClient:
         # post process the cubes
         for cube in cubes:
             for measure in cube["measures"]:
-                title = measure["title"]
+                title = measure["short_title"]
                 # e.g. "Total Revenue" -> "TotalRevenue"
-                measure["metric_id"] = title.title().replace(" ", "")
+                measure["metric_id"] = title.replace(" ", "")
                 # Convert cube measure aggregation type to grain_aggregation
                 measure["grain_aggregation"] = self.map_cube_aggregation_to_grain(measure["type"])
 
             for dimension in cube["dimensions"]:
-                title = dimension["title"]
+                title = dimension["short_title"]
                 # e.g. "Customer Region" -> "CustomerRegion"
-                dimension["dimension_id"] = title.title().replace(" ", "")
+                dimension["dimension_id"] = title.replace(" ", "")
         return cubes
 
     @staticmethod

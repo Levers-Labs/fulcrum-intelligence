@@ -487,18 +487,21 @@ async def test_list_cubes(async_client: AsyncClient, mocker):
                 {
                     "name": "revenue",
                     "title": "Total Revenue",
-                    "shortTitle": "Revenue",
+                    "short_title": "Revenue",
                     "type": "number",
                     "description": "Total revenue from all sources",
+                    "metric_id": "Revenue",
+                    "grain_aggregation": "sum",
                 }
             ],
             "dimensions": [
                 {
                     "name": "created_at",
                     "title": "Created Date",
-                    "shortTitle": "Created",
+                    "short_title": "Created",
                     "type": "time",
                     "description": "Date when record was created",
+                    "dimension_id": "Created",
                 }
             ],
         }
@@ -508,12 +511,28 @@ async def test_list_cubes(async_client: AsyncClient, mocker):
     mock_list_cubes = AsyncMock(return_value=mock_cubes)
     mocker.patch.object(CubeClient, "list_cubes", mock_list_cubes)
 
+    # Transform mock_cubes to match API response format
+    expected_response = [
+        {
+            **cube,
+            "measures": [
+                {**{("shortTitle" if k == "short_title" else k): v for k, v in m.items()}}  # type: ignore
+                for m in cube["measures"]
+            ],
+            "dimensions": [
+                {**{("shortTitle" if k == "short_title" else k): v for k, v in d.items()}}  # type: ignore
+                for d in cube["dimensions"]
+            ],
+        }
+        for cube in mock_cubes
+    ]
+
     # Act
     response = await async_client.get("/v1/meta/cubes")
 
     # Assert
     assert response.status_code == 200
-    assert response.json() == mock_cubes
+    assert response.json() == expected_response
     mock_list_cubes.assert_awaited_once()
 
 
