@@ -39,6 +39,7 @@ install-all-deps:
 	@make install-deps path=analysis_manager
 	@make install-deps path=story_manager
 	@make install-deps path=insights_backend
+	@make install-deps path=tasks_manager
 
 port ?= 8000
 run:
@@ -63,6 +64,7 @@ format-all:
 	@make format path=analysis_manager
 	@make format path=story_manager
 	@make format path=insights_backend
+	@make format path=tasks_manager
 
 lint:
 	@python manage.py lint $(path)
@@ -74,12 +76,8 @@ lint-all:
 	@make lint path=analysis_manager
 	@make lint path=story_manager
 	@make lint path=insights_backend
+	@make lint path=tasks_manager
 
-
-build-story-builder-image:
-	@echo "Building the story-builder image..."
-	@docker build -f story_manager/Dockerfile.story_builder -t story-builder-manager:latest .
-	@echo "Story-builder image built successfully."
 
 start-shell:
 ifndef app
