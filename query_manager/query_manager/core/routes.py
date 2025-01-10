@@ -57,6 +57,7 @@ from query_manager.exceptions import (
 from query_manager.llm.prompts import ParsedExpressionOutput
 from query_manager.services.cube import CubeClient, CubeJWTAuthType
 from query_manager.services.s3 import NoSuchKeyError
+from query_manager.utils.metric_builder import MetricDataBuilder
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="")
@@ -116,7 +117,7 @@ async def create_metric(
     """
     try:
         created_metric = await client.create_metric(metric_data)
-        return created_metric
+        return await client.get_metric_details(created_metric.metric_id)
     except IntegrityError as e:
         raise HTTPException(
             status_code=422,
@@ -461,3 +462,45 @@ async def list_cubes(
     except HttpClientError as exc:
         logger.error("Failed to fetch cubes from Cube API: %s", exc)
         raise QueryManagerError(500, ErrorCode.MISSING_CONFIGURATION, "Failed to fetch cubes from Cube API") from exc
+
+
+@router.post(
+    "/metrics/preview",
+    response_model=MetricCreate,
+    tags=["metrics"],
+    dependencies=[Security(oauth2_auth().verify, scopes=[QUERY_MANAGER_ALL])],
+)
+async def preview_metric_from_yaml(
+    client: QueryClientDep,  # Dependency for QueryClient
+    expression_parser_service: ExpressionParserServiceDep,  # Dependency for ExpressionParserService
+    metric_data: str = Body(
+        default="""
+                        metric_id: test
+                        label: test
+                        abbreviation: test
+                        hypothetical_max: 100
+                        definition: test is a metric
+                        expression: null
+                        aggregation: sum
+                        unit_of_measure: quantity
+                        unit: n
+                        measure: cube.test
+                        time_dimension: cube.test""",
+        description="Raw Metric Data in YAML format",
+        media_type="application/x-yaml",
+    ),
+):
+    """
+    Preview a metric from YAML data.
+
+    This endpoint takes in YAML formatted metric data and returns a preview of the metric.
+    The metric data is expected to contain the necessary fields to define a metric, such as metric_id, label,
+    abbreviation, etc.
+    The endpoint uses the MetricDataBuilder to construct the metric data structure from the provided YAML content.
+    """
+    # Call MetricDataBuilder to construct the metric data structure from the provided YAML content
+    return await MetricDataBuilder.build_metric_data(
+        metric_data=metric_data,  # The YAML formatted metric data
+        client=client,  # The QueryClient dependency
+        expression_parser_service=expression_parser_service,  # The ExpressionParserService dependency
+    )

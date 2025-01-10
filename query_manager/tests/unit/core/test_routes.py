@@ -487,18 +487,21 @@ async def test_list_cubes(async_client: AsyncClient, mocker):
                 {
                     "name": "revenue",
                     "title": "Total Revenue",
-                    "shortTitle": "Revenue",
+                    "short_title": "Revenue",
                     "type": "number",
                     "description": "Total revenue from all sources",
+                    "metric_id": "Revenue",
+                    "grain_aggregation": "sum",
                 }
             ],
             "dimensions": [
                 {
                     "name": "created_at",
                     "title": "Created Date",
-                    "shortTitle": "Created",
+                    "short_title": "Created",
                     "type": "time",
                     "description": "Date when record was created",
+                    "dimension_id": "Created",
                 }
             ],
         }
@@ -508,12 +511,28 @@ async def test_list_cubes(async_client: AsyncClient, mocker):
     mock_list_cubes = AsyncMock(return_value=mock_cubes)
     mocker.patch.object(CubeClient, "list_cubes", mock_list_cubes)
 
+    # Transform mock_cubes to match API response format
+    expected_response = [
+        {
+            **cube,
+            "measures": [
+                {**{("shortTitle" if k == "short_title" else k): v for k, v in m.items()}}  # type: ignore
+                for m in cube["measures"]
+            ],
+            "dimensions": [
+                {**{("shortTitle" if k == "short_title" else k): v for k, v in d.items()}}  # type: ignore
+                for d in cube["dimensions"]
+            ],
+        }
+        for cube in mock_cubes
+    ]
+
     # Act
     response = await async_client.get("/v1/meta/cubes")
 
     # Assert
     assert response.status_code == 200
-    assert response.json() == mock_cubes
+    assert response.json() == expected_response
     mock_list_cubes.assert_awaited_once()
 
 
@@ -554,3 +573,107 @@ async def test_list_cubes_error(async_client: AsyncClient, mocker):
     assert response.status_code == 500
     assert response.json()["detail"] == "Failed to fetch cubes from Cube API"
     mock_list_cubes.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_preview_metric_from_yaml_success(async_client: AsyncClient, mocker):
+    """Test successful metric preview from YAML"""
+    yaml_content = """
+        metric_id: test
+        label: test
+        abbreviation: test
+        hypothetical_max: 100
+        definition: test is a metric
+        expression: null
+        aggregation: sum
+        unit_of_measure: quantity
+        unit: 'n'
+        measure: "cube1.revenue"
+        time_dimension: "cube1.created_at"
+    """
+    # Mock data with matching measure name
+    mock_cubes = [
+        {
+            "name": "cube1",
+            "title": "Cube One",
+            "measures": [
+                {
+                    "name": "cube1.revenue",
+                    "title": "Total Revenue",
+                    "shortTitle": "Revenue",
+                    "short_title": "Revenue",
+                    "type": "number",
+                    "description": "Total revenue from all sources",
+                    "metric_id": "Revenue",
+                    "grain_aggregation": "sum",
+                }
+            ],
+            "dimensions": [
+                {
+                    "name": "cube1.created_at",
+                    "title": "Created Date",
+                    "shortTitle": "Created",
+                    "short_title": "Created",
+                    "type": "time",
+                    "description": "Date when record was created",
+                    "dimension_id": "Created",
+                }
+            ],
+        }
+    ]
+
+    # Mock the cube client list_cubes method
+    mock_list_cubes = AsyncMock(return_value=mock_cubes)
+    mocker.patch.object(CubeClient, "list_cubes", mock_list_cubes)
+
+    response = await async_client.post(
+        "/v1/metrics/preview", content=yaml_content, headers={"Content-Type": "application/x-yaml"}
+    )
+
+    assert response.status_code == 200
+    result = response.json()
+
+    assert result["metric_id"] == "test"
+    assert result["label"] == "test"
+    assert result["complexity"] == "Atomic"
+    assert result["abbreviation"] == "test"
+    assert result["hypothetical_max"] == 100
+
+    # Verify mock was called
+    mock_list_cubes.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_preview_metric_from_yaml_invalid_yaml(async_client: AsyncClient):
+    """Test metric preview with invalid YAML"""
+    invalid_content = "invalid: yaml: content:"
+
+    response = await async_client.post(
+        "/v1/metrics/preview", content=invalid_content, headers={"Content-Type": "application/x-yaml"}
+    )
+
+    assert response.status_code == 422
+    assert "Invalid format" in response.json()["detail"]
+
+
+@pytest.mark.asyncio
+async def test_preview_metric_from_yaml_missing_fields(async_client: AsyncClient):
+    """Test metric preview with missing required fields"""
+    incomplete_content = """
+    label: test
+    abbreviation: test
+    hypothetical_max: 100
+    definition: test is a metric
+    expression: "{newInqs} + {newMqls} + 1"
+    aggregation: sum
+    unit_of_measure: quantity
+    unit: 'n'
+    measure: "DimContactLifecycleStages.mqlToSalRate"
+    time_dimension: "DimContactLifecycleStages.lastMqlOn"
+    """
+
+    response = await async_client.post(
+        "/v1/metrics/preview", content=incomplete_content, headers={"Content-Type": "application/x-yaml"}
+    )
+
+    assert response.status_code == 422
