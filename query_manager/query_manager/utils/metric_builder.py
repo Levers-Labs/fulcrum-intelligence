@@ -1,8 +1,29 @@
 import yaml
 from fastapi import HTTPException
+from pydantic import BaseModel, field_validator
 
 from query_manager.core.models import MetricExpression
 from query_manager.core.schemas import MetricCreate
+
+
+class MetricBase(BaseModel):
+    """Base metric fields that are required"""
+
+    metric_id: str
+    label: str
+    abbreviation: str
+    hypothetical_max: float
+    measure: str
+    time_dimension: str
+
+    @field_validator("measure", "time_dimension")
+    @classmethod
+    def validate_cube_format(cls, v: str) -> str:
+        """Validate cube.member format"""
+        cube, *member = v.split(".")
+        if not cube or not member:
+            raise ValueError(f"Must be in format 'Cube.member', got {v}")
+        return v
 
 
 class MetricDataBuilder:
@@ -61,10 +82,10 @@ class MetricDataBuilder:
         Validates required fields exist in the data. This method checks if all required fields are present in the data.
         If any required field is missing, it raises an HTTPException.
         """
-        required_fields = ["metric_id", "label", "abbreviation", "hypothetical_max", "measure", "time_dimension"]
-        missing_fields = [field for field in required_fields if field not in data]
-        if missing_fields:
-            raise HTTPException(status_code=422, detail=f"Missing mandatory fields: {', '.join(missing_fields)}")
+        try:
+            _ = MetricBase(**data)
+        except ValueError as e:
+            raise HTTPException(status_code=422, detail=str(e)) from e
 
     @staticmethod
     async def _get_measure_and_dimensions(client, measure: str, time_dimension: str) -> tuple[dict, list[str]]:
