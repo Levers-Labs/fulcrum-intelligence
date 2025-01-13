@@ -36,7 +36,7 @@ on:
       ASSUME_ROLE:
         description: 'The deployment role ARN (OIDC)'
         required: true
-      ACCOUNT_ID:
+      AWS_ACCOUNT_ID:
         description: 'The AWS account ID'
         required: true
 
@@ -60,7 +60,7 @@ jobs:
         run: |
           python3 render.py ${{ inputs.APP_FOLDER }}/deployment/ecs/env.json \
             ${{ inputs.APP_FOLDER }}/deployment/ecs/${{ inputs.TASK_DEFINITION }} \
-            --account ${{ secrets.ACCOUNT_ID }} \
+            --account ${{ secrets.AWS_ACCOUNT_ID }} \
             --region ${{ secrets.AWS_REGION }} \
             --app ${{ inputs.APP_NAME }} \
             --env ${{ inputs.ENV }}
