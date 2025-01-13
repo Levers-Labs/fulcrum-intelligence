@@ -1,6 +1,6 @@
 {
   "executionRoleArn": "arn:aws:iam::$account:role/$app-ecs-execution-role",
-  "taskRoleArn": "arn:aws:iam::$account:role/$app-web-execution-role",
+  "taskRoleArn": "arn:aws:iam::$account:role/$app-execution-role",
   "networkMode": "awsvpc",
   "requiresCompatibilities": [
     "FARGATE"
