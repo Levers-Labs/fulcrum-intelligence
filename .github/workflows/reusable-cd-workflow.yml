@@ -65,13 +65,11 @@ jobs:
             --app ${{ inputs.APP_NAME }} \
             --env ${{ inputs.ENV }}
 
-      - run: cat ${{ steps.render-task-definition.outputs.task-definition }}
-
       - name: Update Amazon ECS task definition with latest image id
         id: render-task-definition
         uses: aws-actions/amazon-ecs-render-task-definition@v1
         with:
-          task-definition: ${{ steps.render-task-definition.outputs.task-definition }}
+          task-definition: ${{ inputs.APP_FOLDER }}/deployment/ecs/${{ inputs.TASK_DEFINITION }}
           container-name: ${{ inputs.APP_NAME }}-${{ inputs.SERVICE_NAME }}
           image: ${{ secrets.ECR_REGISTRY }}/${{ inputs.ECR_REPOSITORY }}:${{ inputs.TAG_ID  }}
 
