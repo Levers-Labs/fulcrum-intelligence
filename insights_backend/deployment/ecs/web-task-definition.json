@@ -10,7 +10,7 @@
   "family": "$app-web-service-task-definition",
   "containerDefinitions": [
     {
-      "name": "$app-web-container",
+      "name": "$app-web",
       "user": "fulcrum",
       "image": "",
       "linuxParameters": {
