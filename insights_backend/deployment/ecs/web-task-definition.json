@@ -1,0 +1,47 @@
+{
+  "executionRoleArn": "arn:aws:iam::$account:role/$app-ecs-execution-role",
+  "taskRoleArn": "arn:aws:iam::$account:role/$app-web-execution-role",
+  "networkMode": "awsvpc",
+  "requiresCompatibilities": [
+    "FARGATE"
+  ],
+  "cpu": "1024",
+  "memory": "2048",
+  "family": "$app-web-service-task-definition",
+  "containerDefinitions": [
+    {
+      "name": "$app-web-container",
+      "user": "fulcrum",
+      "image": "",
+      "linuxParameters": {
+        "capabilities": {
+          "drop": [
+            "NET_RAW"
+          ]
+        }
+      },
+      "portMappings": [
+        {
+          "hostPort": 8001,
+          "protocol": "tcp",
+          "containerPort": 8000
+        }
+      ],
+      "command": [
+        "run-server"
+      ],
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "secretOptions": null,
+        "options": {
+          "awslogs-group": "$app-$region-ecs-web",
+          "awslogs-region": "$region",
+          "awslogs-stream-prefix": "$app-web"
+        }
+      },
+      "environment": [],
+      "secrets": [],
+      "memoryReservation": 1024
+    }
+  ]
+}

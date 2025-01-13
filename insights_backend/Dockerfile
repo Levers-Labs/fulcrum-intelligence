@@ -1,18 +1,48 @@
-FROM public.ecr.aws/lambda/python:3.10
+FROM python:3.10-slim-buster AS base-python
 
-# Install poetry
+ENV APP_USER fulcrum
+ENV APP_HOME /home/$APP_USER
+
+ENV PYTHONPATH $APP_HOME
+ENV PYTHONUNBUFFERED 1
+ENV PYTHONWARNINGS ignore::UserWarning
+ENV PYTHONDONTWRITEBYTECODE 1
+
+## Install System Deps
+RUN apt-get update && apt-get -y install --no-install-recommends git gcc make libpq-dev python3-dev procps curl
+RUN rm -rf /var/lib/apt/lists/*
+
+# Create the user
+RUN groupadd -r $APP_USER
+RUN useradd -r -g $APP_USER -d $APP_HOME -s /sbin/nologin -c "Fulcrum Application User" -m $APP_USER
+
+# Allows docker to cache installed dependencies between builds
+FROM base-python AS python-deps
+
+WORKDIR $APP_HOME
+
+# Install Python Deps
+## Install poetry
 RUN pip install --no-cache-dir --upgrade pip "poetry<2.0.0"
-# Copy the local package dependencies
-COPY ./commons ${LAMBDA_TASK_ROOT}/commons
 
-# Install dependencioes
-COPY ./insights_backend/pyproject.toml ./insights_backend/poetry.lock* ${LAMBDA_TASK_ROOT}/insights_backend/
+## Copy the local package dependencies
+COPY ./commons ./commons
+
+## Copy the poetry files and export the dependencies
+COPY ./insights_backend/pyproject.toml ./insights_backend/poetry.lock* ./insights_backend/
 RUN poetry export -f requirements.txt --output requirements.txt --without-hashes -C insights_backend
-RUN pip install --no-cache-dir --upgrade -r ${LAMBDA_TASK_ROOT}/requirements.txt
 
-# Copy code
-COPY insights_backend/insights_backend ${LAMBDA_TASK_ROOT}/insights_backend/
-COPY insights_backend/lambda.py ${LAMBDA_TASK_ROOT}/lambda.py
+## Install the dependencies
+RUN pip install --no-cache-dir --upgrade -r requirements.txt
 
-# Set the CMD to your handler
-CMD ["lambda.handler"]
+FROM python-deps AS build
+
+# Set the user
+USER $APP_USER
+
+# Copy the code to app home
+COPY ./insights_backend .
+
+# Set the entrypoint and command
+ENTRYPOINT ["make", "-s", "-f", "deployment/Makefile"]
+CMD ["run-server"]

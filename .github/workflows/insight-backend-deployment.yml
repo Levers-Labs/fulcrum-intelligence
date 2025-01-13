@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - 'surajpatil/lev-489-prod-grade-deployments'
     paths:
         - 'insights_backend/**'
         - 'commons/**'
@@ -20,9 +21,8 @@ on:
           - PROD
 
 env:
-  ecr_repo: "insights-backend"
-  app_name: "insights_backend"
-  app_lambda_function_prefix: "insights-backend"
+  app_name: "insights-backend"
+  app_folder: "insights_backend"
 
 permissions:
   id-token: write
@@ -35,6 +35,7 @@ jobs:
 
     outputs:
       ecr_repo: ${{ steps.set-vars.outputs.ecr_repo }}
+      app_folder: ${{ steps.set-vars.outputs.app_folder }}
       app_name: ${{ steps.set-vars.outputs.app_name }}
       app_lambda_function_name: ${{ steps.set-vars.outputs.app_lambda_function_name }}
       env: ${{ steps.set-vars.outputs.env }}
@@ -45,7 +46,8 @@ jobs:
       - name: set-vars
         id: set-vars
         run: |
-          echo "ecr_repo=$ecr_repo" >> $GITHUB_OUTPUT
+          echo "ecr_repo=$app_name" >> $GITHUB_OUTPUT
+          echo "app_folder=$app_folder" >> $GITHUB_OUTPUT
           echo "app_name=$app_name" >> $GITHUB_OUTPUT
           echo "migration=true" >> $GITHUB_OUTPUT
           if ${{ github.event.inputs.environment == 'PROD'}}; then
@@ -62,7 +64,7 @@ jobs:
             echo "env=dev" >> $GITHUB_OUTPUT;
           fi
 
-  build_migrate_deploy:
+  build_and_deploy:
     needs: set-vars
     uses: ./.github/workflows/reusable-ci-cd.yml
     with:
@@ -71,8 +73,10 @@ jobs:
         app_lambda_function_name: ${{ needs.set-vars.outputs.app_lambda_function_name }}
         app_host: ${{ needs.set-vars.outputs.app_host }}
         migration: ${{ needs.set-vars.outputs.migration }}
+        env: ${{ needs.set-vars.outputs.env }}
+
     secrets:
       ECR_REGISTRY: ${{ secrets.ECR_REGISTRY }}
       AWS_REGION: ${{ secrets.AWS_REGION }}
       DEV_DEPLOYMENT_ROLE: ${{ secrets.DEV_DEPLOYMENT_ROLE }}
-      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      ACCOUNT_ID: ${{ secrets.ACCOUNT_ID }}
