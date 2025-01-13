@@ -5,6 +5,9 @@ on:
     branches:
       - main
       - 'surajpatil/lev-489-prod-grade-deployments'
+    paths:
+        - 'insights_backend/**'
+        - 'commons/**'
 
   workflow_dispatch:
     inputs:
@@ -34,7 +37,6 @@ jobs:
       ecr_repo: ${{ steps.set-vars.outputs.ecr_repo }}
       app_folder: ${{ steps.set-vars.outputs.app_folder }}
       app_name: ${{ steps.set-vars.outputs.app_name }}
-      app_lambda_function_name: ${{ steps.set-vars.outputs.app_lambda_function_name }}
       env: ${{ steps.set-vars.outputs.env }}
       app_host: ${{ steps.set-vars.outputs.app_host }}
       migration: ${{ steps.set-vars.outputs.migration }}
@@ -49,15 +51,12 @@ jobs:
           echo "migration=true" >> $GITHUB_OUTPUT
           if ${{ github.event.inputs.environment == 'PROD'}}; then
             echo "app_host=https://${{ vars.PROD_INSIGHT_BACKEND_HOST }}" >> $GITHUB_OUTPUT;
-            echo "app_lambda_function_name=${app_lambda_function_prefix}-prod" >> $GITHUB_OUTPUT;
             echo "env=prod" >> $GITHUB_OUTPUT;
           elif ${{ github.event.inputs.environment == 'STAGING' }}; then
             echo "app_host=https://${{ vars.STAGING_INSIGHT_BACKEND_HOST }}" >> $GITHUB_OUTPUT;
-            echo "app_lambda_function_name=${app_lambda_function_prefix}-staging" >> $GITHUB_OUTPUT;
             echo "env=staging" >> $GITHUB_OUTPUT;
           else
             echo "app_host=https://${{ vars.DEV_INSIGHT_BACKEND_HOST }}" >> $GITHUB_OUTPUT;
-            echo "app_lambda_function_name=${app_lambda_function_prefix}-dev" >> $GITHUB_OUTPUT;
             echo "env=dev" >> $GITHUB_OUTPUT;
           fi
 
@@ -69,9 +68,6 @@ jobs:
         ecs_cluster: "fulcrum-intelligence"
         app_name: ${{ needs.set-vars.outputs.app_name }}
         app_folder: ${{ needs.set-vars.outputs.app_folder }}
-        app_lambda_function_name: ${{ needs.set-vars.outputs.app_lambda_function_name }}
-        app_host: ${{ needs.set-vars.outputs.app_host }}
-        migration: ${{ needs.set-vars.outputs.migration }}
         env: ${{ needs.set-vars.outputs.env }}
 
     secrets:
