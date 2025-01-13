@@ -69,7 +69,9 @@ jobs:
     uses: ./.github/workflows/reusable-ci-cd.yml
     with:
         ecr_repo: ${{ needs.set-vars.outputs.ecr_repo }}
+        ecs_cluster: "fulcrum-intelligence"
         app_name: ${{ needs.set-vars.outputs.app_name }}
+        app_folder: ${{ needs.set-vars.outputs.app_folder }}
         app_lambda_function_name: ${{ needs.set-vars.outputs.app_lambda_function_name }}
         app_host: ${{ needs.set-vars.outputs.app_host }}
         migration: ${{ needs.set-vars.outputs.migration }}
