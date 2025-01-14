@@ -143,7 +143,14 @@ def run_prod_server(
     if workers is None:
         workers = multiprocessing.cpu_count() * 2 + 1 if multiprocessing.cpu_count() > 0 else 3
     typer.secho(f"Starting uvicorn server at port {port} with {workers} workers", fg=typer.colors.GREEN)
-    uvicorn.run("insights_backend.main:app", port=port, log_level=log_level, workers=workers, timeout_keep_alive=60)
+    uvicorn.run(
+        "insights_backend.main:app",
+        host="0.0.0.0",  # noqa
+        port=port,
+        log_level=log_level,
+        workers=workers,
+        timeout_keep_alive=60,
+    )
 
 
 @cli.command("start-app")
