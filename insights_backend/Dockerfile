@@ -45,4 +45,4 @@ COPY ./insights_backend .
 
 # Set the entrypoint and command
 ENTRYPOINT ["make", "-s", "-f", "deployment/Makefile"]
-CMD ["run-server"]
+CMD ["run-prod-server"]
