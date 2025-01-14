@@ -58,7 +58,6 @@ def setup_env(session_monkeypatch, postgres):
     session_monkeypatch.setenv("BACKEND_CORS_ORIGINS", '["http://localhost"]')
     session_monkeypatch.setenv("AWS_BUCKET", "bucket")
     session_monkeypatch.setenv("AWS_REGION", "region")
-    session_monkeypatch.setenv("CUBE_API_URL", "http://localhost:4000")
     session_monkeypatch.setenv("DATABASE_URL", db_async_uri)
     session_monkeypatch.setenv("AUTH0_ISSUER", "https://some_auth0_domain.com")
     session_monkeypatch.setenv("AUTH0_API_AUDIENCE", "https://some_auth0_audience")

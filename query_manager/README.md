@@ -21,7 +21,6 @@ BACKEND_CORS_ORIGINS=["http://localhost"]
 AWS_BUCKET=fulcrum-engine-metrics
 AWS_REGION=us-west-2
 OPENAPI_PREFIX=/dev
-CUBE_API_URL=http://localhost:4000/cubejs-api/v1
 DATABASE_URL=database_url
 ```
 ### Initialize db
