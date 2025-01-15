@@ -1,5 +1,4 @@
 import logging
-from urllib.parse import urljoin
 
 import httpx
 from fastapi import APIRouter, Response, status
@@ -41,7 +40,8 @@ async def check_health(response: Response, session: AsyncSessionDep):
     # check if query_manager is online
     async with httpx.AsyncClient() as client:
         try:
-            res = await client.get(urljoin(str(settings.QUERY_MANAGER_SERVER_HOST), "health"))
+            url = f"{str(settings.QUERY_MANAGER_SERVER_HOST).rstrip('/')}/v1/health"
+            res = await client.get(url)
             res.raise_for_status()
         except Exception as e:
             health.query_manager_is_online = False
@@ -50,7 +50,8 @@ async def check_health(response: Response, session: AsyncSessionDep):
     # check if analysis_manager is online
     async with httpx.AsyncClient() as client:
         try:
-            res = await client.get(urljoin(str(settings.ANALYSIS_MANAGER_SERVER_HOST), "health"))
+            url = f"{str(settings.ANALYSIS_MANAGER_SERVER_HOST).rstrip('/')}/v1/health"
+            res = await client.get(url)
             res.raise_for_status()
         except Exception as e:
             health.analysis_manager_is_online = False
