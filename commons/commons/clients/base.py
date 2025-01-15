@@ -1,3 +1,4 @@
+import re
 from http import HTTPStatus
 from json import JSONDecodeError
 from typing import Any
@@ -30,9 +31,30 @@ class HttpClientError(Exception):
 
 
 class AsyncHttpClient:
-    def __init__(self, base_url: str | AnyHttpUrl, auth: Auth | None = None):
-        self.base_url = base_url
+    def __init__(self, base_url: str | AnyHttpUrl, api_version: str = "v1", auth: Auth | None = None):
+        self.base_url = self.get_base_url_with_version(base_url, api_version)
         self.auth = auth
+
+    @staticmethod
+    def get_base_url_with_version(base_url: str | AnyHttpUrl, api_version: str = "v1") -> str:
+        """
+        Get the base URL with the API version.
+        If the base URL ends with a slash, it is removed.
+        If the base URL does not end with the API version, it is appended.
+
+        Args:
+            base_url (str | AnyHttpUrl): The base URL to be modified.
+            api_version (str, optional): The API version to be appended to the base URL. Defaults to "v1".
+
+        Returns:
+            str: The base URL with the API version.
+        """
+        base_url = str(base_url)
+        if base_url.endswith("/"):
+            base_url = base_url[:-1]
+        if not re.search(rf"/{api_version}$", base_url):
+            base_url = f"{base_url}/{api_version}"
+        return base_url
 
     @staticmethod
     def _get_url(base_url: str | AnyHttpUrl, endpoint: str) -> str:

@@ -5,10 +5,9 @@ on:
     branches:
       - main
       - 'surajpatil/lev-489-prod-grade-deployments'
-
-#    paths:
-#      - 'query_manager/**'
-#      - 'commons/**'
+    paths:
+      - 'query_manager/**'
+      - 'commons/**'
 
   workflow_dispatch:
     inputs:
