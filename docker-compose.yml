@@ -5,13 +5,61 @@ services:
       context: .
       dockerfile: insights_backend/Dockerfile
     ports:
-      - "8000:8000"
+      - "8002:8000"
     env_file:
       - insights_backend/.env
     command:
       - "run-server"
     healthcheck:
       test: curl --fail http://localhost:8000/insights/v1/health || exit 1
+      interval: 5s
+      timeout: 5s
+      retries: 10
+  query-manager:
+    container_name: query-manager
+    build:
+      context: .
+      dockerfile: query_manager/Dockerfile
+    ports:
+      - "8003:8000"
+    env_file:
+      - query_manager/.env
+    command:
+      - "run-server"
+    healthcheck:
+      test: curl --fail http://localhost:8000/query/v1/health || exit 1
+      interval: 5s
+      timeout: 5s
+      retries: 10
+  story-manager:
+    container_name: story-manager
+    build:
+      context: .
+      dockerfile: story_manager/Dockerfile
+    ports:
+      - "8004:8000"
+    env_file:
+      - story_manager/.env
+    command:
+      - "run-server"
+    healthcheck:
+      test: curl --fail http://localhost:8000/story/v1/health || exit 1
+      interval: 5s
+      timeout: 5s
+      retries: 10
+  analysis-manager:
+    container_name: analysis-manager
+    build:
+      context: .
+      dockerfile: analysis_manager/Dockerfile
+    ports:
+      - "8005:8000"
+    env_file:
+      - analysis_manager/.env
+    command:
+      - "run-server"
+    healthcheck:
+      test: curl --fail http://localhost:8000/analysis/v1/health || exit 1
       interval: 5s
       timeout: 5s
       retries: 10
