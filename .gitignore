@@ -140,5 +140,4 @@ dmypy.json
 
 # VSCode launch configuration
 .vscode/*
-/fulcrum_airflow/logs/*
 /aenv/
