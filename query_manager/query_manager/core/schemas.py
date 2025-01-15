@@ -321,3 +321,7 @@ class Cube(BaseModel):
     title: str
     measures: list[CubeMeasure]
     dimensions: list[CubeDimension]
+
+
+class DeleteResponse(BaseModel):
+    message: str

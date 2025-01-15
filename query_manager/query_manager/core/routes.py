@@ -16,6 +16,7 @@ from sqlalchemy.exc import IntegrityError
 
 from commons.auth.scopes import QUERY_MANAGER_ALL
 from commons.clients.base import HttpClientError
+from commons.db.crud import NotFoundError
 from commons.llm.exceptions import LLMError
 from commons.models.enums import Granularity
 from commons.models.tenant import CubeConnectionConfig
@@ -31,6 +32,7 @@ from query_manager.core.dependencies import (
 from query_manager.core.enums import OutputFormat
 from query_manager.core.schemas import (  # SlackChannelIds,; SlackChannelsResponse,
     Cube,
+    DeleteResponse,
     Dimension,
     DimensionCompact,
     DimensionCreate,
@@ -504,3 +506,31 @@ async def preview_metric_from_yaml(
         client=client,  # The QueryClient dependency
         expression_parser_service=expression_parser_service,  # The ExpressionParserService dependency
     )
+
+
+@router.delete(
+    "/metrics/{metric_id}",
+    status_code=200,
+    tags=["metrics"],
+    response_model=DeleteResponse,
+    dependencies=[Security(oauth2_auth().verify, scopes=[QUERY_MANAGER_ALL])],
+)
+async def delete_metric(
+    metric_id: str,
+    client: QueryClientDep,
+):
+    """
+    Delete a metric and its relationships.
+    """
+    try:
+        await client.delete_metric(metric_id)
+        return DeleteResponse(message=f"Metric '{metric_id}' and all its relationships have been successfully deleted.")
+    except NotFoundError as e:
+        raise HTTPException(
+            status_code=404,
+            detail={
+                "loc": ["path", "metric_id"],
+                "msg": f"Metric with id '{metric_id}' not found.",
+                "type": "not_found",
+            },
+        ) from e
