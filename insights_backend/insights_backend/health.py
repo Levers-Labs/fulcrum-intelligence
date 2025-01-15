@@ -26,7 +26,7 @@ async def check_health(response: Response, session: AsyncSessionDep):
 
     # database check
     try:
-        await session.execute(select(1))
+        await session.exec(select(1))  # type:ignore
     except Exception as e:
         health.database_is_online = False
         logger.exception("Database connection failed: %s", e)
