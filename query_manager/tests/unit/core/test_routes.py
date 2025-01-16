@@ -7,6 +7,7 @@ from sqlalchemy.exc import IntegrityError
 
 from commons.clients.base import HttpClientError
 from commons.clients.insight_backend import InsightBackendClient
+from commons.db.crud import NotFoundError
 from commons.llm.exceptions import LLMError
 from query_manager.core.crud import CRUDMetricNotifications
 from query_manager.core.enums import TargetAim
@@ -677,3 +678,138 @@ async def test_preview_metric_from_yaml_missing_fields(async_client: AsyncClient
     )
 
     assert response.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_delete_metrics_bulk_success(async_client: AsyncClient, mocker):
+    """Test successful bulk deletion of metrics."""
+    # Mock data
+    metric_ids = ["metric1", "metric2", "metric3"]
+
+    # Mock the delete_metric method
+    mock_delete_metric = AsyncMock()
+    mocker.patch.object(QueryClient, "delete_metric", mock_delete_metric)
+
+    # Make the request
+    response = await async_client.request("DELETE", "/v1/metrics/bulk", json=metric_ids)
+
+    # Assert response
+    assert response.status_code == 200
+    assert response.json() == {"message": "Successfully deleted 3 metrics."}
+
+    # Verify delete_metric was called for each metric
+    assert mock_delete_metric.call_count == 3
+    mock_delete_metric.assert_has_awaits([mocker.call("metric1"), mocker.call("metric2"), mocker.call("metric3")])
+
+
+@pytest.mark.asyncio
+async def test_delete_metrics_bulk_partial_success(async_client: AsyncClient, mocker):
+    """Test bulk deletion with some failures."""
+    # Mock data
+    metric_ids = ["metric1", "metric2", "metric3"]
+
+    # Mock the delete_metric method to fail for metric2
+    async def mock_delete(metric_id: str):
+        if metric_id == "metric2":
+            raise NotFoundError("Metric not found")
+        return None
+
+    mock_delete_metric = AsyncMock(side_effect=mock_delete)
+    mocker.patch.object(QueryClient, "delete_metric", mock_delete_metric)
+
+    # Make the request
+    response = await async_client.request("DELETE", "/v1/metrics/bulk", json=metric_ids)
+
+    # Assert response
+    assert response.status_code == 200
+    assert response.json() == {"message": "Successfully deleted 2 metrics. Failed to delete 1 metrics: ['metric2']"}
+
+    # Verify delete_metric was called for each metric
+    assert mock_delete_metric.call_count == 3
+
+
+@pytest.mark.asyncio
+async def test_delete_metrics_bulk_all_fail(async_client: AsyncClient, mocker):
+    """Test bulk deletion when all metrics fail."""
+    # Mock data
+    metric_ids = ["metric1", "metric2"]
+
+    # Mock the delete_metric method to fail for all metrics
+    mock_delete_metric = AsyncMock(side_effect=NotFoundError("Metric not found"))
+    mocker.patch.object(QueryClient, "delete_metric", mock_delete_metric)
+
+    # Make the request
+    response = await async_client.request("DELETE", "/v1/metrics/bulk", json=metric_ids)
+
+    # Assert response
+    assert response.status_code == 404
+    assert response.json() == {
+        "detail": {
+            "loc": ["body", "metric_ids"],
+            "msg": "None of the metrics were found: ['metric1', 'metric2']",
+            "type": "not_found",
+        }
+    }
+
+    # Verify delete_metric was called for each metric
+    assert mock_delete_metric.call_count == 2
+
+
+@pytest.mark.asyncio
+async def test_delete_metrics_bulk_empty_list(async_client: AsyncClient, mocker):
+    """Test bulk deletion with empty list."""
+    # Mock the delete_metric method
+    mock_delete_metric = AsyncMock()
+    mocker.patch.object(QueryClient, "delete_metric", mock_delete_metric)
+
+    # Make the request with empty list
+    response = await async_client.request("DELETE", "/v1/metrics/bulk", json=[])
+
+    # Assert response
+    assert response.status_code == 200
+    assert response.json() == {"message": "Successfully deleted 0 metrics."}
+
+    # Verify delete_metric was not called
+    mock_delete_metric.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_delete_metric_success(async_client: AsyncClient, mocker):
+    """Test successful deletion of a single metric."""
+    # Mock the delete_metric method
+    mock_delete_metric = AsyncMock()
+    mocker.patch.object(QueryClient, "delete_metric", mock_delete_metric)
+
+    # Make the request
+    metric_id = "test_metric"
+    response = await async_client.request("DELETE", f"/v1/metrics/{metric_id}")
+
+    # Assert response
+    assert response.status_code == 200
+    assert response.json() == {
+        "message": f"Metric '{metric_id}' and all its relationships have been successfully deleted."
+    }
+
+    # Verify delete_metric was called once with correct argument
+    mock_delete_metric.assert_awaited_once_with(metric_id)
+
+
+@pytest.mark.asyncio
+async def test_delete_metric_not_found(async_client: AsyncClient, mocker):
+    """Test deletion of a non-existent metric."""
+    # Mock the delete_metric method to raise NotFoundError
+    mock_delete_metric = AsyncMock(side_effect=NotFoundError("Metric not found"))
+    mocker.patch.object(QueryClient, "delete_metric", mock_delete_metric)
+
+    # Make the request
+    metric_id = "non_existent_metric"
+    response = await async_client.request("DELETE", f"/v1/metrics/{metric_id}")
+
+    # Assert response
+    assert response.status_code == 404
+    assert response.json() == {
+        "detail": {"loc": ["path", "metric_id"], "msg": f"Metric with id '{metric_id}' not found.", "type": "not_found"}
+    }
+
+    # Verify delete_metric was called once with correct argument
+    mock_delete_metric.assert_awaited_once_with(metric_id)

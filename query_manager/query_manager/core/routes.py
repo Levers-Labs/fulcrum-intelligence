@@ -509,6 +509,49 @@ async def preview_metric_from_yaml(
 
 
 @router.delete(
+    "/metrics/bulk",
+    status_code=200,
+    tags=["metrics"],
+    response_model=DeleteResponse,
+    dependencies=[Security(oauth2_auth().verify, scopes=[QUERY_MANAGER_ALL])],
+)
+async def delete_metrics_bulk(
+    metric_ids: Annotated[list[str], Body(description="List of metric IDs to delete")],
+    client: QueryClientDep,
+):
+    """
+    Delete multiple metrics and their relationships in bulk.
+    """
+    failed_deletions = []
+    successful_deletions = []
+
+    for metric_id in metric_ids:
+        try:
+            await client.delete_metric(metric_id)
+            successful_deletions.append(metric_id)
+        except NotFoundError:
+            failed_deletions.append(metric_id)
+
+    if failed_deletions and not successful_deletions:
+        # If all deletions failed
+        raise HTTPException(
+            status_code=404,
+            detail={
+                "loc": ["body", "metric_ids"],
+                "msg": f"None of the metrics were found: {failed_deletions}",
+                "type": "not_found",
+            },
+        )
+
+    return DeleteResponse(
+        message=(
+            f"Successfully deleted {len(successful_deletions)} metrics. "
+            + (f"Failed to delete {len(failed_deletions)} metrics: {failed_deletions}" if failed_deletions else "")
+        ).strip()
+    )
+
+
+@router.delete(
     "/metrics/{metric_id}",
     status_code=200,
     tags=["metrics"],
