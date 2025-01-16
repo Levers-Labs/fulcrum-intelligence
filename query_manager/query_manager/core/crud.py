@@ -85,7 +85,7 @@ class CRUDMetric(CRUDBase[Metric, Metric, Metric, MetricFilter]):  # noqa
 
         for table_class, columns in association_tables:
             for column in columns:
-                await self.session.execute(delete(table_class).where(column == metric.id))
+                await self.session.execute(delete(table_class).where(column == metric.id))  # type: ignore
 
         # Delete the metric
         await self.session.execute(delete(Metric).where(Metric.id == metric.id))  # type: ignore
