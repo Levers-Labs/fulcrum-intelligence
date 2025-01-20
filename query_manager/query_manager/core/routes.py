@@ -494,11 +494,6 @@ async def preview_metric_from_yaml(
 ):
     """
     Preview a metric from YAML data.
-
-    This endpoint takes in YAML formatted metric data and returns a preview of the metric.
-    The metric data is expected to contain the necessary fields to define a metric, such as metric_id, label,
-    abbreviation, etc.
-    The endpoint uses the MetricDataBuilder to construct the metric data structure from the provided YAML content.
     """
     # Call MetricDataBuilder to construct the metric data structure from the provided YAML content
     return await MetricDataBuilder.build_metric_data(
