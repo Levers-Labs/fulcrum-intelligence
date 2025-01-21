@@ -239,3 +239,9 @@ class QueryClient:
         elif agg_type == "max":
             return "max"
         return "sum"  # default
+
+    async def delete_metric(self, metric_id: str) -> None:
+        """
+        Deletes a metric and its relationships.
+        """
+        await self.metric_crud.delete_metric(metric_id)

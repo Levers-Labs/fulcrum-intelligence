@@ -198,6 +198,6 @@ class MetricDataBuilder:
             meta_data={"semantic_meta": semantic_meta},
             dimensions=dimensions,
             influences=data.get("influences", []),
-            components=components or [],
+            components=components,
             inputs=data.get("inputs", []),
         )
