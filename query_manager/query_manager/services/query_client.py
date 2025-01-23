@@ -35,7 +35,7 @@ class QueryClient:
         params: PaginationParams,
         metric_ids: list[str],
         metric_label: str | None = None,
-        slack_enabled: bool | None = None
+        slack_enabled: bool | None = None,
     ) -> tuple[list[Metric], int]:
         """
         Fetches a list of all metrics with their associated dimensions and influences, optionally in a paginated manner.
@@ -245,3 +245,20 @@ class QueryClient:
         Deletes a metric and its relationships.
         """
         await self.metric_crud.delete_metric(metric_id)
+
+    async def delete_dimension(self, dimension_id: str) -> None:
+        """
+        Deletes a dimension and its relationships.
+
+        Args:
+            dimension_id: The ID of the dimension to delete.
+
+        Raises:
+            NotFoundError: If the dimension doesn't exist.
+        """
+        dimension = await self.dimensions_crud.get_by_dimension_id(dimension_id)
+        if not dimension:
+            raise NotFoundError(f"Dimension with id '{dimension_id}' not found.")
+
+        await self.dimensions_crud.session.delete(dimension)
+        await self.dimensions_crud.session.commit()
