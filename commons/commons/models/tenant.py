@@ -28,10 +28,9 @@ class CubeConnectionRead(BaseModel):
 
 class CubeConnectionConfig(CubeConnectionRead):
     """
-    Cube connection details with secret key or token
+    Cube connection details with secret key
     """
 
-    cube_auth_token: str | None = None
     cube_auth_secret_key: str | None = None
 
 
@@ -62,10 +61,7 @@ class TenantConfigUpdate(BaseSQLModel):
     @field_validator("cube_connection_config")
     @classmethod
     def validate_cube_connection_config(cls, value: CubeConnectionConfig) -> CubeConnectionConfig:
-        if value.cube_auth_type == "TOKEN":
-            if not value.cube_auth_token:
-                raise ValueError("cube_auth_token is required when auth_type is TOKEN")
-        elif value.cube_auth_type == "SECRET_KEY":
+        if value.cube_auth_type == "SECRET_KEY":
             if not value.cube_auth_secret_key:
                 raise ValueError("cube_auth_secret_key is required when auth_type is SECRET_KEY")
         return value

@@ -10,8 +10,8 @@
   "config": {
     "cube_connection_config": {
       "cube_api_url": "https://api.cubecloud.dev",
-      "cube_auth_type": "TOKEN",
-      "cube_auth_token": "your_token_here"
+      "cube_auth_type": "SECRET_KEY",
+      "cube_auth_secret_key": "your_secret_key_here"
     },
     "slack_connection": {
       "team": {

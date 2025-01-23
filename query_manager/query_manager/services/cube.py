@@ -6,7 +6,7 @@ from typing import Any
 
 from httpx import Auth
 
-from commons.clients.auth import JWTAuth, JWTSecretKeyAuth
+from commons.clients.auth import JWTSecretKeyAuth
 from commons.clients.base import AsyncHttpClient, HttpClientError
 from commons.models.enums import Granularity
 from query_manager.core.models import Dimension, Metric
@@ -26,7 +26,6 @@ class CubeJWTAuthType(str, Enum):
     """
 
     SECRET_KEY = "SECRET_KEY"  # noqa
-    TOKEN = "TOKEN"  # noqa
 
 
 class CubeClient(AsyncHttpClient):
@@ -68,8 +67,6 @@ class CubeClient(AsyncHttpClient):
             return None
         if auth_type == CubeJWTAuthType.SECRET_KEY:
             return JWTSecretKeyAuth(auth_options["secret_key"])
-        elif auth_type == CubeJWTAuthType.TOKEN:
-            return JWTAuth(auth_options["token"])
 
     def _validate_auth_options(self):
         if self.auth_type is None:
@@ -77,9 +74,6 @@ class CubeClient(AsyncHttpClient):
         if self.auth_type == CubeJWTAuthType.SECRET_KEY:
             if "secret_key" not in self.auth_options:
                 raise ValueError("Secret key is required for SECRET_KEY authentication.")
-        elif self.auth_type == CubeJWTAuthType.TOKEN:
-            if "token" not in self.auth_options:
-                raise ValueError("Token is required for TOKEN authentication.")
         else:
             raise ValueError(f"Unsupported authentication type: {self.auth_type}")
 

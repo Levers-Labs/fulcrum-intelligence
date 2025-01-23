@@ -3,7 +3,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from commons.clients.auth import JWTAuth, JWTSecretKeyAuth
+from commons.clients.auth import JWTSecretKeyAuth
 from commons.clients.base import HttpClientError
 from commons.models.enums import Granularity
 from query_manager.core.dependencies import get_cube_client
@@ -53,15 +53,6 @@ async def test_cube_client_init():
     )
     assert isinstance(cube_client.auth, JWTSecretKeyAuth)
 
-    # bearer token auth
-    cube_client = CubeClient(
-        "https://analytics.cube.dev/cubejs-api/v1",
-        auth_type=CubeJWTAuthType.TOKEN,
-        auth_options={"token": "SampleToken"},
-    )
-
-    assert isinstance(cube_client.auth, JWTAuth)
-
 
 def test_validate_auth_options():
     # no auth
@@ -76,21 +67,9 @@ def test_validate_auth_options():
     )
     cube_client._validate_auth_options()
 
-    # bearer token auth
-    cube_client = CubeClient(
-        "https://analytics.cube.dev/cubejs-api/v1",
-        auth_type=CubeJWTAuthType.TOKEN,
-        auth_options={"token": "SampleToken"},
-    )
-    cube_client._validate_auth_options()
-
     # missing secret key
     with pytest.raises(ValueError):
         CubeClient("https://analytics.cube.dev/cubejs-api/v1", auth_type=CubeJWTAuthType.SECRET_KEY, auth_options={})
-
-    # missing token
-    with pytest.raises(ValueError):
-        CubeClient("https://analytics.cube.dev/cubejs-api/v1", auth_type=CubeJWTAuthType.TOKEN, auth_options={})
 
     # invalid auth type
     with pytest.raises(ValueError):

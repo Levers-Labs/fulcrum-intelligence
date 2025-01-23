@@ -48,11 +48,7 @@ async def get_cube_client(insights_backend_client: InsightBackendClientDep) -> C
         raise ValueError("Cube connection config is not configured for tenant")
     cube_connection_config = tenant_config["cube_connection_config"]
     auth_type = CubeJWTAuthType(cube_connection_config["cube_auth_type"])
-    auth_options = (
-        dict(secret_key=cube_connection_config["cube_auth_secret_key"])
-        if auth_type == CubeJWTAuthType.SECRET_KEY
-        else dict(token=cube_connection_config["cube_auth_token"])
-    )
+    auth_options = dict(secret_key=cube_connection_config["cube_auth_secret_key"])
     return CubeClient(cube_connection_config["cube_api_url"], auth_type=auth_type, auth_options=auth_options)
 
 

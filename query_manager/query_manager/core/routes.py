@@ -57,7 +57,7 @@ from query_manager.exceptions import (
     QueryManagerError,
 )
 from query_manager.llm.prompts import ParsedExpressionOutput
-from query_manager.services.cube import CubeClient, CubeJWTAuthType
+from query_manager.services.cube import CubeClient
 from query_manager.services.s3 import NoSuchKeyError
 from query_manager.utils.metric_builder import MetricDataBuilder
 
@@ -313,11 +313,7 @@ async def verify_cube_connection(config: CubeConnectionConfig):
     This endpoint is used to verify the connection to the Cube API using the provided client ID and secret key.
     """
     try:
-        auth_options = (
-            {"secret_key": config.cube_auth_secret_key}
-            if config.cube_auth_type == CubeJWTAuthType.SECRET_KEY
-            else {"token": config.cube_auth_token}
-        )
+        auth_options = {"secret_key": config.cube_auth_secret_key}
 
         # Create a new CubeClient instance with the provided API URL and authentication options
         cube_client = CubeClient(

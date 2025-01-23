@@ -293,7 +293,6 @@ async def test_connect_cube(async_client: AsyncClient, mocker):
     config_data = {
         "cube_api_url": "http://localhost:4000/cubejs-api/v1",
         "cube_auth_type": "SECRET_KEY",
-        "cube_auth_token": None,
         "cube_auth_secret_key": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpYXQiOjE3Mjg1NzAzMzh9.qvRWKaXmRXrhCY5c"
         "-K1NlodDN95mRv_utQAr99Pcr8c",
     }
@@ -320,7 +319,6 @@ async def test_connect_cube_invalid_credentials(async_client: AsyncClient, mocke
     config_data = {
         "cube_api_url": "https://your-cube-api-url",
         "cube_auth_type": "SECRET_KEY",
-        "cube_auth_token": None,
         "cube_auth_secret_key": "invalid_secret_key",
     }
 
