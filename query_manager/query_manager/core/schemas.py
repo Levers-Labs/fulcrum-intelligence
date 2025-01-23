@@ -177,13 +177,15 @@ class MetricUpdate(BaseModel):
             )
             instance.dimensions = dimensions.scalars().all()  # type: ignore
 
-        for field in ["influences", "influencers", "components", "inputs"]:
-            if field in validated_data:
-                related_metrics = await db.execute(
+        metric_relationships = ["influences", "influencers", "components", "inputs"]
+        # Update metric relationships
+        for field in metric_relationships:
+            if field in validated_data and validated_data[field]:
+                result = await db.execute(
                     select(Metric).where(Metric.metric_id.in_(validated_data[field]))  # type: ignore
                 )
-                setattr(instance, field, related_metrics.scalars().all())
-        db.add(instance)
+                setattr(instance, field, result.scalars().all())
+
         await db.commit()
         await db.refresh(instance)
         return instance
