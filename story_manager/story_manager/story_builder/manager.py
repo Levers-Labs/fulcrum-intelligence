@@ -5,9 +5,10 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from commons.clients.analysis_manager import AnalysisManagerClient
 from commons.clients.query_manager import QueryManagerClient
+from commons.llm.provider import LLMProvider
+from commons.llm.settings import LLMSettings
 from commons.models.enums import Granularity
 from fulcrum_core import AnalysisManager
-from story_manager.core.dependencies import get_analysis_manager, get_analysis_manager_client, get_query_manager_client
 from story_manager.core.enums import StoryGroup
 from story_manager.db.config import get_async_session
 from story_manager.story_builder import StoryFactory
@@ -94,10 +95,21 @@ class StoryManager:
         :param grain: The grain to run the builder for.
         :param story_date: The start date of data of story generation
         """
+        from story_manager.core.dependencies import (
+            get_analysis_manager,
+            get_analysis_manager_client,
+            get_query_manager_client,
+            get_story_text_generator_service,
+        )
+
         # Get instances of the required services and database session
         query_service = await get_query_manager_client()
         analysis_service = await get_analysis_manager_client()
         analysis_manager = await get_analysis_manager()
+        settings = LLMSettings()
+        provider = LLMProvider.from_settings(settings)
+        story_text_generator_service = get_story_text_generator_service(provider)
+
         logger.info(f"Running story builder for story group: {group}")
 
         # Use a session in context manager to ensure proper cleanup
@@ -110,6 +122,7 @@ class StoryManager:
                 analysis_manager=analysis_manager,
                 db_session=db_session,
                 story_date=story_date,
+                story_text_generator_service=story_text_generator_service,
             )
 
             # Run the story builder for the metrics

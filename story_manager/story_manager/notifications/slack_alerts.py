@@ -8,6 +8,7 @@ from story_manager.core.crud import CRUDStory
 from story_manager.core.dependencies import SlackNotifierDep, get_slack_notifier
 from story_manager.core.models import Story
 from story_manager.db.config import get_async_session
+from story_manager.story_builder.constants import STORY_GROUP_META
 
 logger = logging.getLogger(__name__)
 
@@ -76,13 +77,15 @@ class SlackAlertsService:
             # Format stories for template rendering
             formatted_stories = [
                 {
-                    "story_group": story.story_group.value,
+                    "story_group": STORY_GROUP_META[story.story_group]["label"],
                     "metric_id": story.metric_id,
                     "title": story.title,
                     "detail": story.detail,
+                    "story_date": story.story_date,
                 }
                 for story in stories
             ]
+            formatted_stories.sort(key=lambda x: x["story_group"])
 
         return formatted_stories
 
@@ -107,11 +110,17 @@ class SlackAlertsService:
                 - metric_label: Human-readable metric name
         """
         metric = await self.query_client.get_metric(metric_id)
+
+        # Calculate the min and max story_date
+        start_date = min(stories, key=lambda x: x["story_date"])["story_date"].strftime("%Y-%m-%d")
+        end_date = max(stories, key=lambda x: x["story_date"])["story_date"].strftime("%Y-%m-%d")
         return {
             "stories": stories,
             "grain": grain.value,
             "time": datetime.utcnow(),
             "metric": metric,
+            "start_date": start_date,
+            "end_date": end_date,
         }
 
     async def _send_slack_alerts(

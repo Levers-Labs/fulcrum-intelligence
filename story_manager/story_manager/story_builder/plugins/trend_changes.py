@@ -1,12 +1,7 @@
 import logging
 
 from commons.models.enums import Granularity
-from story_manager.core.enums import (
-    Movement,
-    StoryGenre,
-    StoryGroup,
-    StoryType,
-)
+from story_manager.core.enums import StoryGenre, StoryGroup, StoryType
 from story_manager.story_builder import StoryBuilderBase
 
 logger = logging.getLogger(__name__)
@@ -91,9 +86,6 @@ class TrendChangesStoryBuilder(StoryBuilderBase):
             # Calculate average growth for the stable trend
             avg_growth = self.analysis_manager.cal_average_growth(stories_df["value"])
 
-            # Movement is increase if avg_growth is positive, otherwise decrease
-            movement = Movement.INCREASE if avg_growth > 0 else Movement.DECREASE
-            # todo: add util that calculates no. of grain periods between start and end date
             trend_duration = len(stories_df)
             logging.info(
                 "Following a stable trend for metric '%s' with grain '%s'. Average growth: %s",
@@ -101,14 +93,14 @@ class TrendChangesStoryBuilder(StoryBuilderBase):
                 grain,
                 avg_growth,
             )
-            story_details = self.prepare_story_dict(
-                StoryType.STABLE_TREND,
+            story_details = await self.prepare_story_dict(
+                story_type=StoryType.STABLE_TREND,
                 grain=grain,
                 metric=metric,
                 df=stories_df,
                 avg_growth=abs(avg_growth),
                 trend_duration=trend_duration,
-                movement=movement.value,
+                current_avg_growth=0,
             )
             stories.append(story_details)
         # trend signal detected stories
@@ -145,7 +137,7 @@ class TrendChangesStoryBuilder(StoryBuilderBase):
 
             # Add an upward/downward trend story
             logger.info("New %s trend detected for metric '%s' with grain '%s'", story_type.value, metric_id, grain)
-            story_details = self.prepare_story_dict(
+            story_details = await self.prepare_story_dict(
                 story_type,
                 grain=grain,
                 metric=metric,
@@ -161,7 +153,7 @@ class TrendChangesStoryBuilder(StoryBuilderBase):
             if latest_slope < 1:
                 logging.info("Performance Plateau detected for metric '%s' with grain '%s'", metric_id, grain)
                 avg_value = round(current_trend["value"].mean())
-                story_details = self.prepare_story_dict(
+                story_details = await self.prepare_story_dict(
                     StoryType.PERFORMANCE_PLATEAU,
                     grain=grain,
                     metric=metric,

@@ -4,6 +4,7 @@ from unittest.mock import AsyncMock
 import pandas as pd
 import pytest
 
+from commons.llm.provider import LLMProvider
 from commons.models.enums import Granularity
 from fulcrum_core import AnalysisManager
 from story_manager.core.enums import StoryGenre, StoryGroup, StoryType
@@ -592,3 +593,8 @@ def mock_get_dimension_slice_data(significant_segment_story_builder, mocker, dim
         "get_metric_values_df",
         AsyncMock(side_effect=get_dimension_slice_data),
     )
+
+
+@pytest.fixture
+def mock_llm_provider(mock_llm_model: AsyncMock) -> LLMProvider:
+    return LLMProvider(model=mock_llm_model)

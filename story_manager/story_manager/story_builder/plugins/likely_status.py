@@ -102,7 +102,7 @@ class LikelyStatusStoryBuilder(StoryBuilderBase):
         # calculate deviation % of value from the target
         deviation = self.analysis_manager.calculate_percentage_difference(forecasted_value, target_value)
         # prepare story details
-        story_details = self.prepare_story_dict(
+        story_details = await self.prepare_story_dict(
             story_type,
             grain=grain,
             metric=metric,

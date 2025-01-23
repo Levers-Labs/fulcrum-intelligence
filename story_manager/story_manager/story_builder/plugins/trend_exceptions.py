@@ -1,12 +1,7 @@
 import logging
 
 from commons.models.enums import Granularity
-from story_manager.core.enums import (
-    Position,
-    StoryGenre,
-    StoryGroup,
-    StoryType,
-)
+from story_manager.core.enums import StoryGenre, StoryGroup, StoryType
 from story_manager.story_builder import StoryBuilderBase
 
 logger = logging.getLogger(__name__)
@@ -21,8 +16,7 @@ class TrendExceptionsStoryBuilder(StoryBuilderBase):
         """
         Generate trend exceptions stories for the given metric and grain.
 
-        Each story includes details about the type of anomaly, the deviation,
-        and its position relative to control limits.
+        Each story includes details about the type of anomaly, the deviation relative to control limits.
 
         Input:
         The input DataFrame should contain the following columns:
@@ -92,14 +86,12 @@ class TrendExceptionsStoryBuilder(StoryBuilderBase):
             story_type = StoryType.DROP
 
         if story_type:
-            position = Position.ABOVE if deviation > 0 else Position.BELOW  # noqa
-            story_details = self.prepare_story_dict(
+            story_details = await self.prepare_story_dict(
                 story_type=story_type,
                 grain=grain,  # type: ignore
                 metric=metric,
                 df=pc_df,
-                deviation=deviation,
-                position=position.value,
+                deviation=deviation,  # noqa
             )
             stories.append(story_details)
             logger.info("A new story created for metric '%s' with grain '%s'")

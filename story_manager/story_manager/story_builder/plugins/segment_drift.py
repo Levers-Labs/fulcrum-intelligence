@@ -87,7 +87,7 @@ class SegmentDriftStoryBuilder(StoryBuilderBase):
             dimensions=dimension_ids,
         )
 
-        stories = []
+        stories: list[dict] = []
         df = self.convert_segment_drift_res_to_dataframe(segment_drift["dimension_slices"], metric_dimensions)
         sorted_segment_drift_df = df.sort_values(by="sort_value", ascending=False)
 
@@ -99,7 +99,7 @@ class SegmentDriftStoryBuilder(StoryBuilderBase):
 
         for _, row in top_4_slice_df.iterrows():
             # Growing or Shrinking story
-            story_details = self.prepare_story_dict(
+            story_details = await self.prepare_story_dict(
                 story_type=self.get_story_type_growing_or_shrinking(row["slice_share_change_percentage"]),
                 grain=grain,  # type: ignore
                 metric=metric,
@@ -116,7 +116,7 @@ class SegmentDriftStoryBuilder(StoryBuilderBase):
                 continue
 
             # Improving or Worsening Story
-            story_details = self.prepare_story_dict(
+            story_details = await self.prepare_story_dict(
                 story_type=self.get_story_type_worsening_or_improving(row["impact"]),
                 grain=grain,  # type: ignore
                 metric=metric,

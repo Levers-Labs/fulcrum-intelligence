@@ -4,12 +4,7 @@ import numpy as np
 import pandas as pd
 
 from commons.models.enums import Granularity
-from story_manager.core.enums import (
-    Pressure,
-    StoryGenre,
-    StoryGroup,
-    StoryType,
-)
+from story_manager.core.enums import StoryGenre, StoryGroup, StoryType
 from story_manager.story_builder import StoryBuilderBase
 
 logger = logging.getLogger(__name__)
@@ -114,16 +109,17 @@ class ComponentDriftStoryBuilder(StoryBuilderBase):
             pct_drift_change = self.analysis_manager.calculate_percentage_difference(
                 float(row["evaluation_value"]), float(row["comparison_value"])
             )
-            story_details = self.prepare_story_dict(
+            story_details = await self.prepare_story_dict(
                 story_type=top_components.at[index, "story_type"],
                 grain=grain,  # type: ignore
                 metric=metric,
                 df=top_components.iloc[[index]],  # type: ignore
                 component=row["metric_id"],
-                pressure=top_components.at[index, "pressure"],
                 percentage_drift=abs(pct_drift_change),
                 relative_impact=row["relative_impact"],
                 contribution=row["marginal_contribution_root"],
+                evaluation_value=row["evaluation_value"],
+                comparison_value=row["comparison_value"],
             )
             stories.append(story_details)
 
@@ -136,7 +132,7 @@ class ComponentDriftStoryBuilder(StoryBuilderBase):
         Extract relevant data from components into a DataFrame.
 
         :param components: List of dictionaries containing component data.
-        :return: DataFrame containing extracted component data with added 'story_type' and 'pressure' columns.
+        :return: DataFrame containing extracted component data with added 'story_type'.
         """
         extracted_data = [
             {
@@ -156,14 +152,6 @@ class ComponentDriftStoryBuilder(StoryBuilderBase):
             StoryType.IMPROVING_COMPONENT.value,
             StoryType.WORSENING_COMPONENT.value,
         )
-
-        # Create 'pressure' column based on conditions
-        df["pressure"] = np.where(
-            df["evaluation_value"] > df["comparison_value"],
-            Pressure.UPWARD.value,
-            Pressure.DOWNWARD.value,
-        )
-
         return df
 
     @staticmethod

@@ -5,12 +5,7 @@ import pandas as pd
 from dateutil.relativedelta import relativedelta
 
 from commons.models.enums import Granularity
-from story_manager.core.enums import (
-    Movement,
-    StoryGenre,
-    StoryGroup,
-    StoryType,
-)
+from story_manager.core.enums import StoryGenre, StoryGroup, StoryType
 from story_manager.story_builder import StoryBuilderBase
 from story_manager.story_builder.utils import calculate_periods_count, get_target_value_for_date
 
@@ -98,7 +93,7 @@ class RequiredPerformanceStoryBuilder(StoryBuilderBase):
         current_growth = current_period["growth_rate"].item()
         growth_deviation = self.analysis_manager.calculate_percentage_difference(current_growth, required_growth)
         # prepare story details
-        story_details = self.prepare_story_dict(
+        story_details = await self.prepare_story_dict(
             story_type,
             grain=grain,
             metric=metric,
@@ -111,7 +106,6 @@ class RequiredPerformanceStoryBuilder(StoryBuilderBase):
             required_growth=required_growth,
             current_growth=current_growth,
             growth_deviation=abs(growth_deviation),
-            movement=Movement.INCREASE.value if growth_deviation > 0 else Movement.DECREASE.value,
         )
         stories.append(story_details)
         logger.info(f"Stories generated for metric '{metric_id}', story details: {story_details}")

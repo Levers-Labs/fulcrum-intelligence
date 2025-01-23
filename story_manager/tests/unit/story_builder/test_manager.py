@@ -57,7 +57,7 @@ async def test_story_manager_run_builder_for_metrics_error(story_manager, mock_q
 
 @pytest.mark.asyncio
 async def test_run_builder_for_story_group(
-    mocker, mock_query_service, mock_analysis_service, mock_analysis_manager, mock_db_session
+    mocker, mock_query_service, mock_analysis_service, mock_analysis_manager, mock_db_session, mock_llm_provider
 ):
     # Mock get_query_manager_client
     mocker.patch("story_manager.story_builder.manager.get_query_manager_client", return_value=mock_query_service)
@@ -72,6 +72,9 @@ async def test_run_builder_for_story_group(
     mock_session_context = mocker.AsyncMock()
     mock_session_context.__aenter__.return_value = mock_db_session
     mocker.patch("story_manager.story_builder.manager.get_async_session", return_value=mock_session_context)
+
+    # Mock get_story_text_generator_service
+    mocker.patch("story_manager.story_builder.manager.get_story_text_generator_service", return_value=mock_llm_provider)
 
     # Mock StoryFactory.create_story_builder
     mock_story_builder = mocker.AsyncMock(spec=StoryBuilderBase)
