@@ -2,6 +2,7 @@ from sqlalchemy import select, update
 
 from commons.db.crud import CRUDBase, NotFoundError
 from commons.models.tenant import SlackConnectionConfig, TenantConfigUpdate
+from insights_backend.core.filters import TenantConfigFilter
 from insights_backend.core.models import (
     Tenant,
     TenantConfig,
@@ -35,10 +36,12 @@ class CRUDUser(CRUDBase[User, UserCreate, UserUpdate, None]):  # type: ignore
         return obj
 
 
-class TenantCRUD(CRUDBase[Tenant, Tenant, Tenant, None]):  # type: ignore
+class TenantCRUD(CRUDBase[Tenant, Tenant, Tenant, TenantConfigFilter]):  # type: ignore
     """
     CRUD for Tenant Model.
     """
+
+    filter_class = TenantConfigFilter
 
     async def get_tenant_config(self, tenant_id: int) -> TenantConfig:
         """
@@ -76,8 +79,9 @@ class TenantCRUD(CRUDBase[Tenant, Tenant, Tenant, None]):  # type: ignore
             update(TenantConfig)
             .filter_by(tenant_id=tenant_id)
             .values(
-                cube_connection_config=new_config_dict.get("cube_connection_config", {})
-            )  # Use the dictionary to update the cube_connection_config field
+                cube_connection_config=new_config_dict.get("cube_connection_config", {}),
+                enable_story_generation=new_config_dict.get("enable_story_generation"),
+            )
         )
 
         # Execute the update statement to modify the tenant configuration in the database

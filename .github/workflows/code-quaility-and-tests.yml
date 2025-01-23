@@ -24,7 +24,7 @@ jobs:
       - name: Install Dependency Prerequisites
         run: |
           python -m pip install --upgrade pip
-          pip install poetry
+          pip install "poetry<2.0.0"
 
       - name: Install Top Level Dependencies
         run: |
@@ -67,12 +67,6 @@ jobs:
         run: |
           echo "Installing core dependencies"
           poetry export -f requirements.txt --output requirements.txt --without-hashes -C core
-          pip install -U -r requirements.txt
-
-      - name: Install Fulcrum Airflow Dependencies
-        run: |
-          echo "Installing fulcrum_airflow dependencies"
-          poetry export -f requirements.txt --output requirements.txt --without-hashes -C fulcrum_airflow
           pip install -U -r requirements.txt
 
       - name: Check Code Formatting

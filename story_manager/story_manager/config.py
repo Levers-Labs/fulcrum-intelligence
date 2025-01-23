@@ -2,8 +2,14 @@ from __future__ import annotations
 
 from enum import Enum
 from pathlib import Path
+from typing import Any
 
-from pydantic import AnyHttpUrl, field_validator
+from pydantic import (
+    AnyHttpUrl,
+    Field,
+    field_validator,
+    json,
+)
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -40,7 +46,27 @@ class Settings(BaseSettings):
     PAGINATION_PER_PAGE: int = 20
 
     DATABASE_URL: str
-    SQLALCHEMY_ENGINE_OPTIONS: dict = {"pool_pre_ping": True, "pool_size": 5, "max_overflow": 80, "echo": True}
+    SQLALCHEMY_ENGINE_OPTIONS: dict[str, Any] = Field(
+        default_factory=lambda: {"pool_pre_ping": True, "pool_size": 5, "max_overflow": 80, "echo": True}
+    )
+
+    @field_validator("SQLALCHEMY_ENGINE_OPTIONS", mode="before")
+    @classmethod
+    def parse_engine_options(cls, v: Any) -> dict[str, Any]:
+        """Parse engine options from string or dict and merge with defaults"""
+        defaults = {"pool_pre_ping": True, "echo": True}
+
+        if isinstance(v, str):
+            try:
+                custom_options = json.loads(v)
+            except json.JSONDecodeError:
+                return defaults
+        elif isinstance(v, dict):
+            custom_options = v
+        else:
+            return defaults
+
+        return {**defaults, **custom_options}
 
     QUERY_MANAGER_SERVER_HOST: str | AnyHttpUrl
     ANALYSIS_MANAGER_SERVER_HOST: str | AnyHttpUrl

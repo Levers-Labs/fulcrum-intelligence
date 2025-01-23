@@ -12,6 +12,18 @@
       "cube_api_url": "https://api.cubecloud.dev",
       "cube_auth_type": "TOKEN",
       "cube_auth_token": "your_token_here"
+    },
+    "slack_connection": {
+      "team": {
+        "id": "ID",
+        "name": "Slack App Name"
+      },
+      "app_id": "Slack App ID",
+      "bot_token": "BOT_TOKEN",
+      "authed_user": {
+        "id": "USER_ID"
+      },
+      "bot_user_id": "BOT_USER_ID"
     }
   }
 }

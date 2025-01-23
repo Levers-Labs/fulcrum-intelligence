@@ -16,6 +16,7 @@ from sqlalchemy.exc import IntegrityError
 
 from commons.auth.scopes import QUERY_MANAGER_ALL
 from commons.clients.base import HttpClientError
+from commons.db.crud import NotFoundError
 from commons.llm.exceptions import LLMError
 from commons.models.enums import Granularity
 from commons.models.tenant import CubeConnectionConfig
@@ -30,6 +31,8 @@ from query_manager.core.dependencies import (
 )
 from query_manager.core.enums import OutputFormat
 from query_manager.core.schemas import (  # SlackChannelIds,; SlackChannelsResponse,
+    Cube,
+    DeleteResponse,
     Dimension,
     DimensionCompact,
     DimensionCreate,
@@ -46,10 +49,17 @@ from query_manager.core.schemas import (  # SlackChannelIds,; SlackChannelsRespo
     MetricValuesResponse,
     TargetListResponse,
 )
-from query_manager.exceptions import DimensionNotFoundError, MetricNotFoundError, MetricNotificationNotFoundError
+from query_manager.exceptions import (
+    DimensionNotFoundError,
+    ErrorCode,
+    MetricNotFoundError,
+    MetricNotificationNotFoundError,
+    QueryManagerError,
+)
 from query_manager.llm.prompts import ParsedExpressionOutput
 from query_manager.services.cube import CubeClient, CubeJWTAuthType
 from query_manager.services.s3 import NoSuchKeyError
+from query_manager.utils.metric_builder import MetricDataBuilder
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="")
@@ -109,7 +119,7 @@ async def create_metric(
     """
     try:
         created_metric = await client.create_metric(metric_data)
-        return created_metric
+        return await client.get_metric_details(created_metric.metric_id)
     except IntegrityError as e:
         raise HTTPException(
             status_code=422,
@@ -427,3 +437,138 @@ async def parse_expression(
         return await expression_parser_service.process(request.expression)
     except LLMError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
+
+
+@router.get(
+    "/meta/cubes",
+    response_model=list[Cube],
+    tags=["cube"],
+    dependencies=[Security(oauth2_auth().verify, scopes=[QUERY_MANAGER_ALL])],
+)
+async def list_cubes(
+    client: QueryClientDep,
+    cube_name: str | None = None,
+):
+    """
+    List all available cubes.
+
+    Args:
+        client: QueryClient dependency
+        cube_name: Optional filter to get a specific cube by name
+    """
+    try:
+        cubes = await client.list_cubes(cube_name=cube_name)
+        if cube_name:
+            cubes = [cube for cube in cubes if cube["name"] == cube_name or cube["title"] == cube_name]
+        return cubes
+    except HttpClientError as exc:
+        logger.error("Failed to fetch cubes from Cube API: %s", exc)
+        raise QueryManagerError(500, ErrorCode.MISSING_CONFIGURATION, "Failed to fetch cubes from Cube API") from exc
+
+
+@router.post(
+    "/metrics/preview",
+    response_model=MetricCreate,
+    tags=["metrics"],
+    dependencies=[Security(oauth2_auth().verify, scopes=[QUERY_MANAGER_ALL])],
+)
+async def preview_metric_from_yaml(
+    client: QueryClientDep,  # Dependency for QueryClient
+    expression_parser_service: ExpressionParserServiceDep,  # Dependency for ExpressionParserService
+    metric_data: str = Body(
+        default="""
+                        metric_id: test
+                        label: test
+                        abbreviation: test
+                        hypothetical_max: 100
+                        definition: test is a metric
+                        expression: null
+                        aggregation: sum
+                        unit_of_measure: quantity
+                        unit: n
+                        measure: cube.test
+                        time_dimension: cube.test""",
+        description="Raw Metric Data in YAML format",
+        media_type="application/x-yaml",
+    ),
+):
+    """
+    Preview a metric from YAML data.
+    """
+    # Call MetricDataBuilder to construct the metric data structure from the provided YAML content
+    return await MetricDataBuilder.build_metric_data(
+        metric_data=metric_data,  # The YAML formatted metric data
+        client=client,  # The QueryClient dependency
+        expression_parser_service=expression_parser_service,  # The ExpressionParserService dependency
+    )
+
+
+@router.delete(
+    "/metrics/bulk",
+    status_code=200,
+    tags=["metrics"],
+    response_model=DeleteResponse,
+    dependencies=[Security(oauth2_auth().verify, scopes=[QUERY_MANAGER_ALL])],
+)
+async def delete_metrics_bulk(
+    metric_ids: Annotated[list[str], Body(description="List of metric IDs to delete")],
+    client: QueryClientDep,
+):
+    """
+    Delete multiple metrics and their relationships in bulk.
+    """
+    failed_deletions = []
+    successful_deletions = []
+
+    for metric_id in metric_ids:
+        try:
+            await client.delete_metric(metric_id)
+            successful_deletions.append(metric_id)
+        except NotFoundError:
+            failed_deletions.append(metric_id)
+
+    if failed_deletions and not successful_deletions:
+        # If all deletions failed
+        raise HTTPException(
+            status_code=404,
+            detail={
+                "loc": ["body", "metric_ids"],
+                "msg": f"None of the metrics were found: {failed_deletions}",
+                "type": "not_found",
+            },
+        )
+
+    return DeleteResponse(
+        message=(
+            f"Successfully deleted {len(successful_deletions)} metrics. "
+            + (f"Failed to delete {len(failed_deletions)} metrics: {failed_deletions}" if failed_deletions else "")
+        ).strip()
+    )
+
+
+@router.delete(
+    "/metrics/{metric_id}",
+    status_code=200,
+    tags=["metrics"],
+    response_model=DeleteResponse,
+    dependencies=[Security(oauth2_auth().verify, scopes=[QUERY_MANAGER_ALL])],
+)
+async def delete_metric(
+    metric_id: str,
+    client: QueryClientDep,
+):
+    """
+    Delete a metric and its relationships.
+    """
+    try:
+        await client.delete_metric(metric_id)
+        return DeleteResponse(message=f"Metric '{metric_id}' and all its relationships have been successfully deleted.")
+    except NotFoundError as e:
+        raise HTTPException(
+            status_code=404,
+            detail={
+                "loc": ["path", "metric_id"],
+                "msg": f"Metric with id '{metric_id}' not found.",
+                "type": "not_found",
+            },
+        ) from e

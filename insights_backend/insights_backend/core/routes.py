@@ -34,6 +34,7 @@ from insights_backend.core.dependencies import (
     UsersCRUDDep,
     oauth2_auth,
 )
+from insights_backend.core.filters import TenantConfigFilter
 from insights_backend.core.models import (
     TenantList,
     TenantRead,
@@ -161,16 +162,22 @@ async def delete_user(user_id: int, user_crud_client: UsersCRUDDep):
 )
 async def list_tenants(
     tenant_crud_client: TenantsCRUDDep,
-    params: Annotated[PaginationParams, Depends(PaginationParams)],
+    params: Annotated[
+        PaginationParams,
+        Depends(PaginationParams),
+    ],
+    enable_story_generation: bool | None = None,
 ):
     """
     Retrieve all tenants in DB.
     """
-    count = await tenant_crud_client.total_count()
-    results: list[TenantRead] = [
-        TenantRead.model_validate(tenant) for tenant in await tenant_crud_client.list_results(params=params)
-    ]
-    return TenantList(results=results, count=count)
+    tenant_config_filter = TenantConfigFilter(enable_story_generation=enable_story_generation)
+    results, count = await tenant_crud_client.paginate(
+        params=params, filter_params=tenant_config_filter.dict(exclude_unset=True)
+    )
+    tenants: list[TenantRead] = [TenantRead.model_validate(tenant) for tenant in results]
+
+    return TenantList(results=tenants, count=count)
 
 
 @router.get(

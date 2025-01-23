@@ -266,7 +266,7 @@ class StoryBuilderBase(ABC):
         """
         pass
 
-    async def run(self, metric_id: str, grain: Granularity) -> None:
+    async def run(self, metric_id: str, grain: Granularity) -> list[Story]:
         """
         Run the story generation process for the given metric and grain
 
@@ -286,7 +286,8 @@ class StoryBuilderBase(ABC):
         stories = await self.generate_stories(metric_id, grain)
         logger.info("Generated %s stories for metric '%s' with grain '%s'", len(stories), metric_id, grain)
         story_objs = await self.persist_stories(stories)
-        await self.set_story_heuristics(story_objs)
+        story_objs = await self.set_story_heuristics(story_objs)
+        return story_objs
 
     async def persist_stories(self, stories: list[dict]) -> list[Story]:
         """
@@ -328,6 +329,10 @@ class StoryBuilderBase(ABC):
         # Commit the changes to the database
         await self.db_session.commit()
         logger.info("Story heuristics set successfully")
+        # refresh the story objects to ensure they have the latest data
+        for story in story_objs:
+            await self.db_session.refresh(story)
+        return story_objs
 
     def _get_current_period_range(self, grain: Granularity) -> tuple[date, date]:
         """

@@ -5,7 +5,9 @@ from httpx import AsyncClient
 from slack_sdk.errors import SlackApiError
 from sqlalchemy.exc import IntegrityError
 
+from commons.clients.base import HttpClientError
 from commons.clients.insight_backend import InsightBackendClient
+from commons.db.crud import NotFoundError
 from commons.llm.exceptions import LLMError
 from query_manager.core.crud import CRUDMetricNotifications
 from query_manager.core.enums import TargetAim
@@ -472,3 +474,342 @@ async def test_list_metrics_slack_enabled_single_metric(async_client: AsyncClien
 
     # Ensure that the mock was called with the correct parameters
     mock_list_metrics.assert_called_once_with(slack_enabled=True, metric_ids=None, metric_label=None, params=mocker.ANY)
+
+
+@pytest.mark.asyncio
+async def test_list_cubes(async_client: AsyncClient, mocker):
+    """Test listing all cubes."""
+    # Mock data
+    mock_cubes = [
+        {
+            "name": "cube1",
+            "title": "Cube One",
+            "measures": [
+                {
+                    "name": "revenue",
+                    "title": "Total Revenue",
+                    "short_title": "Revenue",
+                    "type": "number",
+                    "description": "Total revenue from all sources",
+                    "metric_id": "Revenue",
+                    "grain_aggregation": "sum",
+                }
+            ],
+            "dimensions": [
+                {
+                    "name": "created_at",
+                    "title": "Created Date",
+                    "short_title": "Created",
+                    "type": "time",
+                    "description": "Date when record was created",
+                    "dimension_id": "Created",
+                }
+            ],
+        }
+    ]
+
+    # Mock the cube client list_cubes method
+    mock_list_cubes = AsyncMock(return_value=mock_cubes)
+    mocker.patch.object(CubeClient, "list_cubes", mock_list_cubes)
+
+    # Transform mock_cubes to match API response format
+    expected_response = [
+        {
+            **cube,
+            "measures": [
+                {**{("shortTitle" if k == "short_title" else k): v for k, v in m.items()}}  # type: ignore
+                for m in cube["measures"]
+            ],
+            "dimensions": [
+                {**{("shortTitle" if k == "short_title" else k): v for k, v in d.items()}}  # type: ignore
+                for d in cube["dimensions"]
+            ],
+        }
+        for cube in mock_cubes
+    ]
+
+    # Act
+    response = await async_client.get("/v1/meta/cubes")
+
+    # Assert
+    assert response.status_code == 200
+    assert response.json() == expected_response
+    mock_list_cubes.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_list_cubes_with_name_filter(async_client: AsyncClient, mocker):
+    """Test listing cubes filtered by name."""
+    # Mock data
+    mock_cubes = [
+        {"name": "cube1", "title": "Cube One", "measures": [], "dimensions": []},
+        {"name": "cube2", "title": "Cube Two", "measures": [], "dimensions": []},
+    ]
+
+    # Mock the cube client list_cubes method
+    mock_list_cubes = AsyncMock(return_value=mock_cubes)
+    mocker.patch.object(CubeClient, "list_cubes", mock_list_cubes)
+
+    # Act
+    response = await async_client.get("/v1/meta/cubes?cube_name=cube1")
+
+    # Assert
+    assert response.status_code == 200
+    assert len(response.json()) == 1
+    assert response.json()[0]["name"] == "cube1"
+    mock_list_cubes.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_list_cubes_error(async_client: AsyncClient, mocker):
+    """Test listing cubes with API error."""
+    # Mock the cube client to raise error
+    mock_list_cubes = AsyncMock(side_effect=HttpClientError("Failed to fetch cubes"))
+    mocker.patch.object(CubeClient, "list_cubes", mock_list_cubes)
+
+    # Act
+    response = await async_client.get("/v1/meta/cubes")
+
+    # Assert
+    assert response.status_code == 500
+    assert response.json()["detail"] == "Failed to fetch cubes from Cube API"
+    mock_list_cubes.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_preview_metric_from_yaml_success(async_client: AsyncClient, mocker):
+    """Test successful metric preview from YAML"""
+    yaml_content = """
+        metric_id: test
+        label: test
+        abbreviation: test
+        hypothetical_max: 100
+        definition: test is a metric
+        expression: null
+        aggregation: sum
+        unit_of_measure: quantity
+        unit: 'n'
+        measure: "cube1.revenue"
+        time_dimension: "cube1.created_at"
+    """
+    # Mock data with matching measure name
+    mock_cubes = [
+        {
+            "name": "cube1",
+            "title": "Cube One",
+            "measures": [
+                {
+                    "name": "cube1.revenue",
+                    "title": "Total Revenue",
+                    "shortTitle": "Revenue",
+                    "short_title": "Revenue",
+                    "type": "number",
+                    "description": "Total revenue from all sources",
+                    "metric_id": "Revenue",
+                    "grain_aggregation": "sum",
+                }
+            ],
+            "dimensions": [
+                {
+                    "name": "cube1.created_at",
+                    "title": "Created Date",
+                    "shortTitle": "Created",
+                    "short_title": "Created",
+                    "type": "time",
+                    "description": "Date when record was created",
+                    "dimension_id": "Created",
+                }
+            ],
+        }
+    ]
+
+    # Mock the cube client list_cubes method
+    mock_list_cubes = AsyncMock(return_value=mock_cubes)
+    mocker.patch.object(CubeClient, "list_cubes", mock_list_cubes)
+
+    response = await async_client.post(
+        "/v1/metrics/preview", content=yaml_content, headers={"Content-Type": "application/x-yaml"}
+    )
+
+    assert response.status_code == 200
+    result = response.json()
+
+    assert result["metric_id"] == "test"
+    assert result["label"] == "test"
+    assert result["complexity"] == "Atomic"
+    assert result["abbreviation"] == "test"
+    assert result["hypothetical_max"] == 100
+
+    # Verify mock was called
+    mock_list_cubes.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_preview_metric_from_yaml_invalid_yaml(async_client: AsyncClient):
+    """Test metric preview with invalid YAML"""
+    invalid_content = "invalid: yaml: content:"
+
+    response = await async_client.post(
+        "/v1/metrics/preview", content=invalid_content, headers={"Content-Type": "application/x-yaml"}
+    )
+
+    assert response.status_code == 422
+    assert "Invalid format" in response.json()["detail"]
+
+
+@pytest.mark.asyncio
+async def test_preview_metric_from_yaml_missing_fields(async_client: AsyncClient):
+    """Test metric preview with missing required fields"""
+    incomplete_content = """
+    label: test
+    abbreviation: test
+    hypothetical_max: 100
+    definition: test is a metric
+    expression: "{newInqs} + {newMqls} + 1"
+    aggregation: sum
+    unit_of_measure: quantity
+    unit: 'n'
+    measure: "DimContactLifecycleStages.mqlToSalRate"
+    time_dimension: "DimContactLifecycleStages.lastMqlOn"
+    """
+
+    response = await async_client.post(
+        "/v1/metrics/preview", content=incomplete_content, headers={"Content-Type": "application/x-yaml"}
+    )
+
+    assert response.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_delete_metrics_bulk_success(async_client: AsyncClient, mocker):
+    """Test successful bulk deletion of metrics."""
+    # Mock data
+    metric_ids = ["metric1", "metric2", "metric3"]
+
+    # Mock the delete_metric method
+    mock_delete_metric = AsyncMock()
+    mocker.patch.object(QueryClient, "delete_metric", mock_delete_metric)
+
+    # Make the request
+    response = await async_client.request("DELETE", "/v1/metrics/bulk", json=metric_ids)
+
+    # Assert response
+    assert response.status_code == 200
+    assert response.json() == {"message": "Successfully deleted 3 metrics."}
+
+    # Verify delete_metric was called for each metric
+    assert mock_delete_metric.call_count == 3
+    mock_delete_metric.assert_has_awaits([mocker.call("metric1"), mocker.call("metric2"), mocker.call("metric3")])
+
+
+@pytest.mark.asyncio
+async def test_delete_metrics_bulk_partial_success(async_client: AsyncClient, mocker):
+    """Test bulk deletion with some failures."""
+    # Mock data
+    metric_ids = ["metric1", "metric2", "metric3"]
+
+    # Mock the delete_metric method to fail for metric2
+    async def mock_delete(metric_id: str):
+        if metric_id == "metric2":
+            raise NotFoundError("Metric not found")
+        return None
+
+    mock_delete_metric = AsyncMock(side_effect=mock_delete)
+    mocker.patch.object(QueryClient, "delete_metric", mock_delete_metric)
+
+    # Make the request
+    response = await async_client.request("DELETE", "/v1/metrics/bulk", json=metric_ids)
+
+    # Assert response
+    assert response.status_code == 200
+    assert response.json() == {"message": "Successfully deleted 2 metrics. Failed to delete 1 metrics: ['metric2']"}
+
+    # Verify delete_metric was called for each metric
+    assert mock_delete_metric.call_count == 3
+
+
+@pytest.mark.asyncio
+async def test_delete_metrics_bulk_all_fail(async_client: AsyncClient, mocker):
+    """Test bulk deletion when all metrics fail."""
+    # Mock data
+    metric_ids = ["metric1", "metric2"]
+
+    # Mock the delete_metric method to fail for all metrics
+    mock_delete_metric = AsyncMock(side_effect=NotFoundError("Metric not found"))
+    mocker.patch.object(QueryClient, "delete_metric", mock_delete_metric)
+
+    # Make the request
+    response = await async_client.request("DELETE", "/v1/metrics/bulk", json=metric_ids)
+
+    # Assert response
+    assert response.status_code == 404
+    assert response.json() == {
+        "detail": {
+            "loc": ["body", "metric_ids"],
+            "msg": "None of the metrics were found: ['metric1', 'metric2']",
+            "type": "not_found",
+        }
+    }
+
+    # Verify delete_metric was called for each metric
+    assert mock_delete_metric.call_count == 2
+
+
+@pytest.mark.asyncio
+async def test_delete_metrics_bulk_empty_list(async_client: AsyncClient, mocker):
+    """Test bulk deletion with empty list."""
+    # Mock the delete_metric method
+    mock_delete_metric = AsyncMock()
+    mocker.patch.object(QueryClient, "delete_metric", mock_delete_metric)
+
+    # Make the request with empty list
+    response = await async_client.request("DELETE", "/v1/metrics/bulk", json=[])
+
+    # Assert response
+    assert response.status_code == 200
+    assert response.json() == {"message": "Successfully deleted 0 metrics."}
+
+    # Verify delete_metric was not called
+    mock_delete_metric.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_delete_metric_success(async_client: AsyncClient, mocker):
+    """Test successful deletion of a single metric."""
+    # Mock the delete_metric method
+    mock_delete_metric = AsyncMock()
+    mocker.patch.object(QueryClient, "delete_metric", mock_delete_metric)
+
+    # Make the request
+    metric_id = "test_metric"
+    response = await async_client.request("DELETE", f"/v1/metrics/{metric_id}")
+
+    # Assert response
+    assert response.status_code == 200
+    assert response.json() == {
+        "message": f"Metric '{metric_id}' and all its relationships have been successfully deleted."
+    }
+
+    # Verify delete_metric was called once with correct argument
+    mock_delete_metric.assert_awaited_once_with(metric_id)
+
+
+@pytest.mark.asyncio
+async def test_delete_metric_not_found(async_client: AsyncClient, mocker):
+    """Test deletion of a non-existent metric."""
+    # Mock the delete_metric method to raise NotFoundError
+    mock_delete_metric = AsyncMock(side_effect=NotFoundError("Metric not found"))
+    mocker.patch.object(QueryClient, "delete_metric", mock_delete_metric)
+
+    # Make the request
+    metric_id = "non_existent_metric"
+    response = await async_client.request("DELETE", f"/v1/metrics/{metric_id}")
+
+    # Assert response
+    assert response.status_code == 404
+    assert response.json() == {
+        "detail": {"loc": ["path", "metric_id"], "msg": f"Metric with id '{metric_id}' not found.", "type": "not_found"}
+    }
+
+    # Verify delete_metric was called once with correct argument
+    mock_delete_metric.assert_awaited_once_with(metric_id)
