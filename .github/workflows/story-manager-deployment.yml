@@ -4,8 +4,6 @@ on:
   push:
     branches:
       - main
-      - 'surajpatil/lev-489-prod-grade-deployments'
-
     paths:
         - 'story_manager/**'
         - 'commons/**'

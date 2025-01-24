@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - main
-      - 'surajpatil/lev-489-prod-grade-deployments'
     paths:
       - 'insights_backend/**'
       - 'commons/**'
