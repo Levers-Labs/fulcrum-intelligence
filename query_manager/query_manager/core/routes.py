@@ -572,3 +572,30 @@ async def delete_metric(
                 "type": "not_found",
             },
         ) from e
+
+
+@router.delete(
+    "/dimensions/{dimension_id}",
+    status_code=200,
+    tags=["dimensions"],
+    dependencies=[Security(oauth2_auth().verify, scopes=[QUERY_MANAGER_ALL])],
+)
+async def delete_dimension(
+    dimension_id: str,
+    client: QueryClientDep,
+):
+    """
+    Delete a dimension and its relationships.
+    """
+    try:
+        await client.delete_dimension(dimension_id)
+        return None
+    except NotFoundError as e:
+        raise HTTPException(
+            status_code=404,
+            detail={
+                "loc": ["path", "dimension_id"],
+                "msg": f"Dimension with id '{dimension_id}' not found.",
+                "type": "not_found",
+            },
+        ) from e

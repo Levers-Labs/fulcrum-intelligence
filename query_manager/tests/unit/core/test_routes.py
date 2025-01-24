@@ -813,3 +813,46 @@ async def test_delete_metric_not_found(async_client: AsyncClient, mocker):
 
     # Verify delete_metric was called once with correct argument
     mock_delete_metric.assert_awaited_once_with(metric_id)
+
+
+@pytest.mark.asyncio
+async def test_delete_dimension_success(async_client: AsyncClient, mocker, dimension):
+    """Test successful deletion of a single dimension."""
+    # Mock the delete_dimension method
+    mock_delete_dimension = AsyncMock()
+    mocker.patch.object(QueryClient, "delete_dimension", mock_delete_dimension)
+
+    # Make the request
+    dimension_id = dimension["dimension_id"]
+    response = await async_client.delete(f"/v1/dimensions/{dimension_id}")
+
+    # Assert response
+    assert response.status_code == 200
+
+    # Verify delete_dimension was called once with correct argument
+    mock_delete_dimension.assert_awaited_once_with(dimension_id)
+
+
+@pytest.mark.asyncio
+async def test_delete_dimension_not_found(async_client: AsyncClient, mocker):
+    """Test deletion of a non-existent dimension."""
+    # Mock the delete_dimension method to raise NotFoundError
+    mock_delete_dimension = AsyncMock(side_effect=NotFoundError("Dimension not found"))
+    mocker.patch.object(QueryClient, "delete_dimension", mock_delete_dimension)
+
+    # Make the request
+    dimension_id = "non_existent_dimension"
+    response = await async_client.delete(f"/v1/dimensions/{dimension_id}")
+
+    # Assert response
+    assert response.status_code == 404
+    assert response.json() == {
+        "detail": {
+            "loc": ["path", "dimension_id"],
+            "msg": f"Dimension with id '{dimension_id}' not found.",
+            "type": "not_found",
+        }
+    }
+
+    # Verify delete_dimension was called once with correct argument
+    mock_delete_dimension.assert_awaited_once_with(dimension_id)
