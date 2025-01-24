@@ -42,7 +42,7 @@ async def test_get_cube_client(mock_insights_backend_client):
     cube_client = await get_cube_client(mock_insights_backend_client)
     assert isinstance(cube_client, CubeClient)
     # Additional assertions to verify the client configuration
-    assert cube_client.base_url == "http://test-cube-api.com"
+    assert cube_client.base_url == "http://test-cube-api.com/v1"
     assert cube_client.auth_type == CubeJWTAuthType.SECRET_KEY
     assert cube_client.auth_options == {"secret_key": "test-secret-key"}
 

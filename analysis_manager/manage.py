@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib
+import multiprocessing
 from pathlib import Path
 from typing import Annotated, Optional
 
@@ -129,26 +130,23 @@ def run_server(
 
 
 @cli.command("run-prod-server")
-def run_prod_server():
-    """Run the API production server(gunicorn)."""
-    from gunicorn import util
-    from gunicorn.app.base import Application
-
-    settings = get_settings()
-    config_file = str(settings.PATHS.ROOT_DIR.joinpath("gunicorn.conf.py").resolve(strict=True))
-
-    class APPServer(Application):
-        def init(self, parser, opts, args):
-            pass
-
-        def load_config(self):
-            self.load_config_from_file(config_file)
-
-        def load(self):
-            return util.import_app("analysis_manager.main:app")
-
-    migrate_db()
-    APPServer().run()
+def run_prod_server(
+    port: int = 8000,
+    log_level: str = "info",
+    workers: int | None = None,
+):
+    """Run the API production server(uvicorn)."""
+    if workers is None:
+        workers = multiprocessing.cpu_count() * 2 + 1 if multiprocessing.cpu_count() > 0 else 3
+    typer.secho(f"Starting uvicorn server at port {port} with {workers} workers", fg=typer.colors.GREEN)
+    uvicorn.run(
+        "analysis_manager.main:app",
+        host="0.0.0.0",  # noqa
+        port=port,
+        log_level=log_level,
+        workers=workers,
+        timeout_keep_alive=60,
+    )
 
 
 @cli.command("start-app")

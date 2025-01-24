@@ -80,6 +80,9 @@ exclude = [
 output-format = "concise"
 line-length = 120
 unsafe-fixes = true
+exclude = [
+    "render.py"
+]
 
 [tool.ruff.lint]
 ignore-init-module-imports = true

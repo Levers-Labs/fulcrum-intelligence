@@ -7,7 +7,7 @@ on:
         description: 'The ECR repository name'
         required: true
         type: string
-      app_name:
+      app_folder:
         description: 'One of the app folders containing the Dockerfile'
         required: true
         type: string
@@ -56,7 +56,7 @@ jobs:
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v1
 
-      - name: Build and push Docker image for $IMAGE
+      - name: Build and push Docker image for ${{ inputs.ecr_repo }}
         working-directory: .
         run: |
           IMAGE_TAG="${{ secrets.ECR_REGISTRY }}/${{ inputs.ecr_repo }}:${{ inputs.tag }}"
@@ -64,7 +64,7 @@ jobs:
           echo "Building and tagging the image"
           docker build \
           -t $IMAGE_TAG \
-          -f ${{ inputs.app_name }}/Dockerfile .
+          -f ${{ inputs.app_folder }}/Dockerfile .
 
           echo "Pushing Image to ECR"
           docker push $IMAGE_TAG

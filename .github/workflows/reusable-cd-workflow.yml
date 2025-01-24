@@ -1,0 +1,84 @@
+on:
+  workflow_call:
+    inputs:
+      APP_NAME:
+        required: true
+        type: string
+      APP_FOLDER:
+        required: true
+        type: string
+      ENV:
+        required: true
+        type: string
+      TAG_ID:
+        required: true
+        type: string
+      SERVICE_NAME:
+        required: true
+        type: string
+      ECS_CLUSTER:
+        required: true
+        type: string
+      ECR_REPOSITORY:
+        required: true
+        type: string
+      TASK_DEFINITION:
+        required: true
+        type: string
+
+    secrets:
+      ECR_REGISTRY:
+        description: 'The ECR registry URL'
+        required: true
+      AWS_REGION:
+        description: 'The region of ECR'
+        required: true
+      ASSUME_ROLE:
+        description: 'The deployment role ARN (OIDC)'
+        required: true
+      AWS_ACCOUNT_ID:
+        description: 'The AWS account ID'
+        required: true
+
+jobs:
+  deploy-service:
+    name: Deploy Application
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: configure aws credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{secrets.ASSUME_ROLE}}
+          role-session-name: github-action-role
+          aws-region: ${{secrets.AWS_REGION}}
+
+      - name: Render Environment Variables and Secret in the Task Definition
+        run: |
+          python3 render.py ${{ inputs.APP_FOLDER }}/deployment/ecs/env.json \
+            ${{ inputs.APP_FOLDER }}/deployment/ecs/${{ inputs.TASK_DEFINITION }} \
+            --account ${{ secrets.AWS_ACCOUNT_ID }} \
+            --region ${{ secrets.AWS_REGION }} \
+            --app ${{ inputs.APP_NAME }} \
+            --env ${{ inputs.ENV }}
+
+      - name: Update Amazon ECS task definition with latest image id
+        id: render-task-definition
+        uses: aws-actions/amazon-ecs-render-task-definition@v1
+        with:
+          task-definition: ${{ inputs.APP_FOLDER }}/deployment/ecs/${{ inputs.TASK_DEFINITION }}
+          container-name: ${{ inputs.APP_NAME }}-${{ inputs.SERVICE_NAME }}
+          image: ${{ secrets.ECR_REGISTRY }}/${{ inputs.ECR_REPOSITORY }}:${{ inputs.TAG_ID  }}
+
+      - run: cat ${{ steps.render-task-definition.outputs.task-definition }}
+
+      - name: Update ${{ inputs.APP_NAME }}-${{ inputs.SERVICE_NAME }} Service
+        uses: aws-actions/amazon-ecs-deploy-task-definition@v1
+        with:
+          task-definition: ${{ steps.render-task-definition.outputs.task-definition }}
+          service: ${{ inputs.APP_NAME }}-${{ inputs.SERVICE_NAME }}
+          cluster: ${{ inputs.ECS_CLUSTER }}
+          wait-for-service-stability: true

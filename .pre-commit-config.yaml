@@ -33,3 +33,4 @@ repos:
         entry: python manage.py lint --raise-error
         language: system
         files: \.py$
+        exclude: '^render\.py$'

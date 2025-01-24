@@ -1,51 +1,47 @@
-name: Build, DB Migrate and Deploy Application
+name: Build & Deploy Application Service
 
 on:
   workflow_call:
     inputs:
-      ecr_repo:
-        description: 'application ecr repo name'
-        required: true
-        type: string
-      app_lambda_function_name:
-        description: "One of the App's lambda function name"
-        required: true
-        type: string
       app_name:
-        description: 'One of the app folders containing the Dockerfile'
+        description: 'The application name'
         required: true
         type: string
-      app_host:
-        description: 'host url of the application'
+      app_folder:
+        description: 'The application folder'
         required: true
         type: string
-      migration:
-        description: 'flag to identify if migration is required'
+      ecr_repo:
+        description: 'The ECR repository name'
+        required: true
+        type: string
+      ecs_cluster:
+        description: 'The ECS cluster name'
+        required: true
+        type: string
+      env:
+        description: 'The environment name'
         required: false
-        default: "false"
         type: string
+        default: "dev"
 
     secrets:
+      ECR_REGISTRY:
+        description: 'The ECR registry URL'
+        required: true
       AWS_REGION:
-        description: 'The region of ECR'
+        description: 'The AWS region'
         required: true
       DEV_DEPLOYMENT_ROLE:
         description: 'The deployment role ARN (OIDC)'
         required: true
-      ECR_REGISTRY:
-        description: 'The ECR registry URL'
+      AWS_ACCOUNT_ID:
+        description: 'The AWS account ID'
         required: true
-      DATABASE_URL:
-        description: 'Application Database URL'
-        required: true
-
-permissions:
-  id-token: write
-  contents: read
 
 jobs:
   generate-tag:
-    name: generate-tag
+    name: Generate Tag
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Branch
@@ -63,39 +59,28 @@ jobs:
     needs: generate-tag
     uses: ./.github/workflows/reusable-build-image.yml
     with:
-        ecr_repo: ${{ inputs.ecr_repo }}
-        app_name: ${{ inputs.app_name }}
-        tag: ${{ needs.generate-tag.outputs.tag_id }}
-
-    secrets:
-      ECR_REGISTRY: ${{ secrets.ECR_REGISTRY }}
-      AWS_REGION: ${{ secrets.AWS_REGION }}
-      DEV_DEPLOYMENT_ROLE: ${{ secrets.DEV_DEPLOYMENT_ROLE }}
-
-  db-migration:
-    needs: [generate-tag]
-    uses: ./.github/workflows/reusable-migration.yml
-    with:
-      app_name: ${{ inputs.app_name }}
       ecr_repo: ${{ inputs.ecr_repo }}
-      app_lambda_function_name: ${{ inputs.app_lambda_function_name }}
+      app_folder: ${{ inputs.app_folder }}
       tag: ${{ needs.generate-tag.outputs.tag_id }}
-      migration: ${{ inputs.migration }}
     secrets:
-      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      ECR_REGISTRY: ${{ secrets.ECR_REGISTRY }}
       AWS_REGION: ${{ secrets.AWS_REGION }}
       DEV_DEPLOYMENT_ROLE: ${{ secrets.DEV_DEPLOYMENT_ROLE }}
-      ECR_REGISTRY: ${{ secrets.ECR_REGISTRY }}
 
-  deploy-image-on-lambda:
-    needs: [build-image, generate-tag, db-migration]
-    uses: ./.github/workflows/reusable-lambda-deployment.yml
+  deploy-web-service:
+    needs: [build-image, generate-tag]
+    uses: ./.github/workflows/reusable-cd-workflow.yml
     with:
-      ecr_repo: ${{ inputs.ecr_repo }}
-      app_lambda_function_name: ${{ inputs.app_lambda_function_name }}
-      tag: ${{ needs.generate-tag.outputs.tag_id }}
-      app_host: ${{ inputs.app_host }}
+      APP_NAME: ${{ inputs.app_name }}
+      APP_FOLDER: ${{ inputs.app_folder }}
+      TAG_ID: ${{ needs.generate-tag.outputs.tag_id }}
+      SERVICE_NAME: "web"
+      ECS_CLUSTER: ${{ inputs.ecs_cluster }}
+      ECR_REPOSITORY: ${{ inputs.ecr_repo }}
+      TASK_DEFINITION: "web-task-definition.json"
+      ENV: ${{ inputs.env }}
     secrets:
-      AWS_REGION: ${{ secrets.AWS_REGION }}
-      DEV_DEPLOYMENT_ROLE: ${{ secrets.DEV_DEPLOYMENT_ROLE }}
       ECR_REGISTRY: ${{ secrets.ECR_REGISTRY }}
+      AWS_REGION: ${{ secrets.AWS_REGION }}
+      ASSUME_ROLE: ${{ secrets.DEV_DEPLOYMENT_ROLE }}
+      AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
