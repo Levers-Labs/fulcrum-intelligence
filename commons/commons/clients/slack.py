@@ -28,6 +28,7 @@ class SlackClient:
         """
         # Call Slack API to get list of channels with pagination
         response = self.client.conversations_list(cursor=cursor, limit=limit)
+
         channels = response["channels"]
 
         # Filter channels by name if name filter is provided

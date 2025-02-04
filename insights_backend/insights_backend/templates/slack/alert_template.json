@@ -1,0 +1,51 @@
+{
+    "blocks": [
+        {
+            "type": "header",
+            "text": {
+                "type": "plain_text",
+                "text": "🚀 [{{ metric.label }}] Stories • {{ grain|title }}",
+                "emoji": true
+            }
+        },
+        {% set previous_group = None %}
+        {% for story in stories %}
+            {% if story.story_group != previous_group %}
+            {
+                "type": "section",
+                "text": {
+                    "type": "mrkdwn",
+                    "text": "*{{ story.story_group| replace('_', ' ') | title }}*"
+                }
+            },
+            {% set previous_group = story.story_group %}
+            {% endif %}
+            {
+                "type": "section",
+                "text": {
+                    "type": "mrkdwn",
+                    "text": "*{{ story.title }}*\\n{{ story.detail | replace('\\n', '\\n') }}"
+                }
+            },
+        {% endfor %}
+        {
+            "type": "divider"
+        },
+        {
+            "type": "context",
+            "elements": [
+                {
+                    "type": "mrkdwn",
+                    "text": "Generated on {{ time }} UTC"
+                }
+            ]
+        },
+        {
+            "type": "section",
+            "text": {
+                "type": "mrkdwn",
+                "text": "<https://app-dev.leverslabs.com?grains={{ grain }}&metric_ids={{ metric.id }}&story_date_start={{ time }}|View in app>"
+            }
+        }
+    ]
+}

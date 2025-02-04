@@ -1,0 +1,29 @@
+/* fulcrum-intelligence/insights_backend/insights_backend/templates/css/email_styles.css */
+body {
+    font-family: Arial, sans-serif;
+    line-height: 1.6;
+    margin: 0;
+    padding: 20px;
+}
+
+.email-container {
+    max-width: 600px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+.header {
+    font-size: 24px;
+    font-weight: bold;
+}
+
+.footer {
+    margin-top: 20px;
+    font-size: 12px;
+    color: #888;
+}
+
+.link {
+    color: #007BFF;
+    text-decoration: none;
+}

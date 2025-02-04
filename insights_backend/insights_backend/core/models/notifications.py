@@ -1,21 +1,29 @@
-from datetime import datetime
+from datetime import datetime, time
 from enum import Enum
-from typing import Any, Literal
+from typing import Any, List, Literal
 
-from pydantic import EmailStr
+from pydantic import (
+    ConfigDict,
+    EmailStr,
+    computed_field,
+    field_validator,
+    model_validator,
+)
+from pydantic_core.core_schema import ValidationInfo
 from sqlalchemy import (
     ARRAY,
-    JSONB,
     Boolean,
     Column,
     String,
     Text,
 )
-from sqlmodel import Field
+from sqlalchemy.dialects.postgresql import JSONB
+from sqlmodel import Field, SQLModel
 
 from commons.models import BaseModel
 from commons.models.enums import Granularity
 from commons.notifiers.constants import NotificationChannel
+from insights_backend.core.enums import DailySchedule, MonthlySchedule, WeeklySchedule
 from insights_backend.core.models import InsightsSchemaBaseModel
 
 # ----------------
@@ -56,6 +64,46 @@ class ExecutionStatus(str, Enum):
 # ----------------
 
 
+class ScheduleConfig(BaseModel):
+    """Configuration for notification schedule"""
+
+    frequency: str  # e.g., "every_day", "monday", "first_day"
+    time: time  # e.g., 09:00:00
+    timezone: str  # e.g., "UTC", "America/New_York"
+
+    @computed_field
+    @property
+    def time_str(self) -> str:
+        """Return time as string in HH:MM:SS format"""
+        return self.time.strftime("%H:%M:%S")
+
+    @field_validator("frequency")
+    @classmethod
+    def validate_schedule_value(cls, v: str, info: ValidationInfo) -> str:
+        # Get the parent model's grain from context
+        grain = info.context.get("grain") if info.context else None
+
+        if grain == Granularity.DAY:
+            if v not in [opt for opt in DailySchedule]:
+                raise ValueError(f"Invalid daily schedule value: {v}")
+        elif grain == Granularity.WEEK:
+            if v not in [opt for opt in WeeklySchedule]:
+                raise ValueError(f"Invalid weekly schedule value: {v}")
+        elif grain == Granularity.MONTH:
+            if v not in [opt for opt in MonthlySchedule]:
+                raise ValueError(f"Invalid monthly schedule value: {v}")
+        return v
+
+    @field_validator("timezone")
+    @classmethod
+    def validate_timezone(cls, v: str) -> str:
+        import pytz
+
+        if v not in pytz.all_timezones:
+            raise ValueError(f"Invalid timezone: {v}")
+        return v
+
+
 class NotificationConfigBase(BaseModel):
     """Base configuration for all types of notifications"""
 
@@ -65,7 +113,7 @@ class NotificationConfigBase(BaseModel):
     tags: list[str] = Field(sa_column=Column(ARRAY(String), nullable=True, index=True))
     grain: Granularity
     is_active: bool = Field(sa_column=Column(Boolean, default=True))
-    # Representation of the notification, alert trigger or report config
+    is_published: bool = Field(sa_column=Column(Boolean, default=True))
     summary: str | None = None
 
 
@@ -86,7 +134,7 @@ class MetricStoryTrigger(BaseModel):
         if not self.story_groups:
             return f"Alert new stories of metrics: {metric_str}"
         story_group_str = ", ".join(self.story_groups)
-        return f"Alert new stories of metrics: {metric_str} for story groups: {story_group_str}"
+        return f"Alert on New Stories for Groups: {story_group_str} & Metrics: {metric_str} "
 
 
 class MetricThresholdTrigger(BaseModel):
@@ -102,13 +150,13 @@ class AlertTrigger(BaseModel):
     """Defines the trigger configuration for alerts"""
 
     type: TriggerType
-    condition: MetricStoryTrigger | MetricThresholdTrigger
+    condition: MetricStoryTrigger | MetricThresholdTrigger  # noqa
 
 
 class Alert(NotificationConfigBase, InsightsSchemaBaseModel, table=True):
     """Complete alert configuration including trigger details"""
 
-    trigger: AlertTrigger
+    trigger: AlertTrigger = Field(sa_column=Column(JSONB))
 
 
 # ----------------
@@ -119,8 +167,8 @@ class Alert(NotificationConfigBase, InsightsSchemaBaseModel, table=True):
 class ReportConfig(BaseModel):
     """Configuration for scheduled reports"""
 
-    metric_ids: list[str] = Field(sa_column=Column(ARRAY(String), nullable=False))
-    comparisons: list[Comparisons] | None = Field(sa_column=Column(ARRAY(String), nullable=True))
+    metric_ids: list[str]
+    comparisons: list[Comparisons] | None = None
 
     def __str__(self) -> str:
         """Generate human-readable representation of the report"""
@@ -128,11 +176,10 @@ class ReportConfig(BaseModel):
         return f"Report metrics: {metric_str}"
 
 
-class Report(NotificationConfigBase, InsightsSchemaBaseModel, table=True):
-    """Complete report configuration including schedule and metrics"""
-
-    schedule: dict[str, Any] = Field(default_factory=dict, sa_type=JSONB)
-    config: ReportConfig
+# class Report(NotificationConfigBase, InsightsSchemaBaseModel, table=True):
+#     """Complete report configuration including schedule and metrics"""
+#     schedule: ScheduleConfig = Field(default_factory=dict, sa_type=JSONB)
+#     config: ReportConfig = Field(sa_type=JSONB)
 
 
 # ----------------
@@ -143,7 +190,7 @@ class SlackChannel(BaseModel):
     name: str
     is_channel: bool = False
     is_group: bool = False
-    is_dm: bool = False
+    is_im: bool = False
     is_private: bool = False
 
 
@@ -156,10 +203,10 @@ class NotificationChannelConfigBase(BaseModel):
     """Base configuration for notification delivery channels"""
 
     channel_type: NotificationChannel
-    # Stores channel IDs - public/private chanel, group, DM, etc. for slack channel
-    # Stores email addresses for email channel
-    recipients: list[SlackChannel | EmailRecipient] = Field(default_factory=list, sa_type=JSONB)
-    template: str | None = Field(sa_column=Column(Text, nullable=False))
+    # Stores channel IDs - public/private channel, group, DM, etc. for slack channel
+    # Stores email addresses /for email channel
+    recipients: list[SlackChannel | EmailRecipient] = Field(sa_type=JSONB)
+    template: str | None = Field(sa_column=Column(Text, nullable=True))
     # Extra config specific to each channel type
     config: dict | None = Field(default_factory=dict, sa_type=JSONB)
 
@@ -174,7 +221,7 @@ class NotificationChannelConfig(NotificationChannelConfigBase, InsightsSchemaBas
     # Foreign key to the alert that this channel is associated with
     alert_id: int | None = Field(foreign_key="insights_store.alert.id", nullable=True)
     # Foreign key to the report that this channel is associated with
-    report_id: int | None = Field(foreign_key="insights_store.report.id", nullable=True)
+    # report_id: int | None = Field(foreign_key="insights_store.report.id", nullable=True)
 
 
 # ----------------
@@ -185,7 +232,7 @@ class NotificationChannelConfig(NotificationChannelConfigBase, InsightsSchemaBas
 class ExecutionError(BaseModel):
     """Error details for notification executions"""
 
-    # capture the essense of the error e.g. Delivery failed, Invalid Recipient, etc.
+    # capture the essence of the error e.g. Delivery failed, Invalid Recipient, etc.
     error_type: str = Field(default=None, sa_column=Column(String))
     # Error message
     message: str = Field(default=None, sa_column=Column(Text))
@@ -199,11 +246,11 @@ class NotificationExecutionBase(BaseModel):
     """
 
     alert_id: int | None = Field(foreign_key="insights_store.alert.id", nullable=True)
-    report_id: int | None = Field(foreign_key="insights_store.report.id", nullable=True)
+    # report_id: int | None = Field(foreign_key="insights_store.report.id", nullable=True)
     executed_at: datetime
     status: ExecutionStatus
     # List of recipients for the notification
-    recipients: list[SlackChannel | EmailRecipient] = Field(default_factory=list, sa_type=JSONB)
+    recipients: list[SlackChannel | EmailRecipient] = Field(sa_type=JSONB)
     # todo: define schema for trigger_meta, report_meta and delivery_meta
     # Metadata about the trigger and content
     # Trigger that caused the execution, e.g. metric_id , story_groups etc.
