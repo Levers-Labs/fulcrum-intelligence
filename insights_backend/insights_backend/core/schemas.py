@@ -1,10 +1,6 @@
 from datetime import datetime
-from enum import Enum
 from typing import (
     Any,
-    Dict,
-    List,
-    Optional,
 )
 
 from pydantic import ConfigDict, Field, field_validator
@@ -16,7 +12,6 @@ from commons.notifiers.constants import NotificationChannel
 from insights_backend.core.models.notifications import (
     AlertTrigger,
     EmailRecipient,
-    NotificationChannelConfig,
     NotificationChannelConfigBase,
     NotificationType,
 )
@@ -158,6 +153,7 @@ class PreviewResponse(BaseModel):
 
     preview_html: str = Field(description="HTML representation of the template for preview")
     raw_content: str = Field(description="Original rendered content (JSON for Slack, HTML for Email)")
+    recipients: str = Field(description="Recipients of the template")
 
 
 class NotificationList(BaseModel):

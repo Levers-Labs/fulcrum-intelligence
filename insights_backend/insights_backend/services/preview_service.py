@@ -1,9 +1,9 @@
-import json
 import logging
 import os
 import random
 from datetime import datetime
-from typing import Dict, List
+import json
+import html
 
 from fastapi import HTTPException
 from jinja2 import Environment, FileSystemLoader, Template
@@ -12,85 +12,26 @@ from commons.notifiers.constants import NotificationChannel
 
 logger = logging.getLogger(__name__)
 
-# Define your base HTML template
-BASE_HTML_TEMPLATE = """
-<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Template Preview</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            line-height: 1.6;
-            margin: 0;
-            padding: 20px;
-        }
-    </style>
-</head>
-<body>
-    {{ content }}
-</body>
-</html>
-"""
-
-# Create a Template object for the base template
-base_template = Template(BASE_HTML_TEMPLATE)
-
-
-def render_slack_preview(slack_json):
-    """Convert Slack JSON to HTML for preview."""
-    html_content = "<div class='slack-preview'>"
-    for block in slack_json.get("blocks", []):
-        if block["type"] == "header":
-            html_content += f"<h2>{block['text']['text']}</h2>"
-        elif block["type"] == "section":
-            html_content += f"<p>{block['text']['text']}</p>"
-        elif block["type"] == "divider":
-            html_content += "<hr/>"
-        elif block["type"] == "context":
-            html_content += f"<small>{block['elements'][0]['text']}</small>"
-    html_content += "</div>"
-    return html_content
-
 
 class PreviewService:
+    """Service for previewing notification templates"""
+    
     def __init__(self, template_dir: str):
-        """Initialize the PreviewService with the directory for templates."""
-        self.env = Environment(loader=FileSystemLoader(template_dir))
-        self.base_template = self.get_template("base_template", "base")  # Load the base template
-        self.template_dir = template_dir
-
-    def get_template(self, template_name: str, template_type: str) -> Template:
-        """
-        Get the template based on the template name and type.
-        Template will be HTML in the case of email and JSON in the case of Slack.
-
-        Args:
-            template_name (str): The name of the template.
-            template_type (str): The type of the template (e.g., 'slack', 'email', or 'base').
-
-        Returns:
-            Template: The template object.
-
-        Raises:
-            ValueError: If no matching template is found for the given name and type.
-        """
-        template_extension = "json" if template_type == "slack" else "html"
-        template_path = (
-            os.path.join(template_type, f"{template_name}.{template_extension}")
-            if template_type != "base"
-            else f"{template_name}.html"
+        self.env = Environment(
+            loader=FileSystemLoader(template_dir),
+            autoescape=True,
+            trim_blocks=True,
+            lstrip_blocks=True
         )
 
-        logger.debug("Loading %s template", template_path)
-
-        try:
-            template = self.env.get_template(template_path)
-            return template
-        except Exception as e:
-            raise ValueError(f"Template '{template_name}' of type '{template_type}' not found.") from e
+    def get_template(self, template_name: str, template_type: str) -> Template:
+        """Load template from file"""
+        template_path = (
+            os.path.join(template_type, f"{template_name}.json")
+            if template_type == "slack"
+            else os.path.join(template_type, f"{template_name}.html")
+        )
+        return self.env.get_template(template_path)
 
     def generate_mock_data(self, story_groups: list[str], metrics: list[str], grain: str) -> dict:
         """Generate mock data for previewing notifications."""
@@ -117,14 +58,36 @@ class PreviewService:
 
         return mock_data
 
+    def _render_slack_json_to_html(self, slack_json: dict) -> str:
+        """Convert Slack JSON to HTML for preview"""
+        html_content = []
+        html_content.append("<div class='slack-preview'>")
+        
+        for block in slack_json.get("blocks", []):
+            if block["type"] == "header":
+                text = html.escape(block['text']['text'])
+                html_content.append(f"<h2>{text}</h2>")
+            elif block["type"] == "section":
+                text = html.escape(block['text']['text']).replace('\\n', '')
+                html_content.append(f"<p>{text}</p>")
+            elif block["type"] == "divider":
+                html_content.append("<hr/>")
+            elif block["type"] == "context":
+                text = html.escape(block['elements'][0]['text'])
+                html_content.append(f"<small>{text}</small>")
+                
+        html_content.append("</div>")
+        return ''.join(html_content)
+
     def preview_template(self, preview_data) -> dict:
-        """Generate a preview of the notification template."""
+        """Generate a preview of the notification template"""
         # Generate mock data based on user input
         mock_data = self.generate_mock_data(preview_data.story_groups, [preview_data.metric["id"]], preview_data.grain)
 
         try:
             # Fetch the appropriate template based on the type
             if preview_data.template_type == NotificationChannel.SLACK:
+                # Handle Slack template (JSON)
                 slack_template = self.get_template("alert_template", "slack")
                 rendered_json = slack_template.render(
                     metric=mock_data["metric"],
@@ -132,35 +95,41 @@ class PreviewService:
                     stories=mock_data["stories"],
                     time=mock_data["time"],
                     metric_id=mock_data["metric"]["id"],
-                    recipients=", ".join(preview_data.recipients),  # Join recipients for Slack
+                    recipients=", ".join(preview_data.recipients),
                 )
 
                 slack_json = json.loads(rendered_json)
-                slack_html = render_slack_preview(slack_json)
-                final_html = self.base_template.render(content=slack_html)
+                slack_html = self._render_slack_json_to_html(slack_json)
+                final_html = self.env.get_template("base_template.html").render(content=slack_html)
+
+                # Clean up the final HTML
+                final_html = final_html.replace('\n', '').replace('    ', '')
 
                 return {
                     "preview_html": final_html,
                     "raw_content": rendered_json,
-                    "recipients": ", ".join(preview_data.recipients),  # Include recipients in response
+                    "recipients": ", ".join(preview_data.recipients),
                 }
             else:
+                # Handle Email template (HTML)
                 email_template = self.get_template("alert_template", "email")
                 email_html = email_template.render(
                     from_email="alerts@yourdomain.com",
-                    to_emails=", ".join(preview_data.recipients),  # Use the recipients directly
+                    to_emails=preview_data.recipients,
                     metric=mock_data["metric"],
                     story_groups=[s["story_group"] for s in mock_data["stories"]],
                     metrics=[mock_data["metric"]["label"]],
                     dashboard_url="https://app-dev.leverslabs.com",
                 )
 
-                final_html = self.base_template.render(content=email_html)
+                final_html = self.env.get_template("base_template.html").render(content=email_html)
+                # Clean up the final HTML
+                final_html = final_html.replace('\n', '').replace('    ', '')
 
                 return {
                     "preview_html": final_html,
                     "raw_content": email_html,
-                    "recipients": ", ".join(preview_data.recipients),  # Include recipients in response
+                    "recipients": ", ".join(preview_data.recipients),
                 }
         except Exception as e:
             logger.error("Template rendering failed: %s", str(e))

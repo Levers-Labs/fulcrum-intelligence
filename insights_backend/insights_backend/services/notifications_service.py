@@ -11,7 +11,9 @@ from insights_backend.core.schemas import NotificationList
 
 
 class NotificationListService:
-    """Service to handle combined listing of notifications (alerts and reports)"""
+    """
+    Service to handle combined listing of notifications (alerts and reports)
+    """
 
     def __init__(
         self,
@@ -19,12 +21,17 @@ class NotificationListService:
         notification_crud: CRUDNotificationChannel,
         # TODO: Add report_crud when implemented
     ):
+        """
+        Initialize the NotificationListService with CRUD instances for alerts and notification channels.
+        """
         self.alert_crud = alert_crud
         self.notification_crud = notification_crud
         # TODO: Add report_crud instance
 
     async def _get_alerts_query(self) -> select:
-        """Build base query for alerts listing"""
+        """
+        Build base query for alerts listing
+        """
         return (
             select(
                 Alert.id,
@@ -42,7 +49,9 @@ class NotificationListService:
         )
 
     async def _get_alerts_data(self, params: PaginationParams) -> tuple[list[NotificationList], int]:
-        """Get paginated alerts data"""
+        """
+        Get paginated alerts data
+        """
         query = await self._get_alerts_query()
 
         # Get total count
