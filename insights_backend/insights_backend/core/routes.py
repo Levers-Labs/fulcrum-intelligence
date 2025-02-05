@@ -152,8 +152,8 @@ async def update_user(user_id: int, user: UserUpdate, user_crud_client: UsersCRU
     dependencies=[Security(oauth2_auth().verify, scopes=[USER_READ])],  # type: ignore
 )
 async def list_users(
-        user_crud_client: UsersCRUDDep,
-        params: Annotated[PaginationParams, Depends(PaginationParams)],
+    user_crud_client: UsersCRUDDep,
+    params: Annotated[PaginationParams, Depends(PaginationParams)],
 ) -> UserList:
     """
     Retrieve all the users in DB.
@@ -182,12 +182,12 @@ async def delete_user(user_id: int, user_crud_client: UsersCRUDDep):
     dependencies=[Security(oauth2_auth().verify, scopes=[ADMIN_READ])],  # type: ignore
 )
 async def list_tenants(
-        tenant_crud_client: TenantsCRUDDep,
-        params: Annotated[
-            PaginationParams,
-            Depends(PaginationParams),
-        ],
-        enable_story_generation: bool | None = None,
+    tenant_crud_client: TenantsCRUDDep,
+    params: Annotated[
+        PaginationParams,
+        Depends(PaginationParams),
+    ],
+    enable_story_generation: bool | None = None,
 ):
     """
     Retrieve all tenants in DB.
@@ -223,7 +223,7 @@ async def get_tenant_config(tenant_id: Annotated[int, Depends(get_tenant_id)], t
     dependencies=[Security(oauth2_auth().verify, scopes=[ADMIN_READ])],  # type: ignore
 )
 async def get_tenant_config_internal(
-        tenant_id: Annotated[int, Depends(get_tenant_id)], tenant_crud_client: TenantsCRUDDep
+    tenant_id: Annotated[int, Depends(get_tenant_id)], tenant_crud_client: TenantsCRUDDep
 ):
     """
     Internal endpoint to retrieve the complete tenant configuration including sensitive fields.
@@ -242,9 +242,9 @@ async def get_tenant_config_internal(
     dependencies=[Security(oauth2_auth().verify, scopes=[])],  # type: ignore
 )
 async def update_tenant_config(
-        tenant_id: Annotated[int, Depends(get_tenant_id)],  # Retrieve tenant_id from the request context
-        config: TenantConfigUpdate,  # The new configuration for the tenant's cube connection
-        tenant_crud_client: TenantsCRUDDep,  # Dependency for the tenant CRUD operations
+    tenant_id: Annotated[int, Depends(get_tenant_id)],  # Retrieve tenant_id from the request context
+    config: TenantConfigUpdate,  # The new configuration for the tenant's cube connection
+    tenant_crud_client: TenantsCRUDDep,  # Dependency for the tenant CRUD operations
 ):
     """
     Update the configuration for a tenant's cube connection.
@@ -279,10 +279,10 @@ async def generate_authorize_url(service: SlackOAuthServiceDep):
     dependencies=[Security(oauth2_auth().verify, scopes=[ADMIN_WRITE])],  # type: ignore
 )
 async def oauth_callback(
-        code: str,
-        service: SlackOAuthServiceDep,
-        tenant_crud: TenantsCRUDDep,
-        tenant_id: Annotated[int, Depends(get_tenant_id)],
+    code: str,
+    service: SlackOAuthServiceDep,
+    tenant_crud: TenantsCRUDDep,
+    tenant_id: Annotated[int, Depends(get_tenant_id)],
 ):
     """Handle Slack OAuth callback."""
 
@@ -301,9 +301,9 @@ async def oauth_callback(
     dependencies=[Security(oauth2_auth().verify, scopes=[ADMIN_WRITE])],  # type: ignore
 )
 async def disconnect_slack(
-        service: SlackOAuthServiceDep,
-        tenant_crud: TenantsCRUDDep,
-        tenant_id: Annotated[int, Depends(get_tenant_id)],
+    service: SlackOAuthServiceDep,
+    tenant_crud: TenantsCRUDDep,
+    tenant_id: Annotated[int, Depends(get_tenant_id)],
 ):
     """
     Disconnect Slack integration for a tenant by clearing the Slack connection config.
@@ -326,10 +326,10 @@ async def disconnect_slack(
     dependencies=[Security(oauth2_auth().verify, scopes=[ADMIN_READ])],  # type: ignore
 )
 async def list_channels(
-        slack_client: SlackClientDep,
-        name: str | None = None,
-        cursor: str | None = None,
-        limit: int = 100,
+    slack_client: SlackClientDep,
+    name: str | None = None,
+    cursor: str | None = None,
+    limit: int = 100,
 ):
     """
     List Slack channels with optional name filtering and pagination support.
@@ -343,8 +343,8 @@ async def list_channels(
     dependencies=[Security(oauth2_auth().verify, scopes=[ADMIN_READ])],  # type: ignore
 )
 async def get_channel_info(
-        slack_client: SlackClientDep,
-        channel_id: str,
+    slack_client: SlackClientDep,
+    channel_id: str,
 ):
     """
     Retrieve detailed information about a specific Slack channel by its ID.
@@ -374,9 +374,9 @@ async def get_schedule_options(granularity: Granularity) -> list[ScheduleOption]
     dependencies=[Security(oauth2_auth().verify, scopes=[USER_WRITE])],
 )
 async def create_alert(
-        alert_data: AlertCreateRequest,
-        alert_crud: AlertsCRUDDep,
-        notification_crud: NotificationCRUDDep,
+    alert_data: AlertCreateRequest,
+    alert_crud: AlertsCRUDDep,
+    notification_crud: NotificationCRUDDep,
 ):
     """
     Create a new alert, either as draft or published.
@@ -414,16 +414,16 @@ async def create_alert(
     dependencies=[Security(oauth2_auth().verify, scopes=[USER_READ])],  # type: ignore
 )
 async def get_alert(
-        alert_id: int,
-        alert_crud: AlertsCRUDDep,
-        notification_crud: NotificationCRUDDep,
+    alert_id: int,
+    alert_crud: AlertsCRUDDep,
+    notification_crud: NotificationCRUDDep,
 ):
     """
     Retrieve an alert configuration along with its associated notification channels by ID.
-    
+
     This endpoint fetches an alert by its ID and includes its notification channels in the response.
     It requires the USER_READ scope for authentication.
-    
+
     :param alert_id: The ID of the alert to retrieve.
     :param alert_crud: Dependency for CRUD operations on alerts.
     :param notification_crud: Dependency for CRUD operations on notifications.
@@ -450,16 +450,16 @@ async def get_alert(
     dependencies=[Security(oauth2_auth().verify, scopes=[USER_WRITE])],  # type: ignore
 )
 async def delete_alert(
-        alert_id: int,
-        alert_crud: AlertsCRUDDep,
-        notification_crud: NotificationCRUDDep,
+    alert_id: int,
+    alert_crud: AlertsCRUDDep,
+    notification_crud: NotificationCRUDDep,
 ):
     """
     Delete an alert and its associated notification channels.
-    
+
     This endpoint deletes an alert by its ID and also removes all notification channels associated with it.
     It requires the USER_WRITE scope for authentication.
-    
+
     :param alert_id: The ID of the alert to delete.
     :param alert_crud: Dependency for CRUD operations on alerts.
     :param notification_crud: Dependency for CRUD operations on notifications.
@@ -488,16 +488,16 @@ async def delete_alert(
     dependencies=[Security(oauth2_auth().verify, scopes=[USER_WRITE])],  # type: ignore
 )
 async def bulk_delete_alerts(
-        alert_crud: AlertsCRUDDep,
-        notification_crud: NotificationCRUDDep,
-        alert_ids: list[int] = Body(..., description="List of alert IDs to delete"),
+    alert_crud: AlertsCRUDDep,
+    notification_crud: NotificationCRUDDep,
+    alert_ids: list[int] = Body(..., description="List of alert IDs to delete"),
 ):
     """
     Bulk delete alerts and their associated notification channels.
-    
+
     This endpoint allows for the bulk deletion of alerts and their associated notification channels.
     It requires the USER_WRITE scope for authentication.
-    
+
     :param alert_crud: Dependency for CRUD operations on alerts.
     :param notification_crud: Dependency for CRUD operations on notifications.
     :param alert_ids: List of IDs of the alerts to delete.
@@ -536,19 +536,19 @@ async def bulk_delete_alerts(
     dependencies=[Security(oauth2_auth().verify, scopes=[USER_WRITE])],  # type: ignore
 )
 async def bulk_toggle_notifications(
-        alert_crud: AlertsCRUDDep,
-        is_active: bool,
-        notification_type: NotificationType,
-        ids: list[int],
+    alert_crud: AlertsCRUDDep,
+    is_active: bool,
+    notification_type: NotificationType,
+    ids: list[int],
 ):
     """
     Bulk toggle the active status of notifications based on their type.
-    
+
     This endpoint allows for the bulk update of the active status of notifications.
     It supports two types of notifications: ALERT and others (not explicitly handled).
     For ALERT type, it uses the alert_crud service to update the status.
     For other types, it does not perform any update.
-    
+
     :param alert_crud: Dependency for CRUD operations on alerts.
     :param is_active: The new active status to set for the notifications.
     :param notification_type: The type of notifications to update.
@@ -591,10 +591,10 @@ async def bulk_toggle_notifications(
     dependencies=[Security(oauth2_auth().verify, scopes=[USER_WRITE])],
 )
 async def update_alert(
-        alert_id: int,
-        update_data: AlertUpdateRequest,
-        alert_crud: AlertsCRUDDep,
-        notification_crud: NotificationCRUDDep,
+    alert_id: int,
+    update_data: AlertUpdateRequest,
+    alert_crud: AlertsCRUDDep,
+    notification_crud: NotificationCRUDDep,
 ):
     """
     Update alert with partial or full data.
@@ -640,7 +640,7 @@ async def update_alert(
         )
 
     except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e))
+        raise HTTPException(status_code=404, detail=str(e)) from e
     except IntegrityError as e:
         raise HTTPException(
             status_code=400, detail="Alert update failed. Possible duplicate name or invalid data."
@@ -653,16 +653,18 @@ async def update_alert(
     dependencies=[Security(oauth2_auth().verify, scopes=[USER_WRITE])],
 )
 async def publish_alert(
-        alert_id: int,  # The ID of the alert to be published
-        notification_configs: list[NotificationChannelDetail],  # List of notification channel configurations
-        alert_crud: AlertsCRUDDep,  # Dependency for alert CRUD operations
-        notification_crud: NotificationCRUDDep,  # Dependency for notification CRUD operations
+    alert_id: int,  # The ID of the alert to be published
+    notification_configs: list[NotificationChannelDetail],  # List of notification channel configurations
+    alert_crud: AlertsCRUDDep,  # Dependency for alert CRUD operations
+    notification_crud: NotificationCRUDDep,  # Dependency for notification CRUD operations
 ):
     """
     Publish a draft alert.
     This endpoint is used to publish a draft alert. It requires notification channel configurations to be provided.
-    The endpoint verifies the alert ID, checks if the alert is already published, validates the notification configurations,
-    updates the alert to a published state, creates notification channels based on the provided configurations, and returns
+    The endpoint verifies the alert ID, checks if the alert is already published, validates the notification
+    configurations,
+    updates the alert to a published state, creates notification channels based on the provided configurations,
+    and returns
     the updated alert with its notification channels.
     """
     try:
@@ -705,14 +707,16 @@ async def publish_alert(
     dependencies=[Security(oauth2_auth().verify, scopes=[USER_READ])],
 )
 async def preview_template(
-        preview_data: PreviewRequest,
+    preview_data: PreviewRequest,
 ):
     """
     Preview notification template with sample data.
-    
-    This endpoint generates a preview of a notification template using sample data. It requires the USER_READ scope for authentication.
-    
-    :param preview_data: The request data for previewing the template, including template type, story groups, metric, grain, and recipients.
+
+    This endpoint generates a preview of a notification template using sample data. It requires the USER_READ scope
+    for authentication.
+
+    :param preview_data: The request data for previewing the template, including template type, story groups, metric,
+     grain, and recipients.
     :return: A PreviewResponse object containing the preview HTML, raw content, and recipients.
     """
     # Define the directory path for the templates
@@ -733,7 +737,7 @@ async def preview_template(
 
     except Exception as e:
         # Raise an HTTPException if any error occurs during template rendering
-        raise HTTPException(status_code=400, detail=f"Template rendering failed: {str(e)}")
+        raise HTTPException(status_code=400, detail=f"Template rendering failed: {str(e)}") from e
 
 
 @notification_router.get(
@@ -742,14 +746,15 @@ async def preview_template(
     dependencies=[Security(oauth2_auth().verify, scopes=[USER_READ])],
 )
 async def list_notifications(
-        notification_service: NotificationListServiceDep,
-        params: Annotated[PaginationParams, Depends(PaginationParams)],
+    notification_service: NotificationListServiceDep,
+    params: Annotated[PaginationParams, Depends(PaginationParams)],
 ):
     """
     Retrieve a paginated list of all notifications (alerts and reports).
-    
-    This endpoint fetches a paginated list of all notifications, including both alerts and reports. It requires the USER_READ scope for authentication.
-    
+
+    This endpoint fetches a paginated list of all notifications, including both alerts and reports. It requires the
+    USER_READ scope for authentication.
+
     :param notification_service: Dependency injection for the NotificationListService.
     :param params: Pagination parameters, including limit and offset.
     :return: A paginated list of notifications, including the total count.

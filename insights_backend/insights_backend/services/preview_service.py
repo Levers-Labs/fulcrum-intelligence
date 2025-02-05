@@ -1,9 +1,9 @@
+import html
+import json
 import logging
 import os
 import random
 from datetime import datetime
-import json
-import html
 
 from fastapi import HTTPException
 from jinja2 import Environment, FileSystemLoader, Template
@@ -15,13 +15,10 @@ logger = logging.getLogger(__name__)
 
 class PreviewService:
     """Service for previewing notification templates"""
-    
+
     def __init__(self, template_dir: str):
         self.env = Environment(
-            loader=FileSystemLoader(template_dir),
-            autoescape=True,
-            trim_blocks=True,
-            lstrip_blocks=True
+            loader=FileSystemLoader(template_dir), autoescape=True, trim_blocks=True, lstrip_blocks=True
         )
 
     def get_template(self, template_name: str, template_type: str) -> Template:
@@ -62,22 +59,22 @@ class PreviewService:
         """Convert Slack JSON to HTML for preview"""
         html_content = []
         html_content.append("<div class='slack-preview'>")
-        
+
         for block in slack_json.get("blocks", []):
             if block["type"] == "header":
-                text = html.escape(block['text']['text'])
+                text = html.escape(block["text"]["text"])
                 html_content.append(f"<h2>{text}</h2>")
             elif block["type"] == "section":
-                text = html.escape(block['text']['text']).replace('\\n', '')
+                text = html.escape(block["text"]["text"]).replace("\\n", "")
                 html_content.append(f"<p>{text}</p>")
             elif block["type"] == "divider":
                 html_content.append("<hr/>")
             elif block["type"] == "context":
-                text = html.escape(block['elements'][0]['text'])
+                text = html.escape(block["elements"][0]["text"])
                 html_content.append(f"<small>{text}</small>")
-                
+
         html_content.append("</div>")
-        return ''.join(html_content)
+        return "".join(html_content)
 
     def preview_template(self, preview_data) -> dict:
         """Generate a preview of the notification template"""
@@ -103,7 +100,7 @@ class PreviewService:
                 final_html = self.env.get_template("base_template.html").render(content=slack_html)
 
                 # Clean up the final HTML
-                final_html = final_html.replace('\n', '').replace('    ', '')
+                final_html = final_html.replace("\n", "").replace("    ", "")
 
                 return {
                     "preview_html": final_html,
@@ -124,7 +121,7 @@ class PreviewService:
 
                 final_html = self.env.get_template("base_template.html").render(content=email_html)
                 # Clean up the final HTML
-                final_html = final_html.replace('\n', '').replace('    ', '')
+                final_html = final_html.replace("\n", "").replace("    ", "")
 
                 return {
                     "preview_html": final_html,

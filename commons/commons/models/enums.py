@@ -21,9 +21,3 @@ class GranularityOrder(Enum):
     MONTH = 3
     QUARTER = 4
     YEAR = 5
-
-
-class GranularityLabel(StrEnum):
-    DAY = "Daily"
-    WEEK = "Weekly"
-    MONTH = "Monthly"

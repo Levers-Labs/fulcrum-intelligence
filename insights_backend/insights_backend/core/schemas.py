@@ -1,7 +1,5 @@
 from datetime import datetime
-from typing import (
-    Any,
-)
+from typing import Any
 
 from pydantic import ConfigDict, Field, field_validator
 

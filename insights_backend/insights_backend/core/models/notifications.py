@@ -1,13 +1,11 @@
 from datetime import datetime, time
 from enum import Enum
-from typing import Any, List, Literal
+from typing import Literal
 
 from pydantic import (
-    ConfigDict,
     EmailStr,
     computed_field,
     field_validator,
-    model_validator,
 )
 from pydantic_core.core_schema import ValidationInfo
 from sqlalchemy import (
@@ -18,7 +16,7 @@ from sqlalchemy import (
     Text,
 )
 from sqlalchemy.dialects.postgresql import JSONB
-from sqlmodel import Field, SQLModel
+from sqlmodel import Field
 
 from commons.models import BaseModel
 from commons.models.enums import Granularity
@@ -176,10 +174,11 @@ class ReportConfig(BaseModel):
         return f"Report metrics: {metric_str}"
 
 
-# class Report(NotificationConfigBase, InsightsSchemaBaseModel, table=True):
-#     """Complete report configuration including schedule and metrics"""
-#     schedule: ScheduleConfig = Field(default_factory=dict, sa_type=JSONB)
-#     config: ReportConfig = Field(sa_type=JSONB)
+class Report(NotificationConfigBase, InsightsSchemaBaseModel, table=True):
+    """Complete report configuration including schedule and metrics"""
+
+    schedule: ScheduleConfig = Field(default_factory=dict, sa_type=JSONB)
+    config: ReportConfig = Field(sa_type=JSONB)
 
 
 # ----------------

@@ -1,10 +1,6 @@
-import json
-from datetime import time
 from typing import Any
 
-from fastapi.encoders import jsonable_encoder
 from sqlalchemy import delete, select, update
-from sqlalchemy.orm import selectinload
 
 from commons.db.crud import CRUDBase, NotFoundError
 from commons.models.tenant import SlackConnectionConfig, TenantConfigUpdate
@@ -36,8 +32,8 @@ class CRUDUser(CRUDBase[User, UserCreate, UserUpdate, None]):  # type: ignore
         result = await self.session.execute(statement=statement)
         return result.scalar_one_or_none()
 
-    async def create(self, *, update_alert: UserCreate) -> User:
-        values = update_alert.dict()
+    async def create(self, *, obj_in: UserCreate) -> User:
+        values = obj_in.dict()
         # Remove tenant_org_id from values
         values.pop("tenant_org_id")
         obj = self.model(**values)
@@ -258,14 +254,19 @@ class CRUDAlert(CRUDBase[Alert, AlertCreateRequest, None, None]):
     async def create(self, *, new_alert: AlertCreateRequest) -> Any:
         """Creates a new Alert with its associated notification channels."""
         # Extract fields from the request object, excluding trigger and notification_channels
-        alert_fields = {k: v for k, v in new_alert.model_dump().items() if k not in ["trigger", "notification_channels"]}
+        alert_fields = {
+            k: v for k, v in new_alert.model_dump().items() if k not in ["trigger", "notification_channels"]
+        }
         # Create an Alert object with the extracted fields and additional default values
         alert = Alert(
             **alert_fields,
             type=NotificationType.ALERT,  # Default alert type
             tenant_id=get_tenant_id(),  # Tenant ID from context
             summary=str(new_alert.trigger.condition),  # Summary based on trigger condition
-            trigger={"type": new_alert.trigger.type, "condition": new_alert.trigger.condition.model_dump()},  # Trigger details
+            trigger={
+                "type": new_alert.trigger.type,
+                "condition": new_alert.trigger.condition.model_dump(),
+            },  # Trigger details
         )
 
         # Add the new Alert to the session
