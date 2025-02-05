@@ -1,0 +1,26 @@
+<div class="email-container">
+    <div class="header">
+        From: {{ from_email }}<br>
+        To: {{ to_emails|join(', ') }}<br>
+        Subject: [{{ metric.label }}] New Stories Alert
+    </div>
+
+    <div class="subject">New Stories Alert</div>
+
+    <div class="description">
+        New stories have been detected for your monitored groups and metrics.
+    </div>
+
+    <div class="content-box">
+        <div class="label">Story Groups:</div>
+        {{ story_groups|join(', ') }}
+
+        <div class="label" style="margin-top: 15px;">Metrics:</div>
+        {{ metrics|join(', ') }}
+    </div>
+
+    <div class="footer">
+        To view more details or manage your alert settings, please visit the dashboard.<br>
+        <a href="{{ dashboard_url }}" class="link">View in Dashboard<span class="arrow">→</span></a>
+    </div>
+</div>
