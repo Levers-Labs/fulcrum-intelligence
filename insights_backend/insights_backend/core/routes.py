@@ -4,7 +4,6 @@ from typing import Annotated
 
 from fastapi import (
     APIRouter,
-    Body,
     Depends,
     HTTPException,
     Security,
@@ -20,7 +19,6 @@ from commons.auth.scopes import (
     USER_WRITE,
 )
 from commons.db.crud import NotFoundError
-from commons.models.enums import Granularity
 from commons.models.tenant import (
     SlackConnectionConfig,
     TenantConfig,
@@ -40,7 +38,6 @@ from insights_backend.core.dependencies import (
     UsersCRUDDep,
     oauth2_auth,
 )
-from insights_backend.core.enums import SCHEDULE_OPTIONS_MAP, ScheduleOption
 from insights_backend.core.filters import TenantConfigFilter
 from insights_backend.core.models import (
     TenantList,
@@ -355,18 +352,6 @@ async def get_channel_info(
         raise HTTPException(status_code=404, detail=f"Channel not found for {channel_id}") from SlackErr
 
 
-@notification_router.get(
-    "/schedule-options/{granularity}",
-    response_model=list[ScheduleOption],
-    dependencies=[Security(oauth2_auth().verify, scopes=[USER_READ])],  # type: ignore
-)
-async def get_schedule_options(granularity: Granularity) -> list[ScheduleOption]:
-    """
-    Get available schedule options for a given granularity.
-    """
-    return SCHEDULE_OPTIONS_MAP.get(granularity, [])
-
-
 @notification_router.post(
     "/alerts",
     response_model=AlertResponse,
@@ -490,7 +475,7 @@ async def delete_alert(
 async def bulk_delete_alerts(
     alert_crud: AlertsCRUDDep,
     notification_crud: NotificationCRUDDep,
-    alert_ids: list[int] = Body(..., description="List of alert IDs to delete"),
+    alert_ids: list[int],
 ):
     """
     Bulk delete alerts and their associated notification channels.
@@ -717,7 +702,7 @@ async def preview_template(
 
     :param preview_data: The request data for previewing the template, including template type, story groups, metric,
      grain, and recipients.
-    :return: A PreviewResponse object containing the preview HTML, raw content, and recipients.
+    :return: A PreviewResponse object containing either email or slack preview data.
     """
     # Define the directory path for the templates
     template_dir = os.path.join(os.path.dirname(__file__), "../templates")
@@ -728,12 +713,8 @@ async def preview_template(
         # Call the preview_template method of the PreviewService to generate the preview
         preview_result = preview_service.preview_template(preview_data)
 
-        # Return a PreviewResponse object with the preview HTML, raw content, and recipients
-        return PreviewResponse(
-            preview_html=preview_result["preview_html"],
-            raw_content=preview_result["raw_content"],
-            recipients=preview_result["recipients"],
-        )
+        # Convert the dictionary to a Pydantic model
+        return PreviewResponse(**preview_result)
 
     except Exception as e:
         # Raise an HTTPException if any error occurs during template rendering

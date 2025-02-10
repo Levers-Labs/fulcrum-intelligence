@@ -136,22 +136,54 @@ class StoryPreviewData(BaseModel):
     detail: str
 
 
+class MetricInfo(BaseModel):
+    """Model for metric information"""
+
+    id: str = Field(..., example="newInqs")
+    label: str = Field(..., example="New Inquiries")
+
+
 class PreviewRequest(BaseModel):
     """Request model for template preview"""
 
     template_type: NotificationChannel
-    metric: dict[str, Any] = Field(..., example={"label": "New Inquiries", "id": "newInqs"})
+    metrics: list[MetricInfo] | None = Field(
+        None,
+        example=[{"id": "newInqs", "label": "New Inquiries"}],
+        description="Optional list of metrics. If not provided, a sample metric will be used.",
+    )
     grain: str = Field(..., example="day")
     story_groups: list[str] = Field(..., example=["TREND_CHANGES"])
     recipients: list[str] = Field(..., example=["recipient@example.com"])
+
+    @field_validator("metrics")
+    def set_default_metrics(self, v):
+        if not v:
+            return [MetricInfo(id="sample_metric", label="Sample Metric")]
+        return v
+
+
+class EmailPreviewResponse(BaseModel):
+    """Response model for email template preview"""
+
+    to_emails: list[str]
+    cc_emails: list[str] = Field(default_factory=list)
+    subject: str
+    body: str
+
+
+class SlackPreviewResponse(BaseModel):
+    """Response model for slack template preview"""
+
+    message: dict[str, Any]
+    channels: list[str]
 
 
 class PreviewResponse(BaseModel):
     """Response model for template preview"""
 
-    preview_html: str = Field(description="HTML representation of the template for preview")
-    raw_content: str = Field(description="Original rendered content (JSON for Slack, HTML for Email)")
-    recipients: str = Field(description="Recipients of the template")
+    email: EmailPreviewResponse | None = None
+    slack: SlackPreviewResponse | None = None
 
 
 class NotificationList(BaseModel):
