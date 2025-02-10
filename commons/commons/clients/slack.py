@@ -10,9 +10,7 @@ class SlackClient:
         """Initialize the Slack client with authentication token"""
         self.client = WebClient(token=token)
 
-    async def list_channels(
-        self, cursor: str | None = None, limit: int = 100, name: str | None = None
-    ) -> dict[str, Any]:
+    def list_channels(self, cursor: str | None = None, limit: int = 100, name: str | None = None) -> dict[str, Any]:
         """
         List channels in the workspace with pagination support and name filtering
 
@@ -47,14 +45,14 @@ class SlackClient:
         # have next_cursor as we have in code filters
         # in that case, we should rerun function with next_cursor value
         # if not channels and next_cursor:
-        #     return await self.list_channels(cursor=next_cursor, limit=limit, name=name)
+        #     return self.list_channels(cursor=next_cursor, limit=limit, name=name)
 
         return {
             "results": channels,
             "next_cursor": next_cursor if next_cursor else None,
         }
 
-    async def post_message(
+    def post_message(
         self,
         channel_id: str,
         text: str | None = None,
@@ -84,7 +82,7 @@ class SlackClient:
         response = self.client.chat_postMessage(**kwargs)
         return response["ok"]
 
-    async def get_channel_info(self, channel_id: str) -> dict[str, Any]:
+    def get_channel_info(self, channel_id: str) -> dict[str, Any]:
         """
         Get channel info in the workspace for the given channel id
 
