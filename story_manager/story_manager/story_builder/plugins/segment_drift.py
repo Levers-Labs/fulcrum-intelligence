@@ -190,7 +190,7 @@ class SegmentDriftStoryBuilder(StoryBuilderBase):
                 "previous_share": round(dimension_slice["comparison_value"]["slice_share"]),
                 "current_share": round(dimension_slice["evaluation_value"]["slice_share"]),
                 "dimension": metric_dimensions[dimension_slice["key"][0]["dimension"]],
-                "slice_name": dimension_slice["key"][0]["value"],
+                "slice": dimension_slice["key"][0]["value"],
                 "slice_share_change_percentage": round(dimension_slice["slice_share_change_percentage"]),
                 "pressure_direction": dimension_slice["pressure"].lower(),
                 "previous_value": round(dimension_slice["comparison_value"]["slice_value"]),

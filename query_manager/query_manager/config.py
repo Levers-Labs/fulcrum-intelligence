@@ -36,8 +36,8 @@ class Settings(BaseSettings):
     SERVER_HOST: str | AnyHttpUrl
     PAGINATION_PER_PAGE: int = 20
 
-    AWS_BUCKET: str = "fulcrum-engine-metrics"
-    AWS_REGION: str = "us-east-1"
+    AWS_BUCKET: str = "fulcrum-metrics-pq"
+    AWS_REGION: str = "us-west-1"
 
     BACKEND_CORS_ORIGINS: list[AnyHttpUrl | str] = []
 
