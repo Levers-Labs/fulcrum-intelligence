@@ -195,7 +195,7 @@ def segment_drift_stories():
                     "previous_share": 100,
                     "current_share": 97,
                     "dimension": "Billing Plan",
-                    "slice_name": "Enterprise",
+                    "slice": "Enterprise",
                     "slice_share_change_percentage": -3,
                     "pressure_direction": "upward",
                     "previous_value": 106,
@@ -207,8 +207,8 @@ def segment_drift_stories():
                     "serialized_key": "billing_plan:Enterprise",
                 }
             ],
-            "title": "Key Driver: Falling null share of Billing Plan",
-            "detail": "For New Business Deals, the share of Billing Plan that is null has "
+            "title": "Key Driver: Falling Enterprise share of Billing Plan",
+            "detail": "For New Business Deals, the share of Billing Plan that is Enterprise has "
             "decreased from 100% to 97% over the past week. This decrease contributed -3% upward"
             " pressure on New Business Deals.",
             "title_template": "Key Driver: Falling {{slice | default('null')}} share of " "{{dimension}}",
@@ -225,7 +225,7 @@ def segment_drift_stories():
                 "previous_share": 100,
                 "current_share": 97,
                 "dimension": "Billing Plan",
-                "slice_name": "Enterprise",
+                "slice": "Enterprise",
                 "slice_share_change_percentage": -3,
                 "pressure_direction": "upward",
                 "previous_value": 106,
@@ -249,7 +249,7 @@ def segment_drift_stories():
                     "previous_share": 100,
                     "current_share": 97,
                     "dimension": "Billing Plan",
-                    "slice_name": "Enterprise",
+                    "slice": "Enterprise",
                     "slice_share_change_percentage": -3,
                     "pressure_direction": "upward",
                     "previous_value": 106,
@@ -261,8 +261,9 @@ def segment_drift_stories():
                     "serialized_key": "billing_plan:Enterprise",
                 }
             ],
-            "title": "Key Driver: Stronger null segment",
-            "detail": "Over the past week, when Billing Plan is null, New Business Deals is 29. This is an increase of "
+            "title": "Key Driver: Stronger Enterprise segment",
+            "detail": "Over the past week, when Billing Plan is Enterprise, "
+            "New Business Deals is 29. This is an increase of "
             "-73% relative to the prior week, and this increase contributed 3% upward pressure on New Business Deals.",
             "title_template": "Key Driver: Stronger {{slice | default('null')}} segment",
             "detail_template": "Over the past {{grain}}, when {{dimension}} is {{slice | "
@@ -278,7 +279,7 @@ def segment_drift_stories():
                 "previous_share": 100,
                 "current_share": 97,
                 "dimension": "Billing Plan",
-                "slice_name": "Enterprise",
+                "slice": "Enterprise",
                 "slice_share_change_percentage": -3,
                 "pressure_direction": "upward",
                 "previous_value": 106,
@@ -302,7 +303,7 @@ def segment_drift_stories():
                     "previous_share": 0,
                     "current_share": 3,
                     "dimension": "Billing Plan",
-                    "slice_name": "Partnership",
+                    "slice": "Partnership",
                     "slice_share_change_percentage": 3,
                     "pressure_direction": "downward",
                     "previous_value": 0,
@@ -314,8 +315,8 @@ def segment_drift_stories():
                     "serialized_key": "billing_plan:Partnership",
                 }
             ],
-            "title": "Key Driver: Growing null share of Billing Plan",
-            "detail": "The share of Billing Plan that is null increased from 0% to 3% over the "
+            "title": "Key Driver: Growing Partnership share of Billing Plan",
+            "detail": "The share of Billing Plan that is Partnership increased from 0% to 3% over the "
             "past week. This increase contributed 3% downward pressure on New Business Deals.",
             "title_template": "Key Driver: Growing {{slice | default('null')}} share of {{dimension}}",
             "detail_template": "The share of {{dimension}} that is {{slice | default('null')}} "
@@ -331,7 +332,7 @@ def segment_drift_stories():
                 "previous_share": 0,
                 "current_share": 3,
                 "dimension": "Billing Plan",
-                "slice_name": "Partnership",
+                "slice": "Partnership",
                 "slice_share_change_percentage": 3,
                 "pressure_direction": "downward",
                 "previous_value": 0,
@@ -355,7 +356,7 @@ def segment_drift_stories():
                     "previous_share": 0,
                     "current_share": 3,
                     "dimension": "Billing Plan",
-                    "slice_name": "Partnership",
+                    "slice": "Partnership",
                     "slice_share_change_percentage": 3,
                     "pressure_direction": "downward",
                     "previous_value": 0,
@@ -367,8 +368,8 @@ def segment_drift_stories():
                     "serialized_key": "billing_plan:Partnership",
                 }
             ],
-            "title": "Key Driver: Weaker  segment",
-            "detail": "Over the past week, when Billing Plan is null, "
+            "title": "Key Driver: Weaker Partnership segment",
+            "detail": "Over the past week, when Billing Plan is Partnership, "
             "New Business Deals is 1. This is a decrease of 0% relative to the prior week, and this decrease "
             "contributed -1% downward pressure on New Business Deals.",
             "title_template": "Key Driver: Weaker {{slice}} segment",
@@ -385,7 +386,7 @@ def segment_drift_stories():
                 "previous_share": 0,
                 "current_share": 3,
                 "dimension": "Billing Plan",
-                "slice_name": "Partnership",
+                "slice": "Partnership",
                 "slice_share_change_percentage": 3,
                 "pressure_direction": "downward",
                 "previous_value": 0,
