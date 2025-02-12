@@ -1,7 +1,12 @@
 from datetime import datetime
 from typing import Any
 
-from pydantic import ConfigDict, Field, field_validator
+from pydantic import (
+    ConfigDict,
+    Field,
+    field_validator,
+    model_validator,
+)
 
 from commons.models import BaseModel
 from commons.models.enums import Granularity
@@ -11,6 +16,7 @@ from insights_backend.core.models.notifications import (
     AlertTrigger,
     EmailRecipient,
     NotificationChannelConfigBase,
+    NotificationStatus,
     NotificationType,
 )
 
@@ -25,8 +31,6 @@ class NotificationChannelDetail(BaseModel):
 
     channel_type: NotificationChannel
     recipients: list[SlackChannel | EmailRecipient]
-    template: str | None = None
-    config: dict | None = None
 
 
 class AlertCreateRequest(BaseModel):
@@ -38,7 +42,15 @@ class AlertCreateRequest(BaseModel):
     trigger: AlertTrigger
     tags: list[str] = []
     is_active: bool = True
+    is_published: bool = True
     notification_channels: list[NotificationChannelConfigBase] = []
+
+    @model_validator(mode="after")
+    def validate_notification_channels(self) -> "AlertCreateRequest":
+        """Ensure notification channels are provided if alert is published"""
+        if self.is_published and not self.notification_channels:
+            raise ValueError("Published alerts must have at least one notification channel")
+        return self
 
     @field_validator("tags")
     @classmethod
@@ -54,20 +66,20 @@ class AlertCreateRequest(BaseModel):
                 "grain": "day",
                 "trigger": {
                     "type": "METRIC_STORY",
-                    "condition": {"metric_ids": ["sales_revenue"], "story_groups": ["TREND"]},
+                    "condition": {"metric_ids": ["newInqs"], "story_groups": ["TREND_CHANGES"]},
                 },
                 "tags": ["sales", "daily"],
                 "is_active": True,
-                "is_published": False,
+                "is_published": True,
                 "notification_channels": [
                     {
-                        "channel_type": "SLACK",
+                        "channel_type": "slack",
                         "recipients": [
                             {"id": "C1234567890", "name": "sales-alerts", "is_channel": "true", "is_private": "false"}
                         ],
                     },
                     {
-                        "channel_type": "EMAIL",
+                        "channel_type": "email",
                         "recipients": [
                             {
                                 "email": "team@example.com",
@@ -109,8 +121,6 @@ class AlertUpdateRequest(BaseModel):
     trigger: AlertTrigger | None = None
     tags: list[str] | None = None
     notification_channels: list[NotificationChannelDetail] | None = None
-    is_active: bool | None = None
-    is_published: bool
 
     model_config = ConfigDict(
         json_schema_extra={
@@ -118,11 +128,71 @@ class AlertUpdateRequest(BaseModel):
                 "name": "Updated Alert Name",
                 "description": "Updated description",
                 "grain": "day",
-                "trigger": {"type": "threshold", "condition": {"operator": "gt", "value": 100}},
+                "trigger": {
+                    "type": "METRIC_STORY",
+                    "condition": {"metric_ids": ["newInqs"], "story_groups": ["TREND_CHANGES"]},
+                },
                 "tags": ["updated", "tag"],
-                "notification_channels": [{"channel_type": "slack", "recipients": ["#channel"]}],
-                "is_active": True,
-                "is_published": False,
+                "notification_channels": [
+                    {
+                        "channel_type": "slack",
+                        "recipients": [
+                            {"id": "C1234567890", "name": "sales-alerts", "is_channel": "true", "is_private": "false"}
+                        ],
+                    },
+                    {
+                        "channel_type": "email",
+                        "recipients": [
+                            {
+                                "email": "team@example.com",
+                            }
+                        ],
+                    },
+                ],
+            }
+        }
+    )
+
+
+class AlertPublishRequest(BaseModel):
+    """Request model for updating alerts"""
+
+    name: str | None = None
+    description: str | None = None
+    grain: Granularity | None = None
+    trigger: AlertTrigger | None = None
+    tags: list[str] | None = None
+    notification_channels: list[NotificationChannelDetail] | None = None
+    is_published: bool = True
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "name": "Alert Name",
+                "description": "description",
+                "grain": "day",
+                "is_published": True,
+                "trigger": {
+                    "type": "METRIC_STORY",
+                    "condition": {"metric_ids": ["newInqs"], "story_groups": ["TREND_CHANGES"]},
+                },
+                "tags": ["updated", "tag"],
+                "notification_channels": [
+                    {
+                        "channel_type": "slack",
+                        "recipients": [
+                            {"id": "C1234567890", "name": "sales-alerts", "is_channel": "true", "is_private": "false"}
+                        ],
+                    },
+                    {
+                        "channel_type": "email",
+                        "recipients": [
+                            {
+                                "email": "team@example.com",
+                            }
+                        ],
+                    },
+                ],
             }
         }
     )
@@ -156,11 +226,11 @@ class PreviewRequest(BaseModel):
     story_groups: list[str] = Field(..., example=["TREND_CHANGES"])
     recipients: list[str] = Field(..., example=["recipient@example.com"])
 
-    @field_validator("metrics")
-    def set_default_metrics(self, v):
-        if not v:
-            return [MetricInfo(id="sample_metric", label="Sample Metric")]
-        return v
+    # @field_validator("metrics")
+    # def set_default_metrics(self, v):
+    #     if not v:
+    #         return [MetricInfo(id="sample_metric", label="Sample Metric")]
+    #     return v
 
 
 class EmailPreviewResponse(BaseModel):
@@ -191,11 +261,10 @@ class NotificationList(BaseModel):
 
     id: int
     name: str
-    type: str  # Alert/Report
-    grain: str
-    trigger_schedule: str  # For Alert: trigger summary, For Report: schedule
-    # created_by: str
+    type: NotificationType
+    grain: Granularity
+    trigger_schedule: str
     tags: list[str]
     last_execution: datetime | None
     recipients_count: int
-    status: str  # Active/Inactive
+    status: NotificationStatus

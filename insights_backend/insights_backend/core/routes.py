@@ -1,11 +1,11 @@
 import logging
-import os
 from typing import Annotated
 
 from fastapi import (
     APIRouter,
     Depends,
     HTTPException,
+    Query,
     Security,
 )
 from slack_sdk.errors import SlackApiError
@@ -19,6 +19,7 @@ from commons.auth.scopes import (
     USER_WRITE,
 )
 from commons.db.crud import NotFoundError
+from commons.models.enums import Granularity
 from commons.models.tenant import (
     SlackConnectionConfig,
     TenantConfig,
@@ -32,13 +33,14 @@ from insights_backend.core.dependencies import (
     AlertsCRUDDep,
     NotificationCRUDDep,
     NotificationListServiceDep,
+    PreviewServiceDep,
     SlackClientDep,
     SlackOAuthServiceDep,
     TenantsCRUDDep,
     UsersCRUDDep,
     oauth2_auth,
 )
-from insights_backend.core.filters import TenantConfigFilter
+from insights_backend.core.filters import NotificationFilter, TenantConfigFilter
 from insights_backend.core.models import (
     TenantList,
     TenantRead,
@@ -46,21 +48,19 @@ from insights_backend.core.models import (
     UserCreate,
     UserList,
 )
-from insights_backend.core.models.notifications import NotificationType
 from insights_backend.core.models.users import UserRead, UserUpdate
 from insights_backend.core.schemas import (
     AlertCreateRequest,
+    AlertPublishRequest,
     AlertResponse,
     AlertUpdateRequest,
-    NotificationChannelDetail,
     NotificationList,
+    NotificationType,
     PreviewRequest,
     PreviewResponse,
     SlackChannel,
     SlackChannelResponse,
 )
-
-from ..services.preview_service import PreviewService
 
 user_router = APIRouter(prefix="/users", tags=["users"])
 router = APIRouter(tags=["tenants"])
@@ -352,9 +352,11 @@ async def get_channel_info(
         raise HTTPException(status_code=404, detail=f"Channel not found for {channel_id}") from SlackErr
 
 
+#  ALERTS APIS =========
+
+
 @notification_router.post(
     "/alerts",
-    response_model=AlertResponse,
     status_code=201,
     dependencies=[Security(oauth2_auth().verify, scopes=[USER_WRITE])],
 )
@@ -368,29 +370,29 @@ async def create_alert(
     If creating as draft (is_published=False), notification channels will be ignored.
     """
     try:
-        # Attempt to create a new alert using the provided alert data
         alert = await alert_crud.create(
             new_alert=alert_data,
         )
 
-        # Initialize an empty list to hold notification channels
-        notification_channels = []
-        # Check if the alert is being published and if notification channels are provided
-        if alert_data.is_published and alert_data.notification_channels:
-            # Create notification channels for the published alert
-            notification_channels = await notification_crud.create(
-                notification_configs=alert_data.notification_channels, alert_id=alert.id
-            )
-
-        # Prepare the response by combining the alert data with its notification channels
-        return AlertResponse.model_validate(
-            {**alert.model_dump(), "notification_channels": [n.model_dump() for n in notification_channels]}
-        )
+        if alert_data.notification_channels:
+            _ = await notification_crud.create(notification_configs=alert_data.notification_channels, alert_id=alert.id)
     except IntegrityError as e:
         # Handle any integrity errors that occur during the creation process
         raise HTTPException(
             status_code=400, detail="Alert creation failed. Possible duplicate name or invalid data."
         ) from e
+
+
+@notification_router.get(
+    "/alerts/tags",
+    response_model=list[str],
+    dependencies=[Security(oauth2_auth().verify, scopes=[USER_READ])],
+)
+async def get_alert_tags(
+    alert_crud: AlertsCRUDDep,
+) -> list[str]:
+    """Get all unique tags used across alerts"""
+    return await alert_crud.get_unique_tags()
 
 
 @notification_router.get(
@@ -467,113 +469,10 @@ async def delete_alert(
     return None
 
 
-@notification_router.delete(
-    "/alerts/bulk",
-    status_code=204,
-    dependencies=[Security(oauth2_auth().verify, scopes=[USER_WRITE])],  # type: ignore
-)
-async def bulk_delete_alerts(
-    alert_crud: AlertsCRUDDep,
-    notification_crud: NotificationCRUDDep,
-    alert_ids: list[int],
-):
-    """
-    Bulk delete alerts and their associated notification channels.
-
-    This endpoint allows for the bulk deletion of alerts and their associated notification channels.
-    It requires the USER_WRITE scope for authentication.
-
-    :param alert_crud: Dependency for CRUD operations on alerts.
-    :param notification_crud: Dependency for CRUD operations on notifications.
-    :param alert_ids: List of IDs of the alerts to delete.
-    """
-    failed_deletions = []
-    successful_deletions = []
-
-    for alert_id in alert_ids:
-        if not await alert_crud.get(alert_id):
-            failed_deletions.append(alert_id)
-            continue
-        successful_deletions.append(alert_id)
-
-    if failed_deletions and not successful_deletions:
-        # If all deletions failed
-        raise HTTPException(
-            status_code=404,
-            detail={
-                "loc": ["body", "alert_ids"],
-                "msg": f"None of the alerts were found: {failed_deletions}",
-                "type": "not_found",
-            },
-        )
-
-    if successful_deletions:
-        # Delete notification channels and alerts for successful IDs
-        await notification_crud.delete_by_alert_ids(successful_deletions)
-        await alert_crud.delete(successful_deletions)
-
-    return None
-
-
-@notification_router.patch(
-    "/bulk/actions",
-    status_code=200,
-    dependencies=[Security(oauth2_auth().verify, scopes=[USER_WRITE])],  # type: ignore
-)
-async def bulk_toggle_notifications(
-    alert_crud: AlertsCRUDDep,
-    is_active: bool,
-    notification_type: NotificationType,
-    ids: list[int],
-):
-    """
-    Bulk toggle the active status of notifications based on their type.
-
-    This endpoint allows for the bulk update of the active status of notifications.
-    It supports two types of notifications: ALERT and others (not explicitly handled).
-    For ALERT type, it uses the alert_crud service to update the status.
-    For other types, it does not perform any update.
-
-    :param alert_crud: Dependency for CRUD operations on alerts.
-    :param is_active: The new active status to set for the notifications.
-    :param notification_type: The type of notifications to update.
-    :param ids: List of IDs of the notifications to update.
-    """
-    # Determine the CRUD service to use based on the notification type
-    crud_service = alert_crud if notification_type == NotificationType.ALERT else None
-
-    failed_updates = []
-    successful_updates = []
-
-    # Iterate through the list of IDs to check which notifications exist
-    for item_id in ids:
-        if not await crud_service.get(item_id):  # type: ignore
-            failed_updates.append(item_id)
-            continue
-        successful_updates.append(item_id)
-
-    # If all updates failed, raise an HTTPException
-    if failed_updates and not successful_updates:
-        raise HTTPException(
-            status_code=404,
-            detail={
-                "loc": ["body", "ids"],
-                "msg": f"None of the {notification_type} were found: {failed_updates}",
-                "type": "not_found",
-            },
-        )
-
-    # If there are successful updates, update the active status for those IDs
-    if successful_updates:
-        await crud_service.update_active_status(successful_updates, is_active)  # type: ignore
-
-    return None
-
-
 @notification_router.patch(
     "/alerts/{alert_id}",
     response_model=AlertResponse,
-    dependencies=[Security(oauth2_auth().verify, scopes=[USER_WRITE])],
+    dependencies=[Security(oauth2_auth().verify, scopes=[USER_READ])],
 )
 async def update_alert(
     alert_id: int,
@@ -581,109 +480,65 @@ async def update_alert(
     alert_crud: AlertsCRUDDep,
     notification_crud: NotificationCRUDDep,
 ):
-    """
-    Update alert with partial or full data.
-    - Draft alerts ignore notification channels
-    - Publishing requires notification channels
-    - Cannot transition from published to draft (use dedicated unpublish endpoint)
-    """
+    """Update alert configuration"""
     try:
-        # Retrieve the current alert state
-        current_alert = await alert_crud.get(alert_id)
-        if not current_alert:
-            raise HTTPException(status_code=404, detail=f"Alert with ID {alert_id} not found")
-
-        # Check if attempting to publish an alert without specifying notification channels
-        if not current_alert.is_published and update_data.is_published:
-            if not update_data.notification_channels:
-                raise HTTPException(
-                    status_code=400, detail="Notification channels are required when publishing an alert"
-                )
-
-        # Update the alert with the provided data
-        alert = await alert_crud.update(
-            alert_id=alert_id,
-            update_alert=update_data,
-        )
+        alert = await alert_crud.update(alert_id=alert_id, update_alert=update_data)
 
         notification_channels = []
+        if update_data.notification_channels is not None:
+            notification_channels = await notification_crud.update_by_alert_id(
+                alert_id=alert_id, notification_configs=update_data.notification_channels
+            )
+        else:
+            notification_channels = await notification_crud.get_channels_by_alert(alert_id)
 
-        # Handle notification channels based on the alert's state
-        if alert.is_published:
-            if update_data.notification_channels is not None:  # Explicitly check if field was provided
-                # Update channels if provided
-                notification_channels = await notification_crud.update_by_alert_id(
-                    alert_id=alert_id, notification_configs=update_data.notification_channels
-                )
-            else:
-                # Keep existing channels if not updating them
-                notification_channels = await notification_crud.get_channels_by_alert(alert_id)
-
-        # Prepare the response with the updated alert and its notification channels
         return AlertResponse.model_validate(
             {**alert.model_dump(), "notification_channels": [n.model_dump() for n in notification_channels]}
         )
 
     except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e)) from e
-    except IntegrityError as e:
+        raise HTTPException(status_code=400, detail={"msg": str(e), "type": "validation_error"}) from e
+    except IntegrityError as i:
         raise HTTPException(
-            status_code=400, detail="Alert update failed. Possible duplicate name or invalid data."
-        ) from e
+            status_code=409, detail={"msg": "An alert with this name already exists", "type": "conflict"}
+        ) from i
 
 
 @notification_router.post(
     "/alerts/{alert_id}/publish",
     response_model=AlertResponse,
-    dependencies=[Security(oauth2_auth().verify, scopes=[USER_WRITE])],
+    dependencies=[Security(oauth2_auth().verify, scopes=[USER_READ])],
 )
 async def publish_alert(
-    alert_id: int,  # The ID of the alert to be published
-    notification_configs: list[NotificationChannelDetail],  # List of notification channel configurations
-    alert_crud: AlertsCRUDDep,  # Dependency for alert CRUD operations
-    notification_crud: NotificationCRUDDep,  # Dependency for notification CRUD operations
+    alert_id: int,
+    publish_data: AlertPublishRequest,
+    alert_crud: AlertsCRUDDep,
+    notification_crud: NotificationCRUDDep,
 ):
-    """
-    Publish a draft alert.
-    This endpoint is used to publish a draft alert. It requires notification channel configurations to be provided.
-    The endpoint verifies the alert ID, checks if the alert is already published, validates the notification
-    configurations,
-    updates the alert to a published state, creates notification channels based on the provided configurations,
-    and returns
-    the updated alert with its notification channels.
-    """
+    """Publish a draft alert with notification channels"""
     try:
-        # Retrieve the draft alert by its ID
-        alert = await alert_crud.get(alert_id)
-        if not alert:
-            raise HTTPException(status_code=404, detail=f"Alert with ID {alert_id} not found")
+        # Ensure is_published is True
+        if not publish_data.is_published:
+            raise HTTPException(
+                status_code=400,
+                detail={"msg": "Cannot set is_published to False in publish request", "type": "validation_error"},
+            )
 
-        # Check if the alert is already published
-        if alert.is_published:
-            raise HTTPException(status_code=400, detail="Alert is already published")
+        alert = await alert_crud.publish(alert_id=alert_id, publish_data=publish_data)
 
-        # Validate that notification configurations are provided
-        if not notification_configs:
-            raise HTTPException(status_code=400, detail="Notification channels are required for publishing an alert")
+        if publish_data.notification_channels:
+            notification_channels = await notification_crud.create(
+                notification_configs=publish_data.notification_channels, alert_id=alert_id
+            )
+        else:
+            notification_channels = []
 
-        # Update the alert to a published state
-        alert = await alert_crud.update(alert_id=alert_id, update_alert={"is_published": True})  # type: ignore
-
-        # Create notification channels based on the provided configurations
-        notification_channels = await notification_crud.create(
-            notification_configs=notification_configs, alert_id=alert_id
-        )
-
-        # Prepare the response with the updated alert and its notification channels
         return AlertResponse.model_validate(
             {**alert.model_dump(), "notification_channels": [n.model_dump() for n in notification_channels]}
         )
 
-    except IntegrityError as e:
-        # Handle any integrity errors that occur during the publication process
-        raise HTTPException(
-            status_code=400, detail="Alert publication failed. Invalid notification configuration."
-        ) from e
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail={"msg": str(e), "type": "validation_error"}) from e
 
 
 @notification_router.post(
@@ -691,34 +546,26 @@ async def publish_alert(
     response_model=PreviewResponse,
     dependencies=[Security(oauth2_auth().verify, scopes=[USER_READ])],
 )
-async def preview_template(
+async def preview_alert(
     preview_data: PreviewRequest,
+    preview_service: PreviewServiceDep,
 ):
     """
-    Preview notification template with sample data.
+    Preview notification template with sample data
 
-    This endpoint generates a preview of a notification template using sample data. It requires the USER_READ scope
-    for authentication.
-
-    :param preview_data: The request data for previewing the template, including template type, story groups, metric,
-     grain, and recipients.
-    :return: A PreviewResponse object containing either email or slack preview data.
+    Returns a preview of how the notification will appear in email or Slack,
+    using sample data to demonstrate the template rendering.
     """
-    # Define the directory path for the templates
-    template_dir = os.path.join(os.path.dirname(__file__), "../templates")
-    # Initialize the PreviewService with the template directory
-    preview_service = PreviewService(template_dir=template_dir)
-
     try:
-        # Call the preview_template method of the PreviewService to generate the preview
-        preview_result = preview_service.preview_template(preview_data)
-
-        # Convert the dictionary to a Pydantic model
-        return PreviewResponse(**preview_result)
+        return preview_service.preview_template(preview_data)
 
     except Exception as e:
-        # Raise an HTTPException if any error occurs during template rendering
-        raise HTTPException(status_code=400, detail=f"Template rendering failed: {str(e)}") from e
+        raise HTTPException(
+            status_code=400, detail={"msg": f"Failed to generate preview: {str(e)}", "type": "preview_error"}
+        ) from e
+
+
+# Common ==========
 
 
 @notification_router.get(
@@ -729,19 +576,96 @@ async def preview_template(
 async def list_notifications(
     notification_service: NotificationListServiceDep,
     params: Annotated[PaginationParams, Depends(PaginationParams)],
+    type: Annotated[NotificationType, Query(description="List of notification types")] = None,  # type: ignore
+    grain: Annotated[Granularity, Query(description="List of grains")] = None,  # type: ignore
+    tags: Annotated[str, Query(description="List of tags")] = None,  # type: ignore
 ):
     """
     Retrieve a paginated list of all notifications (alerts and reports).
 
-    This endpoint fetches a paginated list of all notifications, including both alerts and reports. It requires the
-    USER_READ scope for authentication.
+    This endpoint fetches a paginated list of all notifications, including both alerts and reports.
+    Supports filtering by status, type, grain, and tags.
 
-    :param notification_service: Dependency injection for the NotificationListService.
-    :param params: Pagination parameters, including limit and offset.
-    :return: A paginated list of notifications, including the total count.
+    :param notification_service: Dependency injection for the NotificationListService
+    :param params: Pagination parameters
+    :param status: Filter by notification status
+    :param type: Filter by notification type
+    :param grain: Filter by granularity
+    :param tags: Filter by tags
+    :return: A paginated list of notifications
     """
-    # Fetch notifications and total count from the notification service
-    notifications, total = await notification_service.get_notifications(params=params)
+    notification_filter = NotificationFilter(
+        type=type,
+        grain=grain,
+        tags=tags,
+    )
 
-    # Create and return a paginated page of notifications
+    notifications, total = await notification_service.get_notifications(
+        params=params, filter_params=notification_filter.dict(exclude_unset=True)
+    )
+
     return Page[NotificationList].create(items=notifications, total_count=total, params=params)
+
+
+@notification_router.patch(
+    "/notifications/bulk/status",
+    status_code=200,
+    dependencies=[Security(oauth2_auth().verify, scopes=[USER_WRITE])],
+)
+async def bulk_update_status(
+    alert_ids: list[int],
+    # report_ids: list[int],
+    is_active: bool,  # Required parameter
+    alert_crud: AlertsCRUDDep,
+    # report_crud: ReportCRUDDep = Depends(),  # Will be added later
+):
+    """Bulk update status for alerts and reports"""
+    if alert_ids:
+        missing_alerts = await alert_crud.get_missing_ids(alert_ids)
+        if missing_alerts:
+            raise HTTPException(status_code=404, detail=f"Alerts not found: {list(missing_alerts)}")
+        await alert_crud.update_active_status(alert_ids, is_active)
+
+    # When report module is added
+    # if report_ids:
+    #     missing_reports = await report_crud.get_missing_ids(report_ids)
+    #     if missing_reports:
+    #         raise HTTPException(
+    #             status_code=404,
+    #             detail=f"Reports not found: {list(missing_reports)}"
+    #         )
+    #     await report_crud.update_active_status(report_ids, is_active)
+
+
+@notification_router.delete(
+    "/notifications/bulk",
+    status_code=204,
+    dependencies=[Security(oauth2_auth().verify, scopes=[USER_WRITE])],
+)
+async def bulk_delete_notifications(
+    alert_ids: list[int],
+    # report_ids: list[int],
+    alert_crud: AlertsCRUDDep,
+    notification_crud: NotificationCRUDDep,
+    # report_crud: ReportCRUDDep = Depends(),  # Will be added later
+):
+    """Bulk delete notifications (alerts/reports) and their associated configurations"""
+    if alert_ids:
+        missing_alerts = await alert_crud.get_missing_ids(alert_ids)
+        if missing_alerts:
+            raise HTTPException(status_code=404, detail=f"Alerts not found: {list(missing_alerts)}")
+        await notification_crud.delete_by_alert_ids(alert_ids)
+        await alert_crud.delete(alert_ids)
+
+    # When report module is added
+    # if report_ids:
+    #     missing_reports = await report_crud.get_missing_ids(report_ids)
+    #     if missing_reports:
+    #         raise HTTPException(
+    #             status_code=404,
+    #             detail=f"Reports not found: {list(missing_reports)}"
+    #         )
+    #     await report_crud.delete_recipients(report_ids)
+    #     await report_crud.delete(report_ids)
+
+    return None

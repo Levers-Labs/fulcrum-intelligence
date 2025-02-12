@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from typing import Annotated
 
 from fastapi import Depends, HTTPException, Request
@@ -19,6 +20,7 @@ from insights_backend.core.models import Alert, Tenant, User
 from insights_backend.core.models.notifications import NotificationChannelConfig
 from insights_backend.db.config import AsyncSessionDep
 from insights_backend.services.notifications_service import NotificationListService
+from insights_backend.services.preview_service import PreviewService
 from insights_backend.services.slack_oauth import SlackOAuthService
 
 
@@ -87,4 +89,10 @@ async def get_notification_list_service(
     return NotificationListService(alert_crud=alert_crud, notification_crud=notification_crud)
 
 
+async def get_preview_service() -> PreviewService:
+    template_dir = os.path.join(os.path.dirname(__file__), "../templates")
+    return PreviewService(template_dir=template_dir)
+
+
 NotificationListServiceDep = Annotated[NotificationListService, Depends(get_notification_list_service)]
+PreviewServiceDep = Annotated[PreviewService, Depends(get_preview_service)]

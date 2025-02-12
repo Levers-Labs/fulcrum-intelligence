@@ -32,6 +32,13 @@ class NotificationType(str, Enum):
     REPORT = "REPORT"  # For scheduled reports
 
 
+class NotificationStatus(str, Enum):
+    """Status of the notification execution"""
+
+    ACTIVE = "Active"
+    INACTIVE = "Inactive"
+
+
 class TriggerType(str, Enum):
     """Types of triggers that can generate notifications"""
 
@@ -58,7 +65,7 @@ class ExecutionStatus(str, Enum):
 # ----------------
 
 
-class ScheduleConfig(BaseModel):
+class ScheduleConfig(BaseModel):  # for reports
     """Configuration for notification schedule"""
 
     frequency: str  # e.g., "every_day", "monday", "first_day"
@@ -121,6 +128,13 @@ class MetricStoryTrigger(BaseModel):
 
     metric_ids: list[str] = Field(sa_column=Column(ARRAY(String), nullable=True))
     story_groups: list[str] = Field(sa_column=Column(ARRAY(String), nullable=True))
+
+    # @model_validator(mode='after')
+    # def validate_at_least_one_field(self) -> 'MetricStoryTrigger':
+    #     """Ensure at least one of metric_ids or story_groups is provided"""
+    #     if not self.metric_ids and not self.story_groups:
+    #         raise ValueError("At least one of metric_ids or story_groups must be provided")
+    #     return self
 
     def __str__(self) -> str:
         """Generate human-readable representation of the trigger"""

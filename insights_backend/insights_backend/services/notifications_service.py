@@ -1,12 +1,13 @@
-from datetime import datetime
-from typing import Tuple
+from typing import Any
 
-from sqlalchemy import func, select
+from sqlalchemy import func, select, union_all
 
+from commons.utilities.context import get_tenant_id
 from commons.utilities.pagination import PaginationParams
 from insights_backend.core.crud import CRUDAlert, CRUDNotificationChannel
+from insights_backend.core.filters import NotificationFilter
 from insights_backend.core.models import Alert
-from insights_backend.core.models.notifications import NotificationChannelConfig
+from insights_backend.core.models.notifications import NotificationChannelConfig, NotificationStatus
 from insights_backend.core.schemas import NotificationList
 
 
@@ -28,83 +29,80 @@ class NotificationListService:
         self.notification_crud = notification_crud
         # TODO: Add report_crud instance
 
-    async def _get_alerts_query(self) -> select:
-        """
-        Build base query for alerts listing
-        """
-        return (
+    def _build_alerts_query(self, filter_params: dict[str, Any]) -> select:
+        """Build base query for alerts listing"""
+        query = (
             select(
                 Alert.id,
                 Alert.name,
                 Alert.type,
                 Alert.grain,
                 Alert.summary.label("trigger_schedule"),  # type: ignore
-                # Alert.created_by,
                 Alert.tags,
                 Alert.is_active,
                 func.count(NotificationChannelConfig.id).label("recipients_count"),
             )
             .outerjoin(NotificationChannelConfig, Alert.id == NotificationChannelConfig.alert_id)
-            .group_by(Alert.id)
+            .group_by(Alert.id, Alert.name, Alert.type, Alert.grain, Alert.summary, Alert.tags, Alert.is_active)
+            .where(Alert.tenant_id == get_tenant_id())
         )
 
-    async def _get_alerts_data(self, params: PaginationParams) -> tuple[list[NotificationList], int]:
-        """
-        Get paginated alerts data
-        """
-        query = await self._get_alerts_query()
+        query = NotificationFilter.apply_filters(query, filter_params)
 
-        # Get total count
-        count_query = select(func.count()).select_from(query.subquery())  # type: ignore
-        total = await self.alert_crud.session.scalar(count_query)
+        return query
 
-        # Get paginated results
-        results = await self.alert_crud.session.execute(query.offset(params.offset).limit(params.limit))  # type: ignore
+    def _build_reports_query(self) -> select:
+        """Build base query for reports listing"""
+        # Will be implemented with Report model
+        pass
 
-        notifications = []
-        for row in results:
-            notifications.append(
-                NotificationList(
-                    id=row.id,
-                    name=row.name,
-                    type=row.type,
-                    grain=row.grain,
-                    trigger_schedule=row.trigger_schedule,
-                    # created_by=row.created_by,
-                    tags=row.tags,
-                    last_execution=datetime.now(),  # todo: update after execution integration
-                    recipients_count=row.recipients_count,
-                    status="Active" if row.is_active else "Inactive",
-                )
-            )
+    def _build_combined_query(self, params: PaginationParams, filter_params: dict[str, Any]) -> select:
+        """Combine alerts and reports queries with pagination"""
+        combined_query = union_all(
+            self._build_alerts_query(filter_params),
+            # self._build_reports_query()
+        ).alias("notifications")
 
-        return notifications, total or 0
+        return select(combined_query).offset(params.offset).limit(params.limit)
 
-    # TODO: Add methods for reports when implemented
-    # async def _get_reports_query(self) -> select:
-    #     """Build base query for reports listing"""
-    #     pass
+    async def _get_total_count(self) -> int:
+        """Get total count of all notifications"""
+        alerts_count = await self.alert_crud.session.scalar(select(func.count()).select_from(Alert)) or 0
 
-    # async def _get_reports_data(self, params: PaginationParams) -> Tuple[list[NotificationList], int]:
-    #     """Get paginated reports data"""
-    #     pass
+        # reports_count = await self.report_crud.session.scalar(
+        #     select(func.count()).select_from(Report)
+        # ) or 0
+        # return alerts_count + reports_count
+
+        return alerts_count
 
     async def get_notifications(
-        self,
-        params: PaginationParams,
+        self, params: PaginationParams, filter_params: dict[str, Any]
     ) -> tuple[list[NotificationList], int]:
         """
         Get paginated list of notifications combining alerts and reports
         """
-        # Get alerts data
-        notifications, total = await self._get_alerts_data(params)
+        query = self._build_combined_query(params, filter_params)
+        total = await self._get_total_count()
 
-        # TODO: When reports are implemented
-        # 1. Get reports data
-        # 2. Combine with alerts data
-        # 3. Handle pagination for combined results
-        # reports, reports_total = await self._get_reports_data(params)
-        # notifications.extend(reports)
-        # total += reports_total
+        results = await self.alert_crud.session.execute(query)
+        # notifications = results.scalars().all()
+
+        # notifications = results.fetchall()
+
+        notifications = [
+            NotificationList(
+                id=row.id,
+                name=row.name,
+                type=row.type,
+                grain=row.grain,
+                trigger_schedule=row.trigger_schedule,
+                tags=row.tags,
+                last_execution=None,
+                recipients_count=row.recipients_count,
+                status=NotificationStatus.ACTIVE if row.is_active else NotificationStatus.INACTIVE,
+            )
+            for row in results
+        ]
 
         return notifications, total

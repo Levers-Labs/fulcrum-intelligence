@@ -1,10 +1,14 @@
 from typing import Any
 
-from sqlalchemy import delete, select, update
+from sqlalchemy import (
+    delete,
+    func,
+    select,
+    update,
+)
 
 from commons.db.crud import CRUDBase, NotFoundError
 from commons.models.tenant import SlackConnectionConfig, TenantConfigUpdate
-from commons.notifiers.constants import NotificationChannel
 from commons.utilities.context import get_tenant_id
 from insights_backend.core.filters import TenantConfigFilter
 from insights_backend.core.models import (
@@ -16,7 +20,12 @@ from insights_backend.core.models import (
     UserUpdate,
 )
 from insights_backend.core.models.notifications import NotificationChannelConfig, NotificationType
-from insights_backend.core.schemas import AlertCreateRequest, AlertUpdateRequest, NotificationChannelDetail
+from insights_backend.core.schemas import (
+    AlertCreateRequest,
+    AlertPublishRequest,
+    AlertUpdateRequest,
+    NotificationChannelDetail,
+)
 
 
 class CRUDUser(CRUDBase[User, UserCreate, UserUpdate, None]):  # type: ignore
@@ -159,19 +168,12 @@ class CRUDNotificationChannel(CRUDBase[NotificationChannelConfig, NotificationCh
         """
         channels = []
         for config in notification_configs:
-            # Determine the template based on the channel type
-            template = (
-                "default_slack_template"
-                if config.channel_type == NotificationChannel.SLACK
-                else "default_email_template"
-            )
 
             # Create a new NotificationChannelConfig object
             channel = NotificationChannelConfig(
                 channel_type=config.channel_type,
                 recipients=config.model_dump()["recipients"],
-                template=template,
-                config=config.config,
+                template="",
                 alert_id=alert_id,
                 # report_id=report_id
             )
@@ -206,31 +208,32 @@ class CRUDNotificationChannel(CRUDBase[NotificationChannelConfig, NotificationCh
         self, *, alert_id: int, notification_configs: list[NotificationChannelDetail]
     ) -> list[NotificationChannelConfig]:
         """Updates notification channels for an alert"""
-        # Retrieve existing channels for the alert
-        existing_channels = await self.get_channels_by_alert(alert_id)
+        # Delete existing channels
+        await self.session.execute(
+            delete(NotificationChannelConfig).where(NotificationChannelConfig.alert_id == alert_id)
+        )
+        await self.session.commit()
 
-        if not existing_channels:
-            # If no existing channels, create new ones
-            channels = await self.create(notification_configs=notification_configs, alert_id=alert_id)
-            return channels
+        # Create new channels
+        channels = []
+        for config in notification_configs:
 
-        # Update existing channels
-        for _ in existing_channels:
-            # Execute the update statement
-            await self.session.execute(
-                update(NotificationChannelConfig)
-                .where(NotificationChannelConfig.alert_id == alert_id)
-                .values(
-                    channel_type=notification_configs[0].channel_type,
-                    recipients=notification_configs[0].model_dump()["recipients"],
-                    config=notification_configs[0].config,
-                )
+            channel = NotificationChannelConfig(
+                channel_type=config.channel_type,
+                recipients=config.model_dump()["recipients"],
+                template="",
+                alert_id=alert_id,
             )
+            self.session.add(channel)
+            channels.append(channel)
 
-        # Flush the session to save the changes
-        await self.session.flush()
-        # Retrieve the updated channels
-        return await self.get_channels_by_alert(alert_id)
+        await self.session.commit()
+
+        # Return the newly created channels
+        result = await self.session.execute(
+            select(NotificationChannelConfig).filter(NotificationChannelConfig.alert_id == alert_id)
+        )
+        return list(result.scalars().all())
 
 
 class CRUDAlert(CRUDBase[Alert, AlertCreateRequest, None, None]):
@@ -253,20 +256,18 @@ class CRUDAlert(CRUDBase[Alert, AlertCreateRequest, None, None]):
 
     async def create(self, *, new_alert: AlertCreateRequest) -> Any:
         """Creates a new Alert with its associated notification channels."""
-        # Extract fields from the request object, excluding trigger and notification_channels
-        alert_fields = {
-            k: v for k, v in new_alert.model_dump().items() if k not in ["trigger", "notification_channels"]
-        }
-        # Create an Alert object with the extracted fields and additional default values
+
+        alert_data = new_alert.model_dump(exclude={"trigger", "notification_channels"}, exclude_unset=True)
+
         alert = Alert(
-            **alert_fields,
-            type=NotificationType.ALERT,  # Default alert type
-            tenant_id=get_tenant_id(),  # Tenant ID from context
-            summary=str(new_alert.trigger.condition),  # Summary based on trigger condition
+            **alert_data,
+            type=NotificationType.ALERT,
+            tenant_id=get_tenant_id(),
+            summary=str(new_alert.trigger.condition),
             trigger={
                 "type": new_alert.trigger.type,
-                "condition": new_alert.trigger.condition.model_dump(),
-            },  # Trigger details
+                "condition": new_alert.trigger.condition.model_dump(exclude_unset=True),
+            },
         )
 
         # Add the new Alert to the session
@@ -275,7 +276,6 @@ class CRUDAlert(CRUDBase[Alert, AlertCreateRequest, None, None]):
         await self.session.flush()
         # Commit the session to persist the changes
         await self.session.commit()
-        # Refresh the session to ensure the alert object is updated with its ID
         await self.session.refresh(alert)
         return alert
 
@@ -289,13 +289,11 @@ class CRUDAlert(CRUDBase[Alert, AlertCreateRequest, None, None]):
         # Commit the session to save the changes
         await self.session.commit()
 
-    async def update_active_status(self, alert_ids: int | list[int], is_active: bool) -> None:
+    async def update_active_status(self, alert_ids: list[int], is_active: bool) -> None:
         """Updates the active status of one or multiple Alerts."""
-        # Convert a single ID to a list if needed
-        ids = [alert_ids] if isinstance(alert_ids, int) else alert_ids
 
         # Construct the SQL statement to update Alerts' active status
-        await self.session.execute(update(Alert).where(Alert.id.in_(ids)).values(is_active=is_active))
+        await self.session.execute(update(Alert).where(Alert.id.in_(alert_ids)).values(is_active=is_active))
         # Commit the session to save the changes
         await self.session.commit()
 
@@ -305,26 +303,87 @@ class CRUDAlert(CRUDBase[Alert, AlertCreateRequest, None, None]):
         alert_id: int,
         update_alert: AlertUpdateRequest,
     ) -> Alert:
-        """Updates an existing Alert with partial or full data."""
-        # Retrieve the Alert by its ID
+        """Updates an existing Alert"""
         alert = await self.get(alert_id)
         if not alert:
             raise ValueError(f"Alert with id {alert_id} not found")
 
-        # Extract update fields, excluding unset and notification_channels
+        # Don't allow unpublishing through update
+        # if not update_alert.is_published and alert.is_published:
+        #     raise ValueError("Cannot unpublish alert through update. Use dedicated unpublish endpoint")
+
         update_data = update_alert.model_dump(exclude_unset=True, exclude={"notification_channels"})
+        trigger = update_data.get("trigger")
+        if trigger:
+            update_data["trigger"] = {"type": trigger["type"], "condition": trigger["condition"]}
+            update_data["summary"] = str(trigger["condition"])
 
-        # Handle trigger serialization if needed
-        if "trigger" in update_data and update_data["trigger"]:
-            trigger_dict = update_data["trigger"]
-            update_data["trigger"] = {"type": trigger_dict["type"], "condition": trigger_dict["condition"]}
+        result = await self.session.execute(
+            update(Alert).where(Alert.id == alert_id).values(**update_data).returning(Alert)
+        )
+        await self.session.commit()
 
-        if update_data:
-            # Construct the SQL statement to update the Alert
-            await self.session.execute(update(Alert).where(Alert.id == alert_id).values(**update_data))
-            # Commit the session to save the changes
-            await self.session.commit()
-            # Refresh the session to ensure the alert object is updated
-            await self.session.refresh(alert)
+        return result.scalar_one()
 
-        return alert
+    async def publish(
+        self,
+        *,
+        alert_id: int,
+        publish_data: AlertPublishRequest,
+    ) -> Alert:
+        """Publish a draft alert with notification channels"""
+        alert = await self.get(alert_id)
+        if not alert:
+            raise ValueError(f"Alert with id {alert_id} not found")
+
+        if alert.is_published:
+            raise ValueError("Alert is already published")
+
+        if not publish_data.notification_channels:
+            raise ValueError("Notification channels are required for publishing")
+
+        # Update alert with publish data
+        update_data = publish_data.model_dump(exclude_unset=True, exclude={"notification_channels"})
+
+        # Ensure is_published is True
+        update_data["is_published"] = True
+
+        result = await self.session.execute(
+            update(Alert).where(Alert.id == alert_id).values(**update_data).returning(Alert)
+        )
+
+        return result.scalar_one()
+
+    async def get_unique_tags(self) -> list[str]:
+        """
+        Retrieve unique tags across all alerts.
+
+        Returns:
+            List of unique tags sorted alphabetically
+        """
+        # Using func.unnest to flatten the tags array
+        statement = (
+            select(func.unnest(Alert.tags).label("tag"))
+            .where(Alert.tags.is_not(None))
+            .where(Alert.tenant_id == get_tenant_id())
+            .distinct()
+            .order_by("tag")
+        )
+
+        result = await self.session.execute(statement)
+        return [row[0] for row in result.fetchall()]
+
+    async def get_missing_ids(self, ids: list[int]) -> set[int]:
+        """
+        Find which IDs from the input list don't exist in the database.
+
+        Args:
+            ids: List of alert IDs to check
+
+        Returns:
+            Set of IDs that don't exist in the database
+        """
+        statement = select(Alert.id).where(Alert.id.in_(ids))
+        result = await self.session.execute(statement)
+        found_ids = {row[0] for row in result.fetchall()}
+        return set(ids) - found_ids
