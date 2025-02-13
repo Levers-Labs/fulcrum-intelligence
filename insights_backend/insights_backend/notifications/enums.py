@@ -32,3 +32,28 @@ class ExecutionStatus(str, Enum):
     COMPLETED = "COMPLETED"
     FAILED = "FAILED"
     CRASHED = "CRASHED"
+
+
+class DayOfWeek(str, Enum):
+    MONDAY = "MON"
+    TUESDAY = "TUE"
+    WEDNESDAY = "WED"
+    THURSDAY = "THU"
+    FRIDAY = "FRI"
+    SATURDAY = "SAT"
+    SUNDAY = "SUN"
+
+
+class Month(str, Enum):
+    JANUARY = "JAN"
+    FEBRUARY = "FEB"
+    MARCH = "MAR"
+    APRIL = "APR"
+    MAY = "MAY"
+    JUNE = "JUN"
+    JULY = "JUL"
+    AUGUST = "AUG"
+    SEPTEMBER = "SEP"
+    OCTOBER = "OCT"
+    NOVEMBER = "NOV"
+    DECEMBER = "DEC"

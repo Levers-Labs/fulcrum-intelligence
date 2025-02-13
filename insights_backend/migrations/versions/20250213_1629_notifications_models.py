@@ -1,8 +1,8 @@
-"""notifications_models
+"""notifications models
 
-Revision ID: 8b40ca1c56dc
+Revision ID: f129dfb3191d
 Revises: c830f7ff651e
-Create Date: 2025-02-13 14:07:21.036256
+Create Date: 2025-02-13 16:29:53.706784
 
 """
 
@@ -14,7 +14,7 @@ from alembic import op
 from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
-revision: str = "8b40ca1c56dc"
+revision: str = "f129dfb3191d"
 down_revision: str | None = "c830f7ff651e"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
@@ -55,7 +55,14 @@ def upgrade() -> None:
         sa.Column("config", postgresql.JSONB(astext_type=sa.Text()), nullable=True),
         sa.Column("notification_id", sa.Integer(), nullable=False),
         sa.Column("notification_type", sa.Enum("ALERT", "REPORT", name="notificationtype"), nullable=False),
+        sa.ForeignKeyConstraint(
+            ["notification_id"], ["insights_store.alert.id"], name="fk_notification_alert", use_alter=True
+        ),
+        sa.ForeignKeyConstraint(
+            ["notification_id"], ["insights_store.report.id"], name="fk_notification_report", use_alter=True
+        ),
         sa.PrimaryKeyConstraint("id"),
+        sa.UniqueConstraint("notification_id", "notification_type", "channel_type", name="uq_notification_channel"),
         schema="insights_store",
     )
     op.create_index(
@@ -80,6 +87,14 @@ def upgrade() -> None:
         sa.Column("report_meta", postgresql.JSONB(astext_type=sa.Text()), nullable=False),
         sa.Column("delivery_meta", postgresql.JSONB(astext_type=sa.Text()), nullable=False),
         sa.Column("error_info", postgresql.JSONB(astext_type=sa.Text()), nullable=True),
+        sa.Column("notification_id", sa.Integer(), nullable=False),
+        sa.Column("notification_type", sa.Enum("ALERT", "REPORT", name="notificationtype"), nullable=False),
+        sa.ForeignKeyConstraint(
+            ["notification_id"], ["insights_store.alert.id"], name="fk_execution_alert", use_alter=True
+        ),
+        sa.ForeignKeyConstraint(
+            ["notification_id"], ["insights_store.report.id"], name="fk_execution_report", use_alter=True
+        ),
         sa.PrimaryKeyConstraint("id"),
         schema="insights_store",
     )
@@ -121,11 +136,6 @@ def upgrade() -> None:
         "CREATE POLICY tenant_isolation_insights_store_alert ON insights_store.alert USING (tenant_id = "
         "current_setting('app.current_tenant')::int);"
     )
-    op.execute("ALTER TABLE insights_store.notificationexecution ENABLE ROW LEVEL SECURITY;")
-    op.execute(
-        "CREATE POLICY tenant_isolation_insights_store_notificationexecution ON insights_store.notificationexecution "
-        "USING (tenant_id = current_setting('app.current_tenant')::int);"
-    )
     op.execute("ALTER TABLE insights_store.notificationchannelconfig ENABLE ROW LEVEL SECURITY;")
     op.execute(
         "CREATE POLICY tenant_isolation_insights_store_notificationchannelconfig ON "
@@ -135,6 +145,11 @@ def upgrade() -> None:
     op.execute(
         "CREATE POLICY tenant_isolation_insights_store_report ON insights_store.report USING (tenant_id = "
         "current_setting('app.current_tenant')::int);"
+    )
+    op.execute("ALTER TABLE insights_store.notificationexecution ENABLE ROW LEVEL SECURITY;")
+    op.execute(
+        "CREATE POLICY tenant_isolation_insights_store_notificationexecution ON insights_store.notificationexecution "
+        "USING (tenant_id = current_setting('app.current_tenant')::int);"
     )
     # ### end Alembic commands ###
 
