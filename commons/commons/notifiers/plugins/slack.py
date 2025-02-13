@@ -1,8 +1,6 @@
 import json
 from typing import Any
 
-from jinja2 import Template
-
 from commons.clients.slack import SlackClient
 from commons.notifiers import BaseNotifier
 from commons.notifiers.constants import NotificationChannel
@@ -33,13 +31,33 @@ class SlackNotifier(BaseNotifier):
 
         return client
 
-    def send_notification_using_client(self, client: Any, rendered_template: dict, channel_config: dict):
+    def get_notification_content(self, template_name: str, context: dict[str, Any]) -> dict:
+        """
+        Get the notification content by rendering the template with the provided context.
+
+        Args:
+            template_name (str): The name of the template.
+            context (Dict[str, Any]): The context dictionary containing data to be
+            rendered in the template.
+
+        Returns:
+            Dict: The rendered notification content.
+
+        Raises:
+            TemplateError: If there is an error rendering the template.
+        """
+        template = self.get_template(template_name)
+        rendered_string = self.render_template(template, context)
+        # Note: don't need to unescape <, > and & as Slack will render them correctly
+        return json.loads(rendered_string, strict=False)
+
+    def send_notification_using_client(self, client: Any, content: dict, channel_config: dict):
         """
         sends a notification using the Slack client and returns the response.
 
         Args:
             client (Any): The Slack client session.
-            rendered_template (dict): The rendered notification template.
+            content (dict): The rendered notification template.
             channel_config (Dict[str, Any]): The configuration for the Slack channel.
 
         Returns:
@@ -53,30 +71,11 @@ class SlackNotifier(BaseNotifier):
             raise ValueError("Channel ID is not provided in the configuration.")
         # Send a message
         kwargs = {}
-        if "blocks" in rendered_template:
-            kwargs["blocks"] = rendered_template["blocks"]
-        if "text" in rendered_template:
-            kwargs["text"] = rendered_template["text"]
-        if "attachments" in rendered_template:
-            kwargs["attachments"] = rendered_template["attachments"]
+        if "blocks" in content:
+            kwargs["blocks"] = content["blocks"]
+        if "text" in content:
+            kwargs["text"] = content["text"]
+        if "attachments" in content:
+            kwargs["attachments"] = content["attachments"]
         # Send a message to Slack
         return client.post_message(channel_id=channel_id, **kwargs)
-
-    def render_template(self, template: Template, context: dict[str, Any]) -> str:
-        """
-        render the template with the provided context.
-
-        Args:
-            template (Template): The template object.
-            context (Dict[str, Any]): The context dictionary containing data to be
-            rendered in the template.
-
-        Returns:
-            str: The rendered email template.
-
-        Raises:
-            TemplateError: If there is an error rendering the template.
-        """
-        rendered_string = super().render_template(template, context)
-        # Note: don't need to unescape <, > and & as Slack will render them correctly
-        return json.loads(rendered_string, strict=False)

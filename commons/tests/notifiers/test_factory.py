@@ -13,6 +13,9 @@ def test_notifier_factory_create_slack(mock_config):
         def get_client(self, config):
             return MagicMock()
 
+        def get_notification_content(self, template_name, context):
+            return {"subject": "Test", "html": "Test"}
+
         def send_notification_using_client(self, **kwargs):
             return {"status": "success"}
 
