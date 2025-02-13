@@ -1,55 +1,28 @@
 from datetime import datetime
-from enum import Enum
-from typing import Any, Literal
+from typing import Literal
 
 from pydantic import EmailStr
+from pydantic_extra_types.timezone_name import TimeZoneName
 from sqlalchemy import (
     ARRAY,
-    JSONB,
     Boolean,
     Column,
     String,
     Text,
 )
-from sqlmodel import Field
+from sqlalchemy.dialects.postgresql import JSONB
+from sqlmodel import Field, Relationship
 
 from commons.models import BaseModel
 from commons.models.enums import Granularity
 from commons.notifiers.constants import NotificationChannel
 from insights_backend.core.models import InsightsSchemaBaseModel
-
-# ----------------
-# Enum Definitions
-# ----------------
-
-
-class NotificationType(str, Enum):
-    """Types of notifications supported by the system"""
-
-    ALERT = "ALERT"  # For real-time alerts and notifications
-    REPORT = "REPORT"  # For scheduled reports
-
-
-class TriggerType(str, Enum):
-    """Types of triggers that can generate notifications"""
-
-    METRIC_STORY = "METRIC_STORY"  # Story-based triggers for metric insights
-    METRIC_THRESHOLD = "METRIC_THRESHOLD"  # Threshold-based triggers for metric monitoring
-
-
-class Comparisons(str, Enum):
-    """Types of comparisons available for metric analysis"""
-
-    PERCENTAGE_CHANGE = "PERCENTAGE_CHANGE"  # Relative change in percentage
-    ABSOLUTE_CHANGE = "ABSOLUTE_CHANGE"  # Absolute numerical change
-
-
-class ExecutionStatus(str, Enum):
-    """Status of the notification execution"""
-
-    SUCCESS = "SUCCESS"
-    FAILED = "FAILED"
-
+from insights_backend.notifications.enums import (
+    Comparisons,
+    ExecutionStatus,
+    NotificationType,
+    TriggerType,
+)
 
 # ----------------
 # Base Models
@@ -62,10 +35,10 @@ class NotificationConfigBase(BaseModel):
     type: NotificationType
     name: str
     description: str | None = None
-    tags: list[str] = Field(sa_column=Column(ARRAY(String), nullable=True, index=True))
+    tags: list[str] = Field(sa_type=ARRAY(String), nullable=True)  # type: ignore
     grain: Granularity
-    is_active: bool = Field(sa_column=Column(Boolean, default=True))
-    # Representation of the notification, alert trigger or report config
+    is_active: bool = Field(sa_type=Boolean, default=True)
+    is_published: bool = Field(sa_type=Boolean, default=False)
     summary: str | None = None
 
 
@@ -77,7 +50,7 @@ class NotificationConfigBase(BaseModel):
 class MetricStoryTrigger(BaseModel):
     """Configuration for story-based metric triggers"""
 
-    metric_ids: list[str] = Field(sa_column=Column(ARRAY(String), nullable=True))
+    metric_ids: list[str] = Field(sa_column=Column(ARRAY(String), nullable=False))
     story_groups: list[str] = Field(sa_column=Column(ARRAY(String), nullable=True))
 
     def __str__(self) -> str:
@@ -105,10 +78,19 @@ class AlertTrigger(BaseModel):
     condition: MetricStoryTrigger | MetricThresholdTrigger
 
 
-class Alert(NotificationConfigBase, InsightsSchemaBaseModel, table=True):
+class Alert(NotificationConfigBase, InsightsSchemaBaseModel, table=True):  # type: ignore
     """Complete alert configuration including trigger details"""
 
-    trigger: AlertTrigger
+    trigger: AlertTrigger = Field(sa_type=JSONB)
+    channels: list["NotificationChannelConfig"] = Relationship(back_populates="alert")
+
+    def is_publishable(self) -> bool:
+        """
+        Verifies if all fields are populated for publishing by checking
+        if any field contains None or empty values.
+        """
+        data = self.model_dump()
+        return all(value is not None and value != "" and value != [] for value in data.values())
 
 
 # ----------------
@@ -128,11 +110,27 @@ class ReportConfig(BaseModel):
         return f"Report metrics: {metric_str}"
 
 
-class Report(NotificationConfigBase, InsightsSchemaBaseModel, table=True):
+class ScheduleConfig(BaseModel):
+    """Configuration for notification schedule"""
+
+    cron_expression: str
+    timezone: TimeZoneName
+
+
+class Report(NotificationConfigBase, InsightsSchemaBaseModel, table=True):  # type: ignore
     """Complete report configuration including schedule and metrics"""
 
-    schedule: dict[str, Any] = Field(default_factory=dict, sa_type=JSONB)
-    config: ReportConfig
+    schedule: ScheduleConfig = Field(sa_type=JSONB)
+    config: ReportConfig = Field(sa_type=JSONB)
+    channels: list["NotificationChannelConfig"] = Relationship(back_populates="report")
+
+    def is_publishable(self) -> bool:
+        """
+        Verifies if all fields are populated for publishing by checking
+        if any field contains None or empty values.
+        """
+        data = self.model_dump()
+        return all(value is not None and value != "" and value != [] for value in data.values())
 
 
 # ----------------
@@ -152,6 +150,19 @@ class EmailRecipient(BaseModel):
     location: Literal["to", "cc"] = "to"
 
 
+class SlackTemplate(BaseModel):
+    """Template configuration for Slack messages"""
+
+    message: str
+
+
+class EmailTemplate(BaseModel):
+    """Template configuration for Email messages"""
+
+    subject: str
+    body: str
+
+
 class NotificationChannelConfigBase(BaseModel):
     """Base configuration for notification delivery channels"""
 
@@ -159,22 +170,42 @@ class NotificationChannelConfigBase(BaseModel):
     # Stores channel IDs - public/private chanel, group, DM, etc. for slack channel
     # Stores email addresses for email channel
     recipients: list[SlackChannel | EmailRecipient] = Field(default_factory=list, sa_type=JSONB)
-    template: str | None = Field(sa_column=Column(Text, nullable=False))
+    template: SlackTemplate | EmailTemplate = Field(sa_type=JSONB)
     # Extra config specific to each channel type
     config: dict | None = Field(default_factory=dict, sa_type=JSONB)
 
     def __str__(self) -> str:
         """Generate human-readable representation of the channel configuration"""
-        return f"{self.channel_type} - {', '.join(self.recipients)}"
+        return f"{self.channel_type} - {', '.join(str(r) for r in self.recipients)}"
 
 
-class NotificationChannelConfig(NotificationChannelConfigBase, InsightsSchemaBaseModel, table=True):
+class NotificationChannelConfig(NotificationChannelConfigBase, InsightsSchemaBaseModel, table=True):  # type: ignore
     """Database model for storing notification channel configurations"""
 
-    # Foreign key to the alert that this channel is associated with
-    alert_id: int | None = Field(foreign_key="insights_store.alert.id", nullable=True)
-    # Foreign key to the report that this channel is associated with
-    report_id: int | None = Field(foreign_key="insights_store.report.id", nullable=True)
+    notification_id: int = Field(nullable=False)
+    notification_type: NotificationType = Field(nullable=False)
+
+    # Relationships
+    alert: "Alert" = Relationship(
+        back_populates="channels",
+        sa_relationship_kwargs={
+            "primaryjoin": "and_(NotificationChannelConfig.notification_id == Alert.id, "
+            "NotificationChannelConfig.notification_type == 'ALERT')",
+            "foreign_keys": "[NotificationChannelConfig.notification_id]",
+        },
+    )
+
+    report: "Report" = Relationship(
+        back_populates="channels",
+        sa_relationship_kwargs={
+            "primaryjoin": "and_(NotificationChannelConfig.notification_id == Report.id, "
+            "NotificationChannelConfig.notification_type == 'REPORT')",
+            "foreign_keys": "[NotificationChannelConfig.notification_id]",
+        },
+    )
+
+    class Config:
+        sa_unique_constraints = [("notification_id", "notification_type", "channel_type")]
 
 
 # ----------------
@@ -198,8 +229,8 @@ class NotificationExecutionBase(BaseModel):
     In case of report, the exectution will capture the report config and the result
     """
 
-    alert_id: int | None = Field(foreign_key="insights_store.alert.id", nullable=True)
-    report_id: int | None = Field(foreign_key="insights_store.report.id", nullable=True)
+    # alert_id: int | None = Field(foreign_key="insights_store.alert.id", nullable=True)
+    # report_id: int | None = Field(foreign_key="insights_store.report.id", nullable=True)
     executed_at: datetime
     status: ExecutionStatus
     # List of recipients for the notification
@@ -218,7 +249,7 @@ class NotificationExecutionBase(BaseModel):
     error_info: ExecutionError | None = Field(default=None, sa_type=JSONB)
 
 
-class NotificationExecution(NotificationExecutionBase, InsightsSchemaBaseModel, table=True):
+class NotificationExecution(NotificationExecutionBase, InsightsSchemaBaseModel, table=True):  # type: ignore
     """Database model for storing notification executions"""
 
     pass
