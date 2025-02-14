@@ -96,7 +96,7 @@ class Alert(NotificationConfigBase, InsightsSchemaBaseModel, table=True):  # typ
     trigger: AlertTrigger = Field(sa_type=JSONB)
 
     def is_publishable(self) -> bool:
-        return bool(self.name) and bool(self.trigger) and bool(self.channels)
+        return bool(self.name) and bool(self.trigger)
 
 
 # ----------------
@@ -140,7 +140,7 @@ class Report(NotificationConfigBase, InsightsSchemaBaseModel, table=True):  # ty
     config: ReportConfig = Field(sa_type=JSONB)
 
     def is_publishable(self) -> bool:
-        return bool(self.name) and bool(self.schedule) and bool(self.config) and bool(self.channels)
+        return bool(self.name) and bool(self.schedule) and bool(self.config)
 
 
 # ----------------
