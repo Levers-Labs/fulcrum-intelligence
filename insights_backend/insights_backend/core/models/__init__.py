@@ -1,6 +1,4 @@
-# from .notifications.models import Alert, NotificationChannelConfig, Report
 from .base import InsightsSchemaBaseModel
-from .notifications import Alert, NotificationChannelConfig, Report
 from .tenant import (
     Tenant,
     TenantConfig,
@@ -24,7 +22,4 @@ __all__ = [
     "TenantConfig",
     "TenantList",
     "TenantRead",
-    "Alert",
-    "Report",
-    "NotificationChannelConfig",
 ]

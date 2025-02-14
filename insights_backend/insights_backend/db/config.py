@@ -9,7 +9,7 @@ from commons.db.session import get_async_session as _get_async_session, get_sess
 from insights_backend.config import get_settings
 
 # Used to load models for alembic migrations
-MODEL_PATHS = ["insights_backend.core.models"]
+MODEL_PATHS = ["insights_backend.core.models", "insights_backend.notifications.models"]
 
 
 # sync session

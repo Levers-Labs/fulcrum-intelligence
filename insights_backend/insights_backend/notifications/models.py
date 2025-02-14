@@ -18,7 +18,7 @@ from sqlmodel import Field
 from commons.models import BaseModel
 from commons.models.enums import Granularity
 from commons.notifiers.constants import NotificationChannel
-from insights_backend.core.models.base import InsightsSchemaBaseModel
+from insights_backend.core.models import InsightsSchemaBaseModel
 from insights_backend.notifications.enums import (
     Comparisons,
     DayOfWeek,
@@ -211,7 +211,7 @@ class NotificationChannelConfig(NotificationChannelConfigBase, InsightsSchemaBas
 class ExecutionError(BaseModel):
     """Error details for notification executions"""
 
-    # capture the essense of the error e.g. Delivery failed, Invalid Recipient, etc.
+    # capture the essence of the error e.g. Delivery failed, Invalid Recipient, etc.
     error_type: str = Field(default=None, sa_column=Column(String))
     # Error message
     message: str = Field(default=None, sa_column=Column(Text))
