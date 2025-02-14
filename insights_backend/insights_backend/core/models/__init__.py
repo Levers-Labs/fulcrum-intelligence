@@ -1,5 +1,4 @@
-from insights_backend.notifications.models import Alert, NotificationChannelConfig, Report
-
+from ...notifications.models import Alert, NotificationChannelConfig, Report
 from .base import InsightsSchemaBaseModel
 from .tenant import (
     Tenant,

@@ -1,8 +1,8 @@
-"""notifications models
+"""notification models
 
-Revision ID: f129dfb3191d
+Revision ID: 3dac1d5dfe8a
 Revises: c830f7ff651e
-Create Date: 2025-02-13 16:29:53.706784
+Create Date: 2025-02-14 13:04:43.177449
 
 """
 
@@ -14,7 +14,7 @@ from alembic import op
 from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
-revision: str = "f129dfb3191d"
+revision: str = "3dac1d5dfe8a"
 down_revision: str | None = "c830f7ff651e"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
@@ -44,6 +44,28 @@ def upgrade() -> None:
         op.f("ix_insights_store_alert_tenant_id"), "alert", ["tenant_id"], unique=False, schema="insights_store"
     )
     op.create_table(
+        "report",
+        sa.Column("id", sa.Integer(), nullable=False),
+        sa.Column("created_at", sa.DateTime(), server_default=sa.text("current_timestamp(0)"), nullable=False),
+        sa.Column("updated_at", sa.DateTime(), server_default=sa.text("current_timestamp(0)"), nullable=False),
+        sa.Column("tenant_id", sa.Integer(), nullable=False),
+        sa.Column("type", sa.Enum("ALERT", "REPORT", name="notificationtype"), nullable=False),
+        sa.Column("name", sqlmodel.sql.sqltypes.AutoString(), nullable=False),
+        sa.Column("description", sqlmodel.sql.sqltypes.AutoString(), nullable=True),
+        sa.Column("tags", sa.ARRAY(sa.String()), nullable=True),
+        sa.Column("grain", sa.Enum("DAY", "WEEK", "MONTH", "QUARTER", "YEAR", name="granularity"), nullable=False),
+        sa.Column("is_active", sa.Boolean(), nullable=False),
+        sa.Column("is_published", sa.Boolean(), nullable=False),
+        sa.Column("summary", sqlmodel.sql.sqltypes.AutoString(), nullable=True),
+        sa.Column("schedule", postgresql.JSONB(astext_type=sa.Text()), nullable=False),
+        sa.Column("config", postgresql.JSONB(astext_type=sa.Text()), nullable=False),
+        sa.PrimaryKeyConstraint("id"),
+        schema="insights_store",
+    )
+    op.create_index(
+        op.f("ix_insights_store_report_tenant_id"), "report", ["tenant_id"], unique=False, schema="insights_store"
+    )
+    op.create_table(
         "notificationchannelconfig",
         sa.Column("id", sa.Integer(), nullable=False),
         sa.Column("created_at", sa.DateTime(), server_default=sa.text("current_timestamp(0)"), nullable=False),
@@ -53,16 +75,20 @@ def upgrade() -> None:
         sa.Column("recipients", postgresql.JSONB(astext_type=sa.Text()), nullable=False),
         sa.Column("template", postgresql.JSONB(astext_type=sa.Text()), nullable=False),
         sa.Column("config", postgresql.JSONB(astext_type=sa.Text()), nullable=True),
-        sa.Column("notification_id", sa.Integer(), nullable=False),
+        sa.Column("alert_id", sa.Integer(), nullable=True),
+        sa.Column("report_id", sa.Integer(), nullable=True),
         sa.Column("notification_type", sa.Enum("ALERT", "REPORT", name="notificationtype"), nullable=False),
         sa.ForeignKeyConstraint(
-            ["notification_id"], ["insights_store.alert.id"], name="fk_notification_alert", use_alter=True
+            ["alert_id"],
+            ["insights_store.alert.id"],
         ),
         sa.ForeignKeyConstraint(
-            ["notification_id"], ["insights_store.report.id"], name="fk_notification_report", use_alter=True
+            ["report_id"],
+            ["insights_store.report.id"],
         ),
         sa.PrimaryKeyConstraint("id"),
-        sa.UniqueConstraint("notification_id", "notification_type", "channel_type", name="uq_notification_channel"),
+        sa.UniqueConstraint("alert_id", "notification_type", "channel_type", name="uq_alert_channel"),
+        sa.UniqueConstraint("report_id", "notification_type", "channel_type", name="uq_report_channel"),
         schema="insights_store",
     )
     op.create_index(
@@ -87,13 +113,15 @@ def upgrade() -> None:
         sa.Column("report_meta", postgresql.JSONB(astext_type=sa.Text()), nullable=False),
         sa.Column("delivery_meta", postgresql.JSONB(astext_type=sa.Text()), nullable=False),
         sa.Column("error_info", postgresql.JSONB(astext_type=sa.Text()), nullable=True),
-        sa.Column("notification_id", sa.Integer(), nullable=False),
-        sa.Column("notification_type", sa.Enum("ALERT", "REPORT", name="notificationtype"), nullable=False),
+        sa.Column("alert_id", sa.Integer(), nullable=True),
+        sa.Column("report_id", sa.Integer(), nullable=True),
         sa.ForeignKeyConstraint(
-            ["notification_id"], ["insights_store.alert.id"], name="fk_execution_alert", use_alter=True
+            ["alert_id"],
+            ["insights_store.alert.id"],
         ),
         sa.ForeignKeyConstraint(
-            ["notification_id"], ["insights_store.report.id"], name="fk_execution_report", use_alter=True
+            ["report_id"],
+            ["insights_store.report.id"],
         ),
         sa.PrimaryKeyConstraint("id"),
         schema="insights_store",
@@ -105,51 +133,29 @@ def upgrade() -> None:
         unique=False,
         schema="insights_store",
     )
-    op.create_table(
-        "report",
-        sa.Column("id", sa.Integer(), nullable=False),
-        sa.Column("created_at", sa.DateTime(), server_default=sa.text("current_timestamp(0)"), nullable=False),
-        sa.Column("updated_at", sa.DateTime(), server_default=sa.text("current_timestamp(0)"), nullable=False),
-        sa.Column("tenant_id", sa.Integer(), nullable=False),
-        sa.Column("type", sa.Enum("ALERT", "REPORT", name="notificationtype"), nullable=False),
-        sa.Column("name", sqlmodel.sql.sqltypes.AutoString(), nullable=False),
-        sa.Column("description", sqlmodel.sql.sqltypes.AutoString(), nullable=True),
-        sa.Column("tags", sa.ARRAY(sa.String()), nullable=True),
-        sa.Column("grain", sa.Enum("DAY", "WEEK", "MONTH", "QUARTER", "YEAR", name="granularity"), nullable=False),
-        sa.Column("is_active", sa.Boolean(), nullable=False),
-        sa.Column("is_published", sa.Boolean(), nullable=False),
-        sa.Column("summary", sqlmodel.sql.sqltypes.AutoString(), nullable=True),
-        sa.Column("schedule", postgresql.JSONB(astext_type=sa.Text()), nullable=False),
-        sa.Column("config", postgresql.JSONB(astext_type=sa.Text()), nullable=False),
-        sa.PrimaryKeyConstraint("id"),
-        schema="insights_store",
-    )
-    op.create_index(
-        op.f("ix_insights_store_report_tenant_id"), "report", ["tenant_id"], unique=False, schema="insights_store"
-    )
     op.create_index(
         op.f("ix_insights_store_user_tenant_id"), "user", ["tenant_id"], unique=False, schema="insights_store"
     )
     op.drop_constraint("fk_user_tenant_id_tenant", "user", schema="insights_store", type_="foreignkey")
-    op.execute("ALTER TABLE insights_store.alert ENABLE ROW LEVEL SECURITY;")
-    op.execute(
-        "CREATE POLICY tenant_isolation_insights_store_alert ON insights_store.alert USING (tenant_id = "
-        "current_setting('app.current_tenant')::int);"
-    )
     op.execute("ALTER TABLE insights_store.notificationchannelconfig ENABLE ROW LEVEL SECURITY;")
     op.execute(
         "CREATE POLICY tenant_isolation_insights_store_notificationchannelconfig ON "
         "insights_store.notificationchannelconfig USING (tenant_id = current_setting('app.current_tenant')::int);"
+    )
+    op.execute("ALTER TABLE insights_store.notificationexecution ENABLE ROW LEVEL SECURITY;")
+    op.execute(
+        "CREATE POLICY tenant_isolation_insights_store_notificationexecution ON insights_store.notificationexecution "
+        "USING (tenant_id = current_setting('app.current_tenant')::int);"
     )
     op.execute("ALTER TABLE insights_store.report ENABLE ROW LEVEL SECURITY;")
     op.execute(
         "CREATE POLICY tenant_isolation_insights_store_report ON insights_store.report USING (tenant_id = "
         "current_setting('app.current_tenant')::int);"
     )
-    op.execute("ALTER TABLE insights_store.notificationexecution ENABLE ROW LEVEL SECURITY;")
+    op.execute("ALTER TABLE insights_store.alert ENABLE ROW LEVEL SECURITY;")
     op.execute(
-        "CREATE POLICY tenant_isolation_insights_store_notificationexecution ON insights_store.notificationexecution "
-        "USING (tenant_id = current_setting('app.current_tenant')::int);"
+        "CREATE POLICY tenant_isolation_insights_store_alert ON insights_store.alert USING (tenant_id = "
+        "current_setting('app.current_tenant')::int);"
     )
     # ### end Alembic commands ###
 
@@ -166,8 +172,6 @@ def downgrade() -> None:
         referent_schema="insights_store",
     )
     op.drop_index(op.f("ix_insights_store_user_tenant_id"), table_name="user", schema="insights_store")
-    op.drop_index(op.f("ix_insights_store_report_tenant_id"), table_name="report", schema="insights_store")
-    op.drop_table("report", schema="insights_store")
     op.drop_index(
         op.f("ix_insights_store_notificationexecution_tenant_id"),
         table_name="notificationexecution",
@@ -180,6 +184,8 @@ def downgrade() -> None:
         schema="insights_store",
     )
     op.drop_table("notificationchannelconfig", schema="insights_store")
+    op.drop_index(op.f("ix_insights_store_report_tenant_id"), table_name="report", schema="insights_store")
+    op.drop_table("report", schema="insights_store")
     op.drop_index(op.f("ix_insights_store_alert_tenant_id"), table_name="alert", schema="insights_store")
     op.drop_table("alert", schema="insights_store")
     # ### end Alembic commands ###
