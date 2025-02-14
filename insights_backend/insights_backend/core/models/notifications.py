@@ -8,13 +8,12 @@ from sqlalchemy import (
     ARRAY,
     Boolean,
     Column,
-    ForeignKeyConstraint,
     String,
     Text,
     UniqueConstraint,
 )
 from sqlalchemy.dialects.postgresql import JSONB
-from sqlmodel import Field, Relationship
+from sqlmodel import Field
 
 from commons.models import BaseModel
 from commons.models.enums import Granularity
@@ -95,8 +94,6 @@ class Alert(NotificationConfigBase, InsightsSchemaBaseModel, table=True):  # typ
     """Complete alert configuration including trigger details"""
 
     trigger: AlertTrigger = Field(sa_type=JSONB)
-    channels: list["NotificationChannelConfig"] = Relationship(back_populates="alert")
-    executions: list["NotificationExecution"] = Relationship(back_populates="alert")
 
     def is_publishable(self) -> bool:
         return bool(self.name) and bool(self.trigger) and bool(self.channels)
@@ -124,13 +121,16 @@ class ScheduleConfig(BaseModel):
 
     minute: conint(ge=0, le=59) | str = Field(default="*", description="Minute (0-59 or */n)")  # type: ignore
     hour: conint(ge=0, le=23) | str = Field(default="*", description="Hour (0-23 or */n)")  # type: ignore
-    day_of_month: conint(ge=1, le=31) | str = Field(default="*", description="Day of month (1-31 or */n)")  # type: ignore
+    day_of_month: conint(ge=1, le=31) | str = Field(  # type: ignore
+        default="*", description="Day of month (1-31 or */n)"
+    )
     month: Month | str = Field(default="*", description="Month (JAN-DEC or */n)")
     day_of_week: DayOfWeek | str = Field(default="*", description="Day of week (MON-SUN or */n)")
     timezone: TimeZoneName
-    cron_expression: str = Field(description="Generated cron expression")
 
-    # TODO: add generate cron expression and validator method
+    def __str__(self) -> str:
+        """Convert schedule config to cron string format."""
+        return f"{str(self.minute)} {str(self.hour)} {str(self.day_of_month)} {self.month} {self.day_of_week}"
 
 
 class Report(NotificationConfigBase, InsightsSchemaBaseModel, table=True):  # type: ignore
@@ -138,8 +138,6 @@ class Report(NotificationConfigBase, InsightsSchemaBaseModel, table=True):  # ty
 
     schedule: ScheduleConfig = Field(sa_type=JSONB)
     config: ReportConfig = Field(sa_type=JSONB)
-    channels: list["NotificationChannelConfig"] = Relationship(back_populates="report")
-    executions: list["NotificationExecution"] = Relationship(back_populates="report")
 
     def is_publishable(self) -> bool:
         return bool(self.name) and bool(self.schedule) and bool(self.config) and bool(self.channels)
@@ -179,8 +177,6 @@ class NotificationChannelConfigBase(BaseModel):
     """Base configuration for notification delivery channels"""
 
     channel_type: NotificationChannel
-    # Stores channel IDs - public/private chanel, group, DM, etc. for slack channel
-    # Stores email addresses for email channel
     recipients: list[SlackChannel | EmailRecipient] = Field(default_factory=list, sa_type=JSONB)
     template: SlackTemplate | EmailTemplate = Field(sa_type=JSONB)
     # Extra config specific to each channel type
@@ -195,37 +191,16 @@ class NotificationChannelConfig(NotificationChannelConfigBase, InsightsSchemaBas
     """Database model for storing notification channel configurations"""
 
     __table_args__ = (  # type: ignore
-        ForeignKeyConstraint(
-            ["notification_id"], ["insights_store.alert.id"], name="fk_notification_alert", use_alter=True
-        ),
-        ForeignKeyConstraint(
-            ["notification_id"], ["insights_store.report.id"], name="fk_notification_report", use_alter=True
-        ),
-        UniqueConstraint("notification_id", "notification_type", "channel_type", name="uq_notification_channel"),
+        UniqueConstraint("alert_id", "notification_type", "channel_type", name="uq_alert_channel"),
+        UniqueConstraint("report_id", "notification_type", "channel_type", name="uq_report_channel"),
         {"schema": "insights_store"},
     )
 
-    notification_id: int = Field(nullable=False)
-    notification_type: NotificationType = Field(nullable=False)
-
-    # Relationships
-    alert: "Alert" = Relationship(
-        back_populates="channels",
-        sa_relationship_kwargs={
-            "primaryjoin": "and_(NotificationChannelConfig.notification_id == Alert.id, "
-            "NotificationChannelConfig.notification_type == 'ALERT')",
-            "viewonly": False,
-        },
-    )
-
-    report: "Report" = Relationship(
-        back_populates="channels",
-        sa_relationship_kwargs={
-            "primaryjoin": "and_(NotificationChannelConfig.notification_id == Report.id, "
-            "NotificationChannelConfig.notification_type == 'REPORT')",
-            "viewonly": False,
-        },
-    )
+    # Foreign key to the alert that this channel is associated with
+    alert_id: int | None = Field(foreign_key="insights_store.alert.id", nullable=True)
+    # Foreign key to the report that this channel is associated with
+    report_id: int | None = Field(foreign_key="insights_store.report.id", nullable=True)
+    notification_type: NotificationType
 
 
 # ----------------
@@ -270,39 +245,10 @@ class NotificationExecutionBase(BaseModel):
 class NotificationExecution(NotificationExecutionBase, InsightsSchemaBaseModel, table=True):  # type: ignore
     """Database model for storing notification executions"""
 
-    __table_args__ = (  # type: ignore
-        ForeignKeyConstraint(
-            ["notification_id"], ["insights_store.alert.id"], name="fk_execution_alert", use_alter=True
-        ),
-        ForeignKeyConstraint(
-            ["notification_id"], ["insights_store.report.id"], name="fk_execution_report", use_alter=True
-        ),
-        {"schema": "insights_store"},
-    )
-
-    notification_id: int = Field(nullable=False)
-    notification_type: NotificationType = Field(
-        nullable=False,
-    )
-
-    # Relationships
-    alert: "Alert" = Relationship(
-        back_populates="executions",
-        sa_relationship_kwargs={
-            "primaryjoin": "and_(NotificationExecution.notification_id == Alert.id, "
-            "NotificationExecution.notification_type == 'ALERT')",
-            "viewonly": False,
-        },
-    )
-
-    report: "Report" = Relationship(
-        back_populates="executions",
-        sa_relationship_kwargs={
-            "primaryjoin": "and_(NotificationExecution.notification_id == Report.id, "
-            "NotificationExecution.notification_type == 'REPORT')",
-            "viewonly": False,
-        },
-    )
+    # Foreign key to the alert that this channel is associated with
+    alert_id: int | None = Field(foreign_key="insights_store.alert.id", nullable=True)
+    # Foreign key to the report that this channel is associated with
+    report_id: int | None = Field(foreign_key="insights_store.report.id", nullable=True)
 
 
 class NotificationExecutionRead(NotificationExecutionBase):

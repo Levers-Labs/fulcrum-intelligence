@@ -1,8 +1,8 @@
-"""notification models
+"""notification-models
 
-Revision ID: 3dac1d5dfe8a
+Revision ID: d263b8b6eddf
 Revises: c830f7ff651e
-Create Date: 2025-02-14 13:04:43.177449
+Create Date: 2025-02-14 16:09:11.026726
 
 """
 
@@ -14,7 +14,7 @@ from alembic import op
 from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
-revision: str = "3dac1d5dfe8a"
+revision: str = "d263b8b6eddf"
 down_revision: str | None = "c830f7ff651e"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
@@ -137,15 +137,15 @@ def upgrade() -> None:
         op.f("ix_insights_store_user_tenant_id"), "user", ["tenant_id"], unique=False, schema="insights_store"
     )
     op.drop_constraint("fk_user_tenant_id_tenant", "user", schema="insights_store", type_="foreignkey")
-    op.execute("ALTER TABLE insights_store.notificationchannelconfig ENABLE ROW LEVEL SECURITY;")
-    op.execute(
-        "CREATE POLICY tenant_isolation_insights_store_notificationchannelconfig ON "
-        "insights_store.notificationchannelconfig USING (tenant_id = current_setting('app.current_tenant')::int);"
-    )
     op.execute("ALTER TABLE insights_store.notificationexecution ENABLE ROW LEVEL SECURITY;")
     op.execute(
         "CREATE POLICY tenant_isolation_insights_store_notificationexecution ON insights_store.notificationexecution "
         "USING (tenant_id = current_setting('app.current_tenant')::int);"
+    )
+    op.execute("ALTER TABLE insights_store.notificationchannelconfig ENABLE ROW LEVEL SECURITY;")
+    op.execute(
+        "CREATE POLICY tenant_isolation_insights_store_notificationchannelconfig ON "
+        "insights_store.notificationchannelconfig USING (tenant_id = current_setting('app.current_tenant')::int);"
     )
     op.execute("ALTER TABLE insights_store.report ENABLE ROW LEVEL SECURITY;")
     op.execute(
