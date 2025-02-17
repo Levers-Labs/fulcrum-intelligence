@@ -313,7 +313,7 @@ async def list_channels(
     """
     List Slack channels with optional name filtering and pagination support.
     """
-    return await slack_client.list_channels(cursor=cursor, limit=limit, name=name)
+    return slack_client.list_channels(cursor=cursor, limit=limit, name=name)
 
 
 @slack_router.get(
@@ -329,6 +329,6 @@ async def get_channel_info(
     Retrieve detailed information about a specific Slack channel by its ID.
     """
     try:
-        return await slack_client.get_channel_info(channel_id=channel_id)
+        return slack_client.get_channel_info(channel_id=channel_id)
     except SlackApiError as SlackErr:
         raise HTTPException(status_code=404, detail=f"Channel not found for {channel_id}") from SlackErr

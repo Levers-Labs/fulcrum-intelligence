@@ -72,6 +72,20 @@ class BaseNotifier(ABC):
             )
             raise TemplateError("Error while rendering template") from ex
 
+    @abstractmethod
+    def get_notification_content(self, template_name: str, context: dict[str, Any]) -> dict:
+        """
+        Get the content of the notification based on the context.
+
+        Args:
+            template_name (str): The name of the template to use for the notification.
+            context (Dict[str, Any]): The context dictionary containing data to be
+            rendered in the template.
+
+        Returns:
+            dict: The content of the notification.
+        """
+
     def send_notification(
         self,
         template_name: str,
@@ -80,7 +94,7 @@ class BaseNotifier(ABC):
         context: dict[str, Any],
     ) -> dict:
         """
-        send a notification using the specified template, channel, config, and context.
+        Send a notification using the specified template, channel, config, and context.
 
         Args:
             template_name (str): The name of the template to use for the notification.
@@ -92,16 +106,14 @@ class BaseNotifier(ABC):
             to be rendered in the template.
 
         Returns:
-            bool: True if the notification was sent successfully, False otherwise.
+            dict: Metadata about the sent notification.
         """
-        # Load the template
-        template = self.get_template(template_name)
-        # Render the template
-        rendered_str = self.render_template(template, context)
+        # Get the notification content
+        content = self.get_notification_content(template_name, context)
         # Get the client
         client = self.get_client(config)
         # Send the notification using the client
-        meta = self.send_notification_using_client(client, rendered_str, channel_config=channel_config)
+        meta = self.send_notification_using_client(client, content, channel_config=channel_config)
         return meta
 
     @abstractmethod
@@ -118,15 +130,13 @@ class BaseNotifier(ABC):
         """
 
     @abstractmethod
-    def send_notification_using_client(
-        self, client: Any, rendered_template: Any, channel_config: dict[str, Any]
-    ) -> dict:
+    def send_notification_using_client(self, client: Any, content: Any, channel_config: dict[str, Any]) -> dict:
         """
         send the notification using the provided client and rendered template.
 
         Args:
             client (Any): The notifier client object.
-            rendered_template (Any): The rendered template.
+            content (Any): The content of the notification.
             channel_config (Dict[str, Any]): The configuration dictionary containing
             channel-specific settings
 

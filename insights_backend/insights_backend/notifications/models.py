@@ -215,7 +215,7 @@ class NotificationChannelRead(NotificationChannelConfigBase):
 class ExecutionError(BaseModel):
     """Error details for notification executions"""
 
-    # capture the essense of the error e.g. Delivery failed, Invalid Recipient, etc.
+    # capture the essence of the error e.g. Delivery failed, Invalid Recipient, etc.
     error_type: str = Field(default=None, sa_column=Column(String))
     # Error message
     message: str = Field(default=None, sa_column=Column(Text))
