@@ -1,0 +1,15 @@
+<div class='email-header'>
+    <p> 🚀 [{{ metric.label }}] Stories • {{ grain }} </p>
+</div>
+
+<div class='email-body'>
+    {% for story in stories %}
+        <p>{{ story.story_group| replace('_', ' ') | title }}</p>
+        <p>{{ story.title }} <br>  {{ story.detail }}</p>
+    {% endfor %}
+</div>
+<hr>
+<div class='email-footer'>
+    <p>Generated on {{ time }} UTC</p>
+    <a href="https://app.leverslabs.com?grains={{ grain }}&metric_ids={{ metric.id }}">View in app →</a>
+</div>

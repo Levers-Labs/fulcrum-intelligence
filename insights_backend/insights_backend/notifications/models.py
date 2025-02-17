@@ -18,7 +18,7 @@ from sqlmodel import Field
 from commons.models import BaseModel
 from commons.models.enums import Granularity
 from commons.notifiers.constants import NotificationChannel
-from insights_backend.core.models.base import InsightsSchemaBaseModel
+from insights_backend.core.models import InsightsSchemaBaseModel
 from insights_backend.notifications.enums import (
     Comparisons,
     DayOfWeek,
@@ -96,7 +96,7 @@ class Alert(NotificationConfigBase, InsightsSchemaBaseModel, table=True):  # typ
     trigger: AlertTrigger = Field(sa_type=JSONB)
 
     def is_publishable(self) -> bool:
-        return bool(self.name) and bool(self.trigger)
+        return bool(self.name) and bool(self.trigger) and bool(self.grain)
 
 
 # ----------------
@@ -201,6 +201,10 @@ class NotificationChannelConfig(NotificationChannelConfigBase, InsightsSchemaBas
     # Foreign key to the report that this channel is associated with
     report_id: int | None = Field(foreign_key="insights_store.report.id", nullable=True)
     notification_type: NotificationType
+
+
+class NotificationChannelRead(NotificationChannelConfigBase):
+    id: int
 
 
 # ----------------

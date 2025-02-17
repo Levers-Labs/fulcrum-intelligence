@@ -9,6 +9,7 @@ from insights_backend.config import get_settings
 from insights_backend.core.routes import router, slack_router, user_router
 from insights_backend.exceptions import add_exception_handlers
 from insights_backend.health import router as health_check_router
+from insights_backend.notifications.routes import notification_router
 
 
 def get_application() -> FastAPI:
@@ -25,6 +26,7 @@ def get_application() -> FastAPI:
     _app.include_router(user_router, prefix="/v1")
     _app.include_router(router, prefix="/v1")
     _app.include_router(slack_router, prefix="/v1")
+    _app.include_router(notification_router, prefix="/v1")
     _app.include_router(health_check_router, prefix="/v1")
     swagger_router = setup_swagger_ui("Insights Backend", settings.URL_PREFIX)
     _app.include_router(swagger_router)
