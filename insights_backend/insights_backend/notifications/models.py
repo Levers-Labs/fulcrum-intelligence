@@ -17,6 +17,7 @@ from sqlmodel import Field
 
 from commons.models import BaseModel
 from commons.models.enums import Granularity
+from commons.models.slack import SlackChannel
 from commons.notifiers.constants import NotificationChannel
 from insights_backend.core.models import InsightsSchemaBaseModel
 from insights_backend.notifications.enums import (
@@ -146,13 +147,6 @@ class Report(NotificationConfigBase, InsightsSchemaBaseModel, table=True):  # ty
 # ----------------
 # Channel Configuration Models
 # ----------------
-class SlackChannel(BaseModel):
-    id: str
-    name: str
-    is_channel: bool = False
-    is_group: bool = False
-    is_dm: bool = False
-    is_private: bool = False
 
 
 class EmailRecipient(BaseModel):
@@ -203,8 +197,8 @@ class NotificationChannelConfig(NotificationChannelConfigBase, InsightsSchemaBas
     notification_type: NotificationType
 
 
-class NotificationChannelRead(NotificationChannelConfigBase):
-    id: int
+# class NotificationChannelRead(NotificationChannelConfigBase):
+#     id: int
 
 
 # ----------------

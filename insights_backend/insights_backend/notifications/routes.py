@@ -13,7 +13,7 @@ from commons.utilities.pagination import Page, PaginationParams
 from insights_backend.core.dependencies import oauth2_auth
 from insights_backend.notifications.dependencies import AlertsCRUDDep, NotificationListServiceDep
 from insights_backend.notifications.models import Alert
-from insights_backend.notifications.schemas import AlertRequest, NotificationList
+from insights_backend.notifications.schemas import AlertRequest, AlertWithChannelsResponse, NotificationList
 
 logger = logging.getLogger(__name__)
 
@@ -51,20 +51,8 @@ async def create_alert(
 
 
 @notification_router.get(
-    "/alerts/tags",
-    response_model=list[str],
-    dependencies=[Security(oauth2_auth().verify, scopes=[USER_READ])],
-)
-async def get_alert_tags(
-    alert_crud: AlertsCRUDDep,
-) -> list[str]:
-    """Get all unique tags used across alerts"""
-    return await alert_crud.get_unique_tags()
-
-
-@notification_router.get(
     "/alerts/{alert_id}",
-    response_model=Alert,
+    response_model=AlertWithChannelsResponse,
     dependencies=[Security(oauth2_auth().verify, scopes=[USER_READ])],  # type: ignore
 )
 async def get_alert(
@@ -106,6 +94,50 @@ async def publish_alert(
         return await alert_crud.publish(alert_id)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
+
+
+@notification_router.put(
+    "/alerts/{alert_id}",
+    response_model=AlertWithChannelsResponse,
+    dependencies=[Security(oauth2_auth().verify, scopes=[USER_WRITE])],
+)
+async def update_alert(
+    alert_id: int,
+    alert_data: AlertRequest,
+    alert_crud: AlertsCRUDDep,
+):
+    """
+    Update an existing alert and its notification channels.
+
+    This endpoint updates an alert and its associated channels. Channels not included
+    in the update will be deleted. It requires the USER_WRITE scope for authentication.
+
+    Args:
+        alert_id: The ID of the alert to update
+        alert_data: The updated alert data
+        alert_crud: Dependency for CRUD operations on alerts
+
+    Returns:
+        Updated alert with its notification channels
+    """
+    await alert_crud.update(
+        alert_id=alert_id,
+        update_data=alert_data,
+    )
+    # Get the updated alert with channels
+    return await alert_crud.get_alert_with_channels(alert_id)
+
+
+@notification_router.get(
+    "/alerts/tags",
+    response_model=list[str],
+    dependencies=[Security(oauth2_auth().verify, scopes=[USER_READ])],
+)
+async def get_alert_tags(
+    alert_crud: AlertsCRUDDep,
+) -> list[str]:
+    """Get all unique tags used across alerts"""
+    return await alert_crud.get_unique_tags()
 
 
 # Common ==========

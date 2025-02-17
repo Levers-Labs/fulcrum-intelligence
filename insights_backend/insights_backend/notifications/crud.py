@@ -2,10 +2,8 @@ import asyncio
 from typing import Any
 
 from sqlalchemy import (
-    and_,
     delete,
     func,
-    or_,
     select,
     update,
 )
@@ -13,6 +11,7 @@ from sqlalchemy.dialects.postgresql import insert
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from commons.db.crud import CRUDBase, ModelType, NotFoundError
+from commons.utilities.context import get_tenant_id
 from commons.utilities.pagination import PaginationParams
 from insights_backend.notifications.enums import NotificationType
 from insights_backend.notifications.models import Alert, NotificationChannelConfig
@@ -51,7 +50,9 @@ class CRUDNotificationChannel(
             config.template = self.template_service.prepare_channel_template(
                 config.notification_type, config.channel_type
             )
-            stmt = insert(self.model).values(**config.model_dump(exclude={"id"}), tenant_id=1)
+
+            tenant_id = get_tenant_id()
+            stmt = insert(self.model).values(**config.model_dump(exclude={"id"}), tenant_id=tenant_id)
             # Determine constraint based on notification type
             id_field = "alert_id" if config.notification_type == NotificationType.ALERT else "report_id"
             stmt = stmt.on_conflict_do_update(
@@ -61,31 +62,14 @@ class CRUDNotificationChannel(
         # Commit the session to save all created channels
         await self.session.commit()
 
-    async def get_by_ids(
-        self, alert_ids: list[int] | None = None, report_ids: list[int] | None = None
-    ) -> list[NotificationChannelConfig]:
+    async def get_by_id(self, alert_id: int | None = None) -> list[NotificationChannelConfig] | None:
         """Retrieves notification channels for an alert"""
         # Build conditions for alerts and reports
-        conditions = []
-        if alert_ids:
-            conditions.append(
-                and_(
-                    NotificationChannelConfig.alert_id.in_(alert_ids),
-                    NotificationChannelConfig.notification_type == NotificationType.ALERT,
-                )
-            )
-
-        if report_ids:
-            conditions.append(
-                and_(
-                    NotificationChannelConfig.report_id.in_(report_ids),
-                    NotificationChannelConfig.notification_type == NotificationType.REPORT,
-                )
-            )
-
-        # Execute query with combined conditions
-        result = await self.session.execute(select(NotificationChannelConfig).where(or_(*conditions)))
-        return list(result.scalars().all())
+        if alert_id:
+            result = await self.session.execute(select(self.model).filter_by(alert_id=alert_id))
+            channels = result.scalars().all()
+            return channels
+        return
 
     async def batch_delete(self, alert_ids: list[int] | None = None, report_ids: list[int] | None = None) -> None:
         """Deletes all notification channels for one or multiple alerts"""
@@ -168,6 +152,12 @@ class CRUDAlert(CRUDBase[Alert, AlertRequest, None, None]):
             .values(**update_data.model_dump(exclude={"notification_channels"}, exclude_unset=True))
         )
 
+        # Delete all existing channels
+        await self.session.execute(
+            delete(NotificationChannelConfig).where(NotificationChannelConfig.alert_id == alert_id)
+        )
+
+        # Create new channels
         channels = update_data.notification_channels
         # Create notification channels
         await self.notification_crud.batch_create_or_update(
@@ -272,22 +262,14 @@ class CRUDAlert(CRUDBase[Alert, AlertRequest, None, None]):
 
     async def get_alert_with_channels(self, alert_id: int) -> AlertWithChannelsResponse:
         """Get alert by ID with its notification channels."""
-        query = (
-            select(Alert, NotificationChannelConfig)
-            .outerjoin(NotificationChannelConfig, NotificationChannelConfig.alert_id == Alert.id)
-            .where(Alert.id == alert_id)
-        )
 
-        result = await self.session.execute(query)
-        rows = result.all()
-
-        if not rows:
+        alert = await self.get(alert_id)
+        if not alert:
             raise NotFoundError(f"Alert with id {alert_id} not found")
 
-        alert = rows[0][0]  # First row, first column (Alert)
-        # Use model_dump() to convert to dict
-        channels = [row[1].model_dump() for row in rows if row[1] is not None]
+        channels = await self.notification_crud.get_by_id(alert_id)
 
-        # Convert to response model
-        response_data = {**alert.model_dump(), "notification_channels": channels}
-        return AlertWithChannelsResponse.model_validate(response_data)
+        # Create response with alert data and channels
+        return AlertWithChannelsResponse(
+            **alert.model_dump(), notification_channels=[channel.model_dump() for channel in channels]
+        )
