@@ -27,7 +27,7 @@ class NotificationChannelFilter(BaseFilter[NotificationChannelConfig]):
     )
 
     tags: list[str] | None = FilterField(
-        or_(Alert.tags, Report.tags),
+        or_(Alert.tags, Report.tags),  # type: ignore
         operator="overlap",
         default=None,
         join_model=Alert,
@@ -35,7 +35,7 @@ class NotificationChannelFilter(BaseFilter[NotificationChannelConfig]):
     )
 
     is_active: bool | None = FilterField(
-        or_(Alert.is_active, Report.is_active),
+        or_(Alert.is_active, Report.is_active),  # type: ignore
         operator="eq",
         default=None,
         join_model=Alert,

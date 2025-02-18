@@ -65,23 +65,27 @@ class CRUDNotificationChannel(
         # Commit the session to save all created channels
         await self.session.commit()
 
-    async def get_by_id(self, alert_id: int | None = None) -> list[NotificationChannelConfig] | None:
+    async def get_by_id(self, alert_id: int | None = None) -> list[NotificationChannelConfig] | None:  # type: ignore
         """Retrieves notification channels for an alert"""
         # Build conditions for alerts and reports
         if alert_id:
             result = await self.session.execute(select(self.model).filter_by(alert_id=alert_id))
             channels = result.scalars().all()
             return channels
-        return
+        return None
 
     async def batch_delete(self, alert_ids: list[int] | None = None, report_ids: list[int] | None = None) -> None:
         """Deletes all notification channels for one or multiple alerts"""
 
         if alert_ids:
-            await self.session.execute(delete(self.model).where(NotificationChannelConfig.alert_id.in_(alert_ids)))
+            await self.session.execute(
+                delete(self.model).where(NotificationChannelConfig.alert_id.in_(alert_ids))  # type: ignore
+            )
 
         if report_ids:
-            await self.session.execute(delete(self.model).where(NotificationChannelConfig.report_id.in_(report_ids)))
+            await self.session.execute(
+                delete(self.model).where(NotificationChannelConfig.report_id.in_(report_ids))  # type: ignore
+            )
         # Commit the session to save the changes
         await self.session.commit()
 
@@ -107,8 +111,8 @@ class CRUDNotificationChannel(
                 Alert.grain,
                 Alert.summary,
                 Alert.tags,
-                Alert.is_active.label("status"),
-                func.count(NotificationChannelConfig.id).label("recipients_count"),
+                Alert.is_active.label("status"),  # type: ignore
+                func.count(NotificationChannelConfig.id).label("recipients_count"),  # type: ignore
             )
             .outerjoin(NotificationChannelConfig, Alert.id == NotificationChannelConfig.alert_id)
             .group_by(Alert.id, Alert.name, Alert.type, Alert.grain, Alert.summary, Alert.tags, Alert.is_active)
@@ -171,14 +175,16 @@ class CRUDAlert(CRUDBase[Alert, AlertRequest, None, None]):
         """Deletes one or multiple Alerts by their IDs."""
 
         await self.notification_crud.batch_delete(ids)
-        await self.session.execute(delete(Alert).where(Alert.id.in_(ids)))
+        await self.session.execute(delete(Alert).where(Alert.id.in_(ids)))  # type: ignore
         await self.session.commit()
 
     async def batch_status_update(self, alert_ids: list[int], is_active: bool) -> None:
         """Updates the active status of one or multiple Alerts."""
 
         # Construct the SQL statement to update Alerts' active status
-        await self.session.execute(update(Alert).where(Alert.id.in_(alert_ids)).values(is_active=is_active))
+        await self.session.execute(
+            update(Alert).where(Alert.id.in_(alert_ids)).values(is_active=is_active)
+        )  # type: ignore
         # Commit the session to save the changes
         await self.session.commit()
 
@@ -201,7 +207,7 @@ class CRUDAlert(CRUDBase[Alert, AlertRequest, None, None]):
 
         # Delete all existing channels
         await self.session.execute(
-            delete(NotificationChannelConfig).where(NotificationChannelConfig.alert_id == alert_id)
+            delete(NotificationChannelConfig).where(NotificationChannelConfig.alert_id == alert_id)  # type: ignore
         )
 
         # Create new channels
@@ -252,7 +258,10 @@ class CRUDAlert(CRUDBase[Alert, AlertRequest, None, None]):
         """
         # Using func.unnest to flatten the tags array
         statement = (
-            select(func.unnest(Alert.tags).label("tag")).where(Alert.tags.is_not(None)).distinct().order_by("tag")
+            select(func.unnest(Alert.tags).label("tag"))
+            .where(Alert.tags.is_not(None))  # type: ignore
+            .distinct()
+            .order_by("tag")
         )
 
         result = await self.session.execute(statement)
@@ -268,7 +277,7 @@ class CRUDAlert(CRUDBase[Alert, AlertRequest, None, None]):
         Returns:
             Set of IDs that don't exist in the database
         """
-        statement = select(Alert.id).where(Alert.id.in_(ids))
+        statement = select(Alert.id).where(Alert.id.in_(ids))  # type: ignore
         result = await self.session.execute(statement)
         found_ids = {row[0] for row in result.fetchall()}
         return set(ids) - found_ids
@@ -284,5 +293,5 @@ class CRUDAlert(CRUDBase[Alert, AlertRequest, None, None]):
 
         # Create response with alert data and channels
         return AlertWithChannelsResponse(
-            **alert.model_dump(), notification_channels=[channel.model_dump() for channel in channels]
+            **alert.model_dump(), notification_channels=[channel.model_dump() for channel in channels]  # type: ignore
         )

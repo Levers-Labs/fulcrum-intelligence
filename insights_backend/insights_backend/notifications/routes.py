@@ -174,7 +174,7 @@ async def preview_alert(
         HTTPException: If preview generation fails
     """
     try:
-        return await preview_service.preview_template(preview_data)
+        return preview_service.preview_template(preview_data)
     except Exception as e:
         raise HTTPException(
             status_code=400, detail={"msg": f"Failed to generate preview: {str(e)}", "type": "preview_error"}

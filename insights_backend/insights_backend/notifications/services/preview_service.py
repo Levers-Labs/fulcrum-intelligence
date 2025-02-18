@@ -2,6 +2,7 @@ import html
 import json
 import logging
 from datetime import datetime
+from typing import Any
 
 from fastapi import HTTPException
 
@@ -24,8 +25,8 @@ class PreviewService:
         mock_data = {
             "stories": [],
             "metric": {
-                "id": metrics[0].id,
-                "label": metrics[0].label,
+                "id": metrics[0].id,  # type: ignore
+                "label": metrics[0].label,  # type: ignore
             },
             "grain": grain,
             "time": current_time.strftime("%Y-%m-%d %H:%M:%S"),
@@ -33,20 +34,20 @@ class PreviewService:
 
         # Just a few representative stories that show how notifications will look
         mock_story = {
-            "title": f"Sample story for {metrics[0].label}",
-            "detail": f"This is a preview of how your {metrics[0].label} stories will look. "
+            "title": f"Sample story for {metrics[0].label}",  # type: ignore
+            "detail": f"This is a preview of how your {metrics[0].label} stories will look. "  # type: ignore
             f"Real stories will contain actual insights about your metrics.",
         }
 
         # Add one story per requested group
         for group in story_groups:
-            mock_data["stories"].append(
+            mock_data["stories"].append(  # type: ignore
                 {"story_group": group, "title": mock_story["title"], "detail": mock_story["detail"]}
             )
 
         return mock_data
 
-    def preview_template(self, preview_data) -> dict:
+    def preview_template(self, preview_data) -> Any:
         """Generate a preview of the notification template"""
 
         try:

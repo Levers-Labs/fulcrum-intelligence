@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Any
 
-from pydantic import ConfigDict, Field, field_validator
+from pydantic import ConfigDict, field_validator
 
 from commons.models import BaseModel
 from commons.models.enums import Granularity
@@ -110,19 +110,15 @@ class NotificationList(BaseModel):
 class MetricInfo(BaseModel):
     """Model for metric information"""
 
-    id: str = Field(..., example="newInqs")
-    label: str = Field(..., example="New Inquiries")
+    id: str
+    label: str
 
 
 class PreviewRequest(BaseModel):
     """Request model for template preview"""
 
     template_type: NotificationChannel
-    metrics: list[MetricInfo] | None = Field(
-        None,
-        example=[{"id": "newInqs", "label": "New Inquiries"}],
-        description="Optional list of metrics. If not provided, a sample metric will be used.",
-    )
+    metrics: list[MetricInfo] | None
     grain: Granularity
     story_groups: list[str]
     recipients: list[str]
