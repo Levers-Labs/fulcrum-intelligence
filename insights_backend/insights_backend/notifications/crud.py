@@ -134,13 +134,13 @@ class CRUDNotificationChannel(
         return list(results), count_result or 0
 
 
-class CRUDAlert(CRUDBase[Alert, AlertRequest, None, None]):
+class CRUDAlert(CRUDBase[Alert, AlertRequest, None, None]):  # type: ignore
     """
     CRUD operations for the Alert model.
     """
 
     def __init__(self, model: type[ModelType], session: AsyncSession, notification_crud: CRUDNotificationChannel):
-        super().__init__(model, session)
+        super().__init__(model, session)  # type: ignore
         self.notification_crud = notification_crud
 
     async def create(self, *, alert_data: AlertRequest) -> Any:  # type: ignore
@@ -193,8 +193,8 @@ class CRUDAlert(CRUDBase[Alert, AlertRequest, None, None]):
     async def update(
         self,
         *,
-        alert_id: int,
-        update_data: AlertRequest,
+        alert_id: int,  # type: ignore
+        update_data: AlertRequest,  # type: ignore
     ) -> Alert:
         """Updates an existing Alert"""
         alert = await self.get(alert_id)
