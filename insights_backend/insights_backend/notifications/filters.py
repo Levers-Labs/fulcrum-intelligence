@@ -11,15 +11,15 @@ class NotificationChannelFilter(BaseFilter[NotificationChannelConfig]):
     """Filter parameters for notification channels listing."""
 
     notification_type: NotificationType | None = FilterField(
-        NotificationChannelConfig.notification_type, operator="eq", default=None
+        NotificationChannelConfig.notification_type, operator="eq", default=None  # type: ignore
     )
 
     channel_type: NotificationChannel | None = FilterField(
-        NotificationChannelConfig.channel_type, operator="eq", default=None
+        NotificationChannelConfig.channel_type, operator="eq", default=None  # type: ignore
     )
 
     grain: Granularity | None = FilterField(
-        or_(Alert.grain, Report.grain),
+        or_(Alert.grain, Report.grain),  # type: ignore
         operator="eq",
         default=None,
         join_model=Alert,

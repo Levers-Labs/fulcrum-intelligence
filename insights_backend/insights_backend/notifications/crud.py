@@ -31,7 +31,7 @@ class CRUDNotificationChannel(
     filter_class = NotificationChannelFilter
 
     def __init__(self, model: type[ModelType], session: AsyncSession, template_service: TemplateService):
-        super().__init__(model, session)
+        super().__init__(model, session)  # type: ignore
         self.template_service = template_service
 
     async def batch_create_or_update(
@@ -65,13 +65,13 @@ class CRUDNotificationChannel(
         # Commit the session to save all created channels
         await self.session.commit()
 
-    async def get_by_id(self, alert_id: int | None = None) -> list[NotificationChannelConfig] | None:  # type: ignore
+    async def get_by_id(self, alert_id: int | None = None) -> list[NotificationChannelConfig] | None:
         """Retrieves notification channels for an alert"""
         # Build conditions for alerts and reports
         if alert_id:
             result = await self.session.execute(select(self.model).filter_by(alert_id=alert_id))
             channels = result.scalars().all()
-            return channels
+            return channels  # type: ignore
         return None
 
     async def batch_delete(self, alert_ids: list[int] | None = None, report_ids: list[int] | None = None) -> None:
@@ -143,7 +143,7 @@ class CRUDAlert(CRUDBase[Alert, AlertRequest, None, None]):
         super().__init__(model, session)
         self.notification_crud = notification_crud
 
-    async def create(self, *, alert_data: AlertRequest) -> Any:
+    async def create(self, *, alert_data: AlertRequest) -> Any:  # type: ignore
         """Creates a new Alert with its associated notification channels."""
 
         alert = Alert(
@@ -161,7 +161,9 @@ class CRUDAlert(CRUDBase[Alert, AlertRequest, None, None]):
         # Create notification channels
         await self.notification_crud.batch_create_or_update(
             notification_configs=[
-                NotificationChannelConfig(**channel.model_dump(), alert_id=alert.id, notification_type=alert.type)
+                NotificationChannelConfig(
+                    **channel.model_dump(), alert_id=alert.id, notification_type=alert.type  # type: ignore
+                )
                 for channel in channels
             ],
         )
@@ -183,8 +185,8 @@ class CRUDAlert(CRUDBase[Alert, AlertRequest, None, None]):
 
         # Construct the SQL statement to update Alerts' active status
         await self.session.execute(
-            update(Alert).where(Alert.id.in_(alert_ids)).values(is_active=is_active)
-        )  # type: ignore
+            update(Alert).where(Alert.id.in_(alert_ids)).values(is_active=is_active)  # type: ignore
+        )
         # Commit the session to save the changes
         await self.session.commit()
 
@@ -216,7 +218,7 @@ class CRUDAlert(CRUDBase[Alert, AlertRequest, None, None]):
         await self.notification_crud.batch_create_or_update(
             notification_configs=[
                 NotificationChannelConfig(
-                    **channel.model_dump(), alert_id=alert.id, notification_type=NotificationType.ALERT
+                    **channel.model_dump(), alert_id=alert.id, notification_type=NotificationType.ALERT  # type: ignore
                 )
                 for channel in channels
             ],
