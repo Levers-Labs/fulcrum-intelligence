@@ -5,15 +5,26 @@ from fastapi import (
     APIRouter,
     Depends,
     HTTPException,
+    Query,
     Security,
 )
 
 from commons.auth.scopes import USER_READ, USER_WRITE
+from commons.notifiers.constants import NotificationChannel
 from commons.utilities.pagination import Page, PaginationParams
 from insights_backend.core.dependencies import oauth2_auth
-from insights_backend.notifications.dependencies import AlertsCRUDDep, NotificationListServiceDep
+from insights_backend.notifications.dependencies import AlertsCRUDDep, NotificationChannelCRUDDep, PreviewServiceDep
+from insights_backend.notifications.filters import NotificationChannelFilter
 from insights_backend.notifications.models import Alert
-from insights_backend.notifications.schemas import AlertRequest, AlertWithChannelsResponse, NotificationList
+from insights_backend.notifications.schemas import (
+    AlertRequest,
+    AlertWithChannelsResponse,
+    Granularity,
+    NotificationList,
+    NotificationType,
+    PreviewRequest,
+    PreviewResponse,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -140,6 +151,36 @@ async def get_alert_tags(
     return await alert_crud.get_unique_tags()
 
 
+@notification_router.post(
+    "/alerts/preview",
+    response_model=PreviewResponse,
+    dependencies=[Security(oauth2_auth().verify, scopes=[USER_READ])],
+)
+async def preview_alert(
+    preview_data: PreviewRequest,
+    preview_service: PreviewServiceDep,
+) -> PreviewResponse:
+    """
+    Preview notification template with sample data
+
+    Args:
+        preview_data: Template configuration and sample data
+        preview_service: Service for generating previews
+
+    Returns:
+        PreviewResponse containing rendered templates
+
+    Raises:
+        HTTPException: If preview generation fails
+    """
+    try:
+        return await preview_service.preview_template(preview_data)
+    except Exception as e:
+        raise HTTPException(
+            status_code=400, detail={"msg": f"Failed to generate preview: {str(e)}", "type": "preview_error"}
+        ) from e
+
+
 # Common ==========
 
 
@@ -149,21 +190,40 @@ async def get_alert_tags(
     dependencies=[Security(oauth2_auth().verify, scopes=[USER_READ])],
 )
 async def list_notifications(
-    notification_service: NotificationListServiceDep,
+    notification_crud: NotificationChannelCRUDDep,
     params: Annotated[PaginationParams, Depends(PaginationParams)],
+    notification_type: Annotated[NotificationType | None, Query()] = None,
+    channel_type: Annotated[NotificationChannel | None, Query()] = None,
+    grain: Annotated[Granularity | None, Query()] = None,
+    tags: Annotated[list[str] | None, Query()] = None,
+    is_active: Annotated[bool | None, Query()] = None,
 ):
     """
     Retrieve a paginated list of all notifications (alerts and reports).
-    This endpoint fetches a paginated list of all notifications, including both alerts and reports.
-    Supports filtering by status, type, grain, and tags.
 
-    :param notification_service: Dependency injection for the NotificationListService
-    :param params: Pagination parameters
-    :return: A paginated list of notifications
+    Args:
+        notification_crud: CRUD dependency for notification channels
+        params: Pagination parameters
+        notification_type: Filter by notification type
+        channel_type: Filter by channel type
+        grain: Filter by granularity
+        tags: Filter by tags
+        is_active: Filter by active status
+
+    Returns:
+        Paginated list of notifications
     """
+    notification_filter = NotificationChannelFilter(
+        notification_type=notification_type, channel_type=channel_type, grain=grain, tags=tags, is_active=is_active
+    )
 
-    notifications, total = await notification_service.get_notifications_list(params=params)
-    return Page[NotificationList].create(items=notifications, total_count=total, params=params)
+    results, count = await notification_crud.get_notifications_list(
+        params=params, filter_params=notification_filter.dict(exclude_unset=True)
+    )
+
+    notifications = [NotificationList.model_validate(row) for row in results]
+
+    return Page.create(items=notifications, total_count=count, params=params)
 
 
 @notification_router.patch(

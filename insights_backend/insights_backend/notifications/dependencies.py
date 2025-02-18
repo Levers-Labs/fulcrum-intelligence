@@ -5,7 +5,7 @@ from fastapi import Depends
 from insights_backend.db.config import AsyncSessionDep
 from insights_backend.notifications.crud import CRUDAlert, CRUDNotificationChannel
 from insights_backend.notifications.models import Alert, NotificationChannelConfig
-from insights_backend.notifications.services.notification_listing_service import NotificationListService
+from insights_backend.notifications.services.preview_service import PreviewService
 from insights_backend.notifications.services.template_service import TemplateService
 
 
@@ -32,10 +32,8 @@ async def get_alerts_crud(session: AsyncSessionDep, notification_channel_crud: N
 AlertsCRUDDep = Annotated[CRUDAlert, Depends(get_alerts_crud)]
 
 
-async def get_notification_list_service(
-    alert_crud: AlertsCRUDDep,
-) -> NotificationListService:
-    return NotificationListService(alert_crud=alert_crud)
+async def get_preview_service(template_service: TemplateServiceDep) -> PreviewService:
+    return PreviewService(template_service=template_service)
 
 
-NotificationListServiceDep = Annotated[NotificationListService, Depends(get_notification_list_service)]
+PreviewServiceDep = Annotated[PreviewService, Depends(get_preview_service)]

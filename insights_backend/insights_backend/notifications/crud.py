@@ -14,18 +14,21 @@ from commons.db.crud import CRUDBase, ModelType, NotFoundError
 from commons.utilities.context import get_tenant_id
 from commons.utilities.pagination import PaginationParams
 from insights_backend.notifications.enums import NotificationType
+from insights_backend.notifications.filters import NotificationChannelFilter
 from insights_backend.notifications.models import Alert, NotificationChannelConfig
 from insights_backend.notifications.schemas import AlertRequest, AlertWithChannelsResponse
 from insights_backend.notifications.services.template_service import TemplateService
 
 
 class CRUDNotificationChannel(
-    CRUDBase[NotificationChannelConfig, NotificationChannelConfig, NotificationChannelConfig, None]
+    CRUDBase[NotificationChannelConfig, NotificationChannelConfig, NotificationChannelConfig, NotificationChannelFilter]
 ):
     """
     CRUD operations for NotificationChannelConfig model.
     This class provides methods for creating, retrieving, updating, and deleting notification channels.
     """
+
+    filter_class = NotificationChannelFilter
 
     def __init__(self, model: type[ModelType], session: AsyncSession, template_service: TemplateService):
         super().__init__(model, session)
@@ -35,7 +38,7 @@ class CRUDNotificationChannel(
         self,
         *,
         notification_configs: list[NotificationChannelConfig],
-    ) -> list[NotificationChannelConfig]:
+    ):
         """
         Creates notification channels for alerts or reports.
 
@@ -81,6 +84,50 @@ class CRUDNotificationChannel(
             await self.session.execute(delete(self.model).where(NotificationChannelConfig.report_id.in_(report_ids)))
         # Commit the session to save the changes
         await self.session.commit()
+
+    async def get_notifications_list(
+        self, params: PaginationParams, filter_params: dict[str, Any] | None = None
+    ) -> tuple[list[Any], int]:
+        """
+        Get paginated list of notifications with filters.
+
+        Args:
+            params: Pagination parameters
+            filter_params: Optional filter parameters
+
+        Returns:
+            Tuple of (list of results, total count)
+        """
+        # Build base query for alerts first
+        base_query = (
+            select(
+                Alert.id,
+                Alert.name,
+                Alert.type,
+                Alert.grain,
+                Alert.summary,
+                Alert.tags,
+                Alert.is_active.label("status"),
+                func.count(NotificationChannelConfig.id).label("recipients_count"),
+            )
+            .outerjoin(NotificationChannelConfig, Alert.id == NotificationChannelConfig.alert_id)
+            .group_by(Alert.id, Alert.name, Alert.type, Alert.grain, Alert.summary, Alert.tags, Alert.is_active)
+        )
+
+        # Apply filters if provided
+        if filter_params:
+            base_query = self.filter_class.apply_filters(base_query, filter_params)
+
+        # Add pagination
+        query = base_query.offset(params.offset).limit(params.limit)
+
+        # Get total count from base query
+        count_query = select(func.count()).select_from(base_query.subquery())
+
+        # Execute queries
+        count_result, results = await asyncio.gather(self.session.scalar(count_query), self.session.execute(query))
+
+        return list(results), count_result or 0
 
 
 class CRUDAlert(CRUDBase[Alert, AlertRequest, None, None]):
@@ -225,40 +272,6 @@ class CRUDAlert(CRUDBase[Alert, AlertRequest, None, None]):
         result = await self.session.execute(statement)
         found_ids = {row[0] for row in result.fetchall()}
         return set(ids) - found_ids
-
-    async def get_alerts_list(self, params: PaginationParams) -> tuple[list[Any], int]:
-        """
-        Get paginated alerts with notification counts and total count.
-
-        Args:
-            params: Pagination parameters
-
-        Returns:
-            Tuple of (list of results, total count)
-        """
-        # Build the main query with counts
-        query = (
-            select(
-                Alert.id,
-                Alert.name,
-                Alert.type,
-                Alert.grain,
-                Alert.summary.label("summary"),  # type: ignore
-                Alert.tags,
-                Alert.is_active.label("status"),  # type: ignore
-                func.count(NotificationChannelConfig.id).label("recipients_count"),
-            )
-            .outerjoin(NotificationChannelConfig, Alert.id == NotificationChannelConfig.alert_id)
-            .group_by(Alert.id, Alert.name, Alert.type, Alert.grain, Alert.summary, Alert.tags, Alert.is_active)
-            .offset(params.offset)
-            .limit(params.limit)
-        )
-
-        # Get total count and results in parallel
-        count_query = select(func.count()).select_from(Alert)
-        count_result, results = await asyncio.gather(self.session.scalar(count_query), self.session.execute(query))
-
-        return list(results), count_result or 0
 
     async def get_alert_with_channels(self, alert_id: int) -> AlertWithChannelsResponse:
         """Get alert by ID with its notification channels."""
