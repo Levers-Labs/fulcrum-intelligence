@@ -17,7 +17,7 @@ from insights_backend.notifications.dependencies import AlertsCRUDDep, CRUDNotif
 from insights_backend.notifications.filters import NotificationConfigFilter
 from insights_backend.notifications.models import Alert
 from insights_backend.notifications.schemas import (
-    AlertDetailResponse,
+    AlertDetail,
     AlertRequest,
     Granularity,
     NotificationList,
@@ -61,7 +61,7 @@ async def create_alert(
 
 @notification_router.get(
     "/alerts/{alert_id}",
-    response_model=AlertDetailResponse,
+    response_model=AlertDetail,
     dependencies=[Security(oauth2_auth().verify, scopes=[ALERT_REPORT_READ])],  # type: ignore
 )
 async def get_alert(
@@ -78,7 +78,7 @@ async def get_alert(
     :param alert_crud: Dependency for CRUD operations on alerts.
     """
 
-    return await alert_crud.get_alert_details(alert_id)
+    return await alert_crud.get(alert_id)
 
 
 @notification_router.post(
@@ -107,12 +107,12 @@ async def publish_alert(
 
 @notification_router.patch(
     "/alerts/{alert_id}",
-    response_model=AlertDetailResponse,
+    response_model=AlertDetail,
     dependencies=[Security(oauth2_auth().verify, scopes=[ALERT_REPORT_WRITE])],
 )
 async def update_alert(
     alert_id: int,
-    alert_data: AlertRequest,
+    alert_update: AlertRequest,
     alert_crud: AlertsCRUDDep,
 ):
     """
@@ -123,18 +123,16 @@ async def update_alert(
 
     Args:
         alert_id: The ID of the alert to update
-        alert_data: The updated alert data
+        alert_update: The updated alert data
         alert_crud: Dependency for CRUD operations on alerts
 
     Returns:
         Updated alert with its notification channels
     """
-    await alert_crud.update_alert(
+    return await alert_crud.update_alert(
         alert_id=alert_id,
-        alert_update=alert_data,
+        alert_update=alert_update,
     )
-    # Get the updated alert with channels
-    return await alert_crud.get_alert_details(alert_id)
 
 
 # Common ==========
@@ -145,9 +143,9 @@ async def update_alert(
     response_model=list[str],
     dependencies=[Security(oauth2_auth().verify, scopes=[ALERT_REPORT_READ])],
 )
-async def get_tags(notifications_crud: CRUDNotificationsDep, notification_type: NotificationType) -> list[str]:
+async def get_tags(notifications_crud: CRUDNotificationsDep) -> list[str]:
     """Get all unique tags used across alerts and reports"""
-    return await notifications_crud.get_unique_tags(notification_type)
+    return await notifications_crud.get_unique_tags()
 
 
 @notification_router.get(
@@ -161,7 +159,6 @@ async def list_notifications(
     notification_type: Annotated[NotificationType | None, Query()] = None,
     channel_type: Annotated[NotificationChannel | None, Query()] = None,
     grain: Annotated[Granularity | None, Query()] = None,
-    tags: Annotated[list[str] | None, Query()] = None,
     is_active: Annotated[bool | None, Query()] = None,
 ):
     """
@@ -180,7 +177,7 @@ async def list_notifications(
         Paginated list of notifications
     """
     notification_filter = NotificationConfigFilter(
-        notification_type=notification_type, channel_type=channel_type, grain=grain, tags=tags, is_active=is_active
+        notification_type=notification_type, channel_type=channel_type, grain=grain, is_active=is_active
     )
 
     results, count = await notification_crud.get_notifications_list(

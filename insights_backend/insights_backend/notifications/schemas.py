@@ -69,7 +69,7 @@ class AlertRequest(BaseModel):
     )
 
 
-class AlertDetailResponse(BaseModel):
+class AlertDetail(BaseModel):
     """Model for reading alert with its notification channels"""
 
     id: int
