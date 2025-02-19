@@ -42,7 +42,7 @@ class TemplateService:
             Jinja template object
         """
         file_extension = "json" if channel_type == NotificationChannel.SLACK else "html"
-        template_path = Path(notification_type.lower(), f"{channel_type.lower()}.{file_extension}")
+        template_path = Path(channel_type.lower(), f"{notification_type.lower()}.{file_extension}")
         return self.env.get_template(str(template_path))
 
     def prepare_channel_template(
