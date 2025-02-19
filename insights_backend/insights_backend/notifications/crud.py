@@ -88,7 +88,7 @@ class CRUDNotifications:
         model = Alert if notification_type == NotificationType.ALERT else Report
 
         statement = (
-            select(func.unnest(model.tags).label("tag"))
+            select(func.unnest(model.tags).label("tag"))  # type: ignore
             .where(model.tags.is_not(None))  # type: ignore
             .distinct()
             .order_by("tag")
@@ -219,7 +219,7 @@ class CRUDAlert(CRUDBase[Alert, AlertRequest, None, None]):  # type: ignore
         # Commit the session to save the changes
         await self.session.commit()
 
-    async def update(  # type: ignore
+    async def update_alert(
         self,
         *,
         alert_id: int,
@@ -236,46 +236,46 @@ class CRUDAlert(CRUDBase[Alert, AlertRequest, None, None]):  # type: ignore
             .values(**alert_update.model_dump(exclude={"notification_channels"}, exclude_unset=True))
         )
 
+        # Get all existing channel IDs
+        existing_channel_ids = {c.id for c in alert.notification_channels}
+
         # Map existing channels by their unique identifiers
         current_channel_map = {(c.channel_type, NotificationType.ALERT): c for c in alert.notification_channels}
 
-        # Set of channel types in the update request
-        requested_channel_types = {c.channel_type for c in alert_update.notification_channels}
+        # Prepare channel configurations and track updated IDs
+        updated_channel_ids = set()
+        channel_configs = []
 
-        # Prepare channel configurations, preserving existing IDs where applicable
-        channel_configs = [
-            NotificationChannelConfig(
-                **(
-                    channel.model_dump()
-                    | {
-                        "id": current_channel_map.get(
-                            (channel.channel_type, NotificationType.ALERT), {}
-                        ).id,  # type: ignore
-                        "alert_id": alert.id,
-                        "notification_type": NotificationType.ALERT,
-                    }
+        for channel in alert_update.notification_channels:
+            existing_channel = current_channel_map.get((channel.channel_type, NotificationType.ALERT))
+            if existing_channel:
+                updated_channel_ids.add(existing_channel.id)
+
+            channel_configs.append(
+                NotificationChannelConfig(
+                    **(
+                        channel.model_dump()
+                        | {
+                            "id": existing_channel.id if existing_channel else None,
+                            "alert_id": alert.id,
+                            "notification_type": NotificationType.ALERT,
+                        }
+                    )
                 )
             )
-            for channel in alert_update.notification_channels
-        ]
 
         # Batch upsert channel configurations
         if channel_configs:
             await self.notification_config_crud.batch_create_or_update(notification_configs=channel_configs)
 
-        # Use current_channel_map that we already created earlier
-        obsolete_channel_ids = [
-            c.id for c in current_channel_map.values() if c.channel_type not in requested_channel_types
-        ]
-
-        if obsolete_channel_ids:
+        # Delete channels that weren't updated
+        channels_to_delete = existing_channel_ids - updated_channel_ids
+        if channels_to_delete:
             await self.session.execute(
-                delete(NotificationChannelConfig).where(
-                    NotificationChannelConfig.id.in_(obsolete_channel_ids)  # type: ignore
-                )
+                delete(NotificationChannelConfig).where(NotificationChannelConfig.id.in_(channels_to_delete))
             )
 
-        # await self.session.commit()
+        await self.session.commit()
         return alert
 
     async def publish(

@@ -129,7 +129,7 @@ async def update_alert(
     Returns:
         Updated alert with its notification channels
     """
-    await alert_crud.update(
+    await alert_crud.update_alert(
         alert_id=alert_id,
         alert_update=alert_data,
     )
