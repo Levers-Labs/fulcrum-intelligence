@@ -190,7 +190,7 @@ async def list_notifications(
 
 
 @notification_router.patch(
-    "/notifications/bulk/status",
+    "/bulk/status",
     status_code=200,
     dependencies=[Security(oauth2_auth().verify, scopes=[ALERT_REPORT_WRITE])],
 )
@@ -219,7 +219,7 @@ async def bulk_update_status(
 
 
 @notification_router.delete(
-    "/notifications/bulk",
+    "/bulk",
     status_code=204,
     dependencies=[Security(oauth2_auth().verify, scopes=[ALERT_REPORT_WRITE])],
 )
