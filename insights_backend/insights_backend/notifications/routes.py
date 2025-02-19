@@ -9,21 +9,19 @@ from fastapi import (
     Security,
 )
 
-from commons.auth.scopes import USER_READ, USER_WRITE
+from commons.auth.scopes import ALERT_REPORT_READ, ALERT_REPORT_WRITE
 from commons.notifiers.constants import NotificationChannel
 from commons.utilities.pagination import Page, PaginationParams
 from insights_backend.core.dependencies import oauth2_auth
-from insights_backend.notifications.dependencies import AlertsCRUDDep, NotificationChannelCRUDDep, PreviewServiceDep
-from insights_backend.notifications.filters import NotificationChannelFilter
+from insights_backend.notifications.dependencies import AlertsCRUDDep, CRUDNotificationsDep
+from insights_backend.notifications.filters import NotificationConfigFilter
 from insights_backend.notifications.models import Alert
 from insights_backend.notifications.schemas import (
+    AlertDetailResponse,
     AlertRequest,
-    AlertWithChannelsResponse,
     Granularity,
     NotificationList,
     NotificationType,
-    PreviewRequest,
-    PreviewResponse,
 )
 
 logger = logging.getLogger(__name__)
@@ -38,24 +36,24 @@ notification_router = APIRouter(prefix="/notification", tags=["notifications"])
     "/alerts",
     status_code=201,
     response_model=Alert,
-    dependencies=[Security(oauth2_auth().verify, scopes=[USER_WRITE])],
+    dependencies=[Security(oauth2_auth().verify, scopes=[ALERT_REPORT_WRITE])],
 )
 async def create_alert(
-    alert_data: AlertRequest,
+    alert_create: AlertRequest,
     alert_crud: AlertsCRUDDep,
 ):
     """
     Creates a new alert, either as draft or published.
 
     This endpoint allows the creation of a new alert, which can be either in draft or published state. It requires
-    the USER_WRITE scope for authentication.
+    the ALERT_REPORT_WRITE scope for authentication.
 
-    :param alert_data: The request data for creating the alert.
+    :param alert_create: The request data for creating the alert.
     :param alert_crud: Dependency for CRUD operations on alerts.
     :return: The created alert object.
     """
     alert = await alert_crud.create(
-        alert_data=alert_data,
+        alert_create=alert_create,
     )
 
     return alert
@@ -63,8 +61,8 @@ async def create_alert(
 
 @notification_router.get(
     "/alerts/{alert_id}",
-    response_model=AlertWithChannelsResponse,
-    dependencies=[Security(oauth2_auth().verify, scopes=[USER_READ])],  # type: ignore
+    response_model=AlertDetailResponse,
+    dependencies=[Security(oauth2_auth().verify, scopes=[ALERT_REPORT_READ])],  # type: ignore
 )
 async def get_alert(
     alert_id: int,
@@ -74,19 +72,19 @@ async def get_alert(
     Retrieve an alert configuration along with its associated notification channels by ID.
 
     This endpoint fetches an alert by its ID and includes its notification channels in the response.
-    It requires the USER_READ scope for authentication.
+    It requires the ALERT_REPORT_READ scope for authentication.
 
     :param alert_id: The ID of the alert to retrieve.
     :param alert_crud: Dependency for CRUD operations on alerts.
     """
 
-    return await alert_crud.get_alert_with_channels(alert_id)
+    return await alert_crud.get_alert_details(alert_id)
 
 
 @notification_router.post(
     "/alerts/{alert_id}/publish",
     status_code=200,
-    dependencies=[Security(oauth2_auth().verify, scopes=[USER_READ])],
+    dependencies=[Security(oauth2_auth().verify, scopes=[ALERT_REPORT_READ])],
 )
 async def publish_alert(
     alert_id: int,
@@ -96,7 +94,7 @@ async def publish_alert(
     Publish a draft alert with notification channels.
 
     This endpoint publishes a draft alert, making it active and ready for distribution through its associated
-    notification channels. It requires the USER_READ scope for authentication.
+    notification channels. It requires the ALERT_REPORT_READ scope for authentication.
 
     :param alert_id: The ID of the alert to publish.
     :param alert_crud: Dependency for CRUD operations on alerts.
@@ -107,10 +105,10 @@ async def publish_alert(
         raise HTTPException(status_code=400, detail=str(e)) from e
 
 
-@notification_router.put(
+@notification_router.patch(
     "/alerts/{alert_id}",
-    response_model=AlertWithChannelsResponse,
-    dependencies=[Security(oauth2_auth().verify, scopes=[USER_WRITE])],
+    response_model=AlertDetailResponse,
+    dependencies=[Security(oauth2_auth().verify, scopes=[ALERT_REPORT_WRITE])],
 )
 async def update_alert(
     alert_id: int,
@@ -121,7 +119,7 @@ async def update_alert(
     Update an existing alert and its notification channels.
 
     This endpoint updates an alert and its associated channels. Channels not included
-    in the update will be deleted. It requires the USER_WRITE scope for authentication.
+    in the update will be deleted. It requires the ALERT_REPORT_WRITE scope for authentication.
 
     Args:
         alert_id: The ID of the alert to update
@@ -133,64 +131,32 @@ async def update_alert(
     """
     await alert_crud.update(
         alert_id=alert_id,
-        update_data=alert_data,
+        alert_update=alert_data,
     )
     # Get the updated alert with channels
-    return await alert_crud.get_alert_with_channels(alert_id)
-
-
-@notification_router.get(
-    "/alerts/tags",
-    response_model=list[str],
-    dependencies=[Security(oauth2_auth().verify, scopes=[USER_READ])],
-)
-async def get_alert_tags(
-    alert_crud: AlertsCRUDDep,
-) -> list[str]:
-    """Get all unique tags used across alerts"""
-    return await alert_crud.get_unique_tags()
-
-
-@notification_router.post(
-    "/alerts/preview",
-    response_model=PreviewResponse,
-    dependencies=[Security(oauth2_auth().verify, scopes=[USER_READ])],
-)
-async def preview_alert(
-    preview_data: PreviewRequest,
-    preview_service: PreviewServiceDep,
-) -> PreviewResponse:
-    """
-    Preview notification template with sample data
-
-    Args:
-        preview_data: Template configuration and sample data
-        preview_service: Service for generating previews
-
-    Returns:
-        PreviewResponse containing rendered templates
-
-    Raises:
-        HTTPException: If preview generation fails
-    """
-    try:
-        return preview_service.preview_template(preview_data)
-    except Exception as e:
-        raise HTTPException(
-            status_code=400, detail={"msg": f"Failed to generate preview: {str(e)}", "type": "preview_error"}
-        ) from e
+    return await alert_crud.get_alert_details(alert_id)
 
 
 # Common ==========
 
 
 @notification_router.get(
-    "/notifications",
+    "/tags",
+    response_model=list[str],
+    dependencies=[Security(oauth2_auth().verify, scopes=[ALERT_REPORT_READ])],
+)
+async def get_tags(notifications_crud: CRUDNotificationsDep, notification_type: NotificationType) -> list[str]:
+    """Get all unique tags used across alerts and reports"""
+    return await notifications_crud.get_unique_tags(notification_type)
+
+
+@notification_router.get(
+    "/",
     response_model=Page[NotificationList],
-    dependencies=[Security(oauth2_auth().verify, scopes=[USER_READ])],
+    dependencies=[Security(oauth2_auth().verify, scopes=[ALERT_REPORT_READ])],
 )
 async def list_notifications(
-    notification_crud: NotificationChannelCRUDDep,
+    notification_crud: CRUDNotificationsDep,
     params: Annotated[PaginationParams, Depends(PaginationParams)],
     notification_type: Annotated[NotificationType | None, Query()] = None,
     channel_type: Annotated[NotificationChannel | None, Query()] = None,
@@ -213,7 +179,7 @@ async def list_notifications(
     Returns:
         Paginated list of notifications
     """
-    notification_filter = NotificationChannelFilter(
+    notification_filter = NotificationConfigFilter(
         notification_type=notification_type, channel_type=channel_type, grain=grain, tags=tags, is_active=is_active
     )
 
@@ -229,7 +195,7 @@ async def list_notifications(
 @notification_router.patch(
     "/notifications/bulk/status",
     status_code=200,
-    dependencies=[Security(oauth2_auth().verify, scopes=[USER_WRITE])],
+    dependencies=[Security(oauth2_auth().verify, scopes=[ALERT_REPORT_WRITE])],
 )
 async def bulk_update_status(
     alert_ids: list[int],
@@ -258,7 +224,7 @@ async def bulk_update_status(
 @notification_router.delete(
     "/notifications/bulk",
     status_code=204,
-    dependencies=[Security(oauth2_auth().verify, scopes=[USER_WRITE])],
+    dependencies=[Security(oauth2_auth().verify, scopes=[ALERT_REPORT_WRITE])],
 )
 async def bulk_delete_notifications(
     alert_ids: list[int],

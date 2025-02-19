@@ -7,7 +7,7 @@ from insights_backend.notifications.enums import NotificationType
 from insights_backend.notifications.models import Alert, NotificationChannelConfig, Report
 
 
-class NotificationChannelFilter(BaseFilter[NotificationChannelConfig]):
+class NotificationConfigFilter(BaseFilter[NotificationChannelConfig]):
     """Filter parameters for notification channels listing."""
 
     notification_type: NotificationType | None = FilterField(
@@ -28,7 +28,7 @@ class NotificationChannelFilter(BaseFilter[NotificationChannelConfig]):
 
     tags: list[str] | None = FilterField(
         or_(Alert.tags, Report.tags),  # type: ignore
-        operator="overlap",
+        operator="in",
         default=None,
         join_model=Alert,
         join_condition=lambda: NotificationChannelConfig.alert_id == Alert.id,

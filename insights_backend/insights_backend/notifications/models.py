@@ -8,12 +8,14 @@ from sqlalchemy import (
     ARRAY,
     Boolean,
     Column,
+    ForeignKey,
+    Integer,
     String,
     Text,
     UniqueConstraint,
 )
 from sqlalchemy.dialects.postgresql import JSONB
-from sqlmodel import Field
+from sqlmodel import Field, Relationship
 
 from commons.models import BaseModel
 from commons.models.enums import Granularity
@@ -96,8 +98,18 @@ class Alert(NotificationConfigBase, InsightsSchemaBaseModel, table=True):  # typ
 
     trigger: AlertTrigger = Field(sa_type=JSONB)
 
+    notification_channels: list["NotificationChannelConfig"] = Relationship(
+        back_populates="alert", sa_relationship_kwargs={"cascade": "all, delete-orphan", "lazy": "selectin"}
+    )
+
     def is_publishable(self) -> bool:
-        return bool(self.name) and bool(self.trigger) and bool(self.grain)
+        return (
+            bool(self.name)
+            and bool(self.trigger)
+            and bool(self.grain)
+            and self.is_active
+            and bool(self.notification_channels)
+        )
 
 
 # ----------------
@@ -139,6 +151,10 @@ class Report(NotificationConfigBase, InsightsSchemaBaseModel, table=True):  # ty
 
     schedule: ScheduleConfig = Field(sa_type=JSONB)
     config: ReportConfig = Field(sa_type=JSONB)
+
+    notification_channels: list["NotificationChannelConfig"] = Relationship(
+        back_populates="report", sa_relationship_kwargs={"cascade": "all, delete-orphan", "lazy": "selectin"}
+    )
 
     def is_publishable(self) -> bool:
         return bool(self.name) and bool(self.schedule) and bool(self.config)
@@ -190,15 +206,19 @@ class NotificationChannelConfig(NotificationChannelConfigBase, InsightsSchemaBas
         {"schema": "insights_store"},
     )
 
-    # Foreign key to the alert that this channel is associated with
-    alert_id: int | None = Field(foreign_key="insights_store.alert.id", nullable=True)
-    # Foreign key to the report that this channel is associated with
-    report_id: int | None = Field(foreign_key="insights_store.report.id", nullable=True)
+    alert_id: int | None = Field(
+        sa_column=Column(Integer, ForeignKey("insights_store.alert.id", ondelete="CASCADE"), nullable=True)
+    )
+    report_id: int | None = Field(
+        sa_column=Column(Integer, ForeignKey("insights_store.report.id", ondelete="CASCADE"), nullable=True)
+    )
     notification_type: NotificationType
 
+    # Add relationship to Alert
+    alert: Alert = Relationship(back_populates="notification_channels", sa_relationship_kwargs={"lazy": "selectin"})
 
-# class NotificationChannelRead(NotificationChannelConfigBase):
-#     id: int
+    # Add relationship to Alert
+    report: Report = Relationship(back_populates="notification_channels", sa_relationship_kwargs={"lazy": "selectin"})
 
 
 # ----------------

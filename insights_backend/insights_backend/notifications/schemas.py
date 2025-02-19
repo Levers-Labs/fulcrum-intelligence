@@ -1,11 +1,10 @@
 from datetime import datetime
 from typing import Any
 
-from pydantic import ConfigDict, field_validator
+from pydantic import ConfigDict, Field, field_validator
 
 from commons.models import BaseModel
 from commons.models.enums import Granularity
-from commons.notifiers.constants import NotificationChannel
 from insights_backend.notifications.enums import NotificationType
 from insights_backend.notifications.models import AlertTrigger, NotificationChannelConfig
 
@@ -14,12 +13,14 @@ class AlertRequest(BaseModel):
     """Request model for creating alerts"""
 
     name: str
-    description: str | None = None
+    description: str | None = Field(default=None, description="description of the alert")
     grain: Granularity
     trigger: AlertTrigger
-    tags: list[str] = []
+    tags: list[str] = Field(default_factory=list, description="tags for categorizing alerts")
     summary: str
-    notification_channels: list[NotificationChannelConfig]
+    notification_channels: list[NotificationChannelConfig] = Field(
+        default_factory=list, description="notification channel configurations"
+    )
 
     @field_validator("notification_channels")
     @classmethod
@@ -68,7 +69,7 @@ class AlertRequest(BaseModel):
     )
 
 
-class AlertWithChannelsResponse(BaseModel):
+class AlertDetailResponse(BaseModel):
     """Model for reading alert with its notification channels"""
 
     id: int
@@ -84,10 +85,7 @@ class AlertWithChannelsResponse(BaseModel):
 
     notification_channels: list[NotificationChannelConfig]
 
-    model_config = {
-        "from_attributes": True,
-        "arbitrary_types_allowed": True,
-    }
+    model_config = ConfigDict(from_attributes=True, arbitrary_types_allowed=True)
 
 
 class NotificationList(BaseModel):
@@ -103,45 +101,4 @@ class NotificationList(BaseModel):
     recipients_count: int | None
     status: bool
 
-    class Config:
-        from_attributes = True
-
-
-class MetricInfo(BaseModel):
-    """Model for metric information"""
-
-    id: str
-    label: str
-
-
-class PreviewRequest(BaseModel):
-    """Request model for template preview"""
-
-    template_type: NotificationChannel
-    metrics: list[MetricInfo] | None
-    grain: Granularity
-    story_groups: list[str]
-    recipients: list[str]
-
-
-class EmailPreviewResponse(BaseModel):
-    """Response model for email template preview"""
-
-    to_emails: list[str]
-    cc_emails: list[str] | None = None
-    subject: str
-    body: str
-
-
-class SlackPreviewResponse(BaseModel):
-    """Response model for slack template preview"""
-
-    message: dict[str, Any]
-    channels: list[str] = []
-
-
-class PreviewResponse(BaseModel):
-    """Response model for template preview"""
-
-    email: EmailPreviewResponse | None = None
-    slack: SlackPreviewResponse | None = None
+    model_config = ConfigDict(from_attributes=True)
