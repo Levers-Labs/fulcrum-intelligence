@@ -210,7 +210,7 @@ async def get_tenant_config_internal(
     """
     try:
         config: TenantConfig = await tenant_crud_client.get_tenant_config(tenant_id)
-        return config
+        return TenantConfig.model_validate(config)
     except NotFoundError as e:
         raise HTTPException(status_code=404, detail="Tenant not found") from e
 
