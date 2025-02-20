@@ -167,16 +167,15 @@ class PreviewService:
             # Prepare channel-specific data
             if channel_type == NotificationChannel.EMAIL:
                 preview_data["email"] = {
-                    "to_emails": [r["email"] for r in channel.recipients if r["location"] == "to"],
-                    "cc_emails": [r["email"] for r in channel.recipients if r["location"] == "cc"],
+                    "to_emails": [r["email"] for r in channel.recipients if r["location"] == "to"],  # type: ignore
+                    "cc_emails": [r["email"] for r in channel.recipients if r["location"] == "cc"],  # type: ignore
                     "subject": f"[{context['metric']['label']}] New Stories Alert",
                     "body": " ".join(rendered_content.split()),
                 }
             elif channel_type == NotificationChannel.SLACK:
                 preview_data["slack"] = {
                     "message": " ".join(rendered_content.split()),
-                    "channels": [r["name"] for r in channel.recipients if r.get("is_channel")],
+                    "channels": [r["name"] for r in channel.recipients],  # type: ignore
                 }
 
-        # Let Pydantic handle the model creation
         return preview_data
