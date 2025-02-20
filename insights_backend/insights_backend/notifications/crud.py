@@ -19,7 +19,12 @@ from commons.utilities.pagination import PaginationParams
 from insights_backend.notifications.enums import NotificationType
 from insights_backend.notifications.filters import NotificationConfigFilter
 from insights_backend.notifications.models import Alert, NotificationChannelConfig, Report
-from insights_backend.notifications.schemas import AlertDetail, AlertRequest
+from insights_backend.notifications.schemas import (
+    AlertDetail,
+    AlertRequest,
+    ReportDetail,
+    ReportRequest,
+)
 from insights_backend.notifications.services.template_service import TemplateService
 
 
@@ -100,6 +105,56 @@ class CRUDNotifications:
         result = await self.session.execute(statement)
         return [row[0] for row in result.fetchall()]
 
+    async def _validate_ids(self, ids: list[int], model: type[ModelType]) -> set[int]:
+        """
+        Find which IDs from the input list don't exist in the database.
+
+        Args:
+            ids: List of alert IDs to check
+
+        Returns:
+            Set of IDs that don't exist in the database
+            :param model:
+        """
+        statement = select(model.id).where(model.id.in_(ids))  # type: ignore
+        result = await self.session.execute(statement)
+        found_ids = {row[0] for row in result.fetchall()}
+        return set(ids) - found_ids
+
+    async def _delete(self, model: type[ModelType], ids: list[int]):
+        invalid_ids = await self._validate_ids(ids, model)
+        if invalid_ids:
+            raise ValueError(f"Data not found for {str(model.__tablename__)}: {list(invalid_ids)}")
+        await self.session.execute(delete(model).where(model.id.in_(ids)))
+
+    async def batch_delete(self, alert_ids: list[int], report_ids: list[int]) -> None:
+        """Deletes all notification channels for one or multiple alerts / reports"""
+        if not alert_ids and not report_ids:
+            return
+        if alert_ids:
+            await self._delete(Alert, alert_ids)
+        if report_ids:
+            await self._delete(Report, report_ids)
+        await self.session.commit()
+
+    async def _update_status(self, model: type[ModelType], ids: list[int], status: bool):
+        invalid_ids = await self._validate_ids(ids, model)
+        if invalid_ids:
+            raise ValueError(f"Data not found for {str(model.__tablename__)}: {list(invalid_ids)}")
+        await self.session.execute(update(model).where(model.id.in_(ids)).values(is_active=status))
+
+    async def batch_status_update(self, alert_ids: list[int], report_ids: list[int], is_active: bool) -> None:
+        """Updates the active status of one or multiple Alerts."""
+
+        if not alert_ids and not report_ids:
+            return
+        if alert_ids:
+            await self._update_status(Alert, alert_ids, is_active)
+        if report_ids:
+            await self._update_status(Report, report_ids, is_active)
+        # Commit the session to save the changes
+        await self.session.commit()
+
 
 class CRUDNotificationChannelConfig(
     CRUDBase[NotificationChannelConfig, NotificationChannelConfig, NotificationChannelConfig, None]  # type: ignore
@@ -149,13 +204,6 @@ class CRUDNotificationChannelConfig(
 
         await self.session.commit()
 
-    async def batch_delete(self, ids: list[int], notification_type: NotificationType) -> None:
-        """Deletes all notification channels for one or multiple alerts"""
-        notification_id = "alert_id" if notification_type == NotificationType.ALERT else "report_id"
-        await self.session.execute(
-            delete(self.model).where(getattr(NotificationChannelConfig, notification_id).in_(ids))  # type: ignore
-        )
-
 
 class CRUDAlert(CRUDBase[Alert, AlertRequest, None, None]):  # type: ignore
     """
@@ -201,21 +249,6 @@ class CRUDAlert(CRUDBase[Alert, AlertRequest, None, None]):  # type: ignore
         await self.session.commit()
         await self.session.refresh(alert)
         return alert
-
-    async def batch_delete(self, ids: list[int]) -> None:
-        """Deletes one or multiple Alerts by their IDs."""
-        await self.session.execute(delete(self.model).where(Alert.id.in_(ids)))  # type: ignore
-        await self.session.commit()
-
-    async def batch_status_update(self, alert_ids: list[int], is_active: bool) -> None:
-        """Updates the active status of one or multiple Alerts."""
-
-        # Construct the SQL statement to update Alerts' active status
-        await self.session.execute(
-            update(Alert).where(Alert.id.in_(alert_ids)).values(is_active=is_active)  # type: ignore
-        )
-        # Commit the session to save the changes
-        await self.session.commit()
 
     async def update_alert(
         self,
@@ -287,17 +320,118 @@ class CRUDAlert(CRUDBase[Alert, AlertRequest, None, None]):  # type: ignore
 
         return alert
 
-    async def validate_ids(self, ids: list[int]) -> set[int]:
-        """
-        Find which IDs from the input list don't exist in the database.
 
-        Args:
-            ids: List of alert IDs to check
+class CRUDReport(CRUDBase[Report, ReportRequest, None, None]):  # type: ignore
+    """
+    CRUD operations for the Report model.
+    """
 
-        Returns:
-            Set of IDs that don't exist in the database
-        """
-        statement = select(Alert.id).where(Alert.id.in_(ids))  # type: ignore
-        result = await self.session.execute(statement)
-        found_ids = {row[0] for row in result.fetchall()}
-        return set(ids) - found_ids
+    def __init__(
+        self, model: type[ModelType], session: AsyncSession, notification_config_crud: CRUDNotificationChannelConfig
+    ):
+        super().__init__(model, session)  # type: ignore
+        self.notification_config_crud = notification_config_crud
+
+    def get_select_query(self) -> select:  # type: ignore
+        """Base select query with all relationships loaded"""
+        return select(self.model).options(selectinload(self.model.notification_channels))  # type: ignore
+
+    async def create(self, *, report_create: ReportRequest) -> Any:  # type: ignore
+        """Creates a new Report with its associated notification channels."""
+
+        report = Report(
+            **report_create.model_dump(exclude={"notification_channels"}),
+            type=NotificationType.REPORT,
+        )
+
+        # Add the new Report to the session
+        self.session.add(report)
+        # Flush the session to save the changes
+        await self.session.flush()
+
+        channels = report_create.notification_channels
+        # Create notification channels
+        await self.notification_config_crud.batch_create_or_update(
+            notification_configs=[
+                NotificationChannelConfig(
+                    **channel.model_dump(), report_id=report.id, notification_type=report.type  # type: ignore
+                )
+                for channel in channels
+            ],
+        )
+
+        # Commit the session to persist the changes
+        await self.session.commit()
+        await self.session.refresh(report)
+        return report
+
+    async def publish(
+        self,
+        report_id: int,
+    ) -> Report:
+        """Publish a draft report with notification channels"""
+        report = await self.get(report_id)
+        if not report:
+            raise NotFoundError(f"Report with id {report_id} not found")
+
+        if not report.is_publishable():
+            raise ValueError(
+                "Report cannot be published. Report must be active and have: Schedule, Report Config and notification "
+                "channel config."
+            )
+
+        if report.is_published:
+            raise ValueError(f"Report with id {report_id} is already published")
+
+        report.is_published = True
+        self.session.add(report)
+        await self.session.commit()
+        await self.session.refresh(report)
+
+        return report
+
+    async def update_report(
+        self,
+        *,
+        report_id: int,
+        report_update: ReportRequest,
+    ) -> ReportDetail:
+        """Updates an existing Report with smart channel management"""
+
+        # Get report with its channels config
+        report = await self.get(report_id)
+
+        # Update report attributes
+        await self.session.execute(
+            update(Report)
+            .filter_by(id=report_id)
+            .values(**report_update.model_dump(exclude={"notification_channels"}, exclude_unset=True))
+        )
+
+        channels = report_update.notification_channels
+        if channels:
+            # Create or Update notification channels
+            channel_configs = [
+                NotificationChannelConfig(
+                    channel_type=channel.channel_type,
+                    report_id=report.id,
+                    notification_type=report.type,  # type: ignore
+                    recipients=channel.recipients,
+                )
+                for channel in channels
+            ]
+            await self.notification_config_crud.batch_create_or_update(notification_configs=channel_configs)
+
+            # Get current channel types and delete the ones not in update
+            upserted_channel_types = {c.channel_type for c in channel_configs}
+            await self.session.execute(
+                delete(NotificationChannelConfig).where(
+                    and_(
+                        NotificationChannelConfig.report_id == report_id,  # type: ignore
+                        NotificationChannelConfig.channel_type.not_in(upserted_channel_types),  # type: ignore
+                    )
+                )
+            )
+
+        await self.session.commit()
+        return await self.get(report_id)  # type: ignore
