@@ -256,6 +256,7 @@ class CRUDAlert(CRUDBase[Alert, AlertRequest, None, None]):  # type: ignore
         alert_id: int,
         alert_update: AlertRequest,
     ) -> AlertDetail:
+
         # Get alert with its channels
         alert = await self.get(alert_id)
 
