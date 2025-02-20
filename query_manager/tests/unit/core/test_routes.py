@@ -348,7 +348,16 @@ async def test_metric_slack_notifications(async_client: AsyncClient, mocker, met
     mock_create_notifications = AsyncMock(
         return_value={
             "slack_enabled": True,
-            "slack_channels": [{"id": "channel1", "name": "test-channel"}],
+            "slack_channels": [
+                {
+                    "id": "channel1",
+                    "name": "test-channel",
+                    "is_channel": True,
+                    "is_group": False,
+                    "is_dm": False,
+                    "is_private": False,
+                }
+            ],
         }
     )
     mocker.patch.object(CRUDMetricNotifications, "create_metric_notifications", mock_create_notifications)
@@ -362,7 +371,16 @@ async def test_metric_slack_notifications(async_client: AsyncClient, mocker, met
     assert response.status_code == 200
     assert response.json() == {
         "slack_enabled": True,
-        "slack_channels": [{"id": "channel1", "name": "test-channel"}],
+        "slack_channels": [
+            {
+                "id": "channel1",
+                "name": "test-channel",
+                "is_channel": True,
+                "is_group": False,
+                "is_dm": False,
+                "is_private": False,
+            }
+        ],
     }
 
     # Test invalid request (empty channel_ids when slack_enabled is True)
