@@ -125,7 +125,7 @@ class CRUDNotifications:
         invalid_ids = await self._validate_ids(ids, model)
         if invalid_ids:
             raise ValueError(f"Data not found for {str(model.__tablename__)}: {list(invalid_ids)}")
-        await self.session.execute(delete(model).where(model.id.in_(ids)))
+        await self.session.execute(delete(model).where(model.id.in_(ids)))  # type: ignore
 
     async def batch_delete(self, alert_ids: list[int], report_ids: list[int]) -> None:
         """Deletes all notification channels for one or multiple alerts / reports"""
@@ -141,7 +141,7 @@ class CRUDNotifications:
         invalid_ids = await self._validate_ids(ids, model)
         if invalid_ids:
             raise ValueError(f"Data not found for {str(model.__tablename__)}: {list(invalid_ids)}")
-        await self.session.execute(update(model).where(model.id.in_(ids)).values(is_active=status))
+        await self.session.execute(update(model).where(model.id.in_(ids)).values(is_active=status))  # type: ignore
 
     async def batch_status_update(self, alert_ids: list[int], report_ids: list[int], is_active: bool) -> None:
         """Updates the active status of one or multiple Alerts."""
@@ -256,7 +256,6 @@ class CRUDAlert(CRUDBase[Alert, AlertRequest, None, None]):  # type: ignore
         alert_id: int,
         alert_update: AlertRequest,
     ) -> AlertDetail:
-        """Updates an existing Alert with smart channel management"""
         # Get alert with its channels
         alert = await self.get(alert_id)
 
