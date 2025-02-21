@@ -103,13 +103,7 @@ class Alert(NotificationConfigBase, InsightsSchemaBaseModel, table=True):  # typ
     )
 
     def is_publishable(self) -> bool:
-        return (
-            bool(self.name)
-            and bool(self.trigger)
-            and bool(self.grain)
-            and self.is_active
-            and bool(self.notification_channels)
-        )
+        return bool(self.trigger) and self.is_active and bool(self.notification_channels)
 
 
 # ----------------
@@ -157,7 +151,7 @@ class Report(NotificationConfigBase, InsightsSchemaBaseModel, table=True):  # ty
     )
 
     def is_publishable(self) -> bool:
-        return bool(self.name) and bool(self.schedule) and bool(self.config)
+        return bool(self.schedule) and bool(self.config) and bool(self.notification_channels) and self.is_active
 
 
 # ----------------

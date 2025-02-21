@@ -1,0 +1,48 @@
+{
+    "blocks": [
+        {
+            "type": "header",
+            "text": {
+                "type": "plain_text",
+                "text": "💰 {{ grain|title }} {{ report_name }} Report",
+                "emoji": true
+            }
+        },
+        {
+            "type": "section",
+            "text": {
+                "type": "mrkdwn",
+                "text": "*{{ start_date }} - {{ end_date }}*"
+            }
+        },
+        {% for metric in metrics %}
+        {
+            "type": "section",
+            "text": {
+                "type": "mrkdwn",
+                "text": "{% if metric.value > 0 %}⬆{% else %}⬇{% endif %} *{{ metric.label }}:* {{ metric.value }}",
+                "emoji": true
+            }
+        },
+        {% endfor %}
+        {
+            "type": "divider"
+        },
+        {
+            "type": "context",
+            "elements": [
+                {
+                    "type": "mrkdwn",
+                    "text": "Generated on {{ time }} UTC"
+                }
+            ]
+        },
+        {
+            "type": "section",
+            "text": {
+                "type": "mrkdwn",
+                "text": "<https://app.leverslabs.com |View full report →>"
+            }
+        }
+    ]
+}
