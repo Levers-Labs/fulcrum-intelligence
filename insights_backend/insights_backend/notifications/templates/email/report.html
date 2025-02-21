@@ -1,10 +1,10 @@
 <div class='email-header'>
-    <p> 🚀 [{{ metric.label }}] Stories • {{ grain }} </p>
+    <p> 💰 {{ grain|title }} {{ report_name }} Report </p>
 </div>
 
 <div class='email-body'>
-    {% for report in reports %}
-        <p>{% if report.condition > 0 %}↗️{% else %}↘️{% endif %} *{{ report.metric.label }}:* {{ report.metric.value }}</p>
+    {% for metric in metrics %}
+        <p>{% if metric.value > 0 %}⬆️{% else %}⬇️{% endif %} *{{ metric.label }}:* {{ metric.value }}</p>
     {% endfor %}
 </div>
 <hr>

@@ -1,9 +1,10 @@
 import asyncio
-from typing import Any
+from typing import Any, TypeVar
 
 from sqlalchemy import (
     and_,
     delete,
+    distinct,
     func,
     select,
     union,
@@ -18,14 +19,22 @@ from commons.utilities.context import get_tenant_id
 from commons.utilities.pagination import PaginationParams
 from insights_backend.notifications.enums import NotificationType
 from insights_backend.notifications.filters import NotificationConfigFilter
-from insights_backend.notifications.models import Alert, NotificationChannelConfig, Report
+from insights_backend.notifications.models import (
+    Alert,
+    NotificationChannelConfig,
+    NotificationExecution,
+    Report,
+)
 from insights_backend.notifications.schemas import (
     AlertDetail,
     AlertRequest,
+    NotificationList,
     ReportDetail,
     ReportRequest,
 )
 from insights_backend.notifications.services.template_service import TemplateService
+
+NotificationModel = TypeVar("NotificationModel", Alert, Report)
 
 
 class CRUDNotifications:
@@ -39,49 +48,72 @@ class CRUDNotifications:
     def __init__(self, session: AsyncSession):
         self.session = session
 
-    async def get_notifications_list(
-        self, params: PaginationParams, filter_params: dict[str, Any] | None = None
-    ) -> tuple[list[Any], int]:
+    def _create_base_query(self, model: type[NotificationModel]) -> select:  # type: ignore
         """
-        Get paginated list of notifications with filters.
+        Creates a base query for either Alert or Report models with all necessary joins and aggregations.
 
         Args:
-            params: Pagination parameters
-            filter_params: Optional filter parameters
+            model: The model class (Alert or Report)
 
         Returns:
-            Tuple of (list of results, total count)
+            SQLAlchemy select query with all required fields
         """
-        # Build base query for alerts first
-        base_query = (
-            select(
-                Alert.id,
-                Alert.name,
-                Alert.type,
-                Alert.grain,
-                Alert.summary,
-                Alert.tags,
-                Alert.is_active.label("status"),  # type: ignore
-                func.count(NotificationChannelConfig.id).label("recipients_count"),  # type: ignore
+        # Determine the correct foreign key relationships based on model type
+        model_id = model.id
+        execution_fk = NotificationExecution.alert_id if model == Alert else NotificationExecution.report_id
+        config_fk = NotificationChannelConfig.alert_id if model == Alert else NotificationChannelConfig.report_id
+        notification_type = NotificationType.ALERT if model == Alert else NotificationType.REPORT
+
+        return (
+            select(  # type: ignore
+                model.id,
+                model.name,
+                model.type,
+                model.grain,
+                model.summary,
+                model.tags,
+                model.is_active,
+                func.max(NotificationExecution.executed_at).label("last_execution"),
+                func.count(distinct(NotificationChannelConfig.id)).label("channel_count"),
+                func.sum(func.jsonb_array_length(NotificationChannelConfig.recipients)).label("recipients_count"),
             )
-            .outerjoin(NotificationChannelConfig, Alert.id == NotificationChannelConfig.alert_id)  # type: ignore
-            .group_by(Alert.id, Alert.name, Alert.type, Alert.grain, Alert.summary, Alert.tags, Alert.is_active)
+            .select_from(model)
+            .outerjoin(NotificationExecution, execution_fk == model_id)
+            .outerjoin(
+                NotificationChannelConfig,
+                and_(
+                    config_fk == model_id, NotificationChannelConfig.notification_type == notification_type  # type: ignore
+                ),
+            )
+            .group_by(model.id, model.name, model.type, model.grain, model.summary, model.tags, model.is_active)
         )
 
-        # Apply filters if provided
+    async def get_notifications_list(
+        self, params: PaginationParams, filter_params: dict[str, Any] | None = None
+    ) -> tuple[list[NotificationList], int]:
+        """
+        Get paginated list of notifications with their execution history and recipient counts.
+        Combines data from alerts, reports, notification channels, and executions.
+        """
+        # Create base queries for alerts and reports
+        alerts = self._create_base_query(Alert)
+        reports = self._create_base_query(Report)
+
         if filter_params:
-            base_query = self.filter_class.apply_filters(base_query, filter_params)
+            alerts = self.filter_class.apply_filters(alerts, filter_params)
+            reports = self.filter_class.apply_filters(reports, filter_params)
 
-        # Add pagination
-        query = base_query.offset(params.offset).limit(params.limit)
+        # Combine and paginate
+        combined = alerts.union(reports).order_by("name").offset(params.offset).limit(params.limit)  # type: ignore
 
-        # Get total count from base query
-        count_query = select(func.count()).select_from(base_query.subquery())
+        # Get total count for pagination
+        count_query = select(func.count()).select_from(alerts.union(reports).subquery())  # type: ignore
 
         # Execute queries
-        count_result, results = await asyncio.gather(self.session.scalar(count_query), self.session.execute(query))
+        results, total_count = await asyncio.gather(self.session.execute(combined), self.session.scalar(count_query))
+        notifications = [NotificationList.model_validate(row) for row in results]
 
-        return list(results), count_result or 0
+        return notifications, total_count or 0
 
     async def get_unique_tags(self) -> list[str]:
         """
@@ -105,7 +137,7 @@ class CRUDNotifications:
         result = await self.session.execute(statement)
         return [row[0] for row in result.fetchall()]
 
-    async def _validate_ids(self, ids: list[int], model: type[ModelType]) -> set[int]:
+    async def _validate_ids(self, ids: list[int], model: NotificationModel) -> set[int]:
         """
         Find which IDs from the input list don't exist in the database.
 
@@ -121,7 +153,7 @@ class CRUDNotifications:
         found_ids = {row[0] for row in result.fetchall()}
         return set(ids) - found_ids
 
-    async def _delete(self, model: type[ModelType], ids: list[int]):
+    async def _delete(self, model: NotificationModel, ids: list[int]):
         invalid_ids = await self._validate_ids(ids, model)
         if invalid_ids:
             raise ValueError(f"Data not found for {str(model.__tablename__)}: {list(invalid_ids)}")
@@ -132,12 +164,12 @@ class CRUDNotifications:
         if not alert_ids and not report_ids:
             return
         if alert_ids:
-            await self._delete(Alert, alert_ids)
+            await self._delete(Alert, alert_ids)  # type: ignore
         if report_ids:
-            await self._delete(Report, report_ids)
+            await self._delete(Report, report_ids)  # type: ignore
         await self.session.commit()
 
-    async def _update_status(self, model: type[ModelType], ids: list[int], status: bool):
+    async def _update_status(self, model: NotificationModel, ids: list[int], status: bool):
         invalid_ids = await self._validate_ids(ids, model)
         if invalid_ids:
             raise ValueError(f"Data not found for {str(model.__tablename__)}: {list(invalid_ids)}")
@@ -149,9 +181,9 @@ class CRUDNotifications:
         if not alert_ids and not report_ids:
             return
         if alert_ids:
-            await self._update_status(Alert, alert_ids, is_active)
+            await self._update_status(Alert, alert_ids, is_active)  # type: ignore
         if report_ids:
-            await self._update_status(Report, report_ids, is_active)
+            await self._update_status(Report, report_ids, is_active)  # type: ignore
         # Commit the session to save the changes
         await self.session.commit()
 

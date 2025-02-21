@@ -4,7 +4,7 @@
             "type": "header",
             "text": {
                 "type": "plain_text",
-                "text": "💰 {{ grain | title }} Metrics Report",
+                "text": "💰 {{ grain|title }} {{ report_name }} Report",
                 "emoji": true
             }
         },
@@ -15,12 +15,13 @@
                 "text": "*{{ start_date }} - {{ end_date }}*"
             }
         },
-        {% for report in reports %}
+        {% for metric in metrics %}
         {
             "type": "section",
             "text": {
                 "type": "mrkdwn",
-                "text": "{% if report.condition > 0 %}↗️{% else %}↘️{% endif %} *{{ report.metric.label }}:* {{ report.metric.value }}"
+                "text": "{% if metric.value > 0 %}⬆{% else %}⬇{% endif %} *{{ metric.label }}:* {{ metric.value }}",
+                "emoji": true
             }
         },
         {% endfor %}

@@ -97,9 +97,9 @@ class NotificationList(BaseModel):
     tags: list[str] | None = None
     last_execution: datetime | None = None
     recipients_count: int | None
-    status: bool
+    is_active: bool
 
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(from_attributes=True, arbitrary_types_allowed=True)
 
 
 class ReportRequest(NotificationBase):

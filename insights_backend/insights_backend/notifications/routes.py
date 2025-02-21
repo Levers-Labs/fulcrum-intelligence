@@ -86,7 +86,7 @@ async def get_alert(
 @notification_router.post(
     "/alerts/{alert_id}/publish",
     status_code=200,
-    dependencies=[Security(oauth2_auth().verify, scopes=[ALERT_REPORT_READ])],
+    dependencies=[Security(oauth2_auth().verify, scopes=[ALERT_REPORT_WRITE])],
 )
 async def publish_alert(
     alert_id: int,
@@ -172,7 +172,6 @@ async def list_notifications(
         notification_type: Filter by notification type
         channel_type: Filter by channel type
         grain: Filter by granularity
-        tags: Filter by tags
         is_active: Filter by active status
 
     Returns:
@@ -182,11 +181,9 @@ async def list_notifications(
         notification_type=notification_type, channel_type=channel_type, grain=grain, is_active=is_active
     )
 
-    results, count = await notification_crud.get_notifications_list(
+    notifications, count = await notification_crud.get_notifications_list(
         params=params, filter_params=notification_filter.dict(exclude_unset=True)
     )
-
-    notifications = [NotificationList.model_validate(row) for row in results]
 
     return Page.create(items=notifications, total_count=count, params=params)
 
@@ -261,7 +258,17 @@ async def create_report(
     report_create: ReportRequest,
     report_crud: ReportsCRUDDep,
 ):
+    """
+    Creates a new report with its configuration.
 
+    This endpoint creates a new report based on the provided request data. It requires the ALERT_REPORT_WRITE scope
+    for authentication.
+    The report creation includes setting up its configuration, such as schedule, metrics, and notification channels.
+
+    :param report_create: The request data for creating a report.
+    :param report_crud: Dependency for CRUD operations on reports.
+    :return: The newly created report.
+    """
     return await report_crud.create(
         report_create=report_create,
     )
@@ -276,13 +283,22 @@ async def get_report(
     report_id: int,
     report_crud: ReportsCRUDDep,
 ):
+    """
+    Retrieves a report by its ID.
+
+    This endpoint fetches a report by its ID. It requires the ALERT_REPORT_READ scope for authentication.
+
+    :param report_id: The ID of the report to retrieve.
+    :param report_crud: Dependency for CRUD operations on reports.
+    :return: The report details.
+    """
     return await report_crud.get(report_id)
 
 
 @notification_router.post(
     "/reports/{report_id}/publish",
     status_code=200,
-    dependencies=[Security(oauth2_auth().verify, scopes=[ALERT_REPORT_READ])],
+    dependencies=[Security(oauth2_auth().verify, scopes=[ALERT_REPORT_WRITE])],
 )
 async def publish_report(
     report_id: int,
