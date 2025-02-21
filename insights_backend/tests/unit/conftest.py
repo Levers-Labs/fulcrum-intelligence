@@ -107,6 +107,9 @@ def setup_env(session_monkeypatch, postgres):  # noqa
     session_monkeypatch.setenv("SLACK_CLIENT_ID", "slack_client_id")
     session_monkeypatch.setenv("SLACK_CLIENT_SECRET", "slack_client_secret")
     session_monkeypatch.setenv("SLACK_OAUTH_REDIRECT_PATH", "slack/oauth/callback")
+    session_monkeypatch.setenv("PREFECT_API_URL", "http://localhost:4200")
+    session_monkeypatch.setenv("PREFECT_API_TOKEN", "prefect_api_token")
+
     yield
 
 
