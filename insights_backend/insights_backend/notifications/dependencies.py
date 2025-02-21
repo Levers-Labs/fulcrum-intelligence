@@ -3,8 +3,13 @@ from typing import Annotated
 from fastapi import Depends
 
 from insights_backend.db.config import AsyncSessionDep
-from insights_backend.notifications.crud import CRUDAlert, CRUDNotificationChannelConfig, CRUDNotifications
-from insights_backend.notifications.models import Alert, NotificationChannelConfig
+from insights_backend.notifications.crud import (
+    CRUDAlert,
+    CRUDNotificationChannelConfig,
+    CRUDNotifications,
+    CRUDReport,
+)
+from insights_backend.notifications.models import Alert, NotificationChannelConfig, Report
 from insights_backend.notifications.services.template_service import TemplateService
 
 
@@ -40,3 +45,12 @@ async def get_notification_crud(session: AsyncSessionDep) -> CRUDNotifications:
 
 
 CRUDNotificationsDep = Annotated[CRUDNotifications, Depends(get_notification_crud)]
+
+
+async def get_reports_crud(
+    session: AsyncSessionDep, notification_channel_config_crud: NotificationChannelConfigCRUDDep
+) -> CRUDReport:
+    return CRUDReport(model=Report, session=session, notification_config_crud=notification_channel_config_crud)
+
+
+ReportsCRUDDep = Annotated[CRUDReport, Depends(get_reports_crud)]

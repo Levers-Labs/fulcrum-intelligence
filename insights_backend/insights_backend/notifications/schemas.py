@@ -6,17 +6,19 @@ from pydantic import ConfigDict, Field, field_validator
 from commons.models import BaseModel
 from commons.models.enums import Granularity
 from insights_backend.notifications.enums import NotificationType
-from insights_backend.notifications.models import AlertTrigger, NotificationChannelConfig
+from insights_backend.notifications.models import (
+    AlertTrigger,
+    NotificationChannelConfig,
+    ReportConfig,
+    ScheduleConfig,
+)
 
 
-class AlertRequest(BaseModel):
-    """Request model for creating alerts"""
-
+class NotificationBase(BaseModel):
     name: str
-    description: str | None = Field(default=None, description="description of the alert")
+    description: str | None = Field(default=None, description="description")
     grain: Granularity
-    trigger: AlertTrigger
-    tags: list[str] = Field(default_factory=list, description="tags for categorizing alerts")
+    tags: list[str] = Field(default_factory=list, description="tags for categorizing notifications")
     summary: str
     notification_channels: list[NotificationChannelConfig] = Field(
         default_factory=list, description="notification channel configurations"
@@ -36,6 +38,12 @@ class AlertRequest(BaseModel):
     def validate_unique_tags(cls, v: list[str]) -> list[str]:
         """Ensure tags are unique and non-empty"""
         return list(dict.fromkeys(tag.strip() for tag in v if tag.strip()))
+
+
+class AlertRequest(NotificationBase):
+    """Request model for creating alerts"""
+
+    trigger: AlertTrigger
 
     model_config = ConfigDict(
         from_attributes=True,
@@ -69,21 +77,11 @@ class AlertRequest(BaseModel):
     )
 
 
-class AlertDetail(BaseModel):
+class AlertDetail(NotificationBase):
     """Model for reading alert with its notification channels"""
 
     id: int
-    name: str
-    description: str | None = None
-    type: NotificationType
-    grain: Granularity
     trigger: AlertTrigger
-    tags: list[str] | None = None
-    is_published: bool
-    is_active: bool
-    summary: str | None = None
-
-    notification_channels: list[NotificationChannelConfig]
 
     model_config = ConfigDict(from_attributes=True, arbitrary_types_allowed=True)
 
@@ -99,6 +97,63 @@ class NotificationList(BaseModel):
     tags: list[str] | None = None
     last_execution: datetime | None = None
     recipients_count: int | None
-    status: bool
+    is_active: bool
 
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(from_attributes=True, arbitrary_types_allowed=True)
+
+
+class ReportRequest(NotificationBase):
+    """Request model for creating reports"""
+
+    schedule: ScheduleConfig
+    config: ReportConfig
+
+    model_config = ConfigDict(
+        from_attributes=True,
+        json_schema_extra={
+            "example": {
+                "name": "report name",
+                "description": "report description",
+                "grain": "day",
+                "schedule": {
+                    "minute": "0",
+                    "hour": "9",
+                    "day_of_month": "*",
+                    "month": "*",
+                    "day_of_week": "MON",
+                    "timezone": "America/New_York",
+                },
+                "config": {"metric_ids": ["NewBizDeals", "NewWins"], "comparisons": ["PERCENTAGE_CHANGE"]},
+                "summary": "Daily report summary",
+                "notification_channels": [
+                    {
+                        "channel_type": "slack",
+                        "recipients": [
+                            {
+                                "name": "#daily-metrics",
+                                "is_channel": True,
+                                "is_group": False,
+                                "is_dm": False,
+                                "is_private": False,
+                            }
+                        ],
+                    },
+                    {
+                        "channel_type": "email",
+                        "recipients": [
+                            {"email": "team@example.com", "location": "to"},
+                            {"email": "manager@example.com", "location": "cc"},
+                        ],
+                    },
+                ],
+            }
+        },
+    )
+
+
+class ReportDetail(NotificationBase):
+    id: int
+    schedule: ScheduleConfig
+    config: ReportConfig
+
+    model_config = ConfigDict(from_attributes=True, arbitrary_types_allowed=True)
