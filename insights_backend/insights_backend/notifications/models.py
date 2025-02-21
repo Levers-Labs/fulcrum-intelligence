@@ -152,6 +152,9 @@ class Report(NotificationConfigBase, InsightsSchemaBaseModel, table=True):  # ty
         back_populates="report", sa_relationship_kwargs={"cascade": "all, delete-orphan", "lazy": "selectin"}
     )
 
+    # Task Manager fields
+    deployment_id: str | None = None
+
     def is_publishable(self) -> bool:
         return bool(self.schedule) and bool(self.config) and bool(self.notification_channels) and self.is_active
 

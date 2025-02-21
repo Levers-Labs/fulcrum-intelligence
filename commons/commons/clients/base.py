@@ -155,3 +155,11 @@ class AsyncHttpClient:
         # Use custom JSON encoder to handle datetime objects
         response = await self._make_request("POST", endpoint, json=serialize_json(data))
         return response.json()
+
+    async def delete(self, endpoint: str) -> dict[str, Any]:
+        """
+        Makes a async http delete request.
+        endpoint: absolute or relative url
+        """
+        response = await self._make_request("DELETE", endpoint)
+        return response.json()

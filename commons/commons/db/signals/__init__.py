@@ -13,8 +13,7 @@ class EventTiming(str, Enum):
     AFTER = "after"
 
 
-from .blinker_events import *  # noqa
-from .dispatcher import subscribe  # noqa
-
 # Imports
 from .publisher import publish_event  # noqa
+from .blinker_events import *  # noqa
+from .dispatcher import subscribe  # noqa

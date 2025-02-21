@@ -196,3 +196,8 @@ class ReportDetail(NotificationBase):
     config: ReportConfig
 
     model_config = ConfigDict(from_attributes=True, arbitrary_types_allowed=True)
+
+
+class MetricTaskParameters(BaseModel):
+    tenant_id: int
+    report_id: int
