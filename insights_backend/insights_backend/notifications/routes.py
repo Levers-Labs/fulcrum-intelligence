@@ -162,6 +162,7 @@ async def list_notifications(
     channel_type: Annotated[NotificationChannel | None, Query()] = None,
     grain: Annotated[Granularity | None, Query()] = None,
     is_active: Annotated[bool | None, Query()] = None,
+    tags: Annotated[list[str] | None, Query()] = None,
 ):
     """
     Retrieve a paginated list of all notifications (alerts and reports).
@@ -173,12 +174,17 @@ async def list_notifications(
         channel_type: Filter by channel type
         grain: Filter by granularity
         is_active: Filter by active status
+        tags: Filter by tags (matches any of the provided tags)
 
     Returns:
         Paginated list of notifications
     """
     notification_filter = NotificationConfigFilter(
-        notification_type=notification_type, channel_type=channel_type, grain=grain, is_active=is_active
+        notification_type=notification_type,
+        channel_type=channel_type,
+        grain=grain,
+        is_active=is_active,
+        tags=tags,
     )
 
     notifications, count = await notification_crud.get_notifications_list(

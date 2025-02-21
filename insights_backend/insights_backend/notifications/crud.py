@@ -73,16 +73,17 @@ class CRUDNotifications:
                 model.summary,
                 model.tags,
                 model.is_active,
-                func.max(NotificationExecution.executed_at).label("last_execution"),
-                func.count(distinct(NotificationChannelConfig.id)).label("channel_count"),
+                func.max(NotificationExecution.executed_at).label("last_execution"),  # type: ignore
+                func.count(distinct(NotificationChannelConfig.id)).label("channel_count"),  # type: ignore
                 func.sum(func.jsonb_array_length(NotificationChannelConfig.recipients)).label("recipients_count"),
             )
             .select_from(model)
-            .outerjoin(NotificationExecution, execution_fk == model_id)
+            .outerjoin(NotificationExecution, execution_fk == model_id)  # type: ignore
             .outerjoin(
                 NotificationChannelConfig,
                 and_(
-                    config_fk == model_id, NotificationChannelConfig.notification_type == notification_type  # type: ignore
+                    config_fk == model_id,
+                    NotificationChannelConfig.notification_type == notification_type,  # type: ignore
                 ),
             )
             .group_by(model.id, model.name, model.type, model.grain, model.summary, model.tags, model.is_active)
@@ -100,8 +101,9 @@ class CRUDNotifications:
         reports = self._create_base_query(Report)
 
         if filter_params:
-            alerts = self.filter_class.apply_filters(alerts, filter_params)
-            reports = self.filter_class.apply_filters(reports, filter_params)
+            filter_obj = NotificationConfigFilter.model_validate(filter_params)
+            alerts = filter_obj.apply_filters(alerts, Alert)
+            reports = filter_obj.apply_filters(reports, Report)
 
         # Combine and paginate
         combined = alerts.union(reports).order_by("name").offset(params.offset).limit(params.limit)  # type: ignore
@@ -111,7 +113,7 @@ class CRUDNotifications:
 
         # Execute queries
         results, total_count = await asyncio.gather(self.session.execute(combined), self.session.scalar(count_query))
-        notifications = [NotificationList.model_validate(row) for row in results]
+        notifications = [NotificationList.model_validate(row, from_attributes=True) for row in results]
 
         return notifications, total_count or 0
 
