@@ -82,7 +82,7 @@ class CRUDNotifications:
             .outerjoin(
                 NotificationChannelConfig,
                 and_(
-                    config_fk == model_id,
+                    config_fk == model_id,  # type: ignore
                     NotificationChannelConfig.notification_type == notification_type,  # type: ignore
                 ),
             )

@@ -20,7 +20,7 @@ class NotificationConfigFilter(BaseModel):
     def apply_filters(self, query: Select, model: type[Alert] | type[Report]) -> Select:
         """Apply filters to the query, handling both Alert and Report models."""
         if self.grain is not None:
-            query = query.filter(model.grain == self.grain)
+            query = query.filter(model.grain == self.grain)  # type: ignore
 
         if self.is_active is not None:
             query = query.filter(model.is_active == self.is_active)  # type: ignore
