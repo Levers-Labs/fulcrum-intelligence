@@ -11,6 +11,7 @@ from insights_backend.notifications.crud import (
 )
 from insights_backend.notifications.models import Alert, NotificationChannelConfig, Report
 from insights_backend.notifications.services.preview.alert import AlertPreviewService
+from insights_backend.notifications.services.preview.report import ReportPreviewService
 from insights_backend.notifications.services.template_service import TemplateService
 
 
@@ -49,13 +50,23 @@ CRUDNotificationsDep = Annotated[CRUDNotifications, Depends(get_notification_cru
 
 
 async def get_alert_preview_service(
-    template_service: TemplateService = Depends(get_template_service),
+    template_service: TemplateServiceDep,
 ) -> AlertPreviewService:
     return AlertPreviewService(template_service)
 
 
 # Type alias for cleaner route signatures
 AlertPreviewServiceDep = Annotated[AlertPreviewService, Depends(get_alert_preview_service)]
+
+
+async def get_report_preview_service(
+    template_service: TemplateServiceDep,
+) -> ReportPreviewService:
+    return ReportPreviewService(template_service)
+
+
+# Type alias for cleaner route signatures
+ReportPreviewServiceDep = Annotated[ReportPreviewService, Depends(get_report_preview_service)]
 
 
 async def get_reports_crud(

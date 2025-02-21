@@ -1,54 +1,52 @@
-# from datetime import datetime
-# from typing import Any
-#
-# from insights_backend.notifications.enums import NotificationType
-# from insights_backend.notifications.schemas import ReportRequest
-# from insights_backend.notifications.services.base import BasePreviewService
-#
-#
-# class ReportPreviewService(BasePreviewService[ReportRequest]):
-#     """Service for previewing report notifications"""
-#
-#     def _get_notification_type(self) -> NotificationType:
-#         return NotificationType.REPORT
-#
-#     def _get_email_subject(self, context: dict[str, Any]) -> str:
-#         return f"[{context['report_name']}] Report Generated"
-#
-#     async def _generate_context(self, report_data: ReportRequest) -> dict[str, Any]:
-#         """Generate mock context data for report template rendering"""
-#         return {
-#             "report_name": self.faker.word().title(),
-#             "generated_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-#             "summary": self._generate_summary(),
-#             "metrics": self._generate_metrics(),
-#             "insights": self._generate_insights(),
-#         }
-#
-#     def _generate_summary(self) -> dict[str, Any]:
-#         """Generate mock report summary"""
-#         return {
-#             "total_metrics": self.faker.random_int(min=5, max=20),
-#             "anomalies": self.faker.random_int(min=1, max=5),
-#             "period": f"{self.faker.date()} to {self.faker.date()}",
-#         }
-#
-#     def _generate_metrics(self) -> list[dict[str, Any]]:
-#         """Generate mock metrics data"""
-#         return [
-#             {
-#                 "name": self.faker.word().title(),
-#                 "value": self.faker.random_int(min=1000, max=100000),
-#                 "change": f"{self.faker.random_int(min=-50, max=50)}%",
-#                 "status": self.faker.random_element(["up", "down", "stable"]),
-#             }
-#             for _ in range(5)
-#         ]
-#
-#     def _generate_insights(self) -> list[str]:
-#         """Generate mock insights"""
-#         return [
-#             f"{self.faker.word().title()} increased by {self.faker.random_int(min=1, max=100)}%",
-#             f"Unusual trend detected in {self.faker.word().title()}",
-#             f"New pattern emerged in {self.faker.word().title()} metrics",
-#         ]
+from datetime import datetime
+from typing import Any
+
+from insights_backend.notifications.enums import NotificationType
+from insights_backend.notifications.schemas import ReportRequest
+from insights_backend.notifications.services.preview.base import BasePreviewService
+
+
+class ReportPreviewService(BasePreviewService[ReportRequest]):
+    """Service for previewing report notifications"""
+
+    def __init__(self, template_service):
+        super().__init__(template_service, NotificationType.REPORT)
+
+    async def _generate_context(self, report_data: ReportRequest) -> dict[str, Any]:
+        """Generate mock context data for report template rendering"""
+        metrics = self._generate_metrics(report_data)
+
+        return {
+            "report_name": report_data.name,
+            "grain": report_data.grain.value,
+            "time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            "metrics": metrics,
+            "metric": (
+                {"id": ",".join(report_data.config.metric_ids)}
+                if report_data.config.metric_ids
+                else {"id": "default_metric"}
+            ),
+        }
+
+    def _generate_metrics(self, report_data: ReportRequest) -> list[dict[str, Any]]:
+        """Generate metrics data based on user's configuration"""
+        if report_data.config and report_data.config.metric_ids:
+            # Generate data for user-selected metrics
+            return [
+                {
+                    "id": metric_id,
+                    "label": metric_id,  # Using ID as label since we don't have labels in config
+                    "value": self.faker.random_int(min=-10000, max=10000),
+                }
+                for metric_id in report_data.config.metric_ids
+            ]
+
+        # If no metrics configured, generate some fake ones
+        return [
+            {
+                "id": f"metric_{i}",
+                "label": self.faker.word().title(),
+                "value": self.faker.random_int(min=-10000, max=10000),
+            }
+            for i in range(3)  # Generate 3 fake metrics
+        ]

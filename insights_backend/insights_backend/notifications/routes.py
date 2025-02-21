@@ -17,6 +17,7 @@ from insights_backend.notifications.dependencies import (
     AlertPreviewServiceDep,
     AlertsCRUDDep,
     CRUDNotificationsDep,
+    ReportPreviewServiceDep,
     ReportsCRUDDep,
 )
 from insights_backend.notifications.filters import NotificationConfigFilter
@@ -385,3 +386,26 @@ async def update_report(
         report_id=report_id,
         report_update=report_update,
     )
+
+
+@notification_router.post(
+    "/reports/preview",
+    response_model=PreviewResponse,
+    status_code=200,
+    dependencies=[Security(oauth2_auth().verify, scopes=[ALERT_REPORT_READ])],
+)
+async def preview_report(
+    report_data: ReportRequest,
+    preview_service: ReportPreviewServiceDep,
+) -> PreviewResponse:
+    """
+    Preview an alert with rendered notification templates.
+
+    This endpoint generates a preview of how the alert notifications will look
+    without actually creating the alert or sending notifications.
+
+    :param report_data: The report data to preview
+    :param preview_service: Service for generating previews
+    :return: Preview of email and/or slack notifications
+    """
+    return await preview_service.preview(report_data)  # type: ignore

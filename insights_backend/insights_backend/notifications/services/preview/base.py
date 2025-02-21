@@ -6,12 +6,12 @@ from faker import Faker
 
 from commons.notifiers.constants import NotificationChannel
 from insights_backend.notifications.enums import NotificationType
-from insights_backend.notifications.schemas import AlertRequest
+from insights_backend.notifications.schemas import AlertRequest, ReportRequest
 from insights_backend.notifications.services.template_service import TemplateService
 
 logger = logging.getLogger(__name__)
 
-T = TypeVar("T", AlertRequest, None)
+T = TypeVar("T", AlertRequest, ReportRequest)
 
 
 class BasePreviewService(ABC, Generic[T]):
@@ -33,25 +33,28 @@ class BasePreviewService(ABC, Generic[T]):
         """Generate context data for template rendering"""
         pass
 
-    async def preview(self, data: T) -> Any:
+    def _get_email_subject(self, context: dict[str, Any]) -> str:
+        """Generate email subject based on notification type"""
+        if self.notification_type == NotificationType.ALERT:
+            return f"[{context['metric']['label']}] New Stories Alert"
+        else:  # Report
+            return f"📊 {context['grain'].title()} {context['report_name']} Report"
+
+    async def preview(self, data: T) -> dict[str, Any]:
         """Generate preview for notification channels"""
         context = await self._generate_context(data)
         preview_data = {}
 
-        for channel in data.notification_channels:  # type: ignore
-            channel_type = channel.channel_type
-
-            # Get and render template with context
-            template = self.template_service.prepare_channel_template(self.notification_type, channel_type)
+        for channel in data.notification_channels:
             rendered_template = self.template_service.render_template(
-                self.notification_type, channel.channel_type, {"template": template, **context}
+                self.notification_type, channel.channel_type, context
             )
 
             if channel.channel_type == NotificationChannel.EMAIL:
                 preview_data["email"] = {
                     "to_emails": [r["email"] for r in channel.recipients if r["location"] == "to"],
                     "cc_emails": [r["email"] for r in channel.recipients if r["location"] == "cc"],
-                    "subject": f"[{context['metric']['label']}] New Stories Alert",
+                    "subject": self._get_email_subject(context),
                     "body": " ".join(rendered_template.split()),
                 }
             elif channel.channel_type == NotificationChannel.SLACK:
