@@ -6,15 +6,15 @@
         },
         "NEW_UPWARD_TREND": {
             "title": "New upward trend",
-            "detail": "Since {{trend_start_date}}, {{metric.label}} has been following a new, upward trend line that averages {{current_growth}}% {{pop}} growth. The prior trend for this metric lasted {{prev_duration}} {{grain}}s and averaged {{prev_growth}}% {{pop}} growth."
+            "detail": "Since {{start_date}}, {{metric.label}} has been following a new, upward trend line that averages {{current_growth}}% {{pop}} growth. The prior trend for this metric lasted {{prev_duration}} {{grain}}s and averaged {{prev_growth}}% {{pop}} growth."
         },
         "NEW_DOWNWARD_TREND": {
             "title": "New downward trend",
-            "detail": "Since {{trend_start_date}}, {{metric.label}} has been following a new, downward trend line that averages {{current_growth}}% {{pop}} growth. The prior trend for this metric lasted {{prev_duration}} {{grain}}s and averaged {{prev_growth}}% {{pop}} growth."
+            "detail": "Since {{start_date}}, {{metric.label}} has been following a new, downward trend line that averages {{current_growth}}% {{pop}} growth. The prior trend for this metric lasted {{prev_duration}} {{grain}}s and averaged {{prev_growth}}% {{pop}} growth."
         },
         "PERFORMANCE_PLATEAU": {
             "title": "Performance has leveled off",
-            "detail": "Since {{trend_start_date}}, {{metric.label}} growth has steadied into a new normal, hovering around a {{grain}} average of {{avg_value}}."
+            "detail": "Since {{start_date}}, {{metric.label}} growth has steadied into a new normal, hovering around a {{grain}} average of {{avg_value}}."
         }
     },
     "TREND_EXCEPTIONS": {

@@ -13,7 +13,7 @@ from commons.auth.scopes import ALERT_REPORT_READ, ALERT_REPORT_WRITE
 from commons.notifiers.constants import NotificationChannel
 from commons.utilities.pagination import Page, PaginationParams
 from insights_backend.core.dependencies import oauth2_auth
-from insights_backend.notifications.dependencies import AlertsCRUDDep, CRUDNotificationsDep, PreviewServiceDep
+from insights_backend.notifications.dependencies import AlertPreviewServiceDep, AlertsCRUDDep, CRUDNotificationsDep
 from insights_backend.notifications.filters import NotificationConfigFilter
 from insights_backend.notifications.models import Alert
 from insights_backend.notifications.schemas import (
@@ -144,7 +144,7 @@ async def update_alert(
 )
 async def preview_alert(
     alert_data: AlertRequest,
-    preview_service: PreviewServiceDep,
+    preview_service: AlertPreviewServiceDep,
 ) -> PreviewResponse:
     """
     Preview an alert with rendered notification templates.
@@ -156,7 +156,7 @@ async def preview_alert(
     :param preview_service: Service for generating previews
     :return: Preview of email and/or slack notifications
     """
-    return await preview_service.preview_alert(alert_data)
+    return await preview_service.preview(alert_data)  # type: ignore
 
 
 # Common ==========
