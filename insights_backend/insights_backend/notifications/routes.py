@@ -22,7 +22,7 @@ from insights_backend.notifications.dependencies import (
     ReportPreviewServiceDep,
     ReportsCRUDDep,
 )
-from insights_backend.notifications.filters import NotificationConfigFilter
+from insights_backend.notifications.filters import AlertFilter, NotificationConfigFilter
 from insights_backend.notifications.models import Alert, Report
 from insights_backend.notifications.schemas import (
     AlertDetail,
@@ -169,6 +169,46 @@ async def preview_alert(
     :return: Preview of email and/or slack notifications
     """
     return await preview_service.preview(alert_data)  # type: ignore
+
+
+@notification_router.get(
+    "/alerts",
+    response_model=Page[Alert],
+    dependencies=[Security(oauth2_auth().verify, scopes=[ALERT_REPORT_READ])],
+)
+async def list_alerts(
+    alert_crud: AlertsCRUDDep,
+    params: Annotated[PaginationParams, Depends(PaginationParams)],
+    grain: Annotated[Granularity | None, Query()] = None,
+    is_active: Annotated[bool | None, Query()] = None,
+    is_published: Annotated[bool | None, Query()] = None,
+    metric_ids: Annotated[list[str] | None, Query()] = None,
+    story_groups: Annotated[list[str] | None, Query()] = None,
+):
+    """
+    Retrieve a paginated list of alerts with optional filtering.
+
+    This endpoint allows filtering alerts by:
+    - metric_ids: Match alerts containing any of these metric IDs in their trigger
+    - story_groups: Match alerts containing any of these story groups in their trigger
+    - is_active: Match alerts by active status
+    - is_published: Match alerts by published status
+    - grain: Match alerts by granularity
+    """
+    alert_filter = AlertFilter(
+        metric_ids=metric_ids,
+        story_groups=story_groups,
+        is_active=is_active,
+        is_published=is_published,
+        grain=grain,
+    )
+
+    results, count = await alert_crud.paginate(
+        params=params,
+        filter_params=alert_filter.dict(exclude_unset=True),
+    )
+
+    return Page.create(items=results, total_count=count, params=params)
 
 
 # Common ==========

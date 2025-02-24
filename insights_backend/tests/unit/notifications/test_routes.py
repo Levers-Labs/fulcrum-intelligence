@@ -727,3 +727,165 @@ async def test_create_alert_missing_slack_channel_id(async_client: AsyncClient, 
     assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
     data = response.json()
     assert any("id" in str(error).lower() for error in data["detail"])
+
+
+async def test_list_alerts_with_filters(async_client: AsyncClient, multiple_alerts: list[Alert]):
+    """Test listing alerts with various filter combinations"""
+    # Test basic listing
+    response = await async_client.get("/v1/notification/alerts")
+    assert response.status_code == status.HTTP_200_OK
+    data = response.json()
+    assert len(data["results"]) == len(multiple_alerts)
+
+    # Test is_active filter
+    response = await async_client.get("/v1/notification/alerts?is_active=true")
+    assert response.status_code == status.HTTP_200_OK
+    data = response.json()
+    assert all(alert["is_active"] for alert in data["results"])
+
+    # Test grain filter
+    response = await async_client.get("/v1/notification/alerts?grain=day")
+    assert response.status_code == status.HTTP_200_OK
+    data = response.json()
+    assert all(alert["grain"] == "day" for alert in data["results"])
+
+    # Test is_published filter
+    response = await async_client.get("/v1/notification/alerts?is_published=false")
+    assert response.status_code == status.HTTP_200_OK
+    data = response.json()
+    assert all(not alert["is_published"] for alert in data["results"])
+
+
+async def test_list_alerts_with_metric_filters(async_client: AsyncClient, db_session: AsyncSession, jwt_payload: dict):
+    """Test listing alerts with metric_ids filter"""
+    # Create alerts with different metric IDs
+    set_tenant_id(jwt_payload["tenant_id"])
+    alerts = [
+        Alert(
+            name=f"Alert {i}",
+            type=NotificationType.ALERT,
+            grain=Granularity.DAY,
+            tenant_id=jwt_payload["tenant_id"],
+            trigger={
+                "type": "METRIC_STORY",
+                "condition": {"metric_ids": [f"metric_{i}", "common_metric"]},
+            },
+        )
+        for i in range(2)
+    ]
+    for alert in alerts:
+        db_session.add(alert)
+    await db_session.flush()
+
+    # Test filtering by single metric ID
+    response = await async_client.get("/v1/notification/alerts?metric_ids=metric_0")
+    assert response.status_code == status.HTTP_200_OK
+    data = response.json()
+    assert len(data["results"]) == 1
+    assert "metric_0" in data["results"][0]["trigger"]["condition"]["metric_ids"]
+
+    # Test filtering by common metric ID
+    response = await async_client.get("/v1/notification/alerts?metric_ids=common_metric")
+    assert response.status_code == status.HTTP_200_OK
+    data = response.json()
+    assert len(data["results"]) == 2
+
+    # Test filtering by multiple metric IDs
+    response = await async_client.get("/v1/notification/alerts?metric_ids=metric_0&metric_ids=metric_1")
+    assert response.status_code == status.HTTP_200_OK
+    data = response.json()
+    assert len(data["results"]) == 2
+
+
+async def test_list_alerts_with_story_groups(async_client: AsyncClient, db_session: AsyncSession, jwt_payload: dict):
+    """Test listing alerts with story_groups filter"""
+    set_tenant_id(jwt_payload["tenant_id"])
+    alerts = [
+        Alert(
+            name=f"Alert {i}",
+            type=NotificationType.ALERT,
+            grain=Granularity.DAY,
+            tenant_id=jwt_payload["tenant_id"],
+            trigger={
+                "type": "METRIC_STORY",
+                "condition": {
+                    "metric_ids": ["metric"],
+                    "story_groups": [f"group_{i}", "common_group"],
+                },
+            },
+        )
+        for i in range(2)
+    ]
+    for alert in alerts:
+        db_session.add(alert)
+    await db_session.flush()
+
+    # Test filtering by single story group
+    response = await async_client.get("/v1/notification/alerts?story_groups=group_0")
+    assert response.status_code == status.HTTP_200_OK
+    data = response.json()
+    assert len(data["results"]) == 1
+    assert "group_0" in data["results"][0]["trigger"]["condition"]["story_groups"]
+
+    # Test filtering by common story group
+    response = await async_client.get("/v1/notification/alerts?story_groups=common_group")
+    assert response.status_code == status.HTTP_200_OK
+    data = response.json()
+    assert len(data["results"]) == 2
+
+    # Test filtering by multiple story groups
+    response = await async_client.get("/v1/notification/alerts?story_groups=group_0&story_groups=group_1")
+    assert response.status_code == status.HTTP_200_OK
+    data = response.json()
+    assert len(data["results"]) == 2
+
+
+async def test_list_alerts_with_combined_filters(
+    async_client: AsyncClient, db_session: AsyncSession, jwt_payload: dict
+):
+    """Test listing alerts with multiple filters combined"""
+    set_tenant_id(jwt_payload["tenant_id"])
+    alerts = [
+        Alert(
+            name=f"Alert {i}",
+            type=NotificationType.ALERT,
+            grain=Granularity.DAY if i % 2 == 0 else Granularity.WEEK,
+            is_active=i % 2 == 0,
+            tenant_id=jwt_payload["tenant_id"],
+            trigger={
+                "type": "METRIC_STORY",
+                "condition": {
+                    "metric_ids": [f"metric_{i}", "common_metric"],
+                    "story_groups": [f"group_{i}", "common_group"],
+                },
+            },
+        )
+        for i in range(4)
+    ]
+    for alert in alerts:
+        db_session.add(alert)
+    await db_session.flush()
+
+    # Test combining multiple filters
+    response = await async_client.get(
+        "/v1/notification/alerts?is_active=true&grain=day&metric_ids=common_metric&story_groups=common_group"
+    )
+    assert response.status_code == status.HTTP_200_OK
+    data = response.json()
+    assert len(data["results"]) > 0
+    for alert in data["results"]:
+        assert alert["is_active"] is True
+        assert alert["grain"] == "day"
+        assert "common_metric" in alert["trigger"]["condition"]["metric_ids"]
+        assert "common_group" in alert["trigger"]["condition"]["story_groups"]
+
+
+async def test_list_alerts_invalid_filters(async_client: AsyncClient):
+    """Test listing alerts with invalid filter values"""
+    # Test invalid grain
+    response = await async_client.get("/v1/notification/alerts?grain=invalid")
+    assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+
+    # Test invalid boolean value
+    response = await async_client.get("/v1/notification/alerts?is_active=invalid")
+    assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY

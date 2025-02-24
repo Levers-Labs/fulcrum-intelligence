@@ -2,6 +2,7 @@ from pydantic import BaseModel
 from sqlalchemy import Select, and_
 from sqlalchemy.dialects import postgresql
 
+from commons.db.filters import BaseFilter, FilterField
 from commons.models.enums import Granularity
 from commons.notifiers.constants import NotificationChannel
 from insights_backend.notifications.enums import NotificationType
@@ -42,3 +43,42 @@ class NotificationConfigFilter(BaseModel):
                 query = query.filter(and_(*conditions))  # type: ignore
 
         return query
+
+
+def create_alert_trigger_jsonb_array_filter(json_path: list[str]) -> FilterField:
+    """Create a FilterField for alert trigger JSONB array contains operation.
+
+    Example:
+        For a JSONB column 'trigger' with structure:
+        {
+            "condition": {
+                "metric_ids": ["metric1", "metric2"],
+                "story_groups": ["group1", "group2"]
+            }
+        }
+
+        json_path = ["condition", "metric_ids"]
+        value = ["metric1", "metric3"]
+
+        Generates SQL like:
+        trigger -> 'condition' -> 'metric_ids' ?| ARRAY['metric1', 'metric3']
+
+        Which checks if any value in the JSONB array matches any value in the input array.
+    """
+
+    def filter_fn(query: Select, value: list[str]) -> Select:
+        if not value:
+            return query
+        return query.filter(Alert.trigger[json_path[0]][json_path[1]].op("?|")(postgresql.array(value)))  # type: ignore
+
+    return FilterField(field=Alert.trigger, filter_fn=filter_fn)  # type: ignore
+
+
+class AlertFilter(BaseFilter):
+    """Filter parameters specific to alerts, including trigger-based filtering."""
+
+    is_active: bool | None = FilterField(Alert.is_active, operator="eq", default=None)  # type: ignore
+    is_published: bool | None = FilterField(Alert.is_published, operator="eq", default=None)  # type: ignore
+    grain: Granularity | None = FilterField(Alert.grain, operator="eq", default=None)  # type: ignore
+    metric_ids: list[str] | None = create_alert_trigger_jsonb_array_filter(["condition", "metric_ids"])  # type: ignore
+    story_groups: list[str] | None = create_alert_trigger_jsonb_array_filter(["condition", "story_groups"])  # type: ignore  # noqa

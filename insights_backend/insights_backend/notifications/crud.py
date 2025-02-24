@@ -19,7 +19,7 @@ from commons.db.crud import CRUDBase, ModelType, NotFoundError
 from commons.utilities.context import get_tenant_id
 from commons.utilities.pagination import PaginationParams
 from insights_backend.notifications.enums import NotificationType
-from insights_backend.notifications.filters import NotificationConfigFilter
+from insights_backend.notifications.filters import AlertFilter, NotificationConfigFilter
 from insights_backend.notifications.models import (
     Alert,
     NotificationChannelConfig,
@@ -276,10 +276,12 @@ class CRUDNotificationChannelConfig(
         await self.session.commit()
 
 
-class CRUDAlert(CRUDBase[Alert, AlertRequest, None, None]):  # type: ignore
+class CRUDAlert(CRUDBase[Alert, AlertRequest, None, AlertFilter]):  # type: ignore
     """
     CRUD operations for the Alert model.
     """
+
+    filter_class = AlertFilter
 
     def __init__(
         self, model: type[ModelType], session: AsyncSession, notification_config_crud: CRUDNotificationChannelConfig
