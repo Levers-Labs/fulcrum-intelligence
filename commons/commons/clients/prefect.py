@@ -3,7 +3,8 @@ from typing import Any
 from pydantic import BaseModel, Field
 
 from commons.clients.auth import JWTAuth
-from commons.clients.base import AsyncHttpClient, HttpClientError
+from commons.clients.base import HttpClient, HttpClientError
+from commons.utilities.json_utils import serialize_json
 
 
 class Schedule(BaseModel):
@@ -69,7 +70,7 @@ class PrefectDeploymentRead(PrefectDeployment):
     id: str
 
 
-class PrefectClient(AsyncHttpClient):
+class PrefectClient(HttpClient):
     """Client for interacting with Prefect Cloud API."""
 
     def __init__(self, api_url: str, api_key: str):
@@ -81,7 +82,7 @@ class PrefectClient(AsyncHttpClient):
         """
         super().__init__(base_url=api_url, api_version="", auth=JWTAuth(token=api_key))
 
-    async def get_flow_by_name(self, flow_name: str) -> dict[str, Any]:
+    def get_flow_by_name(self, flow_name: str) -> dict[str, Any]:
         """Get flow details by name.
 
         Args:
@@ -91,9 +92,9 @@ class PrefectClient(AsyncHttpClient):
             Flow details as a dictionary
         """
         endpoint = f"flows/name/{flow_name}"
-        return await self.get(endpoint)
+        return self.get(endpoint)
 
-    async def create_flow(self, name: str, tags: list[str] | None = None) -> dict[str, Any]:
+    def create_flow(self, name: str, tags: list[str] | None = None) -> dict[str, Any]:
         """Create a new flow.
 
         Args:
@@ -104,22 +105,22 @@ class PrefectClient(AsyncHttpClient):
             Created flow details as a dictionary
         """
         data = {"name": name, "tags": tags or []}
-        return await self.post("/flows/", data=data)
+        return self.post("/flows/", data=data)
 
-    async def get_or_create_flow(self, name: str) -> dict[str, Any]:
+    def get_or_create_flow(self, name: str) -> dict[str, Any]:
         """Get or create a flow.
 
         Args:
             name: Name of the flow
         """
         try:
-            return await self.get_flow_by_name(name)
+            return self.get_flow_by_name(name)
         except HttpClientError as exc:
             if exc.status_code == 404:
-                return await self.create_flow(name)
+                return self.create_flow(name)
             raise exc
 
-    async def create_deployment(self, deployment: PrefectDeployment) -> dict[str, Any]:
+    def create_deployment(self, deployment: PrefectDeployment) -> dict[str, Any]:
         """Create a new deployment for a flow.
 
         Args:
@@ -128,21 +129,18 @@ class PrefectClient(AsyncHttpClient):
         Returns:
             Created deployment details
         """
-        # First get the flow ID
-        flow = await self.get_or_create_flow(deployment.flow_name)
+        flow = self.get_or_create_flow(deployment.flow_name)
         if not flow:
             raise ValueError(f"Flow {deployment.flow_name} not found")
 
         flow_id = flow["id"]
-
-        # replace flow_id with id
         deployment_data = deployment.model_dump()
         deployment_data.pop("flow_name")
         deployment_data["flow_id"] = flow_id
 
-        return await self.post("/deployments/", data=deployment_data)
+        return self.post("/deployments/", data=deployment_data)
 
-    async def delete_deployment(self, deployment_id: str) -> dict[str, Any]:
+    def delete_deployment(self, deployment_id: str) -> dict[str, Any]:
         """Delete a deployment by ID.
 
         Args:
@@ -151,4 +149,27 @@ class PrefectClient(AsyncHttpClient):
         Returns:
             Deleted deployment details
         """
-        return await self.delete(f"/deployments/{deployment_id}")
+        return self.delete(f"/deployments/{deployment_id}")
+
+    def read_deployment_schedules(self, deployment_id: str) -> list[dict[str, Any]]:
+        """Read the schedules for a deployment.
+
+        Args:
+            deployment_id: ID of the deployment to read schedules for
+
+        Returns:
+            Deployment schedules
+        """
+        return self.get(f"/deployments/{deployment_id}/schedules")  # type: ignore
+
+    def update_deployment_schedule(self, deployment_id: str, schedule_id: str, schedule: dict[str, Any]):
+        """Update the schedule for a deployment.
+
+        Args:
+            deployment_id: ID of the deployment to update schedule for
+            schedule_id: ID of the schedule to update
+            schedule: Schedule to update
+        """
+        schedule_obj = PrefectSchedule(**schedule)
+        data = serialize_json(schedule_obj.model_dump(mode="json"))
+        self._make_request("PATCH", f"/deployments/{deployment_id}/schedules/{schedule_id}", json=data)

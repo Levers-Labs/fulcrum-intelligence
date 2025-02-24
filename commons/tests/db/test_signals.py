@@ -53,7 +53,7 @@ def test_event_action_enum():
     assert EventAction.CREATE == "create"
     assert EventAction.UPDATE == "update"
     assert EventAction.DELETE == "delete"
-    assert len(EventAction) == 3
+    assert len(EventAction) == 4
 
 
 def test_event_timing_enum():
@@ -63,8 +63,7 @@ def test_event_timing_enum():
     assert len(EventTiming) == 2
 
 
-@pytest.mark.asyncio
-async def test_publish_event():
+def test_publish_event():
     """Test event publishing functionality."""
     # Arrange
     mock_receiver = MagicMock()
@@ -206,8 +205,7 @@ def test_sqlalchemy_event_handlers(mocker, event_handler, timing, test_instance,
         assert "connection" in call_args[1]
 
 
-@pytest.mark.asyncio
-async def test_event_handler_with_timing():
+def test_event_handler_with_timing():
     """Test event handler with specific timing."""
     mock_handler = MagicMock()
 
@@ -223,8 +221,7 @@ async def test_event_handler_with_timing():
     assert mock_handler.call_count == 1
 
 
-@pytest.mark.asyncio
-async def test_multiple_handlers():
+def test_multiple_handlers():
     """Test multiple handlers for the same event."""
     mock_handler1 = MagicMock()
     mock_handler2 = MagicMock()

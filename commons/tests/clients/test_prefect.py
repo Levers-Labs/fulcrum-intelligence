@@ -1,5 +1,3 @@
-from unittest.mock import AsyncMock
-
 import pytest
 from pydantic import BaseModel
 
@@ -37,77 +35,72 @@ def sample_deployment():
     )
 
 
-@pytest.mark.asyncio
-async def test_get_flow_by_name_success(prefect_client, mocker):
+def test_get_flow_by_name_success(prefect_client, mocker):
     """Test successful flow retrieval by name."""
     expected_response = {"id": "test-flow-id", "name": "test-flow"}
-    mock_get = AsyncMock(return_value=expected_response)
+    mock_get = mocker.Mock(return_value=expected_response)
     mocker.patch.object(prefect_client, "get", mock_get)
 
-    result = await prefect_client.get_flow_by_name("test-flow")
+    result = prefect_client.get_flow_by_name("test-flow")
 
     assert result == expected_response
     mock_get.assert_called_once_with("flows/name/test-flow")
 
 
-@pytest.mark.asyncio
-async def test_create_flow_success(prefect_client, mocker):
+def test_create_flow_success(prefect_client, mocker):
     """Test successful flow creation."""
     expected_response = {"id": "new-flow-id", "name": "test-flow"}
-    mock_post = AsyncMock(return_value=expected_response)
+    mock_post = mocker.Mock(return_value=expected_response)
     mocker.patch.object(prefect_client, "post", mock_post)
 
-    result = await prefect_client.create_flow("test-flow", tags=["tag1"])
+    result = prefect_client.create_flow("test-flow", tags=["tag1"])
 
     assert result == expected_response
     mock_post.assert_called_once_with("/flows/", data={"name": "test-flow", "tags": ["tag1"]})
 
 
-@pytest.mark.asyncio
-async def test_get_or_create_flow_existing(prefect_client, mocker):
+def test_get_or_create_flow_existing(prefect_client, mocker):
     """Test get_or_create_flow when flow exists."""
     expected_response = {"id": "existing-flow-id", "name": "test-flow"}
-    mock_get = AsyncMock(return_value=expected_response)
-    mock_create = AsyncMock()
+    mock_get = mocker.MagicMock(return_value=expected_response)
+    mock_create = mocker.MagicMock()
     mocker.patch.object(prefect_client, "get_flow_by_name", mock_get)
     mocker.patch.object(prefect_client, "create_flow", mock_create)
 
-    result = await prefect_client.get_or_create_flow("test-flow")
+    result = prefect_client.get_or_create_flow("test-flow")
 
     assert result == expected_response
     mock_get.assert_called_once_with("test-flow")
     mock_create.assert_not_called()
 
 
-@pytest.mark.asyncio
-async def test_get_or_create_flow_new(prefect_client, mocker):
+def test_get_or_create_flow_new(prefect_client, mocker):
     """Test get_or_create_flow when flow doesn't exist."""
-    mock_get = AsyncMock(side_effect=HttpClientError(status_code=404, message="Flow not found"))
+    mock_get = mocker.MagicMock(side_effect=HttpClientError(status_code=404, message="Flow not found"))
     expected_response = {"id": "new-flow-id", "name": "test-flow"}
-    mock_create = AsyncMock(return_value=expected_response)
+    mock_create = mocker.MagicMock(return_value=expected_response)
     mocker.patch.object(prefect_client, "get_flow_by_name", mock_get)
     mocker.patch.object(prefect_client, "create_flow", mock_create)
 
-    result = await prefect_client.get_or_create_flow("test-flow")
+    result = prefect_client.get_or_create_flow("test-flow")
 
     assert result == expected_response
     mock_get.assert_called_once_with("test-flow")
     mock_create.assert_called_once_with("test-flow")
 
 
-@pytest.mark.asyncio
-async def test_create_deployment_success(prefect_client, sample_deployment, mocker):
+def test_create_deployment_success(prefect_client, sample_deployment, mocker):
     """Test successful deployment creation."""
     flow_response = {"id": "test-flow-id", "name": "test-flow"}
     deployment_response = {"id": "test-deployment-id", "name": "test-deployment"}
 
-    mock_get_flow = AsyncMock(return_value=flow_response)
-    mock_post = AsyncMock(return_value=deployment_response)
+    mock_get_flow = mocker.MagicMock(return_value=flow_response)
+    mock_post = mocker.MagicMock(return_value=deployment_response)
 
     mocker.patch.object(prefect_client, "get_or_create_flow", mock_get_flow)
     mocker.patch.object(prefect_client, "post", mock_post)
 
-    result = await prefect_client.create_deployment(sample_deployment)
+    result = prefect_client.create_deployment(sample_deployment)
 
     assert result == deployment_response
     mock_get_flow.assert_called_once_with(sample_deployment.flow_name)
@@ -118,39 +111,36 @@ async def test_create_deployment_success(prefect_client, sample_deployment, mock
     assert call_args["flow_id"] == "test-flow-id"
 
 
-@pytest.mark.asyncio
-async def test_create_deployment_flow_not_found(prefect_client, sample_deployment, mocker):
+def test_create_deployment_flow_not_found(prefect_client, sample_deployment, mocker):
     """Test deployment creation when flow is not found."""
-    mock_get_flow = AsyncMock(return_value=None)
+    mock_get_flow = mocker.MagicMock(return_value=None)
     mocker.patch.object(prefect_client, "get_or_create_flow", mock_get_flow)
 
     with pytest.raises(ValueError, match=f"Flow {sample_deployment.flow_name} not found"):
-        await prefect_client.create_deployment(sample_deployment)
+        prefect_client.create_deployment(sample_deployment)
 
 
-@pytest.mark.asyncio
-async def test_delete_deployment_success(prefect_client, mocker):
+def test_delete_deployment_success(prefect_client, mocker):
     """Test successful deployment deletion."""
     expected_response = {"id": "test-deployment-id", "status": "deleted"}
-    mock_delete = AsyncMock(return_value=expected_response)
+    mock_delete = mocker.MagicMock(return_value=expected_response)
     mocker.patch.object(prefect_client, "delete", mock_delete)
 
-    result = await prefect_client.delete_deployment("test-deployment-id")
+    result = prefect_client.delete_deployment("test-deployment-id")
 
     assert result == expected_response
     mock_delete.assert_called_once_with("/deployments/test-deployment-id")
 
 
-@pytest.mark.asyncio
-async def test_get_or_create_flow_other_error(prefect_client, mocker):
+def test_get_or_create_flow_other_error(prefect_client, mocker):
     """Test get_or_create_flow with non-404 error."""
-    mock_get = AsyncMock(side_effect=HttpClientError(status_code=500, message="Internal server error"))
-    mock_create = AsyncMock()
+    mock_get = mocker.MagicMock(side_effect=HttpClientError(status_code=500, message="Internal server error"))
+    mock_create = mocker.MagicMock()
     mocker.patch.object(prefect_client, "get_flow_by_name", mock_get)
     mocker.patch.object(prefect_client, "create_flow", mock_create)
 
     with pytest.raises(HttpClientError):
-        await prefect_client.get_or_create_flow("test-flow")
+        prefect_client.get_or_create_flow("test-flow")
 
     mock_get.assert_called_once_with("test-flow")
     mock_create.assert_not_called()
@@ -238,3 +228,32 @@ def test_prefect_schedule_model_custom():
     assert prefect_schedule.active is False
     assert prefect_schedule.catchup is False
     assert prefect_schedule.schedule == schedule
+
+
+def test_read_deployment_schedules_success(prefect_client, mocker):
+    """Test successful retrieval of deployment schedules."""
+    expected_response = [{"id": "schedule-1", "active": True}, {"id": "schedule-2", "active": False}]
+    mock_get = mocker.Mock(return_value=expected_response)
+    mocker.patch.object(prefect_client, "get", mock_get)
+
+    result = prefect_client.read_deployment_schedules("test-deployment-id")
+
+    assert result == expected_response
+    mock_get.assert_called_once_with("/deployments/test-deployment-id/schedules")
+
+
+def test_update_deployment_schedule_success(prefect_client, mocker):
+    """Test successful update of deployment schedule."""
+    schedule_data = {
+        "active": False,
+        "catchup": True,
+        "schedule": {"cron": "0 0 * * *", "timezone": "UTC", "day_or": True},
+    }
+    mock_request = mocker.Mock()
+    mocker.patch.object(prefect_client, "_make_request", mock_request)
+
+    prefect_client.update_deployment_schedule("test-deployment-id", "schedule-id", schedule_data)
+
+    mock_request.assert_called_once_with(
+        "PATCH", "/deployments/test-deployment-id/schedules/schedule-id", json=schedule_data
+    )

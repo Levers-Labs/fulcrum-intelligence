@@ -201,3 +201,15 @@ class ReportDetail(NotificationBase):
 class MetricTaskParameters(BaseModel):
     tenant_id: int
     report_id: int
+
+
+class BatchStatusUpdateResponse(BaseModel):
+    alerts_updated: int
+    reports_updated: int
+    total_updated: int
+
+
+class BatchDeleteResponse(BaseModel):
+    alerts_deleted: int
+    reports_deleted: int
+    total_deleted: int

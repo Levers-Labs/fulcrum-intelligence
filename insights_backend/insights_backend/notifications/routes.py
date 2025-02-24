@@ -3,6 +3,7 @@ from typing import Annotated
 
 from fastapi import (
     APIRouter,
+    BackgroundTasks,
     Depends,
     HTTPException,
     Query,
@@ -10,6 +11,7 @@ from fastapi import (
 )
 
 from commons.auth.scopes import ALERT_REPORT_READ, ALERT_REPORT_WRITE
+from commons.db.signals import EventAction, EventTiming, publish_event
 from commons.notifiers.constants import NotificationChannel
 from commons.utilities.pagination import Page, PaginationParams
 from insights_backend.core.dependencies import oauth2_auth
@@ -25,6 +27,8 @@ from insights_backend.notifications.models import Alert, Report
 from insights_backend.notifications.schemas import (
     AlertDetail,
     AlertRequest,
+    BatchDeleteResponse,
+    BatchStatusUpdateResponse,
     Granularity,
     NotificationList,
     NotificationType,
@@ -230,6 +234,7 @@ async def list_notifications(
 @notification_router.patch(
     "/bulk/status",
     status_code=200,
+    response_model=BatchStatusUpdateResponse,
     dependencies=[Security(oauth2_auth().verify, scopes=[ALERT_REPORT_WRITE])],
 )
 async def bulk_update_status(
@@ -237,6 +242,7 @@ async def bulk_update_status(
     report_ids: list[int],
     is_active: bool,
     notification_crud: CRUDNotificationsDep,
+    background_tasks: BackgroundTasks,
 ):
     """
     Bulk update the status of alerts and reports.
@@ -250,20 +256,43 @@ async def bulk_update_status(
     :param notification_crud:
     :param alert_ids: List of alert IDs to update
     :param is_active: Boolean indicating the new status (True for active, False for inactive)
+    :param background_tasks: Background task dependency for scheduling status change events
     """
     try:
         await notification_crud.batch_status_update(alert_ids, report_ids, is_active)
+        # Fetch all objects in a single query per type
+        alerts, reports = await notification_crud.batch_get(alert_ids, report_ids)
+
+        # Schedule status change events as background task
+        for obj in [*alerts, *reports]:
+            background_tasks.add_task(
+                publish_event,
+                action=EventAction.STATUS_CHANGE,
+                sender=obj.__class__,
+                timing=EventTiming.AFTER,
+                instance=obj,
+            )
+
+        return BatchStatusUpdateResponse(
+            alerts_updated=len(alerts),
+            reports_updated=len(reports),
+            total_updated=len(alerts) + len(reports),
+        )
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e)) from e
 
 
 @notification_router.delete(
     "/bulk",
-    status_code=204,
+    status_code=200,
+    response_model=BatchDeleteResponse,
     dependencies=[Security(oauth2_auth().verify, scopes=[ALERT_REPORT_WRITE])],
 )
 async def bulk_delete_notifications(
-    alert_ids: list[int], report_ids: list[int], notification_crud: CRUDNotificationsDep
+    alert_ids: list[int],
+    report_ids: list[int],
+    notification_crud: CRUDNotificationsDep,
+    background_tasks: BackgroundTasks,
 ):
     """
     Bulk delete notifications (alerts/reports) and their associated configurations.
@@ -276,10 +305,28 @@ async def bulk_delete_notifications(
     :param notification_crud:
     :param report_ids: List of report IDs to delete
     :param alert_ids: List of alert IDs to delete
-    :return: None
+    :param background_tasks: Background task dependency for scheduling status change events
+    :return: BatchDeleteResponse
     """
     try:
+        # Fetch all objects in a single query per type
+        alerts, reports = await notification_crud.batch_get(alert_ids, report_ids)
+        # Delete all objects in a single query per type
         await notification_crud.batch_delete(alert_ids, report_ids)
+        # Send delete events for all notifications
+        for obj in [*alerts, *reports]:
+            background_tasks.add_task(
+                publish_event,
+                action=EventAction.DELETE,
+                sender=obj.__class__,
+                timing=EventTiming.AFTER,
+                instance=obj,
+            )
+        return BatchDeleteResponse(
+            alerts_deleted=len(alerts),
+            reports_deleted=len(reports),
+            total_deleted=len(alerts) + len(reports),
+        )
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e)) from e
 

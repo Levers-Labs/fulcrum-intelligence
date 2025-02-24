@@ -7,6 +7,7 @@ from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette import status
 
+from commons.db.signals import EventAction, EventTiming, publish_event
 from commons.models.enums import Granularity
 from commons.utilities.context import set_tenant_id
 from insights_backend.notifications.enums import NotificationType
@@ -296,17 +297,31 @@ async def multiple_alerts_fixture(db_session: AsyncSession, jwt_payload: dict) -
 async def test_bulk_delete_alerts(async_client: AsyncClient, multiple_alerts: list[Alert]):
     """Test bulk deletion of alerts"""
     alert_ids = [alert.id for alert in multiple_alerts]
+    mock_background_task = patch("fastapi.BackgroundTasks.add_task").start()
 
     response = await async_client.request(
         "DELETE", "/v1/notification/bulk", json={"alert_ids": alert_ids, "report_ids": []}
     )
 
-    assert response.status_code == status.HTTP_204_NO_CONTENT
+    assert response.status_code == status.HTTP_200_OK
+
+    # Verify background task was called for each alert
+    assert mock_background_task.call_count == len(alert_ids)
+    for alert in multiple_alerts:
+        mock_background_task.assert_any_call(
+            publish_event,
+            action=EventAction.DELETE,
+            sender=Alert,
+            timing=EventTiming.AFTER,
+            instance=alert,
+        )
 
     # Verify alerts are deleted
     for alert_id in alert_ids:
         get_response = await async_client.get(f"/v1/notification/alerts/{alert_id}")
         assert get_response.status_code == status.HTTP_404_NOT_FOUND
+
+    patch.stopall()
 
 
 async def test_bulk_update_alert_status(async_client: AsyncClient, multiple_alerts: list[Alert]):
@@ -462,17 +477,31 @@ async def test_get_report(async_client: AsyncClient, sample_report: Report):
 async def test_bulk_delete_reports(async_client: AsyncClient, multiple_reports: list[Report]):
     """Test bulk deletion of reports"""
     report_ids = [report.id for report in multiple_reports]
+    mock_background_task = patch("fastapi.BackgroundTasks.add_task").start()
 
     response = await async_client.request(
         "DELETE", "/v1/notification/bulk", json={"alert_ids": [], "report_ids": report_ids}
     )
 
-    assert response.status_code == status.HTTP_204_NO_CONTENT
+    assert response.status_code == status.HTTP_200_OK
+
+    # Verify background task was called for each report
+    assert mock_background_task.call_count == len(report_ids)
+    for report in multiple_reports:
+        mock_background_task.assert_any_call(
+            publish_event,
+            action=EventAction.DELETE,
+            sender=Report,
+            timing=EventTiming.AFTER,
+            instance=report,
+        )
 
     # Verify reports are deleted
     for report_id in report_ids:
         get_response = await async_client.get(f"/v1/notification/reports/{report_id}")
         assert get_response.status_code == status.HTTP_404_NOT_FOUND
+
+    patch.stopall()
 
 
 async def test_bulk_delete_mixed(
@@ -481,12 +510,36 @@ async def test_bulk_delete_mixed(
     """Test bulk deletion of both alerts and reports"""
     alert_ids = [alert.id for alert in multiple_alerts]
     report_ids = [report.id for report in multiple_reports]
+    mock_background_task = patch("fastapi.BackgroundTasks.add_task").start()
 
     response = await async_client.request(
         "DELETE", "/v1/notification/bulk", json={"alert_ids": alert_ids, "report_ids": report_ids}
     )
 
-    assert response.status_code == status.HTTP_204_NO_CONTENT
+    assert response.status_code == status.HTTP_200_OK
+
+    # Verify background task was called for each item
+    assert mock_background_task.call_count == len(alert_ids) + len(report_ids)
+
+    # Verify calls for alerts
+    for alert in multiple_alerts:
+        mock_background_task.assert_any_call(
+            publish_event,
+            action=EventAction.DELETE,
+            sender=Alert,
+            timing=EventTiming.AFTER,
+            instance=alert,
+        )
+
+    # Verify calls for reports
+    for report in multiple_reports:
+        mock_background_task.assert_any_call(
+            publish_event,
+            action=EventAction.DELETE,
+            sender=Report,
+            timing=EventTiming.AFTER,
+            instance=report,
+        )
 
     # Verify all items are deleted
     for alert_id in alert_ids:
@@ -496,6 +549,8 @@ async def test_bulk_delete_mixed(
     for report_id in report_ids:
         get_response = await async_client.get(f"/v1/notification/reports/{report_id}")
         assert get_response.status_code == status.HTTP_404_NOT_FOUND
+
+    patch.stopall()
 
 
 async def test_publish_report(async_client: AsyncClient, sample_report: Report):
@@ -602,7 +657,7 @@ async def test_bulk_delete_nonexistent_ids(async_client: AsyncClient):
 async def test_bulk_delete_empty_ids(async_client: AsyncClient):
     """Test bulk deletion with empty ID lists"""
     response = await async_client.request("DELETE", "/v1/notification/bulk", json={"alert_ids": [], "report_ids": []})
-    assert response.status_code == status.HTTP_204_NO_CONTENT
+    assert response.status_code == status.HTTP_200_OK
 
 
 async def test_publish_already_published_alert(async_client: AsyncClient, sample_alert: Alert):
@@ -633,6 +688,31 @@ async def test_bulk_update_status_nonexistent_ids(async_client: AsyncClient):
         "/v1/notification/bulk/status?is_active=true", json={"alert_ids": [99999], "report_ids": []}
     )
     assert response.status_code == status.HTTP_404_NOT_FOUND
+
+
+async def test_bulk_update_status(async_client: AsyncClient, multiple_alerts: list[Alert]):
+    """Test bulk update of alert status"""
+    alert_ids = [alert.id for alert in multiple_alerts]
+    mock_background_task = patch("fastapi.BackgroundTasks.add_task").start()
+
+    response = await async_client.patch(
+        "/v1/notification/bulk/status?is_active=true", json={"alert_ids": alert_ids, "report_ids": []}
+    )
+
+    assert response.status_code == status.HTTP_200_OK
+
+    # Verify background task was called for each alert
+    assert mock_background_task.call_count == len(alert_ids)
+    for alert in multiple_alerts:
+        mock_background_task.assert_any_call(
+            publish_event,
+            action=EventAction.STATUS_CHANGE,
+            sender=Alert,
+            timing=EventTiming.AFTER,
+            instance=alert,
+        )
+
+    patch.stopall()
 
 
 async def test_create_alert_missing_slack_channel_id(async_client: AsyncClient, alert_request_data: dict):

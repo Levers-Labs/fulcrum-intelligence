@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any
 
 from blinker import signal
@@ -20,5 +20,5 @@ def publish_event(action: EventAction, sender: Any, timing: EventTiming, **kwarg
     signal_name = f"{action}_{timing}"
     pub = signal(signal_name)
 
-    kwargs.update(action=action, timing=timing, timestamp=maybe_make_aware(datetime.utcnow()))
+    kwargs.update(action=action, timing=timing, timestamp=maybe_make_aware(datetime.now(timezone.utc)))
     return pub.send(sender, **kwargs)

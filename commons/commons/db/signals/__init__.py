@@ -6,6 +6,7 @@ class EventAction(str, Enum):
     CREATE = "create"
     UPDATE = "update"
     DELETE = "delete"
+    STATUS_CHANGE = "status_change"
 
 
 class EventTiming(str, Enum):
