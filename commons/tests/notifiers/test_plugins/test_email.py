@@ -2,13 +2,12 @@ from unittest.mock import ANY, MagicMock
 
 import pytest
 
-from commons.notifiers.constants import EMAIL_TEMPLATES, TemplateType
 from commons.notifiers.plugins import EmailNotifier
 
 
 @pytest.fixture
 def email_notifier(mocker, mock_email_client):
-    notifier = EmailNotifier("templates", sender="test@example.com")
+    notifier = EmailNotifier({"sender": "test@example.com"})
     mocker.patch.object(notifier, "get_client", return_value=mock_email_client)
     return notifier
 
@@ -18,8 +17,8 @@ async def test_email_notifier_send_success(mocker, email_notifier, mock_email_co
     # Prepare
     mock_template = MagicMock()
     mock_template.render.return_value = "<p>Test email content</p>"
-    mocker.patch.object(email_notifier, "get_template", return_value=mock_template)
-    mock_email_client.send_email.return_value = (True, {"MessageId": "test-id"})
+    mocker.patch.object(email_notifier, "create_template", return_value=mock_template)
+    mock_email_client.send_email.return_value = (True, {"MessageId": "test-id", "status": True})
 
     context = {
         "name": "IMP Metrics",
@@ -39,17 +38,26 @@ async def test_email_notifier_send_success(mocker, email_notifier, mock_email_co
         "report_link": "https://app-dev.leverslabs.com/metrics/report",
     }
 
+    template_config = {
+        "type": "METRIC_ALERT",
+        "subject": "Weekly IMP Metrics Report - {period}",
+        "body": "<h1>Weekly IMP Metrics Report</h1><p>Period: {{ period }}</p>",
+    }
+
     # Act
     response = email_notifier.send_notification(
-        TemplateType.METRIC_ALERT, dict(region="us-west-1"), mock_email_config, context=context
+        template_config=template_config,
+        config={"region": "us-west-1"},
+        channel_config=mock_email_config,
+        context=context,
     )
 
     # Assert
     mock_email_client.send_email.assert_called_once_with(
-        sender="test@example.com",
+        sender=email_notifier.sender,
         recipients=mock_email_config["to"],
         cc=mock_email_config.get("cc"),
-        subject=EMAIL_TEMPLATES[TemplateType.METRIC_ALERT]["subject"].format(**context),
+        subject=template_config["subject"].format(**context),
         body_html=ANY,
     )
     assert response["status"] is True
@@ -61,7 +69,7 @@ async def test_email_notifier_send_error(mocker, email_notifier, mock_email_conf
     # Prepare
     mock_template = MagicMock()
     mock_template.render.return_value = "<p>Test email content</p>"
-    mocker.patch.object(email_notifier, "get_template", return_value=mock_template)
+    mocker.patch.object(email_notifier, "create_template", return_value=mock_template)
     mock_email_client.send_email.return_value = (False, None)
 
     context = {
@@ -82,25 +90,42 @@ async def test_email_notifier_send_error(mocker, email_notifier, mock_email_conf
         "report_link": "https://app-dev.leverslabs.com/metrics/report",
     }
 
+    template_config = {
+        "type": "METRIC_ALERT",
+        "subject": "Weekly IMP Metrics Report - {period}",
+        "body": "<h1>Weekly IMP Metrics Report</h1><p>Period: {{ period }}</p>",
+    }
+
     # Act
     response = email_notifier.send_notification(
-        TemplateType.METRIC_ALERT, dict(region="us-west-1"), mock_email_config, context=context
+        template_config=template_config,
+        config={"region": "us-west-1"},
+        channel_config=mock_email_config,
+        context=context,
     )
 
     # Assert
     mock_email_client.send_email.assert_called_once_with(
-        sender="test@example.com",
+        sender=email_notifier.sender,
         recipients=mock_email_config["to"],
         cc=mock_email_config.get("cc"),
-        subject=EMAIL_TEMPLATES[TemplateType.METRIC_ALERT]["subject"].format(**context),
+        subject=template_config["subject"].format(**context),
         body_html=ANY,
     )
     assert response["status"] is False
 
 
+def test_email_notifier_missing_sender():
+    with pytest.raises(ValueError) as excinfo:
+        notifier = EmailNotifier({})
+        notifier.get_client({})
+
+    assert str(excinfo.value) == "Sender email not provided in the configuration."
+
+
 def test_email_notifier_missing_region():
     config = {}
-    notifier = EmailNotifier("templates", sender="test@example.com")
+    notifier = EmailNotifier({"sender": "test@example.com"})
 
     with pytest.raises(ValueError) as excinfo:
         notifier.get_client(config)
@@ -110,7 +135,7 @@ def test_email_notifier_missing_region():
 
 def test_email_notifier_missing_recipients():
     config = {}
-    notifier = EmailNotifier("templates", sender="test@example.com")
+    notifier = EmailNotifier({"sender": "test@example.com"})
     client = MagicMock()
     content = {"subject": "Test", "html": "<p>Test</p>"}
 
@@ -121,7 +146,12 @@ def test_email_notifier_missing_recipients():
 
 
 def test_email_notifier_get_notification_content(email_notifier):
-    template_name = "test_template"
+    template_config = {
+        "type": "CUSTOM",
+        "subject": "Test Subject - {period}",
+        "body": "<h1>Test Email</h1><p>Period: {{ period }}</p>",
+    }
+
     context = {
         "name": "IMP Metrics",
         "grain": "weekly",
@@ -140,7 +170,29 @@ def test_email_notifier_get_notification_content(email_notifier):
         "report_link": "https://app-dev.leverslabs.com/metrics/report",
     }
 
-    with pytest.raises(ValueError) as excinfo:
-        email_notifier.get_notification_content(template_name, context)
+    content = email_notifier.get_notification_content(template_config, context)
+    assert isinstance(content, dict)
+    assert "subject" in content
+    assert "html" in content
 
-    assert str(excinfo.value) == "Email template test_template not found"
+
+def test_email_notifier_missing_template_config():
+    notifier = EmailNotifier({"sender": "test@example.com"})
+
+    # Test missing subject
+    template_config_no_subject = {
+        "type": "CUSTOM",
+        "body": "<h1>Test Email</h1>",
+    }
+    with pytest.raises(ValueError) as excinfo:
+        notifier.get_notification_content(template_config_no_subject, {})
+    assert str(excinfo.value) == "Template configuration must include both subject and body"
+
+    # Test missing body
+    template_config_no_body = {
+        "type": "CUSTOM",
+        "subject": "Test Subject",
+    }
+    with pytest.raises(ValueError) as excinfo:
+        notifier.get_notification_content(template_config_no_body, {})
+    assert str(excinfo.value) == "Template configuration must include both subject and body"
