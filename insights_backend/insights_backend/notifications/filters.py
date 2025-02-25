@@ -79,6 +79,6 @@ class AlertFilter(BaseFilter):
 
     is_active: bool | None = FilterField(Alert.is_active, operator="eq", default=None)  # type: ignore
     is_published: bool | None = FilterField(Alert.is_published, operator="eq", default=None)  # type: ignore
-    grain: Granularity | None = FilterField(Alert.grain, operator="eq", default=None)  # type: ignore
+    grains: list[Granularity] | None = FilterField(Alert.grain, operator="in", default=None)  # type: ignore
     metric_ids: list[str] | None = create_alert_trigger_jsonb_array_filter(["condition", "metric_ids"])  # type: ignore
     story_groups: list[str] | None = create_alert_trigger_jsonb_array_filter(["condition", "story_groups"])  # type: ignore  # noqa

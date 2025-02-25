@@ -63,3 +63,36 @@ async def test_get_tenant_config_other_error(mock_client):
         await mock_client.get_tenant_config()
 
     mock_client.get.assert_called_once_with("/tenant/config/internal")
+
+
+@pytest.mark.asyncio
+async def test_list_alerts_success(mock_client):
+    # Arrange
+    expected_response = {"items": [], "total": 0, "page": 1, "size": 10}
+    mock_client.get = AsyncMock(return_value=expected_response)
+
+    # Act
+    result = await mock_client.list_alerts(
+        page=1,
+        size=10,
+        grains=["day", "week"],
+        is_active=True,
+        is_published=False,
+        metric_ids=["metric1", "metric2"],
+        story_groups=["group1", "group2"],
+    )
+
+    # Assert
+    assert result == expected_response
+    mock_client.get.assert_called_once_with(
+        "/notification/alerts",
+        params={
+            "page": 1,
+            "size": 10,
+            "grains": ["day", "week"],
+            "is_active": "true",
+            "is_published": "false",
+            "metric_ids": ["metric1", "metric2"],
+            "story_groups": ["group1", "group2"],
+        },
+    )

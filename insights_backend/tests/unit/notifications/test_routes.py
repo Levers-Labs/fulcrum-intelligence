@@ -743,8 +743,8 @@ async def test_list_alerts_with_filters(async_client: AsyncClient, multiple_aler
     data = response.json()
     assert all(alert["is_active"] for alert in data["results"])
 
-    # Test grain filter
-    response = await async_client.get("/v1/notification/alerts?grain=day")
+    # Test grains filter
+    response = await async_client.get("/v1/notification/alerts?grains=day")
     assert response.status_code == status.HTTP_200_OK
     data = response.json()
     assert all(alert["grain"] == "day" for alert in data["results"])
@@ -868,7 +868,7 @@ async def test_list_alerts_with_combined_filters(
 
     # Test combining multiple filters
     response = await async_client.get(
-        "/v1/notification/alerts?is_active=true&grain=day&metric_ids=common_metric&story_groups=common_group"
+        "/v1/notification/alerts?is_active=true&grains=day&metric_ids=common_metric&story_groups=common_group"
     )
     assert response.status_code == status.HTTP_200_OK
     data = response.json()
@@ -882,8 +882,8 @@ async def test_list_alerts_with_combined_filters(
 
 async def test_list_alerts_invalid_filters(async_client: AsyncClient):
     """Test listing alerts with invalid filter values"""
-    # Test invalid grain
-    response = await async_client.get("/v1/notification/alerts?grain=invalid")
+    # Test invalid grains
+    response = await async_client.get("/v1/notification/alerts?grains=invalid")
     assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
 
     # Test invalid boolean value

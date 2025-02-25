@@ -119,7 +119,7 @@ async def generate_stories_for_metric(
     if story_futures:
         for future in story_futures:
             res = future.result()
-            stories.extend(res["stories"])
+            stories.extend(res["stories"])  # type: ignore
 
     # If we have stories, we can emit an event
     if stories:
@@ -131,6 +131,7 @@ async def generate_stories_for_metric(
                 "tenant_id": str(tenant_id),
                 "story_date": story_date.isoformat(),
             },
+            payload={"stories": stories},
         )
 
     logger.info("Generated %d stories for tenant %s, metric %s", len(stories), tenant_id, metric_id)

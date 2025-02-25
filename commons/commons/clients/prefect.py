@@ -27,7 +27,7 @@ class PrefectDeployment(BaseModel):
     entrypoint: str
     tags: list[str] = Field(default_factory=list)
     parameter_openapi_schema: dict[str, Any] | None = None
-    parameters: dict[str, Any] | None = Field(default_factory=dict)
+    parameters: dict[str, Any] | None = Field(default_factory=dict)  # type: ignore
     pull_steps: list[dict[str, Any]] = Field(default_factory=list)
     schedules: list[PrefectSchedule] | None = None
 

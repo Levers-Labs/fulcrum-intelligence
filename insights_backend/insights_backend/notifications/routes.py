@@ -179,7 +179,7 @@ async def preview_alert(
 async def list_alerts(
     alert_crud: AlertsCRUDDep,
     params: Annotated[PaginationParams, Depends(PaginationParams)],
-    grain: Annotated[Granularity | None, Query()] = None,
+    grains: Annotated[list[Granularity] | None, Query()] = None,
     is_active: Annotated[bool | None, Query()] = None,
     is_published: Annotated[bool | None, Query()] = None,
     metric_ids: Annotated[list[str] | None, Query()] = None,
@@ -200,7 +200,7 @@ async def list_alerts(
         story_groups=story_groups,
         is_active=is_active,
         is_published=is_published,
-        grain=grain,
+        grains=grains,
     )
 
     results, count = await alert_crud.paginate(
