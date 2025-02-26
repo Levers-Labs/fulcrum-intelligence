@@ -375,7 +375,7 @@ async def sample_report_fixture(db_session: AsyncSession, jwt_payload: dict) -> 
             "month": "*",
             "day_of_week": "MON",
             "timezone": "UTC",
-            "label": "day",
+            "label": "DAY",
         },
         config={"metric_ids": ["revenue"], "comparisons": ["PERCENTAGE_CHANGE"]},
     )
@@ -408,7 +408,7 @@ async def multiple_reports_fixture(db_session: AsyncSession, jwt_payload: dict) 
                 "month": "*",
                 "day_of_week": "MON",
                 "timezone": "UTC",
-                "label": "day",
+                "label": "DAY",
             },
             config={"metric_ids": ["revenue"], "comparisons": ["WoW"]},
         )
@@ -435,7 +435,7 @@ async def test_create_report(async_client: AsyncClient):
             "month": "*",
             "day_of_week": "MON",
             "timezone": "UTC",
-            "label": "day",
+            "label": "DAY",
         },
         "config": {"metric_ids": ["revenue"], "comparisons": ["PERCENTAGE_CHANGE"]},
         "notification_channels": [
@@ -563,7 +563,7 @@ async def test_update_report(async_client: AsyncClient, sample_report: Report):
             "month": "*",
             "day_of_week": "TUE",
             "timezone": "UTC",
-            "label": "day",
+            "label": "DAY",
         },
         "notification_channels": [
             {
