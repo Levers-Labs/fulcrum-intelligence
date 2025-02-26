@@ -1,7 +1,12 @@
 from datetime import datetime
 
 from pydantic import BaseModel
-from sqlalchemy import Select, and_
+from sqlalchemy import (
+    Select,
+    and_,
+    func,
+    or_,
+)
 from sqlalchemy.dialects import postgresql
 
 from commons.db.filters import BaseFilter, FilterField
@@ -76,7 +81,17 @@ def create_alert_trigger_jsonb_array_filter(json_path: list[str]) -> FilterField
     def filter_fn(query: Select, value: list[str]) -> Select:
         if not value:
             return query
-        return query.filter(Alert.trigger[json_path[0]][json_path[1]].op("?|")(postgresql.array(value)))  # type: ignore
+        # Match if either:
+        # 1. The field is NULL or empty array (accepts all values)
+        # 2. The field contains any of the specified values
+        field = Alert.trigger[json_path[0]][json_path[1]]  # type: ignore
+        return query.filter(
+            or_(
+                field.is_(None),  # NULL means accept all
+                func.jsonb_array_length(field) == 0,  # Empty array means accept all
+                field.op("?|")(postgresql.array(value)),  # Match any of the specified values
+            )
+        )
 
     return FilterField(field=Alert.trigger, filter_fn=filter_fn)  # type: ignore
 
