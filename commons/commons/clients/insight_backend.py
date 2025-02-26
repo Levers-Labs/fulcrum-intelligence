@@ -118,3 +118,22 @@ class InsightBackendClient(AsyncHttpClient):
             params["story_groups"] = story_groups
 
         return await self.get("/notification/alerts", params=params)
+
+    async def create_notification_execution(self, execution_data: dict) -> dict:
+        """
+        Create a new notification execution record.
+
+        Args:
+            execution_data: Dictionary containing execution details including:
+                - notification_type: Type of notification (ALERT/REPORT)
+                - status: Execution status
+                - delivery_meta: Delivery results and metadata
+                - run_meta: Prefect run information
+                - error_info: Error details if any
+                - report_meta/alert_meta: Notification-specific metadata
+                - alert_id/report_id: ID of the associated notification
+
+        Returns:
+            dict: Created execution record
+        """
+        return await self.post("/notification/executions", data=execution_data)

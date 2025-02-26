@@ -58,7 +58,7 @@ class SlackClient:
         text: str | None = None,
         blocks: list[dict[str, Any]] | None = None,
         attachments: list[dict[str, Any]] | None = None,
-    ) -> bool:
+    ) -> dict:
         """
         Post a message to a Slack channel
 
@@ -69,7 +69,10 @@ class SlackClient:
             attachments: Optional message attachments
 
         Returns:
-            bool: True if message was sent successfully
+            dict: Response containing:
+                - ok: True if the message was successfully posted
+                - channel: The channel ID the message was posted to
+                - ts: The timestamp of the message
         """
         kwargs: dict[str, Any] = {"channel": channel_id}
         if text:
@@ -80,7 +83,11 @@ class SlackClient:
             kwargs["attachments"] = attachments
 
         response = self.client.chat_postMessage(**kwargs)
-        return response["ok"]
+        return {
+            "ok": response["ok"],
+            "channel": response.get("channel"),
+            "ts": response.get("ts"),
+        }
 
     def get_channel_info(self, channel_id: str) -> dict[str, Any]:
         """
