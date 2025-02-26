@@ -62,11 +62,8 @@ async def get_story_config_crud(session: AsyncSessionDep) -> CRUDStoryConfig:
     return CRUDStoryConfig(model=StoryConfig, session=session)
 
 
-async def get_slack_notifier() -> BaseNotifier:
-    settings = get_settings()
-    return NotifierFactory.create_notifier(
-        channel=NotificationChannel.SLACK, template_dir=str(settings.PATHS.TEMPLATES_DIR)
-    )
+async def get_slack_notifier(config) -> BaseNotifier:
+    return NotifierFactory.create_notifier(channel=NotificationChannel.SLACK, config=config)
 
 
 async def get_insights_backend_client() -> InsightBackendClient:

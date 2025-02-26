@@ -95,10 +95,10 @@ class NotificationExecutionFilter(BaseFilter):
     """Filter parameters for notification executions."""
 
     notification_type: NotificationType | None = FilterField(
-        NotificationExecution.notification_type, operator="eq", default=None
+        NotificationExecution.notification_type, operator="eq", default=None  # type: ignore
     )
-    status: ExecutionStatus | None = FilterField(NotificationExecution.status, operator="eq", default=None)
-    alert_id: int | None = FilterField(NotificationExecution.alert_id, operator="eq", default=None)
-    report_id: int | None = FilterField(NotificationExecution.report_id, operator="eq", default=None)
-    start_date: datetime | None = FilterField(NotificationExecution.executed_at, operator="ge", default=None)
-    end_date: datetime | None = FilterField(NotificationExecution.executed_at, operator="le", default=None)
+    status: ExecutionStatus | None = FilterField(NotificationExecution.status, operator="eq", default=None)  # type: ignore
+    alert_id: int | None = FilterField(NotificationExecution.alert_id, operator="eq", default=None)  # type: ignore
+    report_id: int | None = FilterField(NotificationExecution.report_id, operator="eq", default=None)  # type: ignore
+    start_date: datetime | None = FilterField(NotificationExecution.executed_at, operator="ge", default=None)  # type: ignore
+    end_date: datetime | None = FilterField(NotificationExecution.executed_at, operator="le", default=None)  # type: ignore

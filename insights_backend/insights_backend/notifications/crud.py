@@ -521,6 +521,6 @@ class CRUDNotificationExecution(
         """Base select query for executions with related alerts and reports"""
         return (
             select(self.model)
-            .options(selectinload(self.model.alert), selectinload(self.model.report))
+            .options(selectinload(self.model.alert), selectinload(self.model.report))  # type: ignore
             .order_by(self.model.executed_at.desc())  # type: ignore
         )
