@@ -1,6 +1,7 @@
 import pytest
 
 from commons.models.enums import Granularity
+from insights_backend.notifications.enums import ScheduleLabel
 from insights_backend.notifications.models import AlertTrigger
 from insights_backend.notifications.schemas import (
     AlertRequest,
@@ -98,6 +99,7 @@ def sample_report_request():
             month="*",
             day_of_week="MON",
             timezone="America/New_York",
+            label=ScheduleLabel.DAY,
         ),
         config=ReportConfig(metric_ids=["NewBizDeals", "NewWins"], comparisons=["PERCENTAGE_CHANGE"]),
     )

@@ -3,6 +3,7 @@ from typing import Any, TypeVar
 
 from sqlalchemy import (
     and_,
+    column,
     delete,
     distinct,
     func,
@@ -117,7 +118,7 @@ class CRUDNotifications:
 
         return notifications, total_count or 0
 
-    async def get_unique_tags(self) -> list[str]:
+    async def get_unique_tags(self, search: str | None = None) -> list[str]:
         """
         Retrieve unique tags across all notifications (both alerts and reports).
 
@@ -135,6 +136,9 @@ class CRUDNotifications:
 
         # Combine using UNION and add ordering
         statement = union(alert_tags, report_tags).select().distinct().order_by("tag")
+
+        if search:
+            statement = statement.where(func.lower(column("tag")).contains(func.lower(search)))
 
         result = await self.session.execute(statement)
         return [row[0] for row in result.fetchall()]

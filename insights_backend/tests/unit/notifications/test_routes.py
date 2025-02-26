@@ -58,7 +58,7 @@ async def sample_alert_fixture(db_session: AsyncSession, jwt_payload: dict) -> A
         type=NotificationType.ALERT,
         grain=Granularity.DAY,
         summary="Existing alert summary",
-        tags=["revenue", "existing"],
+        tags=["revenue", "existing", "risk"],
         is_active=True,
         is_published=False,
         tenant_id=jwt_payload["tenant_id"],
@@ -171,6 +171,21 @@ async def test_create_alert_duplicate_tags(async_client: AsyncClient, alert_requ
     # Should deduplicate tags
     assert len(data["tags"]) == 2
     assert set(data["tags"]) == {"revenue", "test"}
+
+
+async def test_get_tags_with_search(async_client: AsyncClient, sample_alert: Alert):
+    """Test getting tags with various search parameters"""
+    # Test exact match
+    response = await async_client.get("/v1/notification/tags?search=revenue")
+    assert response.status_code == status.HTTP_200_OK
+    tags = response.json()
+    assert tags == ["revenue"]
+
+    # Test partial match starting with
+    response = await async_client.get("/v1/notification/tags?search=r")
+    assert response.status_code == status.HTTP_200_OK
+    tags = response.json()
+    assert set(tags) == {"revenue", "risk"}
 
 
 async def test_create_alert_empty_name(async_client: AsyncClient, alert_request_data: dict):
@@ -360,6 +375,7 @@ async def sample_report_fixture(db_session: AsyncSession, jwt_payload: dict) -> 
             "month": "*",
             "day_of_week": "MON",
             "timezone": "UTC",
+            "label": "day",
         },
         config={"metric_ids": ["revenue"], "comparisons": ["PERCENTAGE_CHANGE"]},
     )
@@ -392,6 +408,7 @@ async def multiple_reports_fixture(db_session: AsyncSession, jwt_payload: dict) 
                 "month": "*",
                 "day_of_week": "MON",
                 "timezone": "UTC",
+                "label": "day",
             },
             config={"metric_ids": ["revenue"], "comparisons": ["WoW"]},
         )
@@ -418,6 +435,7 @@ async def test_create_report(async_client: AsyncClient):
             "month": "*",
             "day_of_week": "MON",
             "timezone": "UTC",
+            "label": "day",
         },
         "config": {"metric_ids": ["revenue"], "comparisons": ["PERCENTAGE_CHANGE"]},
         "notification_channels": [
@@ -545,6 +563,7 @@ async def test_update_report(async_client: AsyncClient, sample_report: Report):
             "month": "*",
             "day_of_week": "TUE",
             "timezone": "UTC",
+            "label": "day",
         },
         "notification_channels": [
             {

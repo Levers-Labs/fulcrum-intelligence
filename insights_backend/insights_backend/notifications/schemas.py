@@ -158,6 +158,7 @@ class ReportRequest(NotificationBase):
                     "month": "*",
                     "day_of_week": "MON",
                     "timezone": "America/New_York",
+                    "label": "day",
                 },
                 "config": {"metric_ids": ["NewBizDeals", "NewWins"], "comparisons": ["PERCENTAGE_CHANGE"]},
                 "tags": [],
