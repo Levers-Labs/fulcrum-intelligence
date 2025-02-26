@@ -6,12 +6,19 @@ from insights_backend.db.config import AsyncSessionDep
 from insights_backend.notifications.crud import (
     CRUDAlert,
     CRUDNotificationChannelConfig,
+    CRUDNotificationExecution,
     CRUDNotifications,
     CRUDReport,
 )
 from insights_backend.notifications.models import Alert, NotificationChannelConfig, Report
 from insights_backend.notifications.services.preview.alert import AlertPreviewService
 from insights_backend.notifications.services.preview.report import ReportPreviewService
+from insights_backend.notifications.models import (
+    Alert,
+    NotificationChannelConfig,
+    NotificationExecution,
+    Report,
+)
 from insights_backend.notifications.services.template_service import TemplateService
 
 
@@ -76,3 +83,10 @@ async def get_reports_crud(
 
 
 ReportsCRUDDep = Annotated[CRUDReport, Depends(get_reports_crud)]
+
+
+async def get_execution_crud(session: AsyncSessionDep) -> CRUDNotificationExecution:
+    return CRUDNotificationExecution(model=NotificationExecution, session=session)
+
+
+ExecutionCRUDDep = Annotated[CRUDNotificationExecution, Depends(get_execution_crud)]

@@ -94,6 +94,8 @@ class AlertDetail(NotificationBase):
 
     id: int
     trigger: AlertTrigger
+    is_published: bool
+    is_active: bool
 
     model_config = ConfigDict(from_attributes=True, arbitrary_types_allowed=True)
 
@@ -194,6 +196,8 @@ class ReportDetail(NotificationBase):
     id: int
     schedule: ScheduleConfig
     config: ReportConfig
+    is_published: bool
+    is_active: bool
 
     model_config = ConfigDict(from_attributes=True, arbitrary_types_allowed=True)
 

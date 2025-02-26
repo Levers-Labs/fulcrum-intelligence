@@ -1,4 +1,5 @@
 import logging
+from datetime import datetime
 from typing import Annotated
 
 from fastapi import (
@@ -24,6 +25,15 @@ from insights_backend.notifications.dependencies import (
 )
 from insights_backend.notifications.filters import AlertFilter, NotificationConfigFilter
 from insights_backend.notifications.models import Alert, Report
+from insights_backend.notifications.dependencies import (
+    AlertsCRUDDep,
+    CRUDNotificationsDep,
+    ExecutionCRUDDep,
+    ReportsCRUDDep,
+)
+from insights_backend.notifications.enums import ExecutionStatus
+from insights_backend.notifications.filters import AlertFilter, NotificationConfigFilter, NotificationExecutionFilter
+from insights_backend.notifications.models import Alert, NotificationExecutionCreate, NotificationExecutionRead
 from insights_backend.notifications.schemas import (
     AlertDetail,
     AlertRequest,
@@ -48,7 +58,7 @@ notification_router = APIRouter(prefix="/notification", tags=["notifications"])
 @notification_router.post(
     "/alerts",
     status_code=201,
-    response_model=Alert,
+    response_model=AlertDetail,
     dependencies=[Security(oauth2_auth().verify, scopes=[ALERT_REPORT_WRITE])],
 )
 async def create_alert(
@@ -377,7 +387,7 @@ async def bulk_delete_notifications(
 @notification_router.post(
     "/reports",
     status_code=201,
-    response_model=Report,
+    response_model=ReportDetail,
     dependencies=[Security(oauth2_auth().verify, scopes=[ALERT_REPORT_WRITE])],
 )
 async def create_report(
@@ -499,3 +509,86 @@ async def preview_report(
     :return: Preview of email and/or slack notifications
     """
     return await preview_service.preview(report_data)  # type: ignore
+
+
+@notification_router.post(
+    "/executions",
+    status_code=201,
+    response_model=NotificationExecutionRead,
+    dependencies=[Security(oauth2_auth().verify, scopes=[ALERT_REPORT_WRITE])],
+)
+async def create_notification_execution(
+    execution: NotificationExecutionCreate,
+    execution_crud: ExecutionCRUDDep,
+):
+    """
+    Create a new notification execution record.
+
+    Args:
+        execution: The execution details to record
+        execution_crud: CRUD dependency for executions
+    """
+    return await execution_crud.create(obj_in=execution)
+
+
+@notification_router.get(
+    "/executions",
+    response_model=Page[NotificationExecutionRead],
+    dependencies=[Security(oauth2_auth().verify, scopes=[ALERT_REPORT_READ])],
+)
+async def list_notification_executions(
+    execution_crud: ExecutionCRUDDep,
+    params: Annotated[PaginationParams, Depends(PaginationParams)],
+    notification_type: Annotated[NotificationType | None, Query()] = None,
+    status: Annotated[ExecutionStatus | None, Query()] = None,
+    alert_id: Annotated[int | None, Query()] = None,
+    report_id: Annotated[int | None, Query()] = None,
+    start_date: Annotated[datetime | None, Query()] = None,
+    end_date: Annotated[datetime | None, Query()] = None,
+):
+    """
+    Retrieve a paginated list of notification executions with optional filtering.
+
+    Args:
+        execution_crud: CRUD dependency for executions
+        params: Pagination parameters
+        notification_type: Filter by notification type (ALERT/REPORT)
+        status: Filter by execution status
+        alert_id: Filter by alert ID
+        report_id: Filter by report ID
+        start_date: Filter executions after this date
+        end_date: Filter executions before this date
+    """
+    filter_instance = NotificationExecutionFilter(
+        notification_type=notification_type,
+        status=status,
+        alert_id=alert_id,
+        report_id=report_id,
+        start_date=start_date,
+        end_date=end_date,
+    )
+    executions, count = await execution_crud.paginate(
+        params=params,
+        filter_params=filter_instance.model_dump(exclude_unset=True),
+    )
+
+    return Page.create(items=executions, total_count=count, params=params)
+
+
+@notification_router.get(
+    "/executions/{execution_id}",
+    response_model=NotificationExecutionRead,
+    dependencies=[Security(oauth2_auth().verify, scopes=[ALERT_REPORT_READ])],
+)
+async def get_notification_execution(
+    execution_id: int,
+    execution_crud: ExecutionCRUDDep,
+):
+    """
+    Retrieve a specific notification execution by ID.
+
+    Args:
+        execution_id: The ID of the execution to retrieve
+        execution_crud: CRUD dependency for executions
+    """
+    return await execution_crud.get(id=execution_id)

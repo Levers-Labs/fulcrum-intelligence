@@ -19,11 +19,12 @@ from commons.db.crud import CRUDBase, ModelType, NotFoundError
 from commons.utilities.context import get_tenant_id
 from commons.utilities.pagination import PaginationParams
 from insights_backend.notifications.enums import NotificationType
-from insights_backend.notifications.filters import AlertFilter, NotificationConfigFilter
+from insights_backend.notifications.filters import AlertFilter, NotificationConfigFilter, NotificationExecutionFilter
 from insights_backend.notifications.models import (
     Alert,
     NotificationChannelConfig,
     NotificationExecution,
+    NotificationExecutionCreate,
     Report,
 )
 from insights_backend.notifications.schemas import (
@@ -505,3 +506,21 @@ class CRUDReport(CRUDBase[Report, ReportRequest, None, None]):  # type: ignore
 
         await self.session.commit()
         return await self.get(report_id)  # type: ignore
+
+
+class CRUDNotificationExecution(
+    CRUDBase[
+        NotificationExecution, NotificationExecutionCreate, NotificationExecutionCreate, NotificationExecutionFilter
+    ]
+):
+    """CRUD operations for notification executions."""
+
+    filter_class = NotificationExecutionFilter
+
+    def get_select_query(self) -> select:  # type: ignore
+        """Base select query for executions with related alerts and reports"""
+        return (
+            select(self.model)
+            .options(selectinload(self.model.alert), selectinload(self.model.report))
+            .order_by(self.model.executed_at.desc())  # type: ignore
+        )

@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from pydantic import BaseModel
 from sqlalchemy import Select, and_
 from sqlalchemy.dialects import postgresql
@@ -5,8 +7,13 @@ from sqlalchemy.dialects import postgresql
 from commons.db.filters import BaseFilter, FilterField
 from commons.models.enums import Granularity
 from commons.notifiers.constants import NotificationChannel
-from insights_backend.notifications.enums import NotificationType
-from insights_backend.notifications.models import Alert, NotificationChannelConfig, Report
+from insights_backend.notifications.enums import ExecutionStatus, NotificationType
+from insights_backend.notifications.models import (
+    Alert,
+    NotificationChannelConfig,
+    NotificationExecution,
+    Report,
+)
 
 
 class NotificationConfigFilter(BaseModel):
@@ -82,3 +89,16 @@ class AlertFilter(BaseFilter):
     grains: list[Granularity] | None = FilterField(Alert.grain, operator="in", default=None)  # type: ignore
     metric_ids: list[str] | None = create_alert_trigger_jsonb_array_filter(["condition", "metric_ids"])  # type: ignore
     story_groups: list[str] | None = create_alert_trigger_jsonb_array_filter(["condition", "story_groups"])  # type: ignore  # noqa
+
+
+class NotificationExecutionFilter(BaseFilter):
+    """Filter parameters for notification executions."""
+
+    notification_type: NotificationType | None = FilterField(
+        NotificationExecution.notification_type, operator="eq", default=None
+    )
+    status: ExecutionStatus | None = FilterField(NotificationExecution.status, operator="eq", default=None)
+    alert_id: int | None = FilterField(NotificationExecution.alert_id, operator="eq", default=None)
+    report_id: int | None = FilterField(NotificationExecution.report_id, operator="eq", default=None)
+    start_date: datetime | None = FilterField(NotificationExecution.executed_at, operator="ge", default=None)
+    end_date: datetime | None = FilterField(NotificationExecution.executed_at, operator="le", default=None)
