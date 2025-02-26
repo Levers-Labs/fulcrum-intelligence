@@ -13,7 +13,13 @@ from commons.auth.scopes import ALERT_REPORT_READ, ALERT_REPORT_WRITE
 from commons.notifiers.constants import NotificationChannel
 from commons.utilities.pagination import Page, PaginationParams
 from insights_backend.core.dependencies import oauth2_auth
-from insights_backend.notifications.dependencies import AlertsCRUDDep, CRUDNotificationsDep, ReportsCRUDDep
+from insights_backend.notifications.dependencies import (
+    AlertPreviewServiceDep,
+    AlertsCRUDDep,
+    CRUDNotificationsDep,
+    ReportPreviewServiceDep,
+    ReportsCRUDDep,
+)
 from insights_backend.notifications.filters import NotificationConfigFilter
 from insights_backend.notifications.models import Alert, Report
 from insights_backend.notifications.schemas import (
@@ -22,6 +28,7 @@ from insights_backend.notifications.schemas import (
     Granularity,
     NotificationList,
     NotificationType,
+    PreviewResponse,
     ReportDetail,
     ReportRequest,
 )
@@ -135,6 +142,29 @@ async def update_alert(
         alert_id=alert_id,
         alert_update=alert_update,
     )
+
+
+@notification_router.post(
+    "/alerts/preview",
+    response_model=PreviewResponse,
+    status_code=200,
+    dependencies=[Security(oauth2_auth().verify, scopes=[ALERT_REPORT_READ])],
+)
+async def preview_alert(
+    alert_data: AlertRequest,
+    preview_service: AlertPreviewServiceDep,
+) -> PreviewResponse:
+    """
+    Preview an alert with rendered notification templates.
+
+    This endpoint generates a preview of how the alert notifications will look
+    without actually creating the alert or sending notifications.
+
+    :param alert_data: The alert data to preview
+    :param preview_service: Service for generating previews
+    :return: Preview of email and/or slack notifications
+    """
+    return await preview_service.preview(alert_data)  # type: ignore
 
 
 # Common ==========
@@ -356,3 +386,26 @@ async def update_report(
         report_id=report_id,
         report_update=report_update,
     )
+
+
+@notification_router.post(
+    "/reports/preview",
+    response_model=PreviewResponse,
+    status_code=200,
+    dependencies=[Security(oauth2_auth().verify, scopes=[ALERT_REPORT_READ])],
+)
+async def preview_report(
+    report_data: ReportRequest,
+    preview_service: ReportPreviewServiceDep,
+) -> PreviewResponse:
+    """
+    Preview an alert with rendered notification templates.
+
+    This endpoint generates a preview of how the alert notifications will look
+    without actually creating the alert or sending notifications.
+
+    :param report_data: The report data to preview
+    :param preview_service: Service for generating previews
+    :return: Preview of email and/or slack notifications
+    """
+    return await preview_service.preview(report_data)  # type: ignore

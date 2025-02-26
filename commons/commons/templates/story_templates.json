@@ -1,0 +1,50 @@
+{
+    "TREND_CHANGES": {
+        "STABLE_TREND": {
+            "title": "Following a stable trend",
+            "detail": "{{metric.label}} continues to follow the trend line it has followed for the past {{duration}} {{grain}}s, averaging a {{avg_growth}}% {{pop}}."
+        },
+        "NEW_UPWARD_TREND": {
+            "title": "New upward trend",
+            "detail": "Since {{start_date}}, {{metric.label}} has been following a new, upward trend line that averages {{current_growth}}% {{pop}} growth. The prior trend for this metric lasted {{prev_duration}} {{grain}}s and averaged {{prev_growth}}% {{pop}} growth."
+        },
+        "NEW_DOWNWARD_TREND": {
+            "title": "New downward trend",
+            "detail": "Since {{start_date}}, {{metric.label}} has been following a new, downward trend line that averages {{current_growth}}% {{pop}} growth. The prior trend for this metric lasted {{prev_duration}} {{grain}}s and averaged {{prev_growth}}% {{pop}} growth."
+        },
+        "PERFORMANCE_PLATEAU": {
+            "title": "Performance has leveled off",
+            "detail": "Since {{start_date}}, {{metric.label}} growth has steadied into a new normal, hovering around a {{grain}} average of {{avg_value}}."
+        }
+    },
+    "TREND_EXCEPTIONS": {
+        "SPIKE": {
+            "title": "Performance spike above {{grain}} trend",
+            "detail": "{{metric.label}} is currently performing at {{deviation}}% {{position}} its normal range. This may indicate an anomaly, a data issue, or a fundamental change in how this metric performs."
+        },
+        "DROP": {
+            "title": "Performance drop below {{grain}} trend",
+            "detail": "{{metric.label}} is currently performing at {{deviation}}% {{position}} its normal range. This may indicate an anomaly, a data issue, or a fundamental change in how this metric performs."
+        }
+    },
+    "LONG_RANGE": {
+        "IMPROVING_PERFORMANCE": {
+            "title": "Performance has improved over the past {{duration}} {{grain}}s",
+            "detail": "Over the past {{duration}} {{grain}}s, {{metric.label}} has been averaging {{avg_growth}}% {{pop}} growth and has grown {{overall_growth}}% overall since {{start_date}}."
+        },
+        "WORSENING_PERFORMANCE": {
+            "title": "Performance has worsened over the past {{duration}} {{grain}}s",
+            "detail": "Over the past {{duration}} {{grain}}s, {{metric.label}} has been declining {{avg_growth}}% {{pop}} growth and has fallen {{overall_growth}}% overall since {{start_date}}."
+        }
+    },
+    "GROWTH_RATES": {
+        "SLOWING_GROWTH": {
+            "title": "{{pop}} growth is slowing down",
+            "detail": "The {{pop}} growth rate for {{metric.label}} is slowing down. It is currently {{current_growth}}% and down from the {{avg_growth}}% average over the past {{duration}} {{grain}}s."
+        },
+        "ACCELERATING_GROWTH": {
+            "title": "{{pop}} growth is speeding up",
+            "detail": "The {{pop}} growth rate for {{metric.label}} is speeding up. It is currently {{current_growth}}% and up from the {{avg_growth}}% average over the past {{duration}} {{grain}}s."
+        }
+    }
+}

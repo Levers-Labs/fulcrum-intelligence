@@ -99,6 +99,30 @@ class NotificationList(BaseModel):
     recipients_count: int | None
     is_active: bool
 
+    model_config = ConfigDict(from_attributes=True)
+
+
+class EmailPreviewResponse(BaseModel):
+    """Response model for email template preview"""
+
+    to_emails: list[str]
+    cc_emails: list[str] | None = None
+    subject: str
+    body: str
+
+
+class SlackPreviewResponse(BaseModel):
+    """Response model for slack template preview"""
+
+    message: dict[str, Any] | str
+    channels: list[str] = []
+
+
+class PreviewResponse(BaseModel):
+    """Response model for template preview"""
+
+    email: EmailPreviewResponse | None = None
+    slack: SlackPreviewResponse | None = None
     model_config = ConfigDict(from_attributes=True, arbitrary_types_allowed=True)
 
 
