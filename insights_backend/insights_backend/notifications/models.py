@@ -23,14 +23,13 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlmodel import Field, Relationship
 
 from commons.models import BaseModel
-from commons.models.enums import Granularity
+from commons.models.enums import ExecutionStatus, Granularity
 from commons.models.slack import SlackChannel
 from commons.notifiers.constants import NotificationChannel
 from insights_backend.core.models import InsightsSchemaBaseModel
 from insights_backend.notifications.enums import (
     Comparisons,
     DayOfWeek,
-    ExecutionStatus,
     Month,
     NotificationType,
     ScheduleLabel,

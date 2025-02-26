@@ -5,9 +5,9 @@ from sqlalchemy import Select, and_
 from sqlalchemy.dialects import postgresql
 
 from commons.db.filters import BaseFilter, FilterField
-from commons.models.enums import Granularity
+from commons.models.enums import ExecutionStatus, Granularity
 from commons.notifiers.constants import NotificationChannel
-from insights_backend.notifications.enums import ExecutionStatus, NotificationType
+from insights_backend.notifications.enums import NotificationType
 from insights_backend.notifications.models import (
     Alert,
     NotificationChannelConfig,

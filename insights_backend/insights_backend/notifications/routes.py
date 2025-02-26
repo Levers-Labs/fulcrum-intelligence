@@ -13,6 +13,7 @@ from fastapi import (
 
 from commons.auth.scopes import ALERT_REPORT_READ, ALERT_REPORT_WRITE
 from commons.db.signals import EventAction, EventTiming, publish_event
+from commons.models.enums import ExecutionStatus
 from commons.notifiers.constants import NotificationChannel
 from commons.utilities.pagination import Page, PaginationParams
 from insights_backend.core.dependencies import oauth2_auth
@@ -31,7 +32,6 @@ from insights_backend.notifications.dependencies import (
     ExecutionCRUDDep,
     ReportsCRUDDep,
 )
-from insights_backend.notifications.enums import ExecutionStatus
 from insights_backend.notifications.filters import AlertFilter, NotificationConfigFilter, NotificationExecutionFilter
 from insights_backend.notifications.models import Alert, NotificationExecutionCreate, NotificationExecutionRead
 from insights_backend.notifications.schemas import (

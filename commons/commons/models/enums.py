@@ -21,3 +21,15 @@ class GranularityOrder(Enum):
     MONTH = 3
     QUARTER = 4
     YEAR = 5
+
+
+class ExecutionStatus(StrEnum):
+    """Status of the notification/task execution"""
+
+    PENDING = "PENDING"
+    SCHEDULED = "SCHEDULED"
+    RUNNING = "RUNNING"
+    COMPLETED = "COMPLETED"
+    PARTIAL = "PARTIAL"
+    FAILED = "FAILED"
+    CRASHED = "CRASHED"

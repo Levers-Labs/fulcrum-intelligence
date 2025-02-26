@@ -9,9 +9,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from starlette import status
 
 from commons.db.signals import EventAction, EventTiming, publish_event
-from commons.models.enums import Granularity
+from commons.models.enums import ExecutionStatus, Granularity
 from commons.utilities.context import set_tenant_id
-from insights_backend.notifications.enums import ExecutionStatus, NotificationType
+from insights_backend.notifications.enums import NotificationType
 from insights_backend.notifications.models import (
     Alert,
     NotificationChannelConfig,
