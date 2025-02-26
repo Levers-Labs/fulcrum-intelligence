@@ -1,3 +1,4 @@
+from copy import deepcopy
 from unittest.mock import patch
 
 import pytest
@@ -33,6 +34,7 @@ def alert_request_data_fixture():
                 "channel_type": "slack",
                 "recipients": [
                     {
+                        "id": "C1234567890",
                         "name": "#channel",
                         "is_channel": True,
                         "is_group": False,
@@ -80,6 +82,7 @@ async def sample_notification_config_fixture(
         channel_type="slack",
         recipients=[
             {
+                "id": "C1234567890",
                 "name": "#channel",
                 "is_channel": True,
                 "is_group": False,
@@ -108,6 +111,7 @@ async def sample_notification_config_report_fixture(
         channel_type="slack",
         recipients=[
             {
+                "id": "C1234567890",
                 "name": "#channel",
                 "is_channel": True,
                 "is_group": False,
@@ -416,7 +420,9 @@ async def test_create_report(async_client: AsyncClient):
             "timezone": "UTC",
         },
         "config": {"metric_ids": ["revenue"], "comparisons": ["PERCENTAGE_CHANGE"]},
-        "notification_channels": [{"channel_type": "slack", "recipients": [{"name": "#channel", "is_channel": True}]}],
+        "notification_channels": [
+            {"channel_type": "slack", "recipients": [{"id": "C1234567890", "name": "#channel", "is_channel": True}]}
+        ],
     }
 
     response = await async_client.post("/v1/notification/reports", json=report_data)
@@ -503,6 +509,7 @@ async def test_update_alert(async_client: AsyncClient, sample_alert: Alert):
                 "channel_type": "slack",
                 "recipients": [
                     {
+                        "id": "C1234567890",
                         "name": "#updated-channel",
                         "is_channel": True,
                         "is_group": False,
@@ -544,6 +551,7 @@ async def test_update_report(async_client: AsyncClient, sample_report: Report):
                 "channel_type": "slack",
                 "recipients": [
                     {
+                        "id": "C1234567890",
                         "name": "#updated-channel",
                         "is_channel": True,
                         "is_group": False,
@@ -606,3 +614,17 @@ async def test_bulk_update_status_nonexistent_ids(async_client: AsyncClient):
         "/v1/notification/bulk/status?is_active=true", json={"alert_ids": [99999], "report_ids": []}
     )
     assert response.status_code == status.HTTP_404_NOT_FOUND
+
+
+async def test_create_alert_missing_slack_channel_id(async_client: AsyncClient, alert_request_data: dict):
+    """Test creating alert with missing Slack channel ID"""
+    # Create a deep copy to avoid modifying the fixture
+    alert_data = deepcopy(alert_request_data)
+    # Remove id from Slack channel
+    del alert_data["notification_channels"][0]["recipients"][0]["id"]
+
+    response = await async_client.post("/v1/notification/alerts", json=alert_data)
+
+    assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+    data = response.json()
+    assert any("id" in str(error).lower() for error in data["detail"])
