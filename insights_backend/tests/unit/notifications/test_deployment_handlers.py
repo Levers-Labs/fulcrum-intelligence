@@ -9,6 +9,7 @@ from insights_backend.db.subscribers.deployment_handlers import (
     handle_report_status_change,
     handle_update,
 )
+from insights_backend.notifications.enums import ScheduleLabel
 from insights_backend.notifications.models import Report, ScheduleConfig
 from insights_backend.notifications.services.deployment_manager import PrefectDeploymentManager
 
@@ -32,7 +33,15 @@ def sample_report():
         is_published=True,
         is_active=True,
         deployment_id=None,
-        schedule=ScheduleConfig(minute="0", hour="0", day_of_month="*", month="*", day_of_week="*", timezone="UTC"),
+        schedule=ScheduleConfig(
+            minute="0",
+            hour="0",
+            day_of_month="*",
+            month="*",
+            day_of_week="*",
+            timezone="UTC",
+            label=ScheduleLabel.DAY,
+        ),
     )
 
 
@@ -90,7 +99,9 @@ def test_handle_update_unpublish(mock_deployment_manager, sample_report, caplog)
 def test_handle_update_schedule_change(mock_deployment_manager, sample_report, caplog):
     """Test update handler when schedule changes."""
     caplog.set_level(logging.INFO)
-    old_schedule = ScheduleConfig(minute="30", hour="*", day_of_month="*", month="*", day_of_week="*", timezone="UTC")
+    old_schedule = ScheduleConfig(
+        minute="30", hour="*", day_of_month="*", month="*", day_of_week="*", timezone="UTC", label=ScheduleLabel.DAY
+    )
     history = {"schedule": {"old": old_schedule}, "is_published": {"old": True}}
     expected_deployment_id = "new-deployment-123"
     mock_deployment_manager.create_deployment.return_value = expected_deployment_id

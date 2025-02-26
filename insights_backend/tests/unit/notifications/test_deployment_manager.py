@@ -2,7 +2,7 @@ from unittest.mock import Mock
 
 import pytest
 
-from insights_backend.notifications.enums import Comparisons
+from insights_backend.notifications.enums import Comparisons, ScheduleLabel
 from insights_backend.notifications.models import Report, ReportConfig, ScheduleConfig
 from insights_backend.notifications.services.deployment_manager import PrefectDeploymentManager
 
@@ -23,7 +23,15 @@ def sample_report():
         id=123,
         tenant_id=2,
         is_active=True,
-        schedule=ScheduleConfig(minute="0", hour="0", day_of_month="*", month="*", day_of_week="*", timezone="UTC"),
+        schedule=ScheduleConfig(
+            minute="0",
+            hour="0",
+            day_of_month="*",
+            month="*",
+            day_of_week="*",
+            timezone="UTC",
+            label=ScheduleLabel.DAY,
+        ),
         config=ReportConfig(metric_ids=["metric-123", "metric-456"], comparisons=[Comparisons.PERCENTAGE_CHANGE]),
     )
     return report

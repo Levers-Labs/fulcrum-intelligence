@@ -1,5 +1,5 @@
-from datetime import datetime, timezone
 from copy import deepcopy
+from datetime import datetime, timezone
 from unittest.mock import patch
 
 import pytest

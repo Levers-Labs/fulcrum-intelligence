@@ -10,15 +10,14 @@ from insights_backend.notifications.crud import (
     CRUDNotifications,
     CRUDReport,
 )
-from insights_backend.notifications.models import Alert, NotificationChannelConfig, Report
-from insights_backend.notifications.services.preview.alert import AlertPreviewService
-from insights_backend.notifications.services.preview.report import ReportPreviewService
 from insights_backend.notifications.models import (
     Alert,
     NotificationChannelConfig,
     NotificationExecution,
     Report,
 )
+from insights_backend.notifications.services.preview.alert import AlertPreviewService
+from insights_backend.notifications.services.preview.report import ReportPreviewService
 from insights_backend.notifications.services.template_service import TemplateService
 
 

@@ -21,15 +21,8 @@ from insights_backend.notifications.dependencies import (
     AlertPreviewServiceDep,
     AlertsCRUDDep,
     CRUDNotificationsDep,
-    ReportPreviewServiceDep,
-    ReportsCRUDDep,
-)
-from insights_backend.notifications.filters import AlertFilter, NotificationConfigFilter
-from insights_backend.notifications.models import Alert, Report
-from insights_backend.notifications.dependencies import (
-    AlertsCRUDDep,
-    CRUDNotificationsDep,
     ExecutionCRUDDep,
+    ReportPreviewServiceDep,
     ReportsCRUDDep,
 )
 from insights_backend.notifications.filters import AlertFilter, NotificationConfigFilter, NotificationExecutionFilter
