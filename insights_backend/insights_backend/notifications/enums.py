@@ -57,3 +57,14 @@ class Month(str, Enum):
     OCTOBER = "OCT"
     NOVEMBER = "NOV"
     DECEMBER = "DEC"
+
+
+class ScheduleLabel(str, Enum):
+    DAY = "DAY"
+    EVERY_WEEKDAY = "EVERY_WEEKDAY"
+    DAYS_OF_WEEK = "DAYS_OF_WEEK"
+    START_OF_WEEK = "START_OF_WEEK"
+    END_OF_WEEK = "END_OF_WEEK"
+    START_OF_MONTH = "START_OF_MONTH"
+    END_OF_MONTH = "END_OF_MONTH"
+    DAY_OF_MONTH = "DAY_OF_MONTH"

@@ -28,6 +28,7 @@ from insights_backend.notifications.enums import (
     ExecutionStatus,
     Month,
     NotificationType,
+    ScheduleLabel,
     TriggerType,
 )
 
@@ -134,6 +135,7 @@ class ScheduleConfig(BaseModel):
     month: Month | str = Field(default="*", description="Month (JAN-DEC or */n)")
     day_of_week: DayOfWeek | str = Field(default="*", description="Day of week (MON-SUN or */n)")
     timezone: TimeZoneName
+    label: ScheduleLabel
 
     def __str__(self) -> str:
         """Convert schedule config to cron string format."""

@@ -52,15 +52,15 @@ class BasePreviewService(ABC, Generic[T]):
 
             if channel.channel_type == NotificationChannel.EMAIL:
                 preview_data["email"] = {
-                    "to_emails": [r["email"] for r in channel.recipients if r["location"] == "to"],  # type: ignore
-                    "cc_emails": [r["email"] for r in channel.recipients if r["location"] == "cc"],  # type: ignore
+                    "to_emails": [r.email for r in channel.recipients if r.location == "to"],  # type: ignore
+                    "cc_emails": [r.email for r in channel.recipients if r.location == "cc"],  # type: ignore
                     "subject": self._get_email_subject(context),
                     "body": " ".join(rendered_template.split()),
                 }
             elif channel.channel_type == NotificationChannel.SLACK:
                 preview_data["slack"] = {
                     "message": " ".join(rendered_template.split()),
-                    "channels": [r["name"] for r in channel.recipients],  # type: ignore
+                    "channels": [r.name for r in channel.recipients],  # type: ignore
                 }
 
         return preview_data

@@ -5,13 +5,23 @@ from pydantic import ConfigDict, Field, field_validator
 
 from commons.models import BaseModel
 from commons.models.enums import Granularity
+from commons.models.slack import SlackChannel
+from commons.notifiers.constants import NotificationChannel
 from insights_backend.notifications.enums import NotificationType
 from insights_backend.notifications.models import (
     AlertTrigger,
-    NotificationChannelConfig,
+    EmailRecipient,
     ReportConfig,
     ScheduleConfig,
 )
+
+
+class NotificationChannelConfigRequest(BaseModel):
+    """Request model for notification channel configuration"""
+
+    channel_type: NotificationChannel
+    recipients: list[SlackChannel | EmailRecipient]
+    config: dict | None = Field(default_factory=dict)  # type: ignore
 
 
 class NotificationBase(BaseModel):
@@ -20,7 +30,7 @@ class NotificationBase(BaseModel):
     grain: Granularity
     tags: list[str] = Field(default_factory=list, description="tags for categorizing notifications")
     summary: str
-    notification_channels: list[NotificationChannelConfig] = Field(
+    notification_channels: list[NotificationChannelConfigRequest] = Field(
         default_factory=list, description="notification channel configurations"
     )
 
@@ -56,12 +66,14 @@ class AlertRequest(NotificationBase):
                     "type": "METRIC_STORY",
                     "condition": {"metric_ids": ["NewBizDeals"], "story_groups": ["TREND_CHANGES"]},
                 },
+                "tags": [],
                 "summary": "summary",
                 "notification_channels": [
                     {
                         "channel_type": "slack",
                         "recipients": [
                             {
+                                "id": "channel_id",
                                 "name": "#channel",
                                 "is_channel": True,
                                 "is_group": False,
@@ -146,14 +158,17 @@ class ReportRequest(NotificationBase):
                     "month": "*",
                     "day_of_week": "MON",
                     "timezone": "America/New_York",
+                    "label": "DAY",
                 },
                 "config": {"metric_ids": ["NewBizDeals", "NewWins"], "comparisons": ["PERCENTAGE_CHANGE"]},
+                "tags": [],
                 "summary": "Daily report summary",
                 "notification_channels": [
                     {
                         "channel_type": "slack",
                         "recipients": [
                             {
+                                "id": "channel_id",
                                 "name": "#daily-metrics",
                                 "is_channel": True,
                                 "is_group": False,

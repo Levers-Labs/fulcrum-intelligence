@@ -175,9 +175,12 @@ async def preview_alert(
     response_model=list[str],
     dependencies=[Security(oauth2_auth().verify, scopes=[ALERT_REPORT_READ])],
 )
-async def get_tags(notifications_crud: CRUDNotificationsDep) -> list[str]:
+async def get_tags(
+    notifications_crud: CRUDNotificationsDep,
+    search: str | None = Query(None, description="Search term for tag suggestions"),
+) -> list[str]:
     """Get all unique tags used across alerts and reports"""
-    return await notifications_crud.get_unique_tags()
+    return await notifications_crud.get_unique_tags(search)
 
 
 @notification_router.get(

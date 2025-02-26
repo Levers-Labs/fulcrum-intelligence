@@ -1,10 +1,11 @@
 import pytest
 
 from commons.models.enums import Granularity
+from insights_backend.notifications.enums import ScheduleLabel
 from insights_backend.notifications.models import AlertTrigger
 from insights_backend.notifications.schemas import (
     AlertRequest,
-    NotificationChannelConfig,
+    NotificationChannelConfigRequest,
     ReportConfig,
     ReportRequest,
     ScheduleConfig,
@@ -39,10 +40,11 @@ def sample_alert_request():
         grain=Granularity.DAY,
         summary="summary",
         notification_channels=[
-            NotificationChannelConfig(
+            NotificationChannelConfigRequest(
                 channel_type="slack",
                 recipients=[
                     {
+                        "id": "c12345",
                         "name": "#channel",
                         "is_channel": True,
                         "is_group": False,
@@ -51,7 +53,7 @@ def sample_alert_request():
                     }
                 ],
             ),
-            NotificationChannelConfig(
+            NotificationChannelConfigRequest(
                 channel_type="email", recipients=[{"email": "user@example.com", "location": "to"}]
             ),
         ],
@@ -69,10 +71,11 @@ def sample_report_request():
         grain=Granularity.DAY,
         summary="Daily report summary",
         notification_channels=[
-            NotificationChannelConfig(
+            NotificationChannelConfigRequest(
                 channel_type="slack",
                 recipients=[
                     {
+                        "id": "c12345",
                         "name": "#daily-metrics",
                         "is_channel": True,
                         "is_group": False,
@@ -81,7 +84,7 @@ def sample_report_request():
                     }
                 ],
             ),
-            NotificationChannelConfig(
+            NotificationChannelConfigRequest(
                 channel_type="email",
                 recipients=[
                     {"email": "team@example.com", "location": "to"},
@@ -96,6 +99,7 @@ def sample_report_request():
             month="*",
             day_of_week="MON",
             timezone="America/New_York",
+            label=ScheduleLabel.DAY,
         ),
         config=ReportConfig(metric_ids=["NewBizDeals", "NewWins"], comparisons=["PERCENTAGE_CHANGE"]),
     )
