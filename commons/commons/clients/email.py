@@ -60,9 +60,9 @@ class EmailClient:
         try:
             response = self.client.send_email(Source=sender, Destination=destination, Message=message)
             return True, response
-        except ClientError:
+        except ClientError as esc:
             # Log the error here if needed
-            return False, None
+            return False, {"error": esc.response["Error"]["Message"]}
 
     def get_send_quota(self) -> dict:
         """

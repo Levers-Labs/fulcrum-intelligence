@@ -1,8 +1,10 @@
 import logging
+from datetime import datetime
 from typing import Annotated
 
 from fastapi import (
     APIRouter,
+    BackgroundTasks,
     Depends,
     HTTPException,
     Query,
@@ -10,6 +12,8 @@ from fastapi import (
 )
 
 from commons.auth.scopes import ALERT_REPORT_READ, ALERT_REPORT_WRITE
+from commons.db.signals import EventAction, EventTiming, publish_event
+from commons.models.enums import ExecutionStatus
 from commons.notifiers.constants import NotificationChannel
 from commons.utilities.pagination import Page, PaginationParams
 from insights_backend.core.dependencies import oauth2_auth
@@ -17,14 +21,17 @@ from insights_backend.notifications.dependencies import (
     AlertPreviewServiceDep,
     AlertsCRUDDep,
     CRUDNotificationsDep,
+    ExecutionCRUDDep,
     ReportPreviewServiceDep,
     ReportsCRUDDep,
 )
-from insights_backend.notifications.filters import NotificationConfigFilter
-from insights_backend.notifications.models import Alert, Report
+from insights_backend.notifications.filters import AlertFilter, NotificationConfigFilter, NotificationExecutionFilter
+from insights_backend.notifications.models import Alert, NotificationExecutionCreate, NotificationExecutionRead
 from insights_backend.notifications.schemas import (
     AlertDetail,
     AlertRequest,
+    BatchDeleteResponse,
+    BatchStatusUpdateResponse,
     Granularity,
     NotificationList,
     NotificationType,
@@ -44,7 +51,7 @@ notification_router = APIRouter(prefix="/notification", tags=["notifications"])
 @notification_router.post(
     "/alerts",
     status_code=201,
-    response_model=Alert,
+    response_model=AlertDetail,
     dependencies=[Security(oauth2_auth().verify, scopes=[ALERT_REPORT_WRITE])],
 )
 async def create_alert(
@@ -167,6 +174,46 @@ async def preview_alert(
     return await preview_service.preview(alert_data)  # type: ignore
 
 
+@notification_router.get(
+    "/alerts",
+    response_model=Page[Alert],
+    dependencies=[Security(oauth2_auth().verify, scopes=[ALERT_REPORT_READ])],
+)
+async def list_alerts(
+    alert_crud: AlertsCRUDDep,
+    params: Annotated[PaginationParams, Depends(PaginationParams)],
+    grains: Annotated[list[Granularity] | None, Query()] = None,
+    is_active: Annotated[bool | None, Query()] = None,
+    is_published: Annotated[bool | None, Query()] = None,
+    metric_ids: Annotated[list[str] | None, Query()] = None,
+    story_groups: Annotated[list[str] | None, Query()] = None,
+):
+    """
+    Retrieve a paginated list of alerts with optional filtering.
+
+    This endpoint allows filtering alerts by:
+    - metric_ids: Match alerts containing any of these metric IDs in their trigger
+    - story_groups: Match alerts containing any of these story groups in their trigger
+    - is_active: Match alerts by active status
+    - is_published: Match alerts by published status
+    - grain: Match alerts by granularity
+    """
+    alert_filter = AlertFilter(
+        metric_ids=metric_ids,
+        story_groups=story_groups,
+        is_active=is_active,
+        is_published=is_published,
+        grains=grains,
+    )
+
+    results, count = await alert_crud.paginate(
+        params=params,
+        filter_params=alert_filter.dict(exclude_unset=True),
+    )
+
+    return Page.create(items=results, total_count=count, params=params)
+
+
 # Common ==========
 
 
@@ -230,6 +277,7 @@ async def list_notifications(
 @notification_router.patch(
     "/bulk/status",
     status_code=200,
+    response_model=BatchStatusUpdateResponse,
     dependencies=[Security(oauth2_auth().verify, scopes=[ALERT_REPORT_WRITE])],
 )
 async def bulk_update_status(
@@ -237,6 +285,7 @@ async def bulk_update_status(
     report_ids: list[int],
     is_active: bool,
     notification_crud: CRUDNotificationsDep,
+    background_tasks: BackgroundTasks,
 ):
     """
     Bulk update the status of alerts and reports.
@@ -250,20 +299,43 @@ async def bulk_update_status(
     :param notification_crud:
     :param alert_ids: List of alert IDs to update
     :param is_active: Boolean indicating the new status (True for active, False for inactive)
+    :param background_tasks: Background task dependency for scheduling status change events
     """
     try:
         await notification_crud.batch_status_update(alert_ids, report_ids, is_active)
+        # Fetch all objects in a single query per type
+        alerts, reports = await notification_crud.batch_get(alert_ids, report_ids)
+
+        # Schedule status change events as background task
+        for obj in [*alerts, *reports]:
+            background_tasks.add_task(
+                publish_event,
+                action=EventAction.STATUS_CHANGE,
+                sender=obj.__class__,
+                timing=EventTiming.AFTER,
+                instance=obj,
+            )
+
+        return BatchStatusUpdateResponse(
+            alerts_updated=len(alerts),
+            reports_updated=len(reports),
+            total_updated=len(alerts) + len(reports),
+        )
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e)) from e
 
 
 @notification_router.delete(
     "/bulk",
-    status_code=204,
+    status_code=200,
+    response_model=BatchDeleteResponse,
     dependencies=[Security(oauth2_auth().verify, scopes=[ALERT_REPORT_WRITE])],
 )
 async def bulk_delete_notifications(
-    alert_ids: list[int], report_ids: list[int], notification_crud: CRUDNotificationsDep
+    alert_ids: list[int],
+    report_ids: list[int],
+    notification_crud: CRUDNotificationsDep,
+    background_tasks: BackgroundTasks,
 ):
     """
     Bulk delete notifications (alerts/reports) and their associated configurations.
@@ -276,10 +348,28 @@ async def bulk_delete_notifications(
     :param notification_crud:
     :param report_ids: List of report IDs to delete
     :param alert_ids: List of alert IDs to delete
-    :return: None
+    :param background_tasks: Background task dependency for scheduling status change events
+    :return: BatchDeleteResponse
     """
     try:
+        # Fetch all objects in a single query per type
+        alerts, reports = await notification_crud.batch_get(alert_ids, report_ids)
+        # Delete all objects in a single query per type
         await notification_crud.batch_delete(alert_ids, report_ids)
+        # Send delete events for all notifications
+        for obj in [*alerts, *reports]:
+            background_tasks.add_task(
+                publish_event,
+                action=EventAction.DELETE,
+                sender=obj.__class__,
+                timing=EventTiming.AFTER,
+                instance=obj,
+            )
+        return BatchDeleteResponse(
+            alerts_deleted=len(alerts),
+            reports_deleted=len(reports),
+            total_deleted=len(alerts) + len(reports),
+        )
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e)) from e
 
@@ -290,7 +380,7 @@ async def bulk_delete_notifications(
 @notification_router.post(
     "/reports",
     status_code=201,
-    response_model=Report,
+    response_model=ReportDetail,
     dependencies=[Security(oauth2_auth().verify, scopes=[ALERT_REPORT_WRITE])],
 )
 async def create_report(
@@ -412,3 +502,86 @@ async def preview_report(
     :return: Preview of email and/or slack notifications
     """
     return await preview_service.preview(report_data)  # type: ignore
+
+
+@notification_router.post(
+    "/executions",
+    status_code=201,
+    response_model=NotificationExecutionRead,
+    dependencies=[Security(oauth2_auth().verify, scopes=[ALERT_REPORT_WRITE])],
+)
+async def create_notification_execution(
+    execution: NotificationExecutionCreate,
+    execution_crud: ExecutionCRUDDep,
+):
+    """
+    Create a new notification execution record.
+
+    Args:
+        execution: The execution details to record
+        execution_crud: CRUD dependency for executions
+    """
+    return await execution_crud.create(obj_in=execution)
+
+
+@notification_router.get(
+    "/executions",
+    response_model=Page[NotificationExecutionRead],
+    dependencies=[Security(oauth2_auth().verify, scopes=[ALERT_REPORT_READ])],
+)
+async def list_notification_executions(
+    execution_crud: ExecutionCRUDDep,
+    params: Annotated[PaginationParams, Depends(PaginationParams)],
+    notification_type: Annotated[NotificationType | None, Query()] = None,
+    status: Annotated[ExecutionStatus | None, Query()] = None,
+    alert_id: Annotated[int | None, Query()] = None,
+    report_id: Annotated[int | None, Query()] = None,
+    start_date: Annotated[datetime | None, Query()] = None,
+    end_date: Annotated[datetime | None, Query()] = None,
+):
+    """
+    Retrieve a paginated list of notification executions with optional filtering.
+
+    Args:
+        execution_crud: CRUD dependency for executions
+        params: Pagination parameters
+        notification_type: Filter by notification type (ALERT/REPORT)
+        status: Filter by execution status
+        alert_id: Filter by alert ID
+        report_id: Filter by report ID
+        start_date: Filter executions after this date
+        end_date: Filter executions before this date
+    """
+    filter_instance = NotificationExecutionFilter(
+        notification_type=notification_type,
+        status=status,
+        alert_id=alert_id,
+        report_id=report_id,
+        start_date=start_date,
+        end_date=end_date,
+    )
+    executions, count = await execution_crud.paginate(
+        params=params,
+        filter_params=filter_instance.model_dump(exclude_unset=True),
+    )
+
+    return Page.create(items=executions, total_count=count, params=params)
+
+
+@notification_router.get(
+    "/executions/{execution_id}",
+    response_model=NotificationExecutionRead,
+    dependencies=[Security(oauth2_auth().verify, scopes=[ALERT_REPORT_READ])],
+)
+async def get_notification_execution(
+    execution_id: int,
+    execution_crud: ExecutionCRUDDep,
+):
+    """
+    Retrieve a specific notification execution by ID.
+
+    Args:
+        execution_id: The ID of the execution to retrieve
+        execution_crud: CRUD dependency for executions
+    """
+    return await execution_crud.get(id=execution_id)

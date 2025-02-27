@@ -34,6 +34,9 @@ class AppConfig(Block):
     auth0_issuer: str = Field(..., description="Auth0 Issuer")
     auth0_client_secret: SecretStr = Field(..., description="Auth0 Client Secret")
     auth0_client_id: str = Field(..., description="Auth0 Client ID")
+    # Notifiers
+    sender_email: str = Field(default="Levers Insights <notifications@leverslabs.com>", description="Sender Email")
+    aws_region: str = Field(default="us-west-1", description="AWS Region")
 
     def _set_env_vars(self) -> None:
         """Set environment variables from config attributes"""

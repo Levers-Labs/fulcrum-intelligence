@@ -90,31 +90,75 @@ def test_list_channels_filters_non_channels(slack_client, mock_web_client):
 
 
 def test_post_message_basic(slack_client, mock_web_client):
-    mock_web_client.return_value.chat_postMessage.return_value = {"ok": True}
+    mock_web_client.return_value.chat_postMessage.return_value = {
+        "ok": True,
+        "channel": "C1234567890",
+        "ts": "1234567890.123456",
+    }
 
     result = slack_client.post_message(channel_id="C1234567890", text="Hello, World!")
 
-    assert result is True
+    assert result["ok"] is True
+    assert result["channel"] == "C1234567890"
+    assert result["ts"] == "1234567890.123456"
     mock_web_client.return_value.chat_postMessage.assert_called_once_with(channel="C1234567890", text="Hello, World!")
 
 
 def test_post_message_with_blocks(slack_client, mock_web_client):
-    mock_web_client.return_value.chat_postMessage.return_value = {"ok": True}
+    mock_web_client.return_value.chat_postMessage.return_value = {
+        "ok": True,
+        "channel": "C1234567890",
+        "ts": "1234567890.123456",
+    }
     blocks = [{"type": "section", "text": {"type": "mrkdwn", "text": "Hello"}}]
 
     result = slack_client.post_message(channel_id="C1234567890", blocks=blocks)
 
-    assert result is True
+    assert result["ok"] is True
+    assert result["channel"] == "C1234567890"
+    assert result["ts"] == "1234567890.123456"
     mock_web_client.return_value.chat_postMessage.assert_called_once_with(channel="C1234567890", blocks=blocks)
 
 
 def test_post_message_with_attachments(slack_client, mock_web_client):
-    mock_web_client.return_value.chat_postMessage.return_value = {"ok": True}
+    mock_web_client.return_value.chat_postMessage.return_value = {
+        "ok": True,
+        "channel": "C1234567890",
+        "ts": "1234567890.123456",
+    }
     attachments = [{"text": "Attachment text"}]
 
     result = slack_client.post_message(channel_id="C1234567890", attachments=attachments)
 
-    assert result is True
+    assert result["ok"] is True
+    assert result["channel"] == "C1234567890"
+    assert result["ts"] == "1234567890.123456"
     mock_web_client.return_value.chat_postMessage.assert_called_once_with(
         channel="C1234567890", attachments=attachments
     )
+
+
+def test_get_channel_info(slack_client, mock_web_client):
+    # Mock response from Slack API
+    mock_response = {
+        "channel": {
+            "id": "C1234567890",
+            "name": "test-channel",
+            "is_channel": True,
+            "created": 1234567890,
+            "creator": "U0123456789",
+            "is_archived": False,
+            "is_general": False,
+            "members": ["U0123456789"],
+            "topic": {"value": "Channel topic", "creator": "U0123456789", "last_set": 1234567890},
+            "purpose": {"value": "Channel purpose", "creator": "U0123456789", "last_set": 1234567890},
+        }
+    }
+    mock_web_client.return_value.conversations_info.return_value = mock_response
+
+    result = slack_client.get_channel_info("C1234567890")
+
+    assert result["id"] == "C1234567890"
+    assert result["name"] == "test-channel"
+    assert result["is_channel"] is True
+    mock_web_client.return_value.conversations_info.assert_called_once_with(channel="C1234567890")

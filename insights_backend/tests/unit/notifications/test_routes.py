@@ -1,4 +1,5 @@
 from copy import deepcopy
+from datetime import datetime, timezone
 from unittest.mock import patch
 
 import pytest
@@ -7,10 +8,16 @@ from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette import status
 
-from commons.models.enums import Granularity
+from commons.db.signals import EventAction, EventTiming, publish_event
+from commons.models.enums import ExecutionStatus, Granularity
 from commons.utilities.context import set_tenant_id
 from insights_backend.notifications.enums import NotificationType
-from insights_backend.notifications.models import Alert, NotificationChannelConfig, Report
+from insights_backend.notifications.models import (
+    Alert,
+    NotificationChannelConfig,
+    NotificationExecution,
+    Report,
+)
 
 pytestmark = pytest.mark.asyncio
 
@@ -126,6 +133,41 @@ async def sample_notification_config_report_fixture(
     await db_session.flush()
     await db_session.refresh(channel)
     return channel
+
+
+@pytest_asyncio.fixture(name="sample_execution_data")
+def sample_execution_data_fixture(sample_alert):
+    """Fixture for sample execution data"""
+    return {
+        "notification_type": "ALERT",
+        "alert_id": sample_alert.id,
+        "status": "COMPLETED",
+        "executed_at": "2025-02-25T15:31:44",
+        "delivery_meta": {"status": "COMPLETED", "total_count": 2, "success_count": 2, "channel_results": []},
+        "run_info": {"run_id": "test-run-id", "start_time": "2024-03-20T10:00:00Z", "end_time": "2024-03-20T10:01:00Z"},
+        "trigger_meta": {"metric_ids": ["metric1"], "story_groups": ["group1"]},
+    }
+
+
+@pytest_asyncio.fixture(name="sample_execution")
+async def sample_execution_fixture(
+    db_session: AsyncSession, jwt_payload: dict, sample_alert: Alert
+) -> NotificationExecution:
+    """Fixture for a sample notification execution"""
+    set_tenant_id(jwt_payload["tenant_id"])
+    execution = NotificationExecution(
+        notification_type=NotificationType.ALERT,
+        alert_id=sample_alert.id,
+        status=ExecutionStatus.COMPLETED,
+        executed_at=datetime.now(),
+        delivery_meta={"status": "COMPLETED", "total_count": 2, "success_count": 2, "channel_results": []},
+        trigger_meta={"metric_id": "test_metric"},
+        run_info={"run_id": "test-run-id", "start_time": "2024-03-20T10:00:00", "end_time": "2024-03-20T10:01:00Z"},
+    )
+    db_session.add(execution)
+    await db_session.commit()
+    await db_session.refresh(execution)
+    return execution
 
 
 async def test_create_alert(async_client: AsyncClient, alert_request_data: dict):
@@ -296,17 +338,31 @@ async def multiple_alerts_fixture(db_session: AsyncSession, jwt_payload: dict) -
 async def test_bulk_delete_alerts(async_client: AsyncClient, multiple_alerts: list[Alert]):
     """Test bulk deletion of alerts"""
     alert_ids = [alert.id for alert in multiple_alerts]
+    mock_background_task = patch("fastapi.BackgroundTasks.add_task").start()
 
     response = await async_client.request(
         "DELETE", "/v1/notification/bulk", json={"alert_ids": alert_ids, "report_ids": []}
     )
 
-    assert response.status_code == status.HTTP_204_NO_CONTENT
+    assert response.status_code == status.HTTP_200_OK
+
+    # Verify background task was called for each alert
+    assert mock_background_task.call_count == len(alert_ids)
+    for alert in multiple_alerts:
+        mock_background_task.assert_any_call(
+            publish_event,
+            action=EventAction.DELETE,
+            sender=Alert,
+            timing=EventTiming.AFTER,
+            instance=alert,
+        )
 
     # Verify alerts are deleted
     for alert_id in alert_ids:
         get_response = await async_client.get(f"/v1/notification/alerts/{alert_id}")
         assert get_response.status_code == status.HTTP_404_NOT_FOUND
+
+    patch.stopall()
 
 
 async def test_bulk_update_alert_status(async_client: AsyncClient, multiple_alerts: list[Alert]):
@@ -462,17 +518,31 @@ async def test_get_report(async_client: AsyncClient, sample_report: Report):
 async def test_bulk_delete_reports(async_client: AsyncClient, multiple_reports: list[Report]):
     """Test bulk deletion of reports"""
     report_ids = [report.id for report in multiple_reports]
+    mock_background_task = patch("fastapi.BackgroundTasks.add_task").start()
 
     response = await async_client.request(
         "DELETE", "/v1/notification/bulk", json={"alert_ids": [], "report_ids": report_ids}
     )
 
-    assert response.status_code == status.HTTP_204_NO_CONTENT
+    assert response.status_code == status.HTTP_200_OK
+
+    # Verify background task was called for each report
+    assert mock_background_task.call_count == len(report_ids)
+    for report in multiple_reports:
+        mock_background_task.assert_any_call(
+            publish_event,
+            action=EventAction.DELETE,
+            sender=Report,
+            timing=EventTiming.AFTER,
+            instance=report,
+        )
 
     # Verify reports are deleted
     for report_id in report_ids:
         get_response = await async_client.get(f"/v1/notification/reports/{report_id}")
         assert get_response.status_code == status.HTTP_404_NOT_FOUND
+
+    patch.stopall()
 
 
 async def test_bulk_delete_mixed(
@@ -481,12 +551,36 @@ async def test_bulk_delete_mixed(
     """Test bulk deletion of both alerts and reports"""
     alert_ids = [alert.id for alert in multiple_alerts]
     report_ids = [report.id for report in multiple_reports]
+    mock_background_task = patch("fastapi.BackgroundTasks.add_task").start()
 
     response = await async_client.request(
         "DELETE", "/v1/notification/bulk", json={"alert_ids": alert_ids, "report_ids": report_ids}
     )
 
-    assert response.status_code == status.HTTP_204_NO_CONTENT
+    assert response.status_code == status.HTTP_200_OK
+
+    # Verify background task was called for each item
+    assert mock_background_task.call_count == len(alert_ids) + len(report_ids)
+
+    # Verify calls for alerts
+    for alert in multiple_alerts:
+        mock_background_task.assert_any_call(
+            publish_event,
+            action=EventAction.DELETE,
+            sender=Alert,
+            timing=EventTiming.AFTER,
+            instance=alert,
+        )
+
+    # Verify calls for reports
+    for report in multiple_reports:
+        mock_background_task.assert_any_call(
+            publish_event,
+            action=EventAction.DELETE,
+            sender=Report,
+            timing=EventTiming.AFTER,
+            instance=report,
+        )
 
     # Verify all items are deleted
     for alert_id in alert_ids:
@@ -496,6 +590,8 @@ async def test_bulk_delete_mixed(
     for report_id in report_ids:
         get_response = await async_client.get(f"/v1/notification/reports/{report_id}")
         assert get_response.status_code == status.HTTP_404_NOT_FOUND
+
+    patch.stopall()
 
 
 async def test_publish_report(async_client: AsyncClient, sample_report: Report):
@@ -602,7 +698,7 @@ async def test_bulk_delete_nonexistent_ids(async_client: AsyncClient):
 async def test_bulk_delete_empty_ids(async_client: AsyncClient):
     """Test bulk deletion with empty ID lists"""
     response = await async_client.request("DELETE", "/v1/notification/bulk", json={"alert_ids": [], "report_ids": []})
-    assert response.status_code == status.HTTP_204_NO_CONTENT
+    assert response.status_code == status.HTTP_200_OK
 
 
 async def test_publish_already_published_alert(async_client: AsyncClient, sample_alert: Alert):
@@ -635,6 +731,31 @@ async def test_bulk_update_status_nonexistent_ids(async_client: AsyncClient):
     assert response.status_code == status.HTTP_404_NOT_FOUND
 
 
+async def test_bulk_update_status(async_client: AsyncClient, multiple_alerts: list[Alert]):
+    """Test bulk update of alert status"""
+    alert_ids = [alert.id for alert in multiple_alerts]
+    mock_background_task = patch("fastapi.BackgroundTasks.add_task").start()
+
+    response = await async_client.patch(
+        "/v1/notification/bulk/status?is_active=true", json={"alert_ids": alert_ids, "report_ids": []}
+    )
+
+    assert response.status_code == status.HTTP_200_OK
+
+    # Verify background task was called for each alert
+    assert mock_background_task.call_count == len(alert_ids)
+    for alert in multiple_alerts:
+        mock_background_task.assert_any_call(
+            publish_event,
+            action=EventAction.STATUS_CHANGE,
+            sender=Alert,
+            timing=EventTiming.AFTER,
+            instance=alert,
+        )
+
+    patch.stopall()
+
+
 async def test_create_alert_missing_slack_channel_id(async_client: AsyncClient, alert_request_data: dict):
     """Test creating alert with missing Slack channel ID"""
     # Create a deep copy to avoid modifying the fixture
@@ -647,3 +768,284 @@ async def test_create_alert_missing_slack_channel_id(async_client: AsyncClient, 
     assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
     data = response.json()
     assert any("id" in str(error).lower() for error in data["detail"])
+
+
+async def test_list_alerts_with_filters(async_client: AsyncClient, multiple_alerts: list[Alert]):
+    """Test listing alerts with various filter combinations"""
+    # Test basic listing
+    response = await async_client.get("/v1/notification/alerts")
+    assert response.status_code == status.HTTP_200_OK
+    data = response.json()
+    assert len(data["results"]) == len(multiple_alerts)
+
+    # Test is_active filter
+    response = await async_client.get("/v1/notification/alerts?is_active=true")
+    assert response.status_code == status.HTTP_200_OK
+    data = response.json()
+    assert all(alert["is_active"] for alert in data["results"])
+
+    # Test grains filter
+    response = await async_client.get("/v1/notification/alerts?grains=day")
+    assert response.status_code == status.HTTP_200_OK
+    data = response.json()
+    assert all(alert["grain"] == "day" for alert in data["results"])
+
+    # Test is_published filter
+    response = await async_client.get("/v1/notification/alerts?is_published=false")
+    assert response.status_code == status.HTTP_200_OK
+    data = response.json()
+    assert all(not alert["is_published"] for alert in data["results"])
+
+
+async def test_list_alerts_with_metric_filters(async_client: AsyncClient, db_session: AsyncSession, jwt_payload: dict):
+    """Test listing alerts with metric_ids filter"""
+    # Create alerts with different metric IDs
+    set_tenant_id(jwt_payload["tenant_id"])
+    alerts = [
+        Alert(
+            name=f"Alert {i}",
+            type=NotificationType.ALERT,
+            grain=Granularity.DAY,
+            tags=[],
+            tenant_id=jwt_payload["tenant_id"],
+            trigger={
+                "type": "METRIC_STORY",
+                "condition": {"metric_ids": [f"metric_{i}", "common_metric"]},
+            },
+            summary="summary",
+        )
+        for i in range(2)
+    ]
+    for alert in alerts:
+        db_session.add(alert)
+    await db_session.flush()
+
+    # Test filtering by single metric ID
+    response = await async_client.get("/v1/notification/alerts?metric_ids=metric_0")
+    assert response.status_code == status.HTTP_200_OK
+    data = response.json()
+    assert len(data["results"]) == 1
+    assert "metric_0" in data["results"][0]["trigger"]["condition"]["metric_ids"]
+
+    # Test filtering by common metric ID
+    response = await async_client.get("/v1/notification/alerts?metric_ids=common_metric")
+    assert response.status_code == status.HTTP_200_OK
+    data = response.json()
+    assert len(data["results"]) == 2
+
+    # Test filtering by multiple metric IDs
+    response = await async_client.get("/v1/notification/alerts?metric_ids=metric_0&metric_ids=metric_1")
+    assert response.status_code == status.HTTP_200_OK
+    data = response.json()
+    assert len(data["results"]) == 2
+
+
+async def test_list_alerts_with_story_groups(async_client: AsyncClient, db_session: AsyncSession, jwt_payload: dict):
+    """Test listing alerts with story_groups filter"""
+    set_tenant_id(jwt_payload["tenant_id"])
+    alerts = [
+        Alert(
+            name=f"Alert {i}",
+            type=NotificationType.ALERT,
+            grain=Granularity.DAY,
+            tenant_id=jwt_payload["tenant_id"],
+            trigger={
+                "type": "METRIC_STORY",
+                "condition": {
+                    "metric_ids": ["metric"],
+                    "story_groups": [f"group_{i}", "common_group"],
+                },
+            },
+        )
+        for i in range(2)
+    ]
+    for alert in alerts:
+        db_session.add(alert)
+    await db_session.flush()
+
+    # Test filtering by single story group
+    response = await async_client.get("/v1/notification/alerts?story_groups=group_0")
+    assert response.status_code == status.HTTP_200_OK
+    data = response.json()
+    assert len(data["results"]) == 1
+    assert "group_0" in data["results"][0]["trigger"]["condition"]["story_groups"]
+
+    # Test filtering by common story group
+    response = await async_client.get("/v1/notification/alerts?story_groups=common_group")
+    assert response.status_code == status.HTTP_200_OK
+    data = response.json()
+    assert len(data["results"]) == 2
+
+    # Test filtering by multiple story groups
+    response = await async_client.get("/v1/notification/alerts?story_groups=group_0&story_groups=group_1")
+    assert response.status_code == status.HTTP_200_OK
+    data = response.json()
+    assert len(data["results"]) == 2
+
+
+async def test_list_alerts_with_combined_filters(
+    async_client: AsyncClient, db_session: AsyncSession, jwt_payload: dict
+):
+    """Test listing alerts with multiple filters combined"""
+    set_tenant_id(jwt_payload["tenant_id"])
+    alerts = [
+        Alert(
+            name=f"Alert {i}",
+            type=NotificationType.ALERT,
+            grain=Granularity.DAY if i % 2 == 0 else Granularity.WEEK,
+            is_active=i % 2 == 0,
+            tenant_id=jwt_payload["tenant_id"],
+            trigger={
+                "type": "METRIC_STORY",
+                "condition": {
+                    "metric_ids": [f"metric_{i}", "common_metric"],
+                    "story_groups": [f"group_{i}", "common_group"],
+                },
+            },
+        )
+        for i in range(4)
+    ]
+    for alert in alerts:
+        db_session.add(alert)
+    await db_session.flush()
+
+    # Test combining multiple filters
+    response = await async_client.get(
+        "/v1/notification/alerts?is_active=true&grains=day&metric_ids=common_metric&story_groups=common_group"
+    )
+    assert response.status_code == status.HTTP_200_OK
+    data = response.json()
+    assert len(data["results"]) > 0
+    for alert in data["results"]:
+        assert alert["is_active"] is True
+        assert alert["grain"] == "day"
+        assert "common_metric" in alert["trigger"]["condition"]["metric_ids"]
+        assert "common_group" in alert["trigger"]["condition"]["story_groups"]
+
+
+async def test_list_alerts_invalid_filters(async_client: AsyncClient):
+    """Test listing alerts with invalid filter values"""
+    # Test invalid grains
+    response = await async_client.get("/v1/notification/alerts?grains=invalid")
+    assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+
+    # Test invalid boolean value
+    response = await async_client.get("/v1/notification/alerts?is_active=invalid")
+    assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+
+
+async def test_create_notification_execution(async_client: AsyncClient, sample_execution_data: dict):
+    """Test creating a notification execution"""
+    response = await async_client.post("/v1/notification/executions", json=sample_execution_data)
+
+    assert response.status_code == 201
+    data = response.json()
+    assert data["notification_type"] == sample_execution_data["notification_type"]
+    assert data["status"] == sample_execution_data["status"]
+    assert "id" in data
+    assert data["delivery_meta"] == sample_execution_data["delivery_meta"]
+
+
+async def test_create_notification_execution_invalid_data(async_client: AsyncClient):
+    """Test creating an execution with invalid data"""
+    invalid_data = {
+        "notification_type": "ALERT",
+        # Missing required fields
+        "status": "SUCCESS",
+        "executed_at": datetime.now(timezone.utc).isoformat(),
+    }
+
+    response = await async_client.post("/v1/notification/executions", json=invalid_data)
+    assert response.status_code == 422
+
+
+async def test_get_notification_execution(async_client: AsyncClient, sample_execution: NotificationExecution):
+    """Test retrieving a specific execution"""
+    response = await async_client.get(f"/v1/notification/executions/{sample_execution.id}")
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["id"] == sample_execution.id
+    assert data["notification_type"] == sample_execution.notification_type.value
+    assert data["status"] == sample_execution.status.value
+
+
+async def test_get_nonexistent_execution(async_client: AsyncClient):
+    """Test retrieving a non-existent execution"""
+    response = await async_client.get("/v1/notification/executions/99999")
+    assert response.status_code == 404
+
+
+async def test_list_notification_executions(async_client: AsyncClient, sample_execution: NotificationExecution):
+    """Test listing notification executions"""
+    response = await async_client.get("/v1/notification/executions")
+
+    assert response.status_code == 200
+    data = response.json()
+    assert "results" in data
+    assert data["count"] > 0
+    assert len(data["results"]) > 0
+    assert data["results"][0]["id"] == sample_execution.id
+
+
+async def test_list_notification_executions_with_filters(
+    async_client: AsyncClient, sample_execution: NotificationExecution
+):
+    """Test listing executions with filters"""
+    # Test with notification type filter
+    response = await async_client.get("/v1/notification/executions", params={"notification_type": "ALERT"})
+    assert response.status_code == 200
+    data = response.json()
+    assert all(item["notification_type"] == "ALERT" for item in data["results"])
+
+    # Test with status filter
+    response = await async_client.get("/v1/notification/executions", params={"status": "COMPLETED"})
+    assert response.status_code == 200
+    data = response.json()
+    assert all(item["status"] == "COMPLETED" for item in data["results"])
+
+    # Test with date range
+    response = await async_client.get(
+        "/v1/notification/executions",
+        params={
+            "start_date": (datetime.now().replace(hour=0, minute=0)).isoformat(),
+            "end_date": datetime.now().isoformat(),
+        },
+    )
+    assert response.status_code == 200
+
+
+async def test_list_notification_executions_pagination(
+    async_client: AsyncClient, db_session: AsyncSession, sample_alert: Alert, jwt_payload: dict
+):
+    """Test pagination of notification executions"""
+    set_tenant_id(jwt_payload["tenant_id"])
+    # Create multiple executions
+    for _ in range(5):
+        execution = NotificationExecution(
+            notification_type=NotificationType.ALERT,
+            alert_id=sample_alert.id,
+            status=ExecutionStatus.COMPLETED,
+            executed_at=datetime.now(),
+            delivery_meta={"status": "delivered"},
+        )
+        db_session.add(execution)
+    await db_session.commit()
+
+    # Test with pagination
+    response = await async_client.get("/v1/notification/executions", params={"offset": 0, "limit": 2})
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data["results"]) == 2
+    assert data["count"] >= 5
+    assert data["pages"] == 3
+    assert data["limit"] == 2
+
+
+async def test_list_notification_executions_invalid_filters(async_client: AsyncClient):
+    """Test listing executions with invalid filters"""
+    response = await async_client.get("/v1/notification/executions", params={"notification_type": "INVALID_TYPE"})
+    assert response.status_code == 422
+
+    response = await async_client.get("/v1/notification/executions", params={"status": "INVALID_STATUS"})
+    assert response.status_code == 422

@@ -4,14 +4,17 @@ from jinja2 import Template
 
 from commons.clients.email import EmailClient
 from commons.notifiers import BaseNotifier
-from commons.notifiers.constants import EMAIL_TEMPLATES, NotificationChannel
+from commons.notifiers.constants import NotificationChannel
 
 
 class EmailNotifier(BaseNotifier):
     channel = NotificationChannel.EMAIL
 
-    def __init__(self, template_dir: str, sender: str):
-        super().__init__(template_dir)
+    def __init__(self, config: dict):
+        super().__init__(config)
+        sender = config.get("sender")
+        if not sender:
+            raise ValueError("Sender email not provided in the configuration.")
         self.sender = sender
 
     def get_client(self, config: dict[str, Any]) -> Any:
@@ -35,28 +38,26 @@ class EmailNotifier(BaseNotifier):
         client = EmailClient(region_name=region_name)
         return client
 
-    def get_notification_content(self, template_name: str, context: dict[str, Any]) -> dict:
+    def get_notification_content(self, template_config: dict[str, Any], context: dict[str, Any]) -> dict:
         """
         Get the content of the notification based on the context.
 
         Args:
-            template_name (str): The name of the template to use for the notification.
+            template_config (Dict[str, Any]): The template configuration containing subject and body templates.
             context (Dict[str, Any]): The context dictionary containing data to be
                 rendered in the template.
 
         Returns:
-            dict: The content of the notification containing subject, html and text versions.
+            dict: The content of the notification containing subject and html versions.
         """
-        # Get email template configuration
-        email_template = EMAIL_TEMPLATES.get(template_name)  # type: ignore
-        if not email_template:
-            raise ValueError(f"Email template {template_name} not found")
+        if not template_config.get("subject") or not template_config.get("body"):
+            raise ValueError("Template configuration must include both subject and body")
 
-        # Render subject
-        subject = email_template["subject"].format(**context)
+        # Format subject directly since it's usually a simple string
+        subject = Template(template_config["subject"]).render(context)
 
-        # Create a template object from the body string
-        body_template = Template(email_template["body"])
+        # Create and render body template
+        body_template = self.create_template(template_config["body"])
         html_content = self.render_template(body_template, context)
 
         # Prepare content with subject and body

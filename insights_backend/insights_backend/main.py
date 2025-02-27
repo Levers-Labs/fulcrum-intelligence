@@ -53,6 +53,9 @@ def get_application() -> FastAPI:
     # add exception handlers
     add_exception_handlers(_app)
 
+    # import signals subscribers
+    from insights_backend.notifications import subscribers  # noqa
+
     return _app
 
 

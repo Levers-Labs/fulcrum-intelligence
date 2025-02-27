@@ -31,12 +31,12 @@ class SlackNotifier(BaseNotifier):
 
         return client
 
-    def get_notification_content(self, template_name: str, context: dict[str, Any]) -> dict:
+    def get_notification_content(self, template_config: dict[str, Any], context: dict[str, Any]) -> dict:
         """
         Get the notification content by rendering the template with the provided context.
 
         Args:
-            template_name (str): The name of the template.
+            template_config (Dict[str, Any]): The template configuration containing the Slack message template.
             context (Dict[str, Any]): The context dictionary containing data to be
             rendered in the template.
 
@@ -45,11 +45,20 @@ class SlackNotifier(BaseNotifier):
 
         Raises:
             TemplateError: If there is an error rendering the template.
+            ValueError: If template content is missing or invalid JSON.
         """
-        template = self.get_template(template_name)
+        if not template_config.get("message"):
+            raise ValueError("Template configuration must include content field")
+
+        # Create and render the template
+        template = self.create_template(template_config["message"])
         rendered_string = self.render_template(template, context)
-        # Note: don't need to unescape <, > and & as Slack will render them correctly
-        return json.loads(rendered_string, strict=False)
+
+        # Parse the rendered JSON template
+        try:
+            return json.loads(rendered_string, strict=False)
+        except json.JSONDecodeError as e:
+            raise ValueError(f"Invalid JSON template content: {e}") from e
 
     def send_notification_using_client(self, client: Any, content: dict, channel_config: dict):
         """
@@ -64,11 +73,12 @@ class SlackNotifier(BaseNotifier):
             dict: The response from the Slack client.
         :raises:
             SlackApiError: If there is an error sending the message.
-
+            ValueError: If channel ID is missing.
         """
         channel_id = channel_config.get("id")
         if not channel_id:
             raise ValueError("Channel ID is not provided in the configuration.")
+
         # Send a message
         kwargs = {}
         if "blocks" in content:
@@ -77,5 +87,6 @@ class SlackNotifier(BaseNotifier):
             kwargs["text"] = content["text"]
         if "attachments" in content:
             kwargs["attachments"] = content["attachments"]
+
         # Send a message to Slack
         return client.post_message(channel_id=channel_id, **kwargs)

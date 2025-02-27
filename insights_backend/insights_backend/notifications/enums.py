@@ -23,17 +23,6 @@ class Comparisons(str, Enum):
     ABSOLUTE_CHANGE = "ABSOLUTE_CHANGE"  # Absolute numerical change
 
 
-class ExecutionStatus(str, Enum):
-    """Status of the notification execution"""
-
-    # None -> Scheduled -> Pending | Late -> Running -> Completed | Failed | Crashed
-
-    RUNNING = "RUNNING"
-    COMPLETED = "COMPLETED"
-    FAILED = "FAILED"
-    CRASHED = "CRASHED"
-
-
 class DayOfWeek(str, Enum):
     MONDAY = "MON"
     TUESDAY = "TUE"

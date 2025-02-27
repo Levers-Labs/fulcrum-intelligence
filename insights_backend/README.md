@@ -21,6 +21,9 @@ BACKEND_CORS_ORIGINS=["http://localhost"]
 DATABASE_URL=postgres://postgres:password@localhost/fulcrum_db
 SLACK_CLIENT_ID=1234567890.1234567890
 SLACK_CLIENT_SECRET=sxfewewdsfsdfdfsdfs
+# Prefect Configuration
+PREFECT_API_URL=https://api.prefect.cloud/api/accounts/<account-id>/workspaces/<workspace-id>
+PREFECT_API_TOKEN=<your-prefect-api-token>
 ```
 
 ### Initialize db

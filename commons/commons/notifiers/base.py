@@ -1,14 +1,8 @@
 import logging
-import os.path
 from abc import ABC, abstractmethod
 from typing import Any
 
-from jinja2 import (
-    Environment,
-    FileSystemLoader,
-    Template,
-    TemplateError,
-)
+from jinja2 import Template, TemplateError
 
 from commons.notifiers.constants import NotificationChannel
 
@@ -22,31 +16,20 @@ class BaseNotifier(ABC):
 
     channel: NotificationChannel
 
-    def __init__(self, template_dir: str):
-        self.env = Environment(loader=FileSystemLoader(template_dir))  # noqa
+    def __init__(self, config: dict[str, Any]):
+        self.config = config
 
-    def get_template(self, template_name: str) -> Template:
+    def create_template(self, template_content: str) -> Template:
         """
-        get the template based on the template name and channel.
-        template will be html in the case of email and json in the case of Slack.
+        Create a template from the provided template content string.
 
         Args:
-            template_name (str): The name of the template.
+            template_content (str): The template content as a string.
 
         Returns:
             Template: The template object.
-
-        Raises:
-            ValueError: If no matching template is found for the given name and channel.
         """
-        template_path = (
-            os.path.join(self.channel.value, f"{template_name}.json")
-            if self.channel == NotificationChannel.SLACK
-            else os.path.join(self.channel.value, f"{template_name}.html")
-        )
-        logger.debug("Loading %s template", template_path)
-        template = self.env.get_template(template_path)
-        return template
+        return Template(template_content)
 
     def render_template(self, template: Template, context: dict[str, Any]) -> str:
         """
@@ -58,7 +41,7 @@ class BaseNotifier(ABC):
             rendered in the template.
 
         Returns:
-            str: The rendered email template.
+            str: The rendered template content.
 
         Raises:
             TemplateError: If an error occurs while rendering the template.
@@ -67,18 +50,17 @@ class BaseNotifier(ABC):
             return template.render(context)
         except Exception as ex:
             logger.exception(
-                "Unable to render %s template",
-                template,
+                "Unable to render template, error: %s", ex, extra={"template": template, "context": context}
             )
-            raise TemplateError("Error while rendering template") from ex
+            raise TemplateError(f"Error while rendering template, error: {ex}") from ex
 
     @abstractmethod
-    def get_notification_content(self, template_name: str, context: dict[str, Any]) -> dict:
+    def get_notification_content(self, template_config: dict[str, Any], context: dict[str, Any]) -> dict:
         """
         Get the content of the notification based on the context.
 
         Args:
-            template_name (str): The name of the template to use for the notification.
+            template_config (Dict[str, Any]): The template configuration containing template content.
             context (Dict[str, Any]): The context dictionary containing data to be
             rendered in the template.
 
@@ -88,16 +70,16 @@ class BaseNotifier(ABC):
 
     def send_notification(
         self,
-        template_name: str,
+        template_config: dict[str, Any],
         config: dict[str, Any],
         channel_config: dict[str, Any],
         context: dict[str, Any],
     ) -> dict:
         """
-        Send a notification using the specified template, channel, config, and context.
+        Send a notification using the specified template config, channel, config, and context.
 
         Args:
-            template_name (str): The name of the template to use for the notification.
+            template_config (Dict[str, Any]): The template configuration containing template content.
             config (Dict[str, Any]): The configuration dictionary containing
             notifier-specific settings.
             channel_config (Dict[str, Any]): The configuration dictionary containing
@@ -109,7 +91,7 @@ class BaseNotifier(ABC):
             dict: Metadata about the sent notification.
         """
         # Get the notification content
-        content = self.get_notification_content(template_name, context)
+        content = self.get_notification_content(template_config, context)
         # Get the client
         client = self.get_client(config)
         # Send the notification using the client

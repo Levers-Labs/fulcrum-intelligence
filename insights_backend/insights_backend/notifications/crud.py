@@ -19,11 +19,12 @@ from commons.db.crud import CRUDBase, ModelType, NotFoundError
 from commons.utilities.context import get_tenant_id
 from commons.utilities.pagination import PaginationParams
 from insights_backend.notifications.enums import NotificationType
-from insights_backend.notifications.filters import NotificationConfigFilter
+from insights_backend.notifications.filters import AlertFilter, NotificationConfigFilter, NotificationExecutionFilter
 from insights_backend.notifications.models import (
     Alert,
     NotificationChannelConfig,
     NotificationExecution,
+    NotificationExecutionCreate,
     Report,
 )
 from insights_backend.notifications.schemas import (
@@ -193,6 +194,39 @@ class CRUDNotifications:
         # Commit the session to save the changes
         await self.session.commit()
 
+    async def batch_get(self, alert_ids: list[int], report_ids: list[int]) -> tuple[list[Alert], list[Report]]:
+        """
+        Fetch multiple alerts and reports in bulk.
+
+        Args:
+            alert_ids: List of alert IDs to fetch
+            report_ids: List of report IDs to fetch
+
+        Returns:
+            Tuple of (alerts, reports)
+
+        Raises:
+            ValueError: If any requested ID is not found
+        """
+
+        async def fetch_items(model: type[NotificationModel], ids: list[int], name: str) -> list[NotificationModel]:
+            if not ids:
+                return []
+            result = await self.session.execute(select(model).where(model.id.in_(ids)))  # type: ignore
+            items = result.scalars().all()
+
+            found_ids = {item.id for item in items}
+            missing_ids = set(ids) - found_ids
+            if missing_ids:
+                raise ValueError(f"{name} not found: {missing_ids}")
+            return items  # type: ignore
+
+        alerts, reports = await asyncio.gather(
+            fetch_items(Alert, alert_ids, "Alerts"), fetch_items(Report, report_ids, "Reports")
+        )
+
+        return alerts, reports
+
 
 class CRUDNotificationChannelConfig(
     CRUDBase[NotificationChannelConfig, NotificationChannelConfig, NotificationChannelConfig, None]  # type: ignore
@@ -243,10 +277,12 @@ class CRUDNotificationChannelConfig(
         await self.session.commit()
 
 
-class CRUDAlert(CRUDBase[Alert, AlertRequest, None, None]):  # type: ignore
+class CRUDAlert(CRUDBase[Alert, AlertRequest, None, AlertFilter]):  # type: ignore
     """
     CRUD operations for the Alert model.
     """
+
+    filter_class = AlertFilter
 
     def __init__(
         self, model: type[ModelType], session: AsyncSession, notification_config_crud: CRUDNotificationChannelConfig
@@ -299,11 +335,9 @@ class CRUDAlert(CRUDBase[Alert, AlertRequest, None, None]):  # type: ignore
         alert = await self.get(alert_id)
 
         # Update alert attributes
-        await self.session.execute(
-            update(Alert)
-            .filter_by(id=alert_id)
-            .values(**alert_update.model_dump(exclude={"notification_channels"}, exclude_unset=True))
-        )
+        for key, value in alert_update.model_dump(exclude={"notification_channels"}, exclude_unset=True).items():
+            setattr(alert, key, value)
+        self.session.add(alert)
 
         channels = alert_update.notification_channels
         if channels:
@@ -440,11 +474,10 @@ class CRUDReport(CRUDBase[Report, ReportRequest, None, None]):  # type: ignore
         report = await self.get(report_id)
 
         # Update report attributes
-        await self.session.execute(
-            update(Report)
-            .filter_by(id=report_id)
-            .values(**report_update.model_dump(exclude={"notification_channels"}, exclude_unset=True))
-        )
+        report_update_dict = report_update.model_dump(exclude={"notification_channels"}, exclude_unset=True)
+        for key, value in report_update_dict.items():
+            setattr(report, key, value)
+        self.session.add(report)
 
         channels = report_update.notification_channels
         if channels:
@@ -473,3 +506,21 @@ class CRUDReport(CRUDBase[Report, ReportRequest, None, None]):  # type: ignore
 
         await self.session.commit()
         return await self.get(report_id)  # type: ignore
+
+
+class CRUDNotificationExecution(
+    CRUDBase[
+        NotificationExecution, NotificationExecutionCreate, NotificationExecutionCreate, NotificationExecutionFilter
+    ]
+):
+    """CRUD operations for notification executions."""
+
+    filter_class = NotificationExecutionFilter
+
+    def get_select_query(self) -> select:  # type: ignore
+        """Base select query for executions with related alerts and reports"""
+        return (
+            select(self.model)
+            .options(selectinload(self.model.alert), selectinload(self.model.report))  # type: ignore
+            .order_by(self.model.executed_at.desc())  # type: ignore
+        )

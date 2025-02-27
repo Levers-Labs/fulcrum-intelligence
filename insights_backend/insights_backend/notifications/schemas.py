@@ -11,6 +11,7 @@ from insights_backend.notifications.enums import NotificationType
 from insights_backend.notifications.models import (
     AlertTrigger,
     EmailRecipient,
+    NotificationChannelConfig,
     ReportConfig,
     ScheduleConfig,
 )
@@ -94,6 +95,9 @@ class AlertDetail(NotificationBase):
 
     id: int
     trigger: AlertTrigger
+    is_published: bool
+    is_active: bool
+    notification_channels: list[NotificationChannelConfig]  # type: ignore
 
     model_config = ConfigDict(from_attributes=True, arbitrary_types_allowed=True)
 
@@ -194,5 +198,25 @@ class ReportDetail(NotificationBase):
     id: int
     schedule: ScheduleConfig
     config: ReportConfig
+    is_published: bool
+    is_active: bool
+    notification_channels: list[NotificationChannelConfig]  # type: ignore
 
     model_config = ConfigDict(from_attributes=True, arbitrary_types_allowed=True)
+
+
+class MetricTaskParameters(BaseModel):
+    tenant_id: int
+    report_id: int
+
+
+class BatchStatusUpdateResponse(BaseModel):
+    alerts_updated: int
+    reports_updated: int
+    total_updated: int
+
+
+class BatchDeleteResponse(BaseModel):
+    alerts_deleted: int
+    reports_deleted: int
+    total_deleted: int

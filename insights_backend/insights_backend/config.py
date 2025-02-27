@@ -54,6 +54,10 @@ class Settings(BaseSettings):
     SLACK_OAUTH_SCOPES: list[str] = ["chat:write", "chat:write.public", "channels:read", "channels:join"]
     SLACK_OAUTH_REDIRECT_PATH: str = "api/slack/oauth/callback"
 
+    # Prefect
+    PREFECT_API_URL: str
+    PREFECT_API_TOKEN: str
+
     @field_validator("BACKEND_CORS_ORIGINS", mode="before")
     @classmethod
     def assemble_cors_origins(cls, v: str | list[str]) -> list[str] | str:

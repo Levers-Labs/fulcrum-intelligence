@@ -74,3 +74,66 @@ class InsightBackendClient(AsyncHttpClient):
                 tenant_id = get_tenant_id()
                 raise InvalidTenantError(tenant_id) from e
             raise
+
+    async def list_alerts(
+        self,
+        page: int = 1,
+        size: int = 100,
+        grains: list[str] | None = None,
+        is_active: bool | None = None,
+        is_published: bool | None = None,
+        metric_ids: list[str] | None = None,
+        story_groups: list[str] | None = None,
+    ) -> dict:
+        """
+        Get paginated list of alerts with optional filters.
+
+        Args:
+            page: Page number (default: 1)
+            size: Items per page (default: 100)
+            grains: Filter by granularity (day, week, month)
+            is_active: Filter by active status
+            is_published: Filter by published status
+            metric_ids: Filter by metric IDs
+            story_groups: Filter by story groups
+
+        Returns:
+            dict: Paginated list of alerts with metadata
+        """
+        params: dict[str, Any] = {
+            "page": page,
+            "size": size,
+        }
+
+        # Add optional filters
+        if grains is not None:
+            params["grains"] = grains
+        if is_active is not None:
+            params["is_active"] = str(is_active).lower()
+        if is_published is not None:
+            params["is_published"] = str(is_published).lower()
+        if metric_ids:
+            params["metric_ids"] = metric_ids
+        if story_groups:
+            params["story_groups"] = story_groups
+
+        return await self.get("/notification/alerts", params=params)
+
+    async def create_notification_execution(self, execution_data: dict) -> dict:
+        """
+        Create a new notification execution record.
+
+        Args:
+            execution_data: Dictionary containing execution details including:
+                - notification_type: Type of notification (ALERT/REPORT)
+                - status: Execution status
+                - delivery_meta: Delivery results and metadata
+                - run_meta: Prefect run information
+                - error_info: Error details if any
+                - report_meta/alert_meta: Notification-specific metadata
+                - alert_id/report_id: ID of the associated notification
+
+        Returns:
+            dict: Created execution record
+        """
+        return await self.post("/notification/executions", data=execution_data)

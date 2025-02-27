@@ -1,4 +1,4 @@
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -6,24 +6,88 @@ from commons.notifiers import BaseNotifier
 from commons.notifiers.factory import NotifierFactory
 
 
-def test_notifier_factory_create_slack(mock_config):
+class TestNotifier(BaseNotifier):
+    channel = "TEST"
+
+    def get_client(self, config):
+        return MagicMock()
+
+    def get_notification_content(self, template_config, context):
+        return {"subject": "Test", "html": "Test"}
+
+    def send_notification_using_client(self, client, content, channel_config):
+        return {"status": "success"}
+
+
+def test_notifier_factory_create_custom(mock_config):
     class CustomNotifier(BaseNotifier):
         channel = "CUSTOM"
 
         def get_client(self, config):
             return MagicMock()
 
-        def get_notification_content(self, template_name, context):
+        def get_notification_content(self, template_config, context):
             return {"subject": "Test", "html": "Test"}
 
-        def send_notification_using_client(self, **kwargs):
+        def send_notification_using_client(self, client, content, channel_config):
             return {"status": "success"}
 
-    notifier = NotifierFactory.create_notifier("CUSTOM", "templates")  # type: ignore # noqa
+    notifier = NotifierFactory.create_notifier("CUSTOM", {})
     assert isinstance(notifier, CustomNotifier)
 
 
 def test_notifier_factory_create_unsupported():
     with pytest.raises(ValueError) as excinfo:
-        NotifierFactory.create_notifier("unsupported", "test")  # noqa
+        NotifierFactory.create_notifier("unsupported", {})
     assert str(excinfo.value) == "No notifier found for channel unsupported"
+
+
+def test_notifier_factory_type_hints():
+    """Test that the factory properly handles type hints and generics"""
+    factory = NotifierFactory[TestNotifier]()
+    assert factory.base_class == BaseNotifier
+    assert factory.plugin_module == "plugins"
+    assert isinstance(factory.bag, dict)
+
+
+@patch("commons.notifiers.factory.importlib.import_module")
+def test_import_plugin_modules(mock_import):
+    """Test plugin module importing functionality"""
+    NotifierFactory.bag = {}  # Reset the bag
+    NotifierFactory.import_plugin_modules()
+    mock_import.assert_called()
+
+
+def test_get_channel_notifier_success():
+    """Test getting a notifier for a valid channel"""
+    NotifierFactory.bag = {"TEST": TestNotifier}
+    notifier_class = NotifierFactory.get_channel_notifier("TEST")
+    assert notifier_class == TestNotifier
+
+
+def test_get_channel_notifier_invalid():
+    """Test getting a notifier for an invalid channel"""
+    NotifierFactory.bag = {"TEST": TestNotifier}
+    with pytest.raises(ValueError) as excinfo:
+        NotifierFactory.get_channel_notifier("CUSTOM")
+    assert str(excinfo.value) == "No notifier found for channel CUSTOM"
+
+
+def test_create_notifier_with_config():
+    """Test creating a notifier instance with configuration"""
+    NotifierFactory.bag = {"TEST": TestNotifier}
+    config = {"api_key": "test_key"}
+    notifier = NotifierFactory.create_notifier("TEST", config)
+    assert isinstance(notifier, TestNotifier)
+    assert notifier.config == config
+
+
+@patch("commons.notifiers.factory.importlib.import_module")
+def test_create_notifier_import_error(mock_import):
+    """Test handling of import errors during notifier creation"""
+    NotifierFactory.bag = {}
+    mock_import.side_effect = ImportError("Failed to import module")
+
+    with pytest.raises(ValueError) as excinfo:
+        NotifierFactory.create_notifier("TEST", {})
+    assert "Unable to load notifier for channel" in str(excinfo.value)

@@ -27,7 +27,7 @@ repos:
         entry: python manage.py format
         language: system
         files: \.py$
-        exclude: '^core/fulcrum_core/modules/__init__.py$'
+        exclude: '^core/fulcrum_core/modules/__init__.py$|^commons/commons/db/signals/__init__.py$'
       - id: manage-py-lint
         name: lint check (ruff & mypy)
         entry: python manage.py lint --raise-error

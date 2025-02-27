@@ -223,7 +223,7 @@ class SlackAlertsService:
             return
 
         context = await self._prepare_context(stories, grain, metric_id)
-        notifier_client = await get_slack_notifier()
+        notifier_client = await get_slack_notifier(self.slack_connection_config)
         for channel_config in channels_config:
             await self._send_slack_alerts(
                 client=notifier_client,

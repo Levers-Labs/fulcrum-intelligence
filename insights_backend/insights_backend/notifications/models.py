@@ -2,7 +2,12 @@ from abc import ABC, abstractmethod
 from datetime import datetime
 from typing import Literal
 
-from pydantic import EmailStr, conint
+from pydantic import (
+    EmailStr,
+    conint,
+    field_validator,
+    model_validator,
+)
 from pydantic_extra_types.timezone_name import TimeZoneName
 from sqlalchemy import (
     ARRAY,
@@ -18,14 +23,13 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlmodel import Field, Relationship
 
 from commons.models import BaseModel
-from commons.models.enums import Granularity
+from commons.models.enums import ExecutionStatus, Granularity
 from commons.models.slack import SlackChannel
 from commons.notifiers.constants import NotificationChannel
 from insights_backend.core.models import InsightsSchemaBaseModel
 from insights_backend.notifications.enums import (
     Comparisons,
     DayOfWeek,
-    ExecutionStatus,
     Month,
     NotificationType,
     ScheduleLabel,
@@ -56,6 +60,13 @@ class NotificationConfigBase(BaseModel, ABC):
         Must be implemented by child classes with their specific requirements.
         """
         pass
+
+
+class NotificationCompact(NotificationConfigBase):
+    """Compact model for notification configurations"""
+
+    def is_publishable(self) -> bool:
+        return False
 
 
 # ----------------
@@ -100,6 +111,9 @@ class Alert(NotificationConfigBase, InsightsSchemaBaseModel, table=True):  # typ
     trigger: AlertTrigger = Field(sa_type=JSONB)
 
     notification_channels: list["NotificationChannelConfig"] = Relationship(
+        back_populates="alert", sa_relationship_kwargs={"cascade": "all, delete-orphan", "lazy": "selectin"}
+    )
+    executions: list["NotificationExecution"] = Relationship(
         back_populates="alert", sa_relationship_kwargs={"cascade": "all, delete-orphan", "lazy": "selectin"}
     )
 
@@ -151,6 +165,12 @@ class Report(NotificationConfigBase, InsightsSchemaBaseModel, table=True):  # ty
     notification_channels: list["NotificationChannelConfig"] = Relationship(
         back_populates="report", sa_relationship_kwargs={"cascade": "all, delete-orphan", "lazy": "selectin"}
     )
+    executions: list["NotificationExecution"] = Relationship(
+        back_populates="report", sa_relationship_kwargs={"cascade": "all, delete-orphan", "lazy": "selectin"}
+    )
+
+    # Task Manager fields
+    deployment_id: str | None = None
 
     def is_publishable(self) -> bool:
         return bool(self.schedule) and bool(self.config) and bool(self.notification_channels) and self.is_active
@@ -240,9 +260,8 @@ class NotificationExecutionBase(BaseModel):
 
     executed_at: datetime
     status: ExecutionStatus
-    # List of recipients for the notification
-    recipients: list[SlackChannel | EmailRecipient] = Field(default_factory=list, sa_type=JSONB)
-    # todo: define schema for trigger_meta, report_meta and delivery_meta
+    # Type of notification that this execution is for
+    notification_type: NotificationType
     # Metadata about the trigger and content
     # Trigger that caused the execution, e.g. metric_id , story_groups etc.
     trigger_meta: dict = Field(default_factory=dict, sa_type=JSONB)
@@ -252,8 +271,32 @@ class NotificationExecutionBase(BaseModel):
     # Also can be used to capture partial delivery failure
     # e.g. slack channel id not found, invalid email address etc.
     delivery_meta: dict = Field(default_factory=dict, sa_type=JSONB)
+    # Prefect run info
+    run_info: dict = Field(default_factory=dict, sa_type=JSONB)
     # Error details if execution failed
     error_info: ExecutionError | None = Field(default=None, sa_type=JSONB)
+
+
+class NotificationExecutionCreate(NotificationExecutionBase):
+    """Create model for notification executions"""
+
+    alert_id: int | None = None
+    report_id: int | None = None
+
+    @field_validator("executed_at", mode="before")
+    @classmethod
+    def validate_executed_at(cls, v):
+        """Convert string to datetime if needed"""
+        if isinstance(v, str):
+            return datetime.fromisoformat(v.replace("Z", "+00:00"))
+        return v
+
+    @model_validator(mode="after")
+    def validate_alert_or_report_id(self) -> "NotificationExecutionCreate":
+        """Validate that either alert_id or report_id is provided"""
+        if not self.alert_id and not self.report_id:
+            raise ValueError("Either alert_id or report_id must be provided.")
+        return self
 
 
 class NotificationExecution(NotificationExecutionBase, InsightsSchemaBaseModel, table=True):  # type: ignore
@@ -264,8 +307,14 @@ class NotificationExecution(NotificationExecutionBase, InsightsSchemaBaseModel, 
     # Foreign key to the report that this channel is associated with
     report_id: int | None = Field(foreign_key="insights_store.report.id", nullable=True)
 
+    alert: Alert | None = Relationship(back_populates="executions", sa_relationship_kwargs={"lazy": "selectin"})
+    report: Report | None = Relationship(back_populates="executions", sa_relationship_kwargs={"lazy": "selectin"})
+
 
 class NotificationExecutionRead(NotificationExecutionBase):
     """Read model for notification executions"""
 
     id: int
+
+    alert: NotificationCompact | None = None
+    report: NotificationCompact | None = None

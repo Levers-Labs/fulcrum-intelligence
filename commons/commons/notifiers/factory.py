@@ -51,14 +51,14 @@ class NotifierFactory(Generic[T]):
         raise ValueError(f"No notifier found for channel {channel}")
 
     @classmethod
-    def create_notifier(cls, channel: NotificationChannel, template_dir: str, *args, **kwargs) -> BaseNotifier:
+    def create_notifier(cls, channel: NotificationChannel, config: dict, *args, **kwargs) -> BaseNotifier:
         """
         Create an instance of the notifier for the given channel
         :param channel: The notification channel
-        :param template_dir: The directory containing the templates
+        :param config: The configuration for the notifier
         :param args: Positional arguments to pass to the notifier constructor
         :param kwargs: Keyword arguments to pass to the notifier constructor
         :return: An instance of the notifier
         """
         notifier = cls.get_channel_notifier(channel)
-        return notifier(template_dir, *args, **kwargs)
+        return notifier(config, *args, **kwargs)

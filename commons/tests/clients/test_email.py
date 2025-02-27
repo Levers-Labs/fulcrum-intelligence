@@ -63,8 +63,9 @@ def test_send_email_with_cc(email_client, mock_ses_client):
 
 def test_send_email_failure(email_client, mock_ses_client):
     # Mock ClientError from SES
+    error_message = "Email address not verified"
     mock_ses_client.return_value.send_email.side_effect = ClientError(
-        {"Error": {"Code": "MessageRejected", "Message": "Email address not verified"}}, "SendEmail"
+        {"Error": {"Code": "MessageRejected", "Message": error_message}}, "SendEmail"
     )
 
     success, response = email_client.send_email(
@@ -72,7 +73,7 @@ def test_send_email_failure(email_client, mock_ses_client):
     )
 
     assert success is False
-    assert response is None
+    assert response == {"error": error_message}
 
 
 def test_send_email_no_body(email_client):
