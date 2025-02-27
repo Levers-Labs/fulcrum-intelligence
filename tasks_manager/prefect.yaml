@@ -27,15 +27,15 @@ deployments:
     entrypoint: tasks_manager.flows.stories:generate_stories
     work_pool: *ecs_work_pool
     schedules: *daily_midnight
-  - name: "metric-story-alerts"
+  - name: "process-story-alerts"
     version: "1.0.0"
-    description: "Process metric stories alerts"
-    entrypoint: tasks_manager.flows.alerts:process_metric_stories_event
+    description: "Process stories and trigger relevant alerts"
+    entrypoint: tasks_manager.flows.alerts:process_story_alerts
     work_pool: *ecs_work_pool
     triggers:
       - type: event
-        name: "metric-story-generated-alert-trigger"
-        description: "Triggered when a stories are generated for a metric"
+        name: "story-generated-trigger"
+        description: "Triggered when stories are generated for a metric"
         enabled: true
         expect:
           - metric.story.generated
@@ -44,3 +44,19 @@ deployments:
           tenant_id: "{{ event.resource.tenant_id }}"
           story_date: "{{ event.resource.story_date }}"
           stories_str: "{{ event.payload.stories }}"
+  - name: "execute-alert"
+    version: "1.0.0"
+    description: "Execute a single alert"
+    entrypoint: tasks_manager.flows.alerts:execute_alert
+    work_pool: *ecs_work_pool
+    triggers:
+      - type: event
+        name: "alert-execution-trigger"
+        description: "Triggered when an alert needs to be executed"
+        enabled: true
+        expect:
+          - alert.execution.requested
+        parameters:
+          tenant_id: "{{ event.resource.tenant_id }}"
+          alert_id: "{{ event.resource.alert_id }}"
+          trigger_params_str: "{{ event.payload.trigger_params }}"

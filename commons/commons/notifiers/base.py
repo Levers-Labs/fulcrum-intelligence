@@ -50,9 +50,9 @@ class BaseNotifier(ABC):
             return template.render(context)
         except Exception as ex:
             logger.exception(
-                "Unable to render template",
+                "Unable to render template, error: %s", ex, extra={"template": template, "context": context}
             )
-            raise TemplateError("Error while rendering template") from ex
+            raise TemplateError(f"Error while rendering template, error: {ex}") from ex
 
     @abstractmethod
     def get_notification_content(self, template_config: dict[str, Any], context: dict[str, Any]) -> dict:

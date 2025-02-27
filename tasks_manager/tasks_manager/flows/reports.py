@@ -4,6 +4,7 @@ from prefect.context import EngineContext, get_run_context
 
 from commons.utilities.context import reset_context, set_tenant_id
 from fulcrum_core.enums import Granularity
+from tasks_manager.tasks.common import format_delivery_results
 from tasks_manager.tasks.notifications import deliver_notifications, record_notification_execution
 from tasks_manager.tasks.reports import fetch_report_by_id, prepare_report_metrics_data
 
@@ -82,7 +83,7 @@ async def deliver_metric_reports(tenant_id: int, report_id: int):
             },
         }
 
-        await record_notification_execution(  # type: ignore
+        execution = await record_notification_execution(  # type: ignore
             tenant_id=tenant_id,
             notification_type="REPORT",
             notification_id=report_id,
@@ -95,6 +96,7 @@ async def deliver_metric_reports(tenant_id: int, report_id: int):
         summary = f"""
         # Report Execution Summary
         - Report: {report['name']} (ID: {report_id})
+        - Execution ID: {execution.get('id')}
         - Tenant: {tenant_id}
         - Status: {delivery_result.get('status', 'Unknown')}
         - Metrics: {', '.join(str(mid) for mid in metric_ids)}
@@ -109,7 +111,7 @@ async def deliver_metric_reports(tenant_id: int, report_id: int):
         - Has Comparisons: {data.get("has_comparisons", False)}
 
         ## Delivery Details
-        {_format_delivery_results(delivery_result.get('channel_results', []))}
+        {format_delivery_results(delivery_result.get('channel_results', []))}
 
         ## Run Info
         - Flow Run ID: {run_info.get('flow_run_id', 'Not available')}
@@ -118,7 +120,9 @@ async def deliver_metric_reports(tenant_id: int, report_id: int):
         - Start Time: {run_info.get('start_time', 'Not available')}
         """
         await create_markdown_artifact(
-            key=f"report-{report_id}-summary", markdown=summary, description=f"Execution summary for report {report_id}"
+            key=f"report-{report_id}-execution-{execution.get('id')}-summary",
+            markdown=summary,
+            description=f"Execution summary for report {report_id}",
         )
 
         logger.info("Generated metric reports for report_id %s for tenant %s", report_id, tenant_id)
@@ -129,20 +133,3 @@ async def deliver_metric_reports(tenant_id: int, report_id: int):
         raise e
     finally:
         reset_context()
-
-
-def _format_delivery_results(delivery_results: list) -> str:
-    """Format delivery results for the markdown summary"""
-    if not delivery_results:
-        return "No delivery details available"
-
-    formatted = []
-    for result in delivery_results:
-        if not isinstance(result, dict):
-            continue
-        channel = result.get("channel", "Unknown")
-        status = result.get("status", "Unknown")
-        error = f" (Error: {result.get('error', 'Unknown error')})" if result.get("error") else ""
-        formatted.append(f"- {channel}: {status}{error}")
-
-    return "\n".join(formatted) if formatted else "No valid delivery results available"

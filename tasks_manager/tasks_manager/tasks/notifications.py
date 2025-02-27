@@ -105,7 +105,7 @@ async def deliver_notifications(
     successful_deliveries = 0
 
     for result_future in delivery_results_futures:
-        result = result_future.result()
+        result: dict[str, Any] = result_future.result()
         channel_results.append(result)
 
         # Aggregate counts

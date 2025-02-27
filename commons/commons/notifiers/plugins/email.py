@@ -1,5 +1,7 @@
 from typing import Any
 
+from jinja2 import Template
+
 from commons.clients.email import EmailClient
 from commons.notifiers import BaseNotifier
 from commons.notifiers.constants import NotificationChannel
@@ -52,7 +54,7 @@ class EmailNotifier(BaseNotifier):
             raise ValueError("Template configuration must include both subject and body")
 
         # Format subject directly since it's usually a simple string
-        subject = template_config["subject"].format(**context)
+        subject = Template(template_config["subject"]).render(context)
 
         # Create and render body template
         body_template = self.create_template(template_config["body"])

@@ -11,6 +11,7 @@ from insights_backend.notifications.enums import NotificationType
 from insights_backend.notifications.models import (
     AlertTrigger,
     EmailRecipient,
+    NotificationChannelConfig,
     ReportConfig,
     ScheduleConfig,
 )
@@ -96,6 +97,7 @@ class AlertDetail(NotificationBase):
     trigger: AlertTrigger
     is_published: bool
     is_active: bool
+    notification_channels: list[NotificationChannelConfig]  # type: ignore
 
     model_config = ConfigDict(from_attributes=True, arbitrary_types_allowed=True)
 
@@ -198,6 +200,7 @@ class ReportDetail(NotificationBase):
     config: ReportConfig
     is_published: bool
     is_active: bool
+    notification_channels: list[NotificationChannelConfig]  # type: ignore
 
     model_config = ConfigDict(from_attributes=True, arbitrary_types_allowed=True)
 

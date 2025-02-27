@@ -40,7 +40,7 @@ async def test_email_notifier_send_success(mocker, email_notifier, mock_email_co
 
     template_config = {
         "type": "METRIC_ALERT",
-        "subject": "Weekly IMP Metrics Report - {period}",
+        "subject": "Weekly IMP Metrics Report - {{ period }}",
         "body": "<h1>Weekly IMP Metrics Report</h1><p>Period: {{ period }}</p>",
     }
 
@@ -53,11 +53,12 @@ async def test_email_notifier_send_success(mocker, email_notifier, mock_email_co
     )
 
     # Assert
+    expected_subject = "Weekly IMP Metrics Report - Nov 18, 2024 — Nov 24, 2024"
     mock_email_client.send_email.assert_called_once_with(
         sender=email_notifier.sender,
         recipients=mock_email_config["to"],
         cc=mock_email_config.get("cc"),
-        subject=template_config["subject"].format(**context),
+        subject=expected_subject,
         body_html=ANY,
     )
     assert response["status"] is True
@@ -92,7 +93,7 @@ async def test_email_notifier_send_error(mocker, email_notifier, mock_email_conf
 
     template_config = {
         "type": "METRIC_ALERT",
-        "subject": "Weekly IMP Metrics Report - {period}",
+        "subject": "Weekly IMP Metrics Report - {{ period }}",
         "body": "<h1>Weekly IMP Metrics Report</h1><p>Period: {{ period }}</p>",
     }
 
@@ -105,11 +106,12 @@ async def test_email_notifier_send_error(mocker, email_notifier, mock_email_conf
     )
 
     # Assert
+    expected_subject = "Weekly IMP Metrics Report - Nov 18, 2024 — Nov 24, 2024"
     mock_email_client.send_email.assert_called_once_with(
         sender=email_notifier.sender,
         recipients=mock_email_config["to"],
         cc=mock_email_config.get("cc"),
-        subject=template_config["subject"].format(**context),
+        subject=expected_subject,
         body_html=ANY,
     )
     assert response["status"] is False
