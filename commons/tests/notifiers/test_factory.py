@@ -1,4 +1,4 @@
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -50,6 +50,14 @@ def test_notifier_factory_type_hints():
     assert isinstance(factory.bag, dict)
 
 
+@patch("commons.notifiers.factory.importlib.import_module")
+def test_import_plugin_modules(mock_import):
+    """Test plugin module importing functionality"""
+    NotifierFactory.bag = {}  # Reset the bag
+    NotifierFactory.import_plugin_modules()
+    mock_import.assert_called()
+
+
 def test_get_channel_notifier_success():
     """Test getting a notifier for a valid channel"""
     NotifierFactory.bag = {"TEST": TestNotifier}
@@ -72,3 +80,14 @@ def test_create_notifier_with_config():
     notifier = NotifierFactory.create_notifier("TEST", config)
     assert isinstance(notifier, TestNotifier)
     assert notifier.config == config
+
+
+@patch("commons.notifiers.factory.importlib.import_module")
+def test_create_notifier_import_error(mock_import):
+    """Test handling of import errors during notifier creation"""
+    NotifierFactory.bag = {}
+    mock_import.side_effect = ImportError("Failed to import module")
+
+    with pytest.raises(ValueError) as excinfo:
+        NotifierFactory.create_notifier("TEST", {})
+    assert "Unable to load notifier for channel" in str(excinfo.value)
