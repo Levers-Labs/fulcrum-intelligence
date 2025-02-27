@@ -1,7 +1,3 @@
-import importlib
-import inspect
-import os
-import pkgutil
 from typing import Generic, TypeVar
 
 from commons.notifiers import BaseNotifier
@@ -24,10 +20,11 @@ class NotifierFactory(Generic[T]):
         """
         Dynamically import notifier implementations from the 'plugins' package
         """
-        plugin_modules_abs = os.path.join(os.path.dirname(os.path.realpath(inspect.getfile(cls))), cls.plugin_module)
-        prefix = ".".join([str(cls.__module__).rsplit(".", 1)[0], cls.plugin_module])
-        for _, name, _ in pkgutil.iter_modules([plugin_modules_abs], prefix + "."):
-            importlib.import_module(name)
+        try:
+            # Direct import the plugin package
+            from commons.notifiers import plugins  # noqa
+        except Exception as exc:
+            raise ValueError(f"Failed to import notifier plugins: {exc}") from exc
 
     @classmethod
     def get_channel_notifier(cls, channel: NotificationChannel) -> type[T]:
