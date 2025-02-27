@@ -216,17 +216,15 @@ def test_prefect_schedule_model_defaults():
     prefect_schedule = PrefectSchedule(schedule=schedule)
 
     assert prefect_schedule.active is True
-    assert prefect_schedule.catchup is True
     assert prefect_schedule.schedule == schedule
 
 
 def test_prefect_schedule_model_custom():
     """Test PrefectSchedule model with custom values."""
     schedule = Schedule(cron="0 0 * * *", timezone="UTC")
-    prefect_schedule = PrefectSchedule(schedule=schedule, active=False, catchup=False)
+    prefect_schedule = PrefectSchedule(schedule=schedule, active=False)
 
     assert prefect_schedule.active is False
-    assert prefect_schedule.catchup is False
     assert prefect_schedule.schedule == schedule
 
 
@@ -246,7 +244,6 @@ def test_update_deployment_schedule_success(prefect_client, mocker):
     """Test successful update of deployment schedule."""
     schedule_data = {
         "active": False,
-        "catchup": True,
         "schedule": {"cron": "0 0 * * *", "timezone": "UTC", "day_or": True},
     }
     mock_request = mocker.Mock()
