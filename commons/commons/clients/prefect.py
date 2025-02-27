@@ -15,7 +15,6 @@ class Schedule(BaseModel):
 
 class PrefectSchedule(BaseModel):
     active: bool = True
-    catchup: bool = True
     schedule: Schedule
 
 

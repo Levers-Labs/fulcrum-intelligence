@@ -3,15 +3,15 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from insights_backend.db.subscribers.deployment_handlers import (
+from insights_backend.notifications.enums import ScheduleLabel
+from insights_backend.notifications.models import Report, ScheduleConfig
+from insights_backend.notifications.services.deployment_manager import PrefectDeploymentManager
+from insights_backend.notifications.subscribers.deployment_handlers import (
     handle_creation,
     handle_report_link_deletion,
     handle_report_status_change,
     handle_update,
 )
-from insights_backend.notifications.enums import ScheduleLabel
-from insights_backend.notifications.models import Report, ScheduleConfig
-from insights_backend.notifications.services.deployment_manager import PrefectDeploymentManager
 
 
 @pytest.fixture
@@ -19,7 +19,8 @@ def mock_deployment_manager(mocker):
     """Mock the PrefectDeploymentManager."""
     mock_manager = MagicMock(spec=PrefectDeploymentManager)
     mocker.patch(
-        "insights_backend.db.subscribers.deployment_handlers.PrefectDeploymentManager", return_value=mock_manager
+        "insights_backend.notifications.subscribers.deployment_handlers.PrefectDeploymentManager",
+        return_value=mock_manager,
     )
     return mock_manager
 
