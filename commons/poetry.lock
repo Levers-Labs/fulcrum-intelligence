@@ -2426,4 +2426,4 @@ db = ["alembic", "asyncpg", "blinker", "greenlet", "psycopg2-binary", "sqlalchem
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.10,<3.12"
-content-hash = "d872b782719b64adb4f767befa2f5a40138e81615708a4cf6c79cf54033adbc9"
+content-hash = "3e7d5c567ba22dc43c33fd2ec02375a885385bdfadbba1af143e7ce5e985ce7b"
