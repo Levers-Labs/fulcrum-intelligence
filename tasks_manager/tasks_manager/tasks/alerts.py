@@ -9,7 +9,7 @@ from tasks_manager.utils import get_client_auth_from_config
 
 @task(  # type: ignore
     task_run_name="fetch_relevant_alerts_tenant:{tenant_id}_metric:{metric_id}",
-    tags=["db-operation", "notifications", "alerts"],
+    tags=["notifications", "alerts"],
 )
 async def fetch_relevant_alerts(
     tenant_id: int, metric_id: str, grains: list[Granularity], story_groups: list[str] | None = None
@@ -23,7 +23,13 @@ async def fetch_relevant_alerts(
     auth = get_client_auth_from_config(config)
     insights_client = InsightBackendClient(config.insights_backend_server_host, auth=auth)
     # Fetch relevant alerts
-    alerts = await insights_client.list_alerts(metric_ids=[metric_id], grains=grains, story_groups=story_groups)  # type: ignore
+    alerts = await insights_client.list_alerts(  # type: ignore
+        metric_ids=[metric_id],
+        grains=grains,  # type: ignore
+        story_groups=story_groups,
+        is_active=True,
+        is_published=True,
+    )
     # Clean up tenant context after processing
     reset_context()
     return alerts["results"]
