@@ -29,30 +29,42 @@ class NotificationConfigFilter(BaseModel):
     grain: Granularity | None = None
     is_active: bool | None = None
     tags: list[str] | None = None
+    is_published: bool | None = None
+    name: str | None = None
 
     def apply_filters(self, query: Select, model: type[Alert] | type[Report]) -> Select:
         """Apply filters to the query, handling both Alert and Report models."""
-        if self.grain is not None:
-            query = query.filter(model.grain == self.grain)  # type: ignore
+        # Get non-None filter values using Pydantic's dict() method
+        filters = self.model_dump(exclude_none=True)
 
-        if self.is_active is not None:
-            query = query.filter(model.is_active == self.is_active)  # type: ignore
+        # Apply model-specific filters
+        model_filters = {
+            "grain": model.grain,
+            "is_active": model.is_active,
+            "is_published": model.is_published,
+            "name": lambda v: model.name.ilike(f"%{v}%"),  # type: ignore
+            "tags": lambda v: model.tags.op("&&")(postgresql.array(v)),  # type: ignore
+        }
 
-        if self.tags:
-            # Use PostgreSQL array overlap operator
-            query = query.filter(model.tags.op("&&")(postgresql.array(self.tags)))  # type: ignore
+        for field, value in filters.items():
+            if field in model_filters:
+                filter_condition = model_filters[field]
+                query = query.filter(
+                    filter_condition(value) if callable(filter_condition) else filter_condition == value
+                )
 
-        # Channel config related filters
-        if self.notification_type is not None or self.channel_type is not None:
-            conditions = []
-            if self.notification_type is not None:
-                conditions.append(NotificationChannelConfig.notification_type == self.notification_type)
-            if self.channel_type is not None:
-                conditions.append(NotificationChannelConfig.channel_type == self.channel_type)
+        # Apply channel config filters
+        channel_filters = {
+            "notification_type": NotificationChannelConfig.notification_type,
+            "channel_type": NotificationChannelConfig.channel_type,
+        }
 
-            if conditions:
-                # Add conditions to the existing join instead of creating a new one
-                query = query.filter(and_(*conditions))  # type: ignore
+        channel_conditions = [
+            channel_filters[field] == value for field, value in filters.items() if field in channel_filters
+        ]
+
+        if channel_conditions:
+            query = query.filter(and_(*channel_conditions))
 
         return query
 

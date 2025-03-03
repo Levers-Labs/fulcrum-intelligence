@@ -75,6 +75,7 @@ class CRUDNotifications:
                 model.summary,
                 model.tags,
                 model.is_active,
+                model.is_published,
                 func.max(NotificationExecution.executed_at).label("last_execution"),  # type: ignore
                 func.count(distinct(NotificationChannelConfig.id)).label("channel_count"),  # type: ignore
                 func.sum(func.jsonb_array_length(NotificationChannelConfig.recipients)).label("recipients_count"),

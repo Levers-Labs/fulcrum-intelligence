@@ -231,18 +231,20 @@ async def get_tags(
 
 
 @notification_router.get(
-    "/",
+    "",
     response_model=Page[NotificationList],
     dependencies=[Security(oauth2_auth().verify, scopes=[ALERT_REPORT_READ])],
 )
 async def list_notifications(
     notification_crud: CRUDNotificationsDep,
     params: Annotated[PaginationParams, Depends(PaginationParams)],
+    name: Annotated[str | None, Query()] = None,
     notification_type: Annotated[NotificationType | None, Query()] = None,
     channel_type: Annotated[NotificationChannel | None, Query()] = None,
     grain: Annotated[Granularity | None, Query()] = None,
     is_active: Annotated[bool | None, Query()] = None,
     tags: Annotated[list[str] | None, Query()] = None,
+    is_published: Annotated[bool | None, Query()] = None,
 ):
     """
     Retrieve a paginated list of all notifications (alerts and reports).
@@ -250,25 +252,29 @@ async def list_notifications(
     Args:
         notification_crud: CRUD dependency for notification channels
         params: Pagination parameters
+        name: Filter by notification name
         notification_type: Filter by notification type
         channel_type: Filter by channel type
         grain: Filter by granularity
         is_active: Filter by active status
         tags: Filter by tags (matches any of the provided tags)
+        is_published: Filter by published status
 
     Returns:
         Paginated list of notifications
     """
     notification_filter = NotificationConfigFilter(
+        name=name,
         notification_type=notification_type,
         channel_type=channel_type,
         grain=grain,
         is_active=is_active,
         tags=tags,
+        is_published=is_published,
     )
 
     notifications, count = await notification_crud.get_notifications_list(
-        params=params, filter_params=notification_filter.dict(exclude_unset=True)
+        params=params, filter_params=notification_filter.model_dump(exclude_unset=True)
     )
 
     return Page.create(items=notifications, total_count=count, params=params)
