@@ -1,14 +1,14 @@
 <div class='email-header'>
-    <p> 💰 {{ grain|title }} {{ report_name }} Report </p>
+    <p> 💰 {{ report_name }} </p>
 </div>
 
 <div class='email-body'>
     {% for metric in metrics %}
-        <p>{% if metric.value > 0 %}⬆️{% else %}⬇️{% endif %} *{{ metric.label }}:* {{ metric.value }}</p>
+        <p>{% if metric.current_value > metric.previous_value %}🟢{% else %}🔴{% endif %} {{ metric.current_value }} *{{ metric.label }}* ({{ metric.absolute_change }} ({{metric.percentage_change}}%))</p>
     {% endfor %}
 </div>
 <hr>
 <div class='email-footer'>
-    <p>Generated on {{ time }} UTC</p>
-    <a href='https://app.leverslabs.com?grains={{ grain }}&metric_ids={{ metric.id }}'>View in app →</a>
+    <p>Generated on {{ fetched_at }} UTC</p>
+    <a href='https://app.leverslabs.com'>View in app →</a>
 </div>

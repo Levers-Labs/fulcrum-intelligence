@@ -4,7 +4,7 @@
             "type": "header",
             "text": {
                 "type": "plain_text",
-                "text": "💰 {{ grain|title }} {{ report_name }} Report",
+                "text": "💰 {{ report_name }}",
                 "emoji": true
             }
         },
@@ -20,7 +20,7 @@
             "type": "section",
             "text": {
                 "type": "mrkdwn",
-                "text": "{% if metric.value > 0 %}⬆{% else %}⬇{% endif %} *{{ metric.label }}:* {{ metric.value }}",
+                "text": "{% if metric.current_value > metric.previous_value %}\uD83D\uDFE2{% else %}\uD83D\uDD34{% endif %} {{ metric.current_value }} *{{ metric.label }}* ({{ metric.absolute_change }} ({{metric.percentage_change}}%))",
                 "emoji": true
             }
         },
@@ -33,7 +33,7 @@
             "elements": [
                 {
                     "type": "mrkdwn",
-                    "text": "Generated on {{ time }} UTC"
+                    "text": "Generated on {{ fetched_at }} UTC"
                 }
             ]
         },

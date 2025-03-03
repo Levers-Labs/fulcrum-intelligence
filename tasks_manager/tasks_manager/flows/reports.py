@@ -42,6 +42,7 @@ async def deliver_metric_reports(tenant_id: int, report_id: int):
         data = await prepare_report_metrics_data(  # type: ignore
             tenant_id=tenant_id, metric_ids=metric_ids, grain=grain, comparisons=comparisons
         )
+        data["report_name"] = report["name"]
 
         # Deliver notifications
         delivery_result = await deliver_notifications(  # type: ignore
@@ -79,7 +80,6 @@ async def deliver_metric_reports(tenant_id: int, report_id: int):
                     metric["metric_id"] for metric in data["metrics"] if metric.get("current_value") is None
                 ],
                 "fetched_at": data["fetched_at"],
-                "has_comparisons": data["has_comparisons"],
             },
         }
 
@@ -108,7 +108,6 @@ async def deliver_metric_reports(tenant_id: int, report_id: int):
         - Metrics with Data: {len(report_meta.get('data_summary', {}).get('metrics_with_data', []))}
         - Metrics without Data: {len(report_meta.get('data_summary', {}).get('metrics_without_data', []))}
         - Fetched At: {data.get("fetched_at", "Unknown")}
-        - Has Comparisons: {data.get("has_comparisons", False)}
 
         ## Delivery Details
         {format_delivery_results(delivery_result.get('channel_results', []))}

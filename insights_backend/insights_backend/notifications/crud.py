@@ -222,9 +222,9 @@ class CRUDNotifications:
                 raise ValueError(f"{name} not found: {missing_ids}")
             return items  # type: ignore
 
-        alerts, reports = await asyncio.gather(
-            fetch_items(Alert, alert_ids, "Alerts"), fetch_items(Report, report_ids, "Reports")
-        )
+        # Execute queries sequentially instead of concurrently
+        alerts = await fetch_items(Alert, alert_ids, "Alerts")
+        reports = await fetch_items(Report, report_ids, "Reports")
 
         return alerts, reports
 

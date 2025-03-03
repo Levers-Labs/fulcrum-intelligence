@@ -168,7 +168,7 @@ async def test_report_preview_context(report_preview_service, sample_report_requ
     # Check required context fields
     assert "report_name" in context
     assert "grain" in context
-    assert "time" in context
+    assert "fetched_at" in context
     assert "metrics" in context
 
     # Check metrics structure
@@ -176,7 +176,7 @@ async def test_report_preview_context(report_preview_service, sample_report_requ
     for metric in context["metrics"]:
         assert "id" in metric
         assert "label" in metric
-        assert "value" in metric
+        assert "current_value" in metric
 
 
 async def test_report_metrics_generation(report_preview_service, sample_report_request):
@@ -199,4 +199,4 @@ async def test_report_fallback_metrics(report_preview_service, sample_report_req
     for metric in metrics:
         assert isinstance(metric["id"], str)
         assert isinstance(metric["label"], str)
-        assert isinstance(metric["value"], int)
+        assert isinstance(metric["current_value"], int)

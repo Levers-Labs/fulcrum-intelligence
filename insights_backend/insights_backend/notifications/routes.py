@@ -287,11 +287,11 @@ async def list_notifications(
     dependencies=[Security(oauth2_auth().verify, scopes=[ALERT_REPORT_WRITE])],
 )
 async def bulk_update_status(
-    alert_ids: list[int],
-    report_ids: list[int],
-    is_active: bool,
     notification_crud: CRUDNotificationsDep,
     background_tasks: BackgroundTasks,
+    is_active: bool,
+    alert_ids: list[int] | None = None,
+    report_ids: list[int] | None = None,
 ):
     """
     Bulk update the status of alerts and reports.
@@ -308,9 +308,9 @@ async def bulk_update_status(
     :param background_tasks: Background task dependency for scheduling status change events
     """
     try:
-        await notification_crud.batch_status_update(alert_ids, report_ids, is_active)
+        await notification_crud.batch_status_update(alert_ids, report_ids, is_active)  # type: ignore
         # Fetch all objects in a single query per type
-        alerts, reports = await notification_crud.batch_get(alert_ids, report_ids)
+        alerts, reports = await notification_crud.batch_get(alert_ids, report_ids)  # type: ignore
 
         # Schedule status change events as background task
         for obj in [*alerts, *reports]:
@@ -338,10 +338,10 @@ async def bulk_update_status(
     dependencies=[Security(oauth2_auth().verify, scopes=[ALERT_REPORT_WRITE])],
 )
 async def bulk_delete_notifications(
-    alert_ids: list[int],
-    report_ids: list[int],
     notification_crud: CRUDNotificationsDep,
     background_tasks: BackgroundTasks,
+    alert_ids: list[int] | None = None,
+    report_ids: list[int] | None = None,
 ):
     """
     Bulk delete notifications (alerts/reports) and their associated configurations.
@@ -359,9 +359,9 @@ async def bulk_delete_notifications(
     """
     try:
         # Fetch all objects in a single query per type
-        alerts, reports = await notification_crud.batch_get(alert_ids, report_ids)
+        alerts, reports = await notification_crud.batch_get(alert_ids, report_ids)  # type: ignore
         # Delete all objects in a single query per type
-        await notification_crud.batch_delete(alert_ids, report_ids)
+        await notification_crud.batch_delete(alert_ids, report_ids)  # type: ignore
         # Send delete events for all notifications
         for obj in [*alerts, *reports]:
             background_tasks.add_task(
