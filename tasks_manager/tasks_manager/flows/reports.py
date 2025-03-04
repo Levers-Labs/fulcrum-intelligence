@@ -42,7 +42,6 @@ async def deliver_metric_reports(tenant_id: int, report_id: int):
         data = await prepare_report_metrics_data(  # type: ignore
             tenant_id=tenant_id, metric_ids=metric_ids, grain=grain, comparisons=comparisons
         )
-        data["report_name"] = report["name"]
 
         # Deliver notifications
         delivery_result = await deliver_notifications(  # type: ignore

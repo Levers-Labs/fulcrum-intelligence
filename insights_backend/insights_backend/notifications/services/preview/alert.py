@@ -36,8 +36,8 @@ class AlertPreviewService(BasePreviewService[AlertRequest]):
             "current_date": current_date.strftime("%B %d, %Y"),
             "prior_date": (current_date - timedelta(days=30)).strftime("%B %d, %Y"),
             "duration": self.faker.random_int(min=1, max=12),
-            "pop": self.COMMON_VARIABLES["pop"][self.COMMON_VARIABLES["grain"].index(alert_data.grain.value.lower())],  # type: ignore
-            "eoi": self.COMMON_VARIABLES["eoi"][alert_data.grain.value.lower()],  # type: ignore
+            "pop": self.COMMON_VARIABLES[alert_data.grain.value.lower()]["pop"],  # type: ignore
+            "eoi": self.COMMON_VARIABLES[alert_data.grain.value.lower()]["eoi"],  # type: ignore
             # Value metrics (keeping relationships realistic)
             "current_value": self.faker.random_int(min=100, max=10000),
             "prior_value": self.faker.random_int(min=80, max=9000),  # Slightly lower range

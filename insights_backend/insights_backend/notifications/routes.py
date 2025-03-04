@@ -358,10 +358,10 @@ async def bulk_delete_notifications(
     :return: BatchDeleteResponse
     """
     try:
-        # Fetch all objects in a single query per type
-        alerts, reports = await notification_crud.batch_get(alert_ids, report_ids)  # type: ignore
         # Delete all objects in a single query per type
         await notification_crud.batch_delete(alert_ids, report_ids)  # type: ignore
+        # Fetch all objects in a single query per type
+        alerts, reports = await notification_crud.batch_get(alert_ids, report_ids)  # type: ignore
         # Send delete events for all notifications
         for obj in [*alerts, *reports]:
             background_tasks.add_task(

@@ -170,7 +170,7 @@ class CRUDNotifications:
     async def batch_delete(self, alert_ids: list[int], report_ids: list[int]) -> None:
         """Deletes all notification channels for one or multiple alerts / reports"""
         if not alert_ids and not report_ids:
-            return
+            raise ValueError("Alert ID or Report ID is required to proceed.")
         if alert_ids:
             await self._delete(Alert, alert_ids)  # type: ignore
         if report_ids:
@@ -187,7 +187,7 @@ class CRUDNotifications:
         """Updates the active status of one or multiple Alerts."""
 
         if not alert_ids and not report_ids:
-            return
+            raise ValueError("Alert ID or Report ID is required to proceed.")
         if alert_ids:
             await self._update_status(Alert, alert_ids, is_active)  # type: ignore
         if report_ids:

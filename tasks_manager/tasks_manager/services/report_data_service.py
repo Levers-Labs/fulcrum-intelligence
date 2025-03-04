@@ -10,6 +10,12 @@ T = TypeVar("T", bound=float | int)
 class ReportDataService:
     """Service for preparing metric data for reports, including period-based values and comparisons."""
 
+    GRAIN_META = {
+        Granularity.DAY: {"interval": "daily"},
+        Granularity.WEEK: {"interval": "weekly"},
+        Granularity.MONTH: {"interval": "monthly"},
+    }
+
     def __init__(self, query_client: QueryManagerClient):
         self.query_client = query_client
 
@@ -130,11 +136,12 @@ class ReportDataService:
 
             result = {
                 "metric_id": metric_id,
-                "label": metric["label"],
+                "metric": metric,
                 "current_value": current_value,
                 "previous_value": previous_value,
                 "absolute_change": absolute_change,
                 "percentage_change": percentage_change,
+                "is_positive": absolute_change >= 0,  # type: ignore
                 "status": ExecutionStatus.COMPLETED,
             }
 
@@ -186,4 +193,5 @@ class ReportDataService:
             "start_date": current_start.isoformat(),
             "end_date": current_end.isoformat(),
             "fetched_at": datetime.now().isoformat(),
+            "interval": self.GRAIN_META[grain]["interval"],
         }

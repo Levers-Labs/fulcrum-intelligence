@@ -4,7 +4,7 @@
             "type": "header",
             "text": {
                 "type": "plain_text",
-                "text": "💰 {{ report_name }}",
+                "text": "{{ data.interval|title }} report for {{ config.name }}",
                 "emoji": true
             }
         },
@@ -12,18 +12,29 @@
             "type": "section",
             "text": {
                 "type": "mrkdwn",
-                "text": "*{{ start_date }} - {{ end_date }}*"
+                "text": "*{{ data.start_date }} – {{ data.end_date }}*"
             }
         },
-        {% for metric in metrics %}
-        {
-            "type": "section",
-            "text": {
-                "type": "mrkdwn",
-                "text": "{% if metric.current_value > metric.previous_value %}\uD83D\uDFE2{% else %}\uD83D\uDD34{% endif %} {{ metric.current_value }} *{{ metric.label }}* ({{ metric.absolute_change }} ({{metric.percentage_change}}%))",
-                "emoji": true
-            }
-        },
+        {% for metric in data.metrics %}
+            {% if data.is_positive %}
+                {
+                    "type": "section",
+                    "text": {
+                        "type": "mrkdwn",
+                        "text": "\uD83D\uDFE2 {{ current_value }} *{{ metric.metric.label }}* (+{{ metric.absolute_change }} (+{{metric.percentage_change}}%))",
+                        "emoji": true
+                    }
+                },
+            {% else %}
+                {
+                    "type": "section",
+                    "text": {
+                        "type": "mrkdwn",
+                        "text": "\uD83D\uDD34 {{ metric.current_value }} *{{ metric.label }}* (-{{ metric.absolute_change }} (-{{metric.percentage_change}}%))",
+                        "emoji": true
+                    }
+                },
+            {% endif %}
         {% endfor %}
         {
             "type": "divider"
@@ -33,16 +44,9 @@
             "elements": [
                 {
                     "type": "mrkdwn",
-                    "text": "Generated on {{ fetched_at }} UTC"
+                    "text": "Generated on {{ data.fetched_at }} PST."
                 }
             ]
-        },
-        {
-            "type": "section",
-            "text": {
-                "type": "mrkdwn",
-                "text": "<https://app.leverslabs.com |View full report →>"
-            }
         }
     ]
 }

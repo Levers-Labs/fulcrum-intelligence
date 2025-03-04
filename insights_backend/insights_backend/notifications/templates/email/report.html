@@ -1,14 +1,142 @@
-<div class='email-header'>
-    <p> 💰 {{ report_name }} </p>
-</div>
+<!DOCTYPE html>
+<html lang='en'>
+<head>
+    <meta charset='UTF-8'>
+    <meta name='viewport' content='width=device-width, initial-scale=1.0'>
+    <title>Weekly Report</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+        }
 
-<div class='email-body'>
-    {% for metric in metrics %}
-        <p>{% if metric.current_value > metric.previous_value %}🟢{% else %}🔴{% endif %} {{ metric.current_value }} *{{ metric.label }}* ({{ metric.absolute_change }} ({{metric.percentage_change}}%))</p>
-    {% endfor %}
-</div>
-<hr>
-<div class='email-footer'>
-    <p>Generated on {{ fetched_at }} UTC</p>
-    <a href='https://app.leverslabs.com'>View in app →</a>
-</div>
+        body {
+            background-color: #ffffff;
+            color: #333;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .email-container {
+            width: 100%;
+            background-color: white;
+        }
+
+        .report-title {
+            padding-bottom: 20px;
+        }
+
+        .report-title h1 {
+            font-size: 22px;
+            margin-bottom: 10px;
+            font-weight: 600;
+        }
+
+        .report-title p {
+            color: #666;
+            font-size: 16px;
+        }
+
+        .metrics {
+            margin-top: 10px;
+        }
+
+        .metric-row {
+            display: flex;
+            align-items: center;
+            padding: 15px 0;
+            border-top: 1px solid #eaeaea;
+        }
+
+        .trend-icon {
+            width: 24px;
+            height: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            margin-right: 15px;
+            font-size: 16px;
+        }
+
+        .trend-up {
+            background-color: rgba(0, 200, 83, 0.1);
+            color: #00c853;
+        }
+
+        .trend-down {
+            background-color: rgba(255, 82, 82, 0.1);
+            color: #ff5252;
+        }
+
+        .metric-name {
+            flex: 1;
+            font-size: 16px;
+            font-weight: 500;
+        }
+
+        .metric-value {
+            font-size: 18px;
+            font-weight: 600;
+            margin-right: 15px;
+        }
+
+        .metric-change {
+            font-size: 14px;
+            font-weight: 500;
+            min-width: 120px;
+            text-align: right;
+        }
+
+        .positive-change {
+            color: #00c853;
+        }
+
+        .negative-change {
+            color: #ff5252;
+        }
+
+        .generation-timestamp {
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid #eaeaea;
+            color: #666;
+            font-size: 14px;
+            font-style: italic;
+        }
+    </style>
+</head>
+<body>
+    <div class='email-container'>
+        <div class='report-title'>
+            <h1>{{ data.interval|title }} report for {{ config.name|title }}</h1>
+            <p>{{ data.start_date }} – {{ data.end_date }}</p>
+        </div>
+
+        <div class='metrics'>
+            {% for metric in data.metrics %}
+                <div class='metric-row'>
+                    {% if data.is_positive %}
+                        <div class='trend-icon trend-up'>↑</div>
+                        <div class='metric-name'>{{ metric.metric.label }}</div>
+                        <div class='metric-value'>{{ metric.current_value }}</div>
+                        <div class='metric-change positive-change'>+{{ metric.absolute_change }} (+{{metric.percentage_change}}%)</div>
+                    {% else %}
+                        <div class='trend-icon trend-down'>↓</div>
+                        <div class='metric-name'>{{ metric.metric.label }}</div>
+                        <div class='metric-value'>{{ metric.current_value }}</div>
+                        <div class='metric-change negative-change'>-{{ metric.absolute_change }} (-{{metric.percentage_change}}%)</div>
+                    {% endif %}
+                </div>
+            {% endfor %}
+        </div>
+
+        <div class='generation-timestamp'>
+            Report generated on {{ data.fetched_at }} PST.
+        </div>
+    </div>
+</body>
+</html>
