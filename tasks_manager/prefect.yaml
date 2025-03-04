@@ -6,7 +6,7 @@ pull:
   - prefect.deployments.steps.set_working_directory:
       directory: /opt/prefect/tasks_manager
 
-# the definitions section allows you to provide reusable definitions for your project
+# Reusable definitions
 definitions:
   work_pools:
     ecs_work_pool: &ecs_work_pool
@@ -15,9 +15,18 @@ definitions:
   schedules:
     daily_midnight: &daily_midnight
       - cron: "0 0 * * *"
-        timezone: "UTC"
+        timezone: "America/Los_Angeles"
+    daily_2am_pst: &daily_2am_pst
+      - cron: "0 2 * * *"
+        timezone: "America/Los_Angeles"
+    weekly_monday_230am_pst: &weekly_monday_230am_pst
+      - cron: "30 2 * * 1"  # Monday at 2:30 AM
+        timezone: "America/Los_Angeles"
+    monthly_3am_pst: &monthly_3am_pst
+      - cron: "0 3 1 * *"  # 1st of every month at 3 AM
+        timezone: "America/Los_Angeles"
 
-# the deployments section allows you to provide configuration for deploying flows
+# Deployments configuration
 deployments:
   - name: "generate-stories"
     version: "1.0.0"
@@ -27,6 +36,7 @@ deployments:
     entrypoint: tasks_manager.flows.stories:generate_stories
     work_pool: *ecs_work_pool
     schedules: *daily_midnight
+
   - name: "process-story-alerts"
     version: "1.0.0"
     description: "Process stories and trigger relevant alerts"
@@ -44,6 +54,7 @@ deployments:
           tenant_id: "{{ event.resource.tenant_id }}"
           story_date: "{{ event.resource.story_date }}"
           stories_str: "{{ event.payload.stories }}"
+
   - name: "execute-alert"
     version: "1.0.0"
     description: "Execute a single alert"
@@ -60,3 +71,68 @@ deployments:
           tenant_id: "{{ event.resource.tenant_id }}"
           alert_id: "{{ event.resource.alert_id }}"
           trigger_params_str: "{{ event.payload.trigger_params }}"
+
+  - name: "semantic-data-sync-daily"
+    version: "1.0.0"
+    description: "Sync semantic data for all tenants - Daily Grain"
+    entrypoint: tasks_manager.flows.semantic_sync:semantic_data_sync
+    work_pool: *ecs_work_pool
+    schedules: *daily_2am_pst
+    parameters:
+      grain: "day"
+      sync_type: "FULL"
+
+  - name: "semantic-data-sync-weekly"
+    version: "1.0.0"
+    description: "Sync semantic data for all tenants - Weekly Grain"
+    entrypoint: tasks_manager.flows.semantic_sync:semantic_data_sync
+    work_pool: *ecs_work_pool
+    schedules: *weekly_monday_230am_pst
+    parameters:
+      grain: "week"
+      sync_type: "FULL"
+
+  - name: "semantic-data-sync-monthly"
+    version: "1.0.0"
+    description: "Sync semantic data for all tenants - Monthly Grain"
+    entrypoint: tasks_manager.flows.semantic_sync:semantic_data_sync
+    work_pool: *ecs_work_pool
+    schedules: *monthly_3am_pst
+    parameters:
+      grain: "month"
+      sync_type: "FULL"
+
+  - name: "semantic-data-sync-tenant"
+    version: "1.0.0"
+    description: "Sync semantic data for a specific tenant"
+    entrypoint: tasks_manager.flows.semantic_sync:semantic_data_sync_tenant
+    work_pool: *ecs_work_pool
+    triggers:
+      - type: event
+        name: "tenant-semantic-sync-trigger"
+        description: "Triggered when tenant sync is requested"
+        enabled: true
+        expect:
+          - tenant.semantic.sync.requested
+        parameters:
+          tenant_id_str: "{{ event.resource.tenant_id }}"
+          grain: "{{ event.resource.grain }}"
+          sync_type: "{{ event.payload.sync_type }}"
+
+  - name: "semantic-data-sync-metric"
+    version: "1.0.0"
+    description: "Sync semantic data for a specific metric"
+    entrypoint: tasks_manager.flows.semantic_sync:semantic_data_sync_metric
+    work_pool: *ecs_work_pool
+    triggers:
+      - type: event
+        name: "metric-semantic-sync-trigger"
+        description: "Triggered when metric sync is requested"
+        enabled: true
+        expect:
+          - metric.semantic.sync.requested
+        parameters:
+          tenant_id_str: "{{ event.resource.tenant_id }}"
+          metric_id: "{{ event.resource.metric_id }}"
+          grain: "{{ event.resource.grain }}"
+          sync_type: "{{ event.payload.sync_type }}"
