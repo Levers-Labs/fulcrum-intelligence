@@ -327,7 +327,7 @@ async def test_get_stories(db_session, async_client, jwt_payload):
     response = await async_client.get("/v1/stories/?digest=METRIC&section=WHAT_IS_HAPPENING")
     assert response.status_code == status.HTTP_200_OK
     data = response.json()
-    assert data["count"] == 5
+    assert data["count"] == 7
 
     response = await async_client.get("/v1/stories/?digest=METRIC&section=WHY_IS_IT_HAPPENING")
     assert response.status_code == status.HTTP_200_OK
