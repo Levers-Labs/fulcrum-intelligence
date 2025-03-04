@@ -42,7 +42,7 @@ def add_rls_policies(
         rls_policy_sql = (
             f"CREATE POLICY {policy_name} "
             f"ON {table_name} "
-            f"USING (tenant_id = current_setting('app.current_tenant')::int);"
+            f"USING (tenant_id = (SELECT current_setting('app.current_tenant')::int));"
         )
 
         # Add the SQL operations to the migration
