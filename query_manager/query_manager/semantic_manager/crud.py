@@ -309,7 +309,7 @@ class CRUDMetricSyncStatus(CRUDSemantic[MetricSyncStatus, BaseModel, BaseModel, 
 
     async def get_sync_status(
         self,
-        tenant_id: str,
+        tenant_id: int,
         metric_id: str,
         grain: Granularity | None = None,
         dimension_name: str | None = None,

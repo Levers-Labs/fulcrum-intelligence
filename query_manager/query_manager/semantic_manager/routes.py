@@ -8,10 +8,12 @@ from datetime import date
 from typing import Annotated
 
 from fastapi import APIRouter, HTTPException
-from fastapi.params import Query
+from fastapi.params import Query, Security
 from starlette import status
 
+from commons.auth.scopes import QUERY_MANAGER_ALL
 from commons.models.enums import Granularity
+from query_manager.core.dependencies import oauth2_auth
 from query_manager.semantic_manager.dependencies import SemanticManagerDep
 from query_manager.semantic_manager.schemas import MetricDimensionalTimeSeriesResponse, MetricTimeSeriesResponse
 
@@ -22,6 +24,7 @@ router = APIRouter(prefix="/semantic", tags=["semantic"])
     "/metrics/{metric_id}/time-series",
     response_model=MetricTimeSeriesResponse,
     summary="Get time series data for a metric",
+    dependencies=[Security(oauth2_auth().verify, scopes=[QUERY_MANAGER_ALL])],
 )
 async def get_metric_time_series(
     semantic_manager: SemanticManagerDep,
@@ -51,6 +54,7 @@ async def get_metric_time_series(
     "/metrics/time-series",
     response_model=MetricTimeSeriesResponse,
     summary="Get time series data for multiple metrics",
+    dependencies=[Security(oauth2_auth().verify, scopes=[QUERY_MANAGER_ALL])],
 )
 async def get_multi_metric_time_series(
     semantic_manager: SemanticManagerDep,
@@ -85,6 +89,7 @@ async def get_multi_metric_time_series(
     "/metrics/{metric_id}/dimensional-time-series",
     response_model=MetricDimensionalTimeSeriesResponse,
     summary="Get dimensional time series data for a metric",
+    dependencies=[Security(oauth2_auth().verify, scopes=[QUERY_MANAGER_ALL])],
 )
 async def get_metric_dimensional_time_series(
     metric_id: str,
