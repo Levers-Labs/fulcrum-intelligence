@@ -74,6 +74,4 @@ async def get_stories(
     )
 
     results, count = await story_crud.paginate(params=params, filter_params=story_filter.model_dump(exclude_unset=True))
-    # Convert Story objects to StoryDetail objects and add digest and section
-    story_details = [StoryDetail(**story.model_dump(), digest=digest, section=section) for story in results]
-    return Page.create(items=story_details, total_count=count, params=params)
+    return Page.create(items=results, total_count=count, params=params)
