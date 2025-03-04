@@ -21,8 +21,7 @@ from story_manager.core.enums import (
     StoryType,
 )
 from story_manager.core.filters import StoryFilter
-from story_manager.core.models import Story
-from story_manager.core.schemas import StoryGroupMeta
+from story_manager.core.schemas import StoryDetail, StoryGroupMeta
 from story_manager.story_builder import StoryBuilderBase
 from story_manager.story_builder.factory import StoryFactory
 
@@ -41,7 +40,9 @@ async def get_story_group_meta(group: StoryGroup) -> StoryGroupMeta:
     return StoryGroupMeta(group=group, grains=builder_klass.supported_grains)
 
 
-@router.get("/", response_model=Page[Story], dependencies=[Security(oauth2_auth().verify, scopes=[STORY_MANAGER_ALL])])
+@router.get(
+    "/", response_model=Page[StoryDetail], dependencies=[Security(oauth2_auth().verify, scopes=[STORY_MANAGER_ALL])]
+)
 async def get_stories(
     story_crud: CRUDStoryDep,
     params: Annotated[PaginationParams, Depends(PaginationParams)],
@@ -72,5 +73,5 @@ async def get_stories(
         is_heuristic=is_heuristic,
     )
 
-    results, count = await story_crud.paginate(params=params, filter_params=story_filter.dict(exclude_unset=True))
+    results, count = await story_crud.paginate(params=params, filter_params=story_filter.model_dump(exclude_unset=True))
     return Page.create(items=results, total_count=count, params=params)

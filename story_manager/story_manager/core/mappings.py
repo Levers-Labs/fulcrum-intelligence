@@ -4,7 +4,6 @@ from commons.models.enums import Granularity
 from story_manager.core.enums import (
     Digest,
     Section,
-    StoryGenre,
     StoryGroup,
     StoryType,
 )
@@ -43,12 +42,10 @@ FILTER_MAPPING = {
             StoryGroup.GROWTH_RATES,
             StoryGroup.RECORD_VALUES,
             StoryGroup.REQUIRED_PERFORMANCE,
-        ],
-        "genres": [
-            StoryGenre.TRENDS,
-            StoryGenre.PERFORMANCE,
-            StoryGenre.GROWTH,
-            StoryGenre.BIG_MOVES,
+            StoryGroup.TREND_CHANGES,
+            StoryGroup.TREND_EXCEPTIONS,
+            StoryGroup.SIGNIFICANT_SEGMENTS,
+            StoryGroup.LONG_RANGE,
         ],
     },
     # Why Is It Happening section focuses on segment and component drift
