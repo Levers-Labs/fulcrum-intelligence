@@ -48,6 +48,11 @@ class MetricDetail(MetricBase):
             return [metric.metric_id for metric in v]
         return v
 
+    def get_dimension(self, dimension_id: str) -> DimensionDetail | None:
+        if not self.dimensions:
+            return None
+        return next((dimension for dimension in self.dimensions if dimension.dimension_id == dimension_id), None)
+
 
 class MetricValue(BaseModel, extra="allow"):  # type: ignore
     metric_id: str | None = None
