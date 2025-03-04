@@ -15,6 +15,7 @@ from tasks_manager.tasks.semantic_manager import (
     create_sync_summary_artifact,
     fetch_and_store_metric_dimensional_time_series,
     fetch_and_store_metric_time_series,
+    send_metric_semantic_sync_finished_event,
 )
 
 
@@ -73,10 +74,11 @@ async def semantic_data_sync_metric(
         )
 
         # Process dimensions in parallel if they exist
-        dimensional_futures = []
+        # Store futures in a dictionary with dimension_id as key
+        dimensional_futures = {}
         if metric.dimensions:
-            dimensional_futures = [
-                fetch_and_store_metric_dimensional_time_series.submit(  # type: ignore
+            dimensional_futures = {
+                dim.dimension_id: fetch_and_store_metric_dimensional_time_series.submit(  # type: ignore
                     metric_id=metric_id,
                     metric=metric,
                     tenant_id=tenant_id,
@@ -87,29 +89,90 @@ async def semantic_data_sync_metric(
                     sync_type=sync_type,
                 )
                 for dim in metric.dimensions
-            ]
+            }
 
         # Wait for all futures and collect results
-        time_series_stats = time_series_future.result()
-        dimensional_stats = [future.result() for future in dimensional_futures]
+        failed_tasks = []
+        dimensional_stats = []
+        try:
+            time_series_stats = time_series_future.result()
+        except Exception as e:
+            logger.error(
+                "Error fetching time series stats - Metric: %s, Grain: %s, Error: %s",
+                metric_id,
+                grain.value,
+                str(e),
+                exc_info=True,
+            )
+            time_series_stats = {
+                "processed": 0,
+                "failed": 1,
+                "skipped": 0,
+                "total": 1,
+                "dimension_id": None,
+                "error": str(e),
+            }
+            failed_tasks.append(
+                {
+                    "metric_id": metric_id,
+                    "dimension_id": None,
+                    "task": f"time_series_sync_for_metric_id={metric_id}",
+                    "error": str(e),
+                }
+            )
+
+        for dimension_id, dim_future in dimensional_futures.items():
+            try:
+                dim_stats = dim_future.result()
+            except Exception as e:
+                logger.error(
+                    "Error fetching dimensional stats - Metric: %s, Grain: %s, Error: %s",
+                    metric_id,
+                    grain.value,
+                    str(e),
+                    exc_info=True,
+                )
+                dim_stats = {
+                    "processed": 0,
+                    "failed": 0,
+                    "skipped": 0,
+                    "total": 0,
+                    "dimension_id": dimension_id,
+                    "error": str(e),
+                }
+                failed_tasks.append(
+                    {
+                        "metric_id": metric_id,
+                        "dimension_id": dimension_id,
+                        "task": f"dimensional_sync_for_dimension_id={dimension_id}",
+                        "error": str(e),
+                    }
+                )
+            dimensional_stats.append(dim_stats)
 
         summary: SyncSummary = {
             "metric_id": metric_id,
             "tenant_id": tenant_id,
-            "status": "success",
+            "status": (
+                "success"
+                if not failed_tasks
+                else ("partial_success" if len(failed_tasks) < len(dimensional_stats) + 1 else "failed")
+            ),
             "sync_type": sync_type.value,
             "grain": grain.value,
             "start_date": start_date.isoformat(),
             "end_date": end_date.isoformat(),
             "time_series_stats": time_series_stats,
             "dimensional_stats": dimensional_stats,
+            "failed_tasks": failed_tasks,
             "error": None,
         }
 
         logger.info(
-            "Sync completed successfully - Metric: %s, Grain: %s\n"
+            "Sync completed, Status: %s - Metric: %s, Grain: %s\n"
             "Time Series - Processed: %d, Failed: %d, Total: %d\n"
             "Dimensions - Count: %d, Total Processed: %d",
+            summary["status"],
             metric_id,
             grain.value,
             time_series_stats["processed"],
@@ -123,22 +186,7 @@ async def semantic_data_sync_metric(
         await create_sync_summary_artifact(summary)
 
         # Emit completion event
-        emit_event(
-            event="metric.semantic.sync.completed",
-            resource={
-                "prefect.resource.id": f"metric.{metric_id}",
-                "metric_id": metric_id,
-                "tenant_id": str(tenant_id),
-                "grain": grain.value,
-            },
-            payload={
-                "summary": summary,
-                "timestamp": datetime.now().isoformat(),
-            },
-        )
-
-        return summary
-
+        send_metric_semantic_sync_finished_event(metric_id=metric_id, tenant_id=tenant_id, grain=grain, summary=summary)
     except Exception as e:
         error_summary: SyncSummary = {
             "metric_id": metric_id,
@@ -148,9 +196,17 @@ async def semantic_data_sync_metric(
             "grain": grain.value,
             "start_date": start_date.isoformat() if "start_date" in locals() else "",
             "end_date": end_date.isoformat() if "end_date" in locals() else "",
-            "time_series_stats": {"processed": 0, "failed": 1, "skipped": 0, "total": 1, "dimension_id": None},
+            "time_series_stats": {
+                "processed": 0,
+                "failed": 1,
+                "skipped": 0,
+                "total": 1,
+                "dimension_id": None,
+                "error": str(e),
+            },
             "dimensional_stats": [],
             "error": str(e),
+            "failed_tasks": [],
         }
 
         logger.error("Sync failed - Metric: %s, Grain: %s, Error: %s", metric_id, grain.value, str(e), exc_info=True)
@@ -159,19 +215,8 @@ async def semantic_data_sync_metric(
         await create_sync_summary_artifact(error_summary)
 
         # Emit failure event
-        emit_event(
-            event="metric.semantic.sync.failed",
-            resource={
-                "prefect.resource.id": f"metric.{metric_id}",
-                "metric_id": metric_id,
-                "tenant_id": str(tenant_id),
-                "grain": grain.value,
-            },
-            payload={
-                "summary": error_summary,
-                "error": str(e),
-                "timestamp": datetime.now().isoformat(),
-            },
+        send_metric_semantic_sync_finished_event(
+            metric_id=metric_id, tenant_id=tenant_id, grain=grain, summary=error_summary, error=str(e)
         )
 
         raise

@@ -1,9 +1,10 @@
 import os
-from datetime import date
+from datetime import date, datetime
 from typing import Literal, TypedDict
 
 from prefect import get_run_logger, task
 from prefect.artifacts import create_markdown_artifact
+from prefect.events import Event, emit_event
 
 from commons.models.enums import Granularity
 from commons.utilities.context import reset_context, set_tenant_id
@@ -21,19 +22,51 @@ class SyncStats(TypedDict):
     failed: int
     total: int
     dimension_id: str | None
+    error: str | None
 
 
 class SyncSummary(TypedDict):
     metric_id: str
     tenant_id: int
-    status: Literal["success", "failed"]
+    status: Literal["success", "failed", "partial_success"]
     sync_type: str
     grain: str
     start_date: str
     end_date: str
     time_series_stats: SyncStats
     dimensional_stats: list[SyncStats]
+    failed_tasks: list[dict] | None
     error: str | None
+
+
+def send_metric_semantic_sync_finished_event(
+    metric_id: str, tenant_id: int, grain: Granularity, summary: SyncSummary, error: str | None = None
+) -> Event | None:
+    """
+    Send a metric semantic sync finished event.
+    It could be a success, a failure or a partial success.
+    """
+    event_name = "metric.semantic.sync.success"
+    if summary["status"] == "failed":
+        event_name = "metric.semantic.sync.failed"
+    elif summary["status"] == "partial_success":
+        event_name = "metric.semantic.sync.partial_success"
+
+    event = emit_event(
+        event=event_name,
+        resource={
+            "prefect.resource.id": f"metric.{metric_id}",
+            "metric_id": metric_id,
+            "tenant_id": str(tenant_id),
+            "grain": grain.value,
+        },
+        payload={
+            "summary": summary,
+            "timestamp": datetime.now().isoformat(),
+            "error": error,
+        },
+    )
+    return event
 
 
 def calculate_grain_lookback(sync_type: SyncType, grain: Granularity, lookback_days: int = 90) -> dict[str, int]:
@@ -78,30 +111,70 @@ async def create_sync_summary_artifact(summary: SyncSummary) -> None:
         else "No dimensional data processed"
     )
 
-    # Create error section separately
-    error_section = ""
-    if summary["error"]:
-        error_section = f"""
-## Error
-```
-{summary['error']}
-```
+    # Create status section with color coding
+    status_color = {"success": "🟢", "partial_success": "🟡", "failed": "🔴"}.get(summary["status"], "⚪")
+    status_section = f"- **Status**: {status_color} {summary['status'].upper()}"
+
+    # Create detailed sync status section
+    sync_status_section = "\n## Sync Status Details\n"
+
+    # Table headers for sync status
+    sync_status_section += """| Component | Status | Records | Error |
+|-----------|---------|----------|--------|
 """
+
+    # Time series sync status
+    ts_has_error = bool(time_series.get("error") or time_series["failed"] > 0)
+    ts_status = "🔴 Failed" if ts_has_error else "🟢 Success"
+    ts_error = time_series.get("error") or "-"
+    ts_records = f"{time_series['processed']}/{time_series['total']}" if not ts_has_error else "-"
+    sync_status_section += f"| Time Series | {ts_status} | {ts_records} | {ts_error} |\n"
+
+    # Dimensional sync status
+    if dim_stats:
+        for stat in dim_stats:
+            dim_has_error = bool(stat.get("error") or stat["failed"] > 0)
+            dim_status = "🔴 Failed" if dim_has_error else "🟢 Success"
+            dim_error = stat.get("error") or "-"
+            dim_records = f"{stat['processed']}/{stat['total']}" if not dim_has_error else "-"
+            sync_status_section += (
+                f"| Dimension: {stat['dimension_id']} | {dim_status} | {dim_records} | {dim_error} |\n"  # noqa: E501
+            )
+
+    # Create error section
+    error_section = ""
+    if summary.get("error") or summary.get("failed_tasks"):
+        error_section = "\n## Errors\n"
+        if summary.get("error"):
+            error_section += f"""```
+{summary['error']}
+```\n"""
+
+        if summary.get("failed_tasks"):
+            error_section += "\n### Failed Tasks\n"
+            for task in summary.get("failed_tasks", []):  # type: ignore
+                task_name = task.get("task", "Unknown Task")
+                task_error = task.get("error", "No error details available")
+                error_section += f"""- **{task_name}**
+```
+{task_error}
+```\n"""
 
     markdown = f"""# Semantic Sync Summary for metric {summary['metric_id']} ({summary['grain']})
 
 ## Overview
 - **Metric ID**: {summary['metric_id']}
 - **Tenant ID**: {summary['tenant_id']}
-- **Status**: {summary['status']}
+{status_section}
 - **Sync Type**: {summary['sync_type']}
 - **Grain**: {summary['grain']}
 - **Period**: {summary['start_date']} to {summary['end_date']}
+{sync_status_section}
 
 ## Time Series Statistics
 | Metric | Processed | Failed | Skipped | Total |
 |--------|-----------|---------|----------|--------|
-| Base Time Series | {time_series['processed']} | {time_series['failed']} | {time_series['skipped']} | {time_series['total']} |
+| Time Series | {time_series['processed']} | {time_series['failed']} | {time_series['skipped']} | {time_series['total']} |
 
 ## Dimensional Statistics
 | Dimension | Processed | Failed | Skipped | Total |
@@ -223,6 +296,7 @@ async def fetch_and_store_metric_time_series(
                     failed=upsert_stats["failed"],
                     total=fetch_stats["total"],
                     dimension_id=None,
+                    error=None,
                 )
 
                 logger.info(
@@ -254,7 +328,7 @@ async def fetch_and_store_metric_time_series(
             str(e),
             exc_info=True,
         )
-        return SyncStats(processed=0, skipped=0, failed=1, total=1, dimension_id=None)
+        raise
     finally:
         reset_context()
 
@@ -265,7 +339,7 @@ async def fetch_and_store_metric_time_series(
     retries=1,
     retry_delay_seconds=30,
     tags=["db-operation", "semantic-manager"],
-    timeout_seconds=450,  # 7 minutes
+    timeout_seconds=300,  # 5 minutes
 )
 async def fetch_and_store_metric_dimensional_time_series(
     metric_id: str,  # noqa # just for run name
@@ -364,6 +438,7 @@ async def fetch_and_store_metric_dimensional_time_series(
                     skipped=fetch_stats["skipped"],
                     failed=upsert_stats["failed"],
                     total=fetch_stats["total"],
+                    error=None,
                 )
 
                 logger.info(
@@ -399,6 +474,6 @@ async def fetch_and_store_metric_dimensional_time_series(
             str(e),
             exc_info=True,
         )
-        return SyncStats(dimension_id=dimension_id, processed=0, skipped=0, failed=1, total=1)
+        raise
     finally:
         reset_context()
