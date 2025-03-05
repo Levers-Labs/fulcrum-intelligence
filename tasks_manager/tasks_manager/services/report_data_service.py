@@ -10,6 +10,12 @@ T = TypeVar("T", bound=float | int)
 class ReportDataService:
     """Service for preparing metric data for reports, including period-based values and comparisons."""
 
+    GRAIN_META = {
+        Granularity.DAY: {"interval": "daily"},
+        Granularity.WEEK: {"interval": "weekly"},
+        Granularity.MONTH: {"interval": "monthly"},
+    }
+
     def __init__(self, query_client: QueryManagerClient):
         self.query_client = query_client
 
@@ -88,52 +94,22 @@ class ReportDataService:
         prev = float(previous_value)
         return round(((curr - prev) / abs(prev)) * 100, 2)
 
-    async def _prepare_single_period_data(
-        self, metric_id: str, grain: Granularity, include_raw_data: bool = False
-    ) -> dict[str, Any]:
-        """
-        Prepare metric data for a single reporting period.
-        """
-        try:
-            # Calculate date range for current period
-            current_start, current_end = self._get_report_period_dates(grain)  # type: ignore
-
-            # Fetch time series data with proper granularity
-            time_series = await self.query_client.get_metric_time_series(
-                metric_id=metric_id, start_date=current_start, end_date=current_end, grain=grain
-            )
-
-            # Find the value for the exact period start date
-            period_value = next(
-                (item["value"] for item in time_series if item["date"] == current_start.isoformat()),
-                None,  # Use None if no matching date is found
-            )
-
-            result = {
-                "metric_id": metric_id,
-                "current_value": period_value,
-                "period": {"start": current_start.isoformat(), "end": current_end.isoformat()},
-                "status": ExecutionStatus.COMPLETED,
-            }
-
-            if include_raw_data:
-                result["raw_data"] = time_series
-
-            return result
-        except Exception as e:
-            return {"metric_id": metric_id, "error": str(e), "status": ExecutionStatus.FAILED}
-
     async def _prepare_comparison_data(
-        self, metric_id: str, grain: Granularity, include_raw_data: bool = False
+        self,
+        metric_id: str,
+        grain: Granularity,
+        current_period: tuple[date, date],
+        previous_period: tuple[date, date],
+        include_raw_data: bool = False,
     ) -> dict[str, Any]:
         """
         Prepare metric data with comparison between current and previous periods.
         """
         try:
-            # Calculate date ranges for both periods
-            current_start, current_end, previous_start, previous_end = self._get_report_period_dates(  # type: ignore
-                grain, include_previous=True
-            )
+            metric = await self.query_client.get_metric(metric_id)
+
+            current_start, current_end = current_period
+            previous_start, _ = previous_period
 
             # Fetch time series data for both periods in one call
             time_series = await self.query_client.get_metric_time_series(
@@ -150,6 +126,7 @@ class ReportDataService:
                 None,  # Use None if no matching date is found
             )
 
+            # TODO: need to use comparisons
             # Calculate changes only if both values are available
             absolute_change = None
             percentage_change = None
@@ -159,15 +136,12 @@ class ReportDataService:
 
             result = {
                 "metric_id": metric_id,
-                "label": metric_id,  # todo: Add metric label
+                "metric": metric,
                 "current_value": current_value,
                 "previous_value": previous_value,
                 "absolute_change": absolute_change,
                 "percentage_change": percentage_change,
-                "comparison_period": {
-                    "current": {"start": current_start.isoformat(), "end": current_end.isoformat()},
-                    "previous": {"start": previous_start.isoformat(), "end": previous_end.isoformat()},
-                },
+                "is_positive": absolute_change >= 0,  # type: ignore
                 "status": ExecutionStatus.COMPLETED,
             }
 
@@ -179,7 +153,11 @@ class ReportDataService:
             return {"metric_id": metric_id, "error": str(e), "status": ExecutionStatus.FAILED}
 
     async def prepare_report_metrics_data(
-        self, metric_ids: list[str], grain: Granularity, need_comparisons: bool = False, include_raw_data: bool = False
+        self,
+        metric_ids: list[str],
+        grain: Granularity,
+        include_raw_data: bool = False,
+        comparisons: list[str] | None = None,
     ) -> dict[str, Any]:
         """
         Prepare metrics data for report generation, optionally including period comparisons.
@@ -187,27 +165,33 @@ class ReportDataService:
         Args:
             metric_ids: List of metric IDs to include in the report
             grain: Time granularity for the report periods
-            need_comparisons: Whether to include comparison calculations
             include_raw_data: Whether to include raw time series data
 
         Returns:
             Dictionary containing:
                 - metrics: List of formatted metric data for the report
                 - fetched_at: ISO formatted timestamp
-                - has_comparisons: Whether comparisons were included
         """
+        current_start, current_end, previous_start, previous_end = self._get_report_period_dates(  # type: ignore
+            grain, include_previous=True
+        )
         metrics_data = []
 
         for metric_id in metric_ids:
-            if need_comparisons:
-                metric_data = await self._prepare_comparison_data(
-                    metric_id=metric_id, grain=grain, include_raw_data=include_raw_data
-                )
-            else:
-                metric_data = await self._prepare_single_period_data(
-                    metric_id=metric_id, grain=grain, include_raw_data=include_raw_data
-                )
+            metric_data = await self._prepare_comparison_data(
+                metric_id=metric_id,
+                grain=grain,
+                current_period=(current_start, current_end),
+                previous_period=(previous_start, previous_end),
+                include_raw_data=include_raw_data,
+            )
 
             metrics_data.append(metric_data)
 
-        return {"metrics": metrics_data, "fetched_at": datetime.now().isoformat(), "has_comparisons": need_comparisons}
+        return {
+            "metrics": metrics_data,
+            "start_date": current_start.strftime("%b %d, %Y"),
+            "end_date": current_end.strftime("%b %d, %Y"),
+            "fetched_at": datetime.now().strftime("%b %d, %Y"),
+            "interval": self.GRAIN_META[grain]["interval"],
+        }

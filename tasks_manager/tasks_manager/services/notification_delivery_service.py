@@ -16,7 +16,7 @@ class NotificationDeliveryService:
         self._notifiers: dict[NotificationChannel, BaseNotifier] = {}
         self.config = config
 
-    async def _get_channel_config(self, channel: NotificationChannel) -> dict[str, Any]:
+    async def _get_channel_config(self, channel: NotificationChannel) -> dict[str, Any]:  # type: ignore
         """
         Get configuration for the specified channel.
         """
@@ -35,7 +35,7 @@ class NotificationDeliveryService:
 
         return self._notifiers[channel]
 
-    def _prepare_delivery_config(
+    def _prepare_delivery_config(  # type: ignore
         self, channel: NotificationChannel, recipients: list[dict]
     ) -> list[dict[str, Any]] | dict[str, Any]:
         """
@@ -61,7 +61,7 @@ class NotificationDeliveryService:
                 "cc": [recipient["email"] for recipient in recipients if recipient["location"] == "cc"],
             }
 
-    def _is_delivery_successful(self, channel: NotificationChannel, result: dict) -> bool:
+    def _is_delivery_successful(self, channel: NotificationChannel, result: dict) -> bool:  # type: ignore
         """
         Check if delivery was successful based on channel-specific response format.
         """

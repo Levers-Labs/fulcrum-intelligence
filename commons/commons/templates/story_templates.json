@@ -2,49 +2,147 @@
     "TREND_CHANGES": {
         "STABLE_TREND": {
             "title": "Following a stable trend",
-            "detail": "{{metric.label}} continues to follow the trend line it has followed for the past {{duration}} {{grain}}s, averaging a {{avg_growth}}% {{pop}}."
+            "detail": "{{metric.label}} continues to follow the trend line it has followed for the past {{duration}} {{grain}}s, averaging a {{current_growth}}% {{pop}}."
         },
         "NEW_UPWARD_TREND": {
             "title": "New upward trend",
-            "detail": "Since {{start_date}}, {{metric.label}} has been following a new, upward trend line that averages {{current_growth}}% {{pop}} growth. The prior trend for this metric lasted {{prev_duration}} {{grain}}s and averaged {{prev_growth}}% {{pop}} growth."
+            "detail": "Since {{current_date}}, {{metric.label}} has been following a new, upward trend line that averages {{current_growth}}% {{pop}} growth. The prior trend averaged {{prior_growth}}% {{pop}} growth."
         },
         "NEW_DOWNWARD_TREND": {
             "title": "New downward trend",
-            "detail": "Since {{start_date}}, {{metric.label}} has been following a new, downward trend line that averages {{current_growth}}% {{pop}} growth. The prior trend for this metric lasted {{prev_duration}} {{grain}}s and averaged {{prev_growth}}% {{pop}} growth."
+            "detail": "Since {{current_date}}, {{metric.label}} has been following a new, downward trend line that averages {{current_growth}}% {{pop}} growth. The prior trend averaged {{prior_growth}}% {{pop}} growth."
         },
         "PERFORMANCE_PLATEAU": {
             "title": "Performance has leveled off",
-            "detail": "Since {{start_date}}, {{metric.label}} growth has steadied into a new normal, hovering around a {{grain}} average of {{avg_value}}."
+            "detail": "Since {{current_date}}, {{metric.label}} growth has steadied into a new normal, hovering around a {{grain}} average of {{current_value}}."
         }
     },
     "TREND_EXCEPTIONS": {
         "SPIKE": {
             "title": "Performance spike above {{grain}} trend",
-            "detail": "{{metric.label}} is currently performing at {{deviation}}% {{position}} its normal range. This may indicate an anomaly, a data issue, or a fundamental change in how this metric performs."
+            "detail": "{{metric.label}} is currently performing at {{deviation}}% {{position}} its normal range. Current value: {{current_value}}, compared to prior value: {{prior_value}}."
         },
         "DROP": {
             "title": "Performance drop below {{grain}} trend",
-            "detail": "{{metric.label}} is currently performing at {{deviation}}% {{position}} its normal range. This may indicate an anomaly, a data issue, or a fundamental change in how this metric performs."
+            "detail": "{{metric.label}} is currently performing at {{deviation}}% {{position}} its normal range. Current value: {{current_value}}, compared to prior value: {{prior_value}}."
         }
     },
     "LONG_RANGE": {
         "IMPROVING_PERFORMANCE": {
             "title": "Performance has improved over the past {{duration}} {{grain}}s",
-            "detail": "Over the past {{duration}} {{grain}}s, {{metric.label}} has been averaging {{avg_growth}}% {{pop}} growth and has grown {{overall_growth}}% overall since {{start_date}}."
+            "detail": "Over the past {{duration}} {{grain}}s, {{metric.label}} has been averaging {{current_growth}}% {{pop}} growth and has grown {{deviation}}% overall since {{current_date}}."
         },
         "WORSENING_PERFORMANCE": {
             "title": "Performance has worsened over the past {{duration}} {{grain}}s",
-            "detail": "Over the past {{duration}} {{grain}}s, {{metric.label}} has been declining {{avg_growth}}% {{pop}} growth and has fallen {{overall_growth}}% overall since {{start_date}}."
+            "detail": "Over the past {{duration}} {{grain}}s, {{metric.label}} has been declining {{current_growth}}% {{pop}} and has fallen {{deviation}}% overall since {{current_date}}."
         }
     },
     "GROWTH_RATES": {
         "SLOWING_GROWTH": {
             "title": "{{pop}} growth is slowing down",
-            "detail": "The {{pop}} growth rate for {{metric.label}} is slowing down. It is currently {{current_growth}}% and down from the {{avg_growth}}% average over the past {{duration}} {{grain}}s."
+            "detail": "The {{pop}} growth rate for {{metric.label}} is slowing down. It is currently {{current_growth}}% and down from {{prior_growth}}% average over the past {{duration}} {{grain}}s."
         },
         "ACCELERATING_GROWTH": {
             "title": "{{pop}} growth is speeding up",
-            "detail": "The {{pop}} growth rate for {{metric.label}} is speeding up. It is currently {{current_growth}}% and up from the {{avg_growth}}% average over the past {{duration}} {{grain}}s."
+            "detail": "The {{pop}} growth rate for {{metric.label}} is speeding up. It is currently {{current_growth}}% and up from {{prior_growth}}% average over the past {{duration}} {{grain}}s."
+        }
+    },
+    "GOAL_VS_ACTUAL": {
+        "ON_TRACK": {
+            "title": "Beats {{duration}} {{grain}}s target",
+            "detail": "As of {{eoi}}, {{metric.label}} was at {{current_value}}, {{movement}} {{current_growth}}% {{pop}} and beating its target of {{target}} by {{deviation}}%."
+        },
+        "OFF_TRACK": {
+            "title": "Missed {{duration}} {{grain}}s target",
+            "detail": "As of {{eoi}}, {{metric.label}} was at {{current_value}}, {{movement}} {{current_growth}}% {{pop}} and missing its target of {{target}} by {{deviation}}%."
+        }
+    },
+    "RECORD_VALUES": {
+        "RECORD_HIGH": {
+            "title": "Highest value over the past {{duration}} {{grain}}s",
+            "detail": "On {{current_date}}, the {{duration}} {{grain}}s value for {{metric.label}} hit {{current_value}} -- the highest across the past {{duration}} {{grain}}s."
+        },
+        "RECORD_LOW": {
+            "title": "Lowest {{grain}} value over the past {{duration}} {{grain}}s",
+            "detail": "On {{current_date}}, the {{duration}} {{grain}}s value for {{metric.label}} hit {{current_value}} -- the lowest across the past {{duration}} {{grain}}s."
+        }
+    },
+    "STATUS_CHANGE": {
+        "IMPROVING_STATUS": {
+            "title": "Newly beating target",
+            "detail": "{{metric.label}} is now On-Track and beating target by {{deviation}}% after previously being Off-Track for {{duration}} {{grain}}s."
+        },
+        "WORSENING_STATUS": {
+            "title": "Newly missing target",
+            "detail": "{{metric.label}} is now Off-Track and missing target by {{deviation}}% after previously being On-Track for {{duration}} {{grain}}s."
+        }
+    },
+    "LIKELY_STATUS": {
+        "LIKELY_ON_TRACK": {
+            "title": "Pacing to beat end of {{grain}} target by {{deviation}}%",
+            "detail": "{{metric.label}} is forecasted to end the {{grain}} at {{current_value}} and beat its target of {{target}} by {{deviation}}%."
+        },
+        "LIKELY_OFF_TRACK": {
+            "title": "Pacing to miss end of {{grain}} target by {{deviation}}%",
+            "detail": "{{metric.label}} is forecasted to end the {{grain}} at {{current_value}} and miss its target of {{target}} by {{deviation}}%."
+        }
+    },
+    "REQUIRED_PERFORMANCE": {
+        "REQUIRED_PERFORMANCE": {
+            "title": "Must grow {{required_growth}}% {{pop}} to meet end of {{grain}} target",
+            "detail": "{{metric.label}} must average a {{required_growth}}% {{pop}} growth rate over the next {{duration}} {{grain}}s to meet its end of {{grain}} target of {{target}}.{% if not is_min_data %} This is a {{deviation}}% {{movement}} over the {{current_growth}}% {{pop}} growth over the past {{duration}} {{grain}}s.{% endif %}"
+        },
+        "HOLD_STEADY": {
+            "title": "Metric must maintain its performance",
+            "detail": "{{metric.label}} is already performing at its target level for the end of {{duration}} {{grain}}s and needs to maintain this lead for the next {{duration}} {{grain}}s to stay On Track."
+        }
+    },
+    "SEGMENT_DRIFT": {
+        "GROWING_SEGMENT": {
+            "title": "Key Driver: Growing {{slice}} share of {{dimension}}",
+            "detail": "The share of {{dimension}} that is {{slice}} increased from {{segment_metrics.prior_share}}% to {{segment_metrics.current_share}}% over the past {{grain}}. This increase contributed {{segment_metrics.impact}}% {{pressure}} pressure on {{metric.label}}."
+        },
+        "SHRINKING_SEGMENT": {
+            "title": "Key Driver: Falling {{slice}} share of {{dimension}}",
+            "detail": "For {{metric.label}}, the share of {{dimension}} that is {{slice}} has decreased from {{segment_metrics.prior_share}}% to {{segment_metrics.current_share}}% over the past {{grain}}. This decrease contributed {{segment_metrics.impact}}% {{pressure}} pressure on {{metric.label}}."
+        },
+        "IMPROVING_SEGMENT": {
+            "title": "Key Driver: Stronger {{slice}} segment",
+            "detail": "Over the past {{grain}}, when {{dimension}} is {{slice}}, {{metric.label}} is {{current_value}}. This is an increase of {{deviation}}% relative to the prior {{grain}}, and this increase contributed {{segment_metrics.impact}}% {{pressure}} pressure on {{metric.label}}."
+        },
+        "WORSENING_SEGMENT": {
+            "title": "Key Driver: Weaker {{slice}} segment",
+            "detail": "Over the past {{grain}}, when {{dimension}} is {{slice}}, {{metric.label}} is {{current_value}}. This is a decrease of {{deviation}}% relative to the prior {{grain}}, and this decrease contributed {{segment_metrics.impact}}% {{pressure}} pressure on {{metric.label}}."
+        }
+    },
+    "SIGNIFICANT_SEGMENTS": {
+        "TOP_4_SEGMENTS": {
+            "title": "Prior {{grain}} best performing segments",
+            "detail": "The segments below had the highest average values for {{metric.label}} over the past {{grain}}"
+        },
+        "BOTTOM_4_SEGMENTS": {
+            "title": "Prior {{grain}} worst performing segments",
+            "detail": "The segments below had the lowest average values for {{metric.label}} over the past {{grain}}"
+        }
+    },
+    "COMPONENT_DRIFT": {
+        "IMPROVING_COMPONENT": {
+            "title": "Key Driver: Increase in {{component}}",
+            "detail": "The {{deviation}}% increase in {{component}} over the past {{grain}} contributed {{segment_metrics.impact}}% {{pressure}} pressure on {{metric.label}} and accounts for {{segment_metrics.contribution}}% of its overall change."
+        },
+        "WORSENING_COMPONENT": {
+            "title": "Key Driver: Declining {{component}}",
+            "detail": "The {{deviation}}% decrease in {{component}} over the past {{grain}} contributed {{segment_metrics.impact}}% {{pressure}} pressure on {{metric.label}} and accounts for {{segment_metrics.contribution}}% of its overall change."
+        }
+    },
+    "INFLUENCE_DRIFT": {
+        "STRONGER_INFLUENCE": {
+            "title": "Key Driver: Stronger influence of {{component}}",
+            "detail": "The influence of {{component}} on {{metric.label}} is growing stronger. A {{deviation}}% increase in {{component}} is associated with a {{current_growth}}% {{movement}} – up from {{prior_growth}}% the prior {{grain}}."
+        },
+        "WEAKER_INFLUENCE": {
+            "title": "Key Driver: Weaker influence of {{component}}",
+            "detail": "The influence of {{component}} on {{metric.label}} is getting weaker. A {{deviation}}% increase in {{component}} is associated with a {{current_growth}}% {{movement}} – down from {{prior_growth}}% the prior {{grain}}."
         }
     }
 }

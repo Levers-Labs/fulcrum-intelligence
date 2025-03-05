@@ -114,6 +114,7 @@ class NotificationList(BaseModel):
     last_execution: datetime | None = None
     recipients_count: int | None
     is_active: bool
+    is_published: bool
 
     model_config = ConfigDict(from_attributes=True)
 
