@@ -190,8 +190,8 @@ class ReportDataService:
 
         return {
             "metrics": metrics_data,
-            "start_date": current_start.isoformat(),
-            "end_date": current_end.isoformat(),
-            "fetched_at": datetime.now().isoformat(),
+            "start_date": current_start.strftime("%b %d, %Y"),
+            "end_date": current_end.strftime("%b %d, %Y"),
+            "fetched_at": datetime.now().strftime("%b %d, %Y"),
             "interval": self.GRAIN_META[grain]["interval"],
         }

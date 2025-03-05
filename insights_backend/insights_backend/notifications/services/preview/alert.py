@@ -67,13 +67,18 @@ class AlertPreviewService(BasePreviewService[AlertRequest]):
 
         stories = self._generate_stories(story_groups, variables)
 
-        return {
-            "metric": metric,
-            "grain": alert_data.grain.value,
-            "time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-            "stories": stories,
+        context = {
+            "data": {
+                "stories": stories,
+                "metric": metric,
+                "fetched_at": datetime.now().strftime("%b %d, %Y"),
+                "grain": alert_data.grain.value,
+            },
+            "config": alert_data,
             **variables,
         }
+
+        return context
 
     def _get_story_groups(self, alert_data: AlertRequest) -> list[str]:
         """Get story groups from alert data"""

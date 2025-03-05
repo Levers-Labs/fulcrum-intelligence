@@ -129,14 +129,15 @@ async def test_alert_preview_context(alert_preview_service, sample_alert_request
     context = await alert_preview_service._generate_context(sample_alert_request)
 
     # Check required context fields
+    assert "data" in context
     assert "metric" in context
     assert "grain" in context
-    assert "time" in context
-    assert "stories" in context
+    assert "fetched_at" in context["data"]
+    assert "stories" in context["data"]
 
     # Check story structure
-    assert isinstance(context["stories"], list)
-    for story in context["stories"]:
+    assert isinstance(context["data"]["stories"], list)
+    for story in context["data"]["stories"]:
         assert "story_group" in story
         assert "title" in story
         assert "detail" in story

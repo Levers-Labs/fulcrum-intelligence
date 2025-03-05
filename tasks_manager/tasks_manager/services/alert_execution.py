@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, datetime
 from typing import Any
 
 from prefect import get_run_logger
@@ -89,7 +89,12 @@ class AlertExecutionService:
         # Get metric details
         metric = await self.query_client.get_metric(metric_id)
 
-        return {"stories": stories, "metric": metric}
+        return {
+            "stories": stories,
+            "metric": metric,
+            "fetched_at": datetime.now().strftime("%b %d, %Y"),
+            "grain": grain,
+        }
 
     async def _prepare_threshold_alert_data(
         self,

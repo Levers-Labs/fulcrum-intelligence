@@ -2,6 +2,7 @@
 <html lang='en'>
 <head>
     <meta charset='UTF-8'>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
     <meta name='viewport' content='width=device-width, initial-scale=1.0'>
     <title>Weekly Report</title>
     <style>
@@ -45,24 +46,55 @@
         }
 
         .metric-row {
-            display: grid;
-            grid-template-columns: 40px auto 100px 150px;
-            align-items: center;
-            gap: 12px;
+            display: block;
             padding: 16px;
             border-bottom: 1px solid #eaeaea;
             background-color: #ffffff;
         }
 
+        .metric-row > div {
+            display: inline-block; /* Treats each child as inline-blocks */
+            vertical-align: middle; /* Ensures vertical centering */
+            margin-right: 12px; /* Creates space between elements */
+            width: 25% !important;
+        }
+
+        .metric-row > div:last-child {
+            margin-right: 0; /* Removes margin on the last item */
+        }
+
+        /* Define widths for the respective items */
+        .metric-row .trend-icon {
+            text-align: center;
+            width: 25px !important;
+        }
+
+        .metric-row .metric-name {
+            width: auto; /* Automatically takes the remaining space */
+        }
+
+        .metric-row .metric-value {
+            width: 100px;
+            text-align: right;
+        }
+
+        .metric-row .metric-change {
+            width: 150px;
+            text-align: right;
+        }
+
+
         .trend-icon {
             width: 24px;
             height: 24px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
             border-radius: 50%;
             margin-right: 15px;
             font-size: 16px;
+            text-align: center;  /* Horizontally centers the text/icon */
+            line-height: 24px;   /* Vertically centers the text/icon by matching line-height to height */
+            display: inline-block; /* Ensures it behaves like an inline element */
+            background-color: rgba(0, 200, 83, 0.1); /* Example background color for the icon */
+            color: #00c853; /* Example color for the icon (you can adjust as needed) */
         }
 
         .trend-up {
@@ -76,8 +108,11 @@
         }
 
         .metric-name {
-            flex: 1;
+            display: inline-block;
+            width: auto;
+            white-space: nowrap;
         }
+
 
         .metric-value {
             font-weight: 500;
