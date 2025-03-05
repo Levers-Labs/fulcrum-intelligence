@@ -2,6 +2,7 @@ import pytest
 import pytest_asyncio
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from commons.db.crud import NotFoundError
 from commons.models.enums import Granularity
 from commons.utilities.context import set_tenant_id
 from commons.utilities.pagination import PaginationParams
@@ -183,8 +184,9 @@ async def test_batch_delete(
 
 async def test_batch_delete_invalid_ids(notifications_crud: CRUDNotifications):
     """Test batch deletion with invalid IDs"""
-    with pytest.raises(ValueError, match="Data not found"):
+    with pytest.raises(NotFoundError) as exc_info:
         await notifications_crud.batch_delete(alert_ids=[99999], report_ids=[])
+    assert str(exc_info.value) == "404: Object with id [99999] not found"
 
 
 async def test_batch_status_update(
@@ -216,8 +218,9 @@ async def test_batch_status_update(
 
 async def test_batch_status_update_invalid_ids(notifications_crud: CRUDNotifications):
     """Test batch status update with invalid IDs"""
-    with pytest.raises(ValueError, match="Data not found"):
+    with pytest.raises(NotFoundError) as exc_info:
         await notifications_crud.batch_status_update(alert_ids=[99999], report_ids=[], is_active=True)
+    assert str(exc_info.value) == "404: Object with id [99999] not found"
 
 
 async def test_get_notifications_list_sorting(

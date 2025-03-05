@@ -36,7 +36,7 @@ class BasePreviewService(ABC, Generic[T]):
     def _get_email_subject(self, context: dict[str, Any]) -> str:
         """Generate email subject based on notification type"""
         if self.notification_type == NotificationType.ALERT:
-            return f"[{context['data']['metric']['label']}] New Stories Alert"
+            return f"[{context['metric']['label']}] New Stories Alert"
         else:  # Report
             return f"📊 {context['data']['interval'].title()} Report for {context['config']['name']}"
 

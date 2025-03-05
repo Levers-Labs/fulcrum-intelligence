@@ -30,7 +30,7 @@ class AlertPreviewService(BasePreviewService[AlertRequest]):
         current_date = self.faker.date_time_this_month()
         variables = {
             # Metric basics
-            "metric": {"id": metric["id"], "label": metric["label"]},
+            "metric": {"metric_id": metric["metric_id"], "label": metric["label"]},
             # Time and grain
             "grain": alert_data.grain.value,
             "current_date": current_date.strftime("%B %d, %Y"),
@@ -88,10 +88,10 @@ class AlertPreviewService(BasePreviewService[AlertRequest]):
         if alert_data.trigger and alert_data.trigger.condition:
             metric_ids = getattr(alert_data.trigger.condition, "metric_ids", [])
             if metric_ids:
-                return {"id": metric_ids[0], "label": metric_ids[0]}
+                return {"metric_id": metric_ids[0], "label": metric_ids[0]}
 
         # If no metrics found anywhere, generate fake data
-        return {"id": str(self.faker.random_int(min=1, max=100)), "label": self.faker.word().title()}  # type: ignore
+        return {"metric_id": str(self.faker.random_int(min=1, max=100)), "label": self.faker.word().title()}  # type: ignore
 
     def _generate_stories(self, story_groups: list[str], variables: dict[str, Any]) -> list[dict[str, str]]:
         """Generate stories for each story group"""

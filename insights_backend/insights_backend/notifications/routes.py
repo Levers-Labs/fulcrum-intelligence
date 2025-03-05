@@ -328,7 +328,7 @@ async def bulk_update_status(
             total_updated=len(alerts) + len(reports),
         )
     except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e)) from e
+        raise HTTPException(status_code=400, detail=str(e)) from e
 
 
 @notification_router.delete(
@@ -358,10 +358,11 @@ async def bulk_delete_notifications(
     :return: BatchDeleteResponse
     """
     try:
-        # Delete all objects in a single query per type
-        await notification_crud.batch_delete(alert_ids, report_ids)  # type: ignore
         # Fetch all objects in a single query per type
         alerts, reports = await notification_crud.batch_get(alert_ids, report_ids)  # type: ignore
+        # Delete all objects in a single query per type
+        await notification_crud.batch_delete(alert_ids, report_ids)  # type: ignore
+
         # Send delete events for all notifications
         for obj in [*alerts, *reports]:
             background_tasks.add_task(
@@ -377,7 +378,7 @@ async def bulk_delete_notifications(
             total_deleted=len(alerts) + len(reports),
         )
     except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e)) from e
+        raise HTTPException(status_code=400, detail=str(e)) from e
 
 
 #  REPORTS APIS =========

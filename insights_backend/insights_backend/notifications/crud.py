@@ -164,7 +164,7 @@ class CRUDNotifications:
     async def _delete(self, model: NotificationModel, ids: list[int]):
         invalid_ids = await self._validate_ids(ids, model)
         if invalid_ids:
-            raise ValueError(f"Data not found for {str(model.__tablename__)}: {list(invalid_ids)}")
+            raise NotFoundError(list(invalid_ids))
         await self.session.execute(delete(model).where(model.id.in_(ids)))  # type: ignore
 
     async def batch_delete(self, alert_ids: list[int], report_ids: list[int]) -> None:
@@ -180,7 +180,7 @@ class CRUDNotifications:
     async def _update_status(self, model: NotificationModel, ids: list[int], status: bool):
         invalid_ids = await self._validate_ids(ids, model)
         if invalid_ids:
-            raise ValueError(f"Data not found for {str(model.__tablename__)}: {list(invalid_ids)}")
+            raise NotFoundError(list(invalid_ids))
         await self.session.execute(update(model).where(model.id.in_(ids)).values(is_active=status))  # type: ignore
 
     async def batch_status_update(self, alert_ids: list[int], report_ids: list[int], is_active: bool) -> None:
@@ -210,7 +210,7 @@ class CRUDNotifications:
             ValueError: If any requested ID is not found
         """
 
-        async def fetch_items(model: type[NotificationModel], ids: list[int], name: str) -> list[NotificationModel]:
+        async def fetch_items(model: type[NotificationModel], ids: list[int]) -> list[NotificationModel]:
             if not ids:
                 return []
             result = await self.session.execute(select(model).where(model.id.in_(ids)))  # type: ignore
@@ -219,12 +219,12 @@ class CRUDNotifications:
             found_ids = {item.id for item in items}
             missing_ids = set(ids) - found_ids
             if missing_ids:
-                raise ValueError(f"{name} not found: {missing_ids}")
+                raise NotFoundError(missing_ids)
             return items  # type: ignore
 
         # Execute queries sequentially instead of concurrently
-        alerts = await fetch_items(Alert, alert_ids, "Alerts")
-        reports = await fetch_items(Report, report_ids, "Reports")
+        alerts = await fetch_items(Alert, alert_ids)
+        reports = await fetch_items(Report, report_ids)
 
         return alerts, reports
 

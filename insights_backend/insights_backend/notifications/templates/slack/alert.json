@@ -44,7 +44,7 @@
             "type": "section",
             "text": {
                 "type": "mrkdwn",
-                "text": "<https://app.leverslabs.com?grains={{ grain }}&metric_ids={{ metric.id }}|View in app>"
+                "text": "<https://app.leverslabs.com?grains={{ grain }}&metric_ids={{ metric.metric_id }}|View in app>"
             }
         }
     ]

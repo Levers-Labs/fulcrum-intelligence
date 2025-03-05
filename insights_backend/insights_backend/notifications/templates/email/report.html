@@ -45,10 +45,13 @@
         }
 
         .metric-row {
-            display: flex;
+            display: grid;
+            grid-template-columns: 40px auto 100px 150px;
             align-items: center;
-            padding: 15px 0;
-            border-top: 1px solid #eaeaea;
+            gap: 12px;
+            padding: 16px;
+            border-bottom: 1px solid #eaeaea;
+            background-color: #ffffff;
         }
 
         .trend-icon {
@@ -74,18 +77,13 @@
 
         .metric-name {
             flex: 1;
-            font-size: 16px;
-            font-weight: 500;
         }
 
         .metric-value {
-            font-size: 18px;
-            font-weight: 600;
-            margin-right: 15px;
+            font-weight: 500;
         }
 
         .metric-change {
-            font-size: 14px;
             font-weight: 500;
             min-width: 120px;
             text-align: right;
@@ -102,7 +100,6 @@
         .generation-timestamp {
             margin-top: 20px;
             padding-top: 20px;
-            border-top: 1px solid #eaeaea;
             color: #666;
             font-size: 14px;
             font-style: italic;
@@ -119,7 +116,7 @@
         <div class='metrics'>
             {% for metric in data.metrics %}
                 <div class='metric-row'>
-                    {% if data.is_positive %}
+                    {% if metric.is_positive %}
                         <div class='trend-icon trend-up'>↑</div>
                         <div class='metric-name'>{{ metric.metric.label }}</div>
                         <div class='metric-value'>{{ metric.current_value }}</div>
@@ -128,7 +125,7 @@
                         <div class='trend-icon trend-down'>↓</div>
                         <div class='metric-name'>{{ metric.metric.label }}</div>
                         <div class='metric-value'>{{ metric.current_value }}</div>
-                        <div class='metric-change negative-change'>-{{ metric.absolute_change }} (-{{metric.percentage_change}}%)</div>
+                        <div class='metric-change negative-change'>{{ metric.absolute_change }} ({{metric.percentage_change}}%)</div>
                     {% endif %}
                 </div>
             {% endfor %}

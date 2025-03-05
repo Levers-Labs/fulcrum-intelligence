@@ -16,7 +16,7 @@
             }
         },
         {% for metric in data.metrics %}
-            {% if data.is_positive %}
+            {% if metric.is_positive %}
                 {
                     "type": "section",
                     "text": {
@@ -30,7 +30,7 @@
                     "type": "section",
                     "text": {
                         "type": "mrkdwn",
-                        "text": "\uD83D\uDD34 {{ metric.current_value }} *{{ metric.label }}* (-{{ metric.absolute_change }} (-{{metric.percentage_change}}%))",
+                        "text": "\uD83D\uDD34 {{ metric.current_value }} *{{ metric.label }}* ({{ metric.absolute_change }} ({{metric.percentage_change}}%))",
                         "emoji": true
                     }
                 },

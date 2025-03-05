@@ -744,7 +744,7 @@ async def test_bulk_delete_nonexistent_ids(async_client: AsyncClient):
 async def test_bulk_delete_empty_ids(async_client: AsyncClient):
     """Test bulk deletion with empty ID lists"""
     response = await async_client.request("DELETE", "/v1/notification/bulk", json={"alert_ids": [], "report_ids": []})
-    assert response.status_code == status.HTTP_200_OK
+    assert response.status_code == status.HTTP_400_BAD_REQUEST
 
 
 async def test_publish_already_published_alert(async_client: AsyncClient, sample_alert: Alert):
