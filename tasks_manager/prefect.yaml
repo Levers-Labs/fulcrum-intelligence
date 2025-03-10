@@ -20,10 +20,10 @@ definitions:
       - cron: "0 2 * * *"
         timezone: "America/Los_Angeles"
     weekly_monday_230am_pst: &weekly_monday_230am_pst
-      - cron: "30 2 * * 1"  # Monday at 2:30 AM
+      - cron: "30 2 * * 1" # Monday at 2:30 AM
         timezone: "America/Los_Angeles"
     monthly_3am_pst: &monthly_3am_pst
-      - cron: "0 3 1 * *"  # 1st of every month at 3 AM
+      - cron: "0 3 1 * *" # 1st of every month at 3 AM
         timezone: "America/Los_Angeles"
 
 # Deployments configuration
@@ -80,7 +80,6 @@ deployments:
     schedules: *daily_2am_pst
     parameters:
       grain: "day"
-      sync_type: "FULL"
 
   - name: "semantic-data-sync-weekly"
     version: "1.0.0"
@@ -90,7 +89,6 @@ deployments:
     schedules: *weekly_monday_230am_pst
     parameters:
       grain: "week"
-      sync_type: "FULL"
 
   - name: "semantic-data-sync-monthly"
     version: "1.0.0"
@@ -100,7 +98,6 @@ deployments:
     schedules: *monthly_3am_pst
     parameters:
       grain: "month"
-      sync_type: "FULL"
 
   - name: "semantic-data-sync-tenant"
     version: "1.0.0"
@@ -117,7 +114,6 @@ deployments:
         parameters:
           tenant_id_str: "{{ event.resource.tenant_id }}"
           grain: "{{ event.resource.grain }}"
-          sync_type: "{{ event.payload.sync_type }}"
 
   - name: "semantic-data-sync-metric"
     version: "1.0.0"
@@ -135,4 +131,3 @@ deployments:
           tenant_id_str: "{{ event.resource.tenant_id }}"
           metric_id: "{{ event.resource.metric_id }}"
           grain: "{{ event.resource.grain }}"
-          sync_type: "{{ event.payload.sync_type }}"

@@ -22,6 +22,7 @@ class SyncStats(TypedDict):
     failed: int
     total: int
     dimension_id: str | None
+    sync_type: str
     error: str | None
 
 
@@ -69,17 +70,17 @@ def send_metric_semantic_sync_finished_event(
     return event
 
 
-def calculate_grain_lookback(sync_type: SyncType, grain: Granularity, lookback_days: int = 90) -> dict[str, int]:
+def calculate_grain_lookback(sync_type: SyncType, grain: Granularity) -> dict[str, int]:
     """Calculate lookback period for each grain."""
     if grain == Granularity.DAY:
-        # 365 days for full sync, lookback_days for incremental sync
-        return {"days": 365 if sync_type == SyncType.FULL else lookback_days}
+        # 365 days for full sync, 90 days (3 months) for incremental sync
+        return {"days": 365 if sync_type == SyncType.FULL else 90}
     elif grain == Granularity.WEEK:
-        # 104 weeks for full sync, lookback_days // 7 for incremental sync
-        return {"weeks": 104 if sync_type == SyncType.FULL else lookback_days // 7}
+        # 104 weeks for full sync, 24 weeks (6 months) for incremental sync
+        return {"weeks": 104 if sync_type == SyncType.FULL else 24}
     else:  # MONTH
-        # 5 years for full sync, lookback_days // 10 for incremental sync
-        return {"weeks": 260 if sync_type == SyncType.FULL else lookback_days // 10}
+        # 5 years for full sync, 12 months (1 year) for incremental sync
+        return {"weeks": 260 if sync_type == SyncType.FULL else 52}
 
 
 async def create_sync_summary_artifact(summary: SyncSummary) -> None:
@@ -103,7 +104,7 @@ async def create_sync_summary_artifact(summary: SyncSummary) -> None:
     dimensions_table = (
         "\n".join(
             [
-                f"| {stat['dimension_id']} | {stat['processed']} | {stat['failed']} | {stat['skipped']} | {stat['total']} |"  # noqa: E501
+                f"| {stat['dimension_id']} | {stat.get('sync_type', 'FULL')} | {stat['processed']} | {stat['failed']} | {stat['skipped']} | {stat['total']} |"  # noqa: E501
                 for stat in dim_stats
             ]
         )
@@ -119,8 +120,8 @@ async def create_sync_summary_artifact(summary: SyncSummary) -> None:
     sync_status_section = "\n## Sync Status Details\n"
 
     # Table headers for sync status
-    sync_status_section += """| Component | Status | Records | Error |
-|-----------|---------|----------|--------|
+    sync_status_section += """| Component | Status | Sync Type | Records | Error |
+|-----------|---------|-----------|----------|--------|
 """
 
     # Time series sync status
@@ -128,7 +129,8 @@ async def create_sync_summary_artifact(summary: SyncSummary) -> None:
     ts_status = "🔴 Failed" if ts_has_error else "🟢 Success"
     ts_error = time_series.get("error") or "-"
     ts_records = f"{time_series['processed']}/{time_series['total']}" if not ts_has_error else "-"
-    sync_status_section += f"| Time Series | {ts_status} | {ts_records} | {ts_error} |\n"
+    ts_sync_type = time_series.get("sync_type", "FULL")
+    sync_status_section += f"| Time Series | {ts_status} | {ts_sync_type} | {ts_records} | {ts_error} |\n"
 
     # Dimensional sync status
     if dim_stats:
@@ -137,9 +139,8 @@ async def create_sync_summary_artifact(summary: SyncSummary) -> None:
             dim_status = "🔴 Failed" if dim_has_error else "🟢 Success"
             dim_error = stat.get("error") or "-"
             dim_records = f"{stat['processed']}/{stat['total']}" if not dim_has_error else "-"
-            sync_status_section += (
-                f"| Dimension: {stat['dimension_id']} | {dim_status} | {dim_records} | {dim_error} |\n"  # noqa: E501
-            )
+            dim_sync_type = stat.get("sync_type", "FULL")
+            sync_status_section += f"| Dimension: {stat['dimension_id']} | {dim_status} | {dim_sync_type} | {dim_records} | {dim_error} |\n"  # noqa: E501
 
     # Create error section
     error_section = ""
@@ -172,13 +173,13 @@ async def create_sync_summary_artifact(summary: SyncSummary) -> None:
 {sync_status_section}
 
 ## Time Series Statistics
-| Metric | Processed | Failed | Skipped | Total |
-|--------|-----------|---------|----------|--------|
-| Time Series | {time_series['processed']} | {time_series['failed']} | {time_series['skipped']} | {time_series['total']} |
+| Metric | Sync Type | Processed | Failed | Skipped | Total |
+|--------|-----------|-----------|---------|----------|--------|
+| Time Series | {time_series.get('sync_type', 'FULL')} | {time_series['processed']} | {time_series['failed']} | {time_series['skipped']} | {time_series['total']} |
 
 ## Dimensional Statistics
-| Dimension | Processed | Failed | Skipped | Total |
-|-----------|-----------|---------|----------|--------|
+| Dimension | Sync Type | Processed | Failed | Skipped | Total |
+|-----------|-----------|-----------|---------|----------|--------|
 {dimensions_table}
 
 ### Dimensional Totals
@@ -197,6 +198,79 @@ async def create_sync_summary_artifact(summary: SyncSummary) -> None:
     await create_markdown_artifact(
         key=f"metric-{summary['metric_id'].lower()}-{summary['grain'].lower()}-sync-summary", markdown=markdown
     )
+
+
+async def determine_sync_type(
+    metric_id: str, tenant_id: int, grain: Granularity, dimension_name: str | None = None
+) -> SyncType:
+    """
+    Determine the appropriate sync type (FULL or INCREMENTAL) for a metric component.
+
+    For a component that has never had a successful full sync, a FULL sync will be returned.
+    Otherwise, an INCREMENTAL sync will be returned.
+
+    Args:
+        metric_id: The metric ID to check
+        tenant_id: The tenant ID
+        grain: The granularity level to check
+        dimension_name: Optional dimension name to check, if None checks the base metric
+
+    Returns:
+        SyncType.FULL if no successful full sync exists, SyncType.INCREMENTAL otherwise
+    """
+    logger = get_run_logger()
+
+    try:
+        # set the server host for the query manager
+        config = await AppConfig.load("default")
+        os.environ["SERVER_HOST"] = config.query_manager_server_host
+
+        async with get_async_session() as session:
+            semantic_manager = SemanticManager(session)
+
+            # Get sync status for the component
+            sync_statuses = await semantic_manager.metric_sync_status.get_sync_status(
+                tenant_id=tenant_id,
+                metric_id=metric_id,
+                grain=grain,
+                dimension_name=dimension_name,
+            )
+
+            # Check if any full sync has been completed successfully
+            for status in sync_statuses:
+                if status.sync_type == SyncType.FULL and status.sync_status == SyncStatus.SUCCESS:
+                    component_type = f"dimension: {dimension_name}" if dimension_name else "metric"
+                    logger.info(
+                        "Found successful full sync for %s, Metric: %s, Tenant: %d, Grain: %s, Last Sync: %s",
+                        component_type,
+                        metric_id,
+                        tenant_id,
+                        grain.value,
+                        status.last_sync_at.isoformat(),
+                    )
+                    return SyncType.INCREMENTAL
+
+            component_type = f"dimension: {dimension_name}" if dimension_name else "metric"
+            logger.info(
+                "No successful full sync found for %s, Metric: %s, Tenant: %d, Grain: %s - Will perform FULL sync",
+                component_type,
+                metric_id,
+                tenant_id,
+                grain.value,
+            )
+            return SyncType.FULL
+    except Exception as e:
+        component_type = f"dimension: {dimension_name}" if dimension_name else "base metric"
+        logger.warning(
+            "Error checking sync status for %s - Metric: %s, Tenant: %d, Grain: %s, Error: %s. "
+            "Defaulting to FULL sync.",
+            component_type,
+            metric_id,
+            tenant_id,
+            grain.value,
+            str(e),
+        )
+        return SyncType.FULL
 
 
 @task(  # type: ignore
@@ -296,6 +370,7 @@ async def fetch_and_store_metric_time_series(
                     failed=upsert_stats["failed"],
                     total=fetch_stats["total"],
                     dimension_id=None,
+                    sync_type=sync_type.value,
                     error=None,
                 )
 
@@ -438,6 +513,7 @@ async def fetch_and_store_metric_dimensional_time_series(
                     skipped=fetch_stats["skipped"],
                     failed=upsert_stats["failed"],
                     total=fetch_stats["total"],
+                    sync_type=sync_type.value,
                     error=None,
                 )
 

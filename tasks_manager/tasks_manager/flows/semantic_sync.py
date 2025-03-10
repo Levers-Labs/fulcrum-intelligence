@@ -13,6 +13,7 @@ from tasks_manager.tasks.semantic_manager import (
     SyncSummary,
     calculate_grain_lookback,
     create_sync_summary_artifact,
+    determine_sync_type,
     fetch_and_store_metric_dimensional_time_series,
     fetch_and_store_metric_time_series,
     send_metric_semantic_sync_finished_event,
@@ -24,9 +25,7 @@ from tasks_manager.tasks.semantic_manager import (
     flow_run_name="semantic_data_sync_metric:tenant={tenant_id_str}_metric={metric_id}_grain={grain}",
     timeout_seconds=7200,
 )
-async def semantic_data_sync_metric(
-    tenant_id_str: str, metric_id: str, grain: Granularity, sync_type: SyncType = SyncType.FULL
-) -> SyncSummary:
+async def semantic_data_sync_metric(tenant_id_str: str, metric_id: str, grain: Granularity) -> SyncSummary:
     """
     Orchestrates the semantic data sync process for a metric.
 
@@ -34,7 +33,6 @@ async def semantic_data_sync_metric(
         tenant_id_str: The tenant ID as string
         metric_id: The metric ID to sync
         grain: The granularity level to sync
-        sync_type: Type of sync (FULL or INCREMENTAL)
 
     Returns:
         SyncSummary containing detailed statistics about the sync operation
@@ -45,18 +43,24 @@ async def semantic_data_sync_metric(
     # set context
     set_tenant_id(tenant_id)
 
+    # Determine sync type for base metric
+    base_sync_type = await determine_sync_type(metric_id, tenant_id, grain)
+
     # Calculate date range
-    grain_lookback = calculate_grain_lookback(sync_type, grain)
+    grain_lookback = calculate_grain_lookback(base_sync_type, grain)
     end_date = date.today() - timedelta(days=1)
     start_date = end_date - timedelta(**grain_lookback)
 
+    # Track if any component uses a FULL sync
+    any_full_sync = base_sync_type == SyncType.FULL
+
     try:
         logger.info(
-            "Starting semantic sync - Metric: %s, Tenant: %s, Grain: %s, Sync Type: %s",
+            "Starting semantic sync - Metric: %s, Tenant: %s, Grain: %s, Base Sync Type: %s",
             metric_id,
             tenant_id,
             grain.value,
-            sync_type.value,
+            base_sync_type.value,
         )
 
         # Fetch metric details
@@ -70,26 +74,41 @@ async def semantic_data_sync_metric(
             start_date=start_date,
             end_date=end_date,
             grain=grain,
-            sync_type=sync_type,
+            sync_type=base_sync_type,
         )
 
         # Process dimensions in parallel if they exist
         # Store futures in a dictionary with dimension_id as key
         dimensional_futures = {}
         if metric.dimensions:
-            dimensional_futures = {
-                dim.dimension_id: fetch_and_store_metric_dimensional_time_series.submit(  # type: ignore
+            for dim in metric.dimensions:
+                dimension_id = dim.dimension_id
+
+                # Check if full sync has been completed for this dimension
+                dim_sync_type = await determine_sync_type(metric_id, tenant_id, grain, dimension_name=dimension_id)
+                # Update any_full_sync flag
+                any_full_sync = any_full_sync or (dim_sync_type == SyncType.FULL)
+
+                # Calculate date range for dimension
+                dim_grain_lookback = calculate_grain_lookback(dim_sync_type, grain)
+                dim_start_date = end_date - timedelta(**dim_grain_lookback)
+
+                logger.info(
+                    "Scheduling dimensional sync - Dimension: %s, Sync Type: %s",
+                    dimension_id,
+                    dim_sync_type.value,
+                )
+
+                dimensional_futures[dimension_id] = fetch_and_store_metric_dimensional_time_series.submit(  # type: ignore
                     metric_id=metric_id,
                     metric=metric,
                     tenant_id=tenant_id,
-                    dimension_id=dim.dimension_id,
-                    start_date=start_date,
+                    dimension_id=dimension_id,
+                    start_date=dim_start_date,
                     end_date=end_date,
                     grain=grain,
-                    sync_type=sync_type,
+                    sync_type=dim_sync_type,
                 )
-                for dim in metric.dimensions
-            }
 
         # Wait for all futures and collect results
         failed_tasks = []
@@ -110,6 +129,7 @@ async def semantic_data_sync_metric(
                 "skipped": 0,
                 "total": 1,
                 "dimension_id": None,
+                "sync_type": SyncType.FULL.value,
                 "error": str(e),
             }
             failed_tasks.append(
@@ -126,8 +146,9 @@ async def semantic_data_sync_metric(
                 dim_stats = dim_future.result()
             except Exception as e:
                 logger.error(
-                    "Error fetching dimensional stats - Metric: %s, Grain: %s, Error: %s",
+                    "Error fetching dimensional stats - Metric: %s, Dimension: %s, Grain: %s, Error: %s",
                     metric_id,
+                    dimension_id,
                     grain.value,
                     str(e),
                     exc_info=True,
@@ -138,6 +159,7 @@ async def semantic_data_sync_metric(
                     "skipped": 0,
                     "total": 0,
                     "dimension_id": dimension_id,
+                    "sync_type": SyncType.FULL.value,
                     "error": str(e),
                 }
                 failed_tasks.append(
@@ -150,6 +172,9 @@ async def semantic_data_sync_metric(
                 )
             dimensional_stats.append(dim_stats)
 
+        # For the summary, use FULL if any component used it, otherwise INCREMENTAL
+        overall_sync_type = SyncType.FULL if any_full_sync else SyncType.INCREMENTAL
+
         summary: SyncSummary = {
             "metric_id": metric_id,
             "tenant_id": tenant_id,
@@ -158,7 +183,7 @@ async def semantic_data_sync_metric(
                 if not failed_tasks
                 else ("partial_success" if len(failed_tasks) < len(dimensional_stats) + 1 else "failed")
             ),
-            "sync_type": sync_type.value,
+            "sync_type": overall_sync_type.value,
             "grain": grain.value,
             "start_date": start_date.isoformat(),
             "end_date": end_date.isoformat(),
@@ -188,11 +213,12 @@ async def semantic_data_sync_metric(
         # Emit completion event
         send_metric_semantic_sync_finished_event(metric_id=metric_id, tenant_id=tenant_id, grain=grain, summary=summary)
     except Exception as e:
+        # For error case, default to FULL sync type
         error_summary: SyncSummary = {
             "metric_id": metric_id,
             "tenant_id": tenant_id,
             "status": "failed",
-            "sync_type": sync_type.value,
+            "sync_type": SyncType.FULL.value,
             "grain": grain.value,
             "start_date": start_date.isoformat() if "start_date" in locals() else "",
             "end_date": end_date.isoformat() if "end_date" in locals() else "",
@@ -202,6 +228,7 @@ async def semantic_data_sync_metric(
                 "skipped": 0,
                 "total": 1,
                 "dimension_id": None,
+                "sync_type": SyncType.FULL.value,
                 "error": str(e),
             },
             "dimensional_stats": [],
@@ -229,24 +256,20 @@ async def semantic_data_sync_metric(
     flow_run_name="semantic_data_sync_tenant:tenant={tenant_id_str}_grain={grain}",
     description="Emits sync events for all metrics of a tenant for a specific grain",
 )
-async def semantic_data_sync_tenant(
-    tenant_id_str: str, grain: Granularity, sync_type: SyncType = SyncType.INCREMENTAL
-) -> None:
+async def semantic_data_sync_tenant(tenant_id_str: str, grain: Granularity) -> None:
     """
     Trigger semantic data sync events for all metrics of a tenant.
 
     Args:
         tenant_id_str: The tenant ID
         grain: Granularity level to sync
-        sync_type: Type of sync (FULL or INCREMENTAL)
     """
     logger = get_run_logger()
     tenant_id = int(tenant_id_str)
     logger.info(
-        "Starting to emit sync events - Tenant: %d, Grain: %s, Sync Type: %s",
+        "Starting to emit sync events - Tenant: %d, Grain: %s",
         tenant_id,
         grain.value,
-        sync_type.value,
     )
 
     # set context
@@ -268,7 +291,6 @@ async def semantic_data_sync_tenant(
                     "tenant_id": str(tenant_id),
                 },
                 payload={
-                    "sync_type": sync_type.value,
                     "timestamp": datetime.now().isoformat(),
                 },
             )
@@ -298,19 +320,17 @@ async def semantic_data_sync_tenant(
     flow_run_name="semantic_data_sync:grain={grain}",
     description="Emits sync events for all tenants for a specific grain",
 )
-async def semantic_data_sync(grain: Granularity, sync_type: SyncType = SyncType.INCREMENTAL) -> None:
+async def semantic_data_sync(grain: Granularity) -> None:
     """
     Trigger semantic data sync events for all tenants.
 
     Args:
         grain: Granularity level to sync
-        sync_type: Type of sync (FULL or INCREMENTAL)
     """
     logger = get_run_logger()
     logger.info(
-        "Starting to emit sync events - Grain: %s, Sync Type: %s",
+        "Starting to emit sync events - Grain: %s",
         grain.value,
-        sync_type.value,
     )
 
     try:
@@ -328,7 +348,6 @@ async def semantic_data_sync(grain: Granularity, sync_type: SyncType = SyncType.
                     "grain": grain.value,
                 },
                 payload={
-                    "sync_type": sync_type.value,
                     "timestamp": datetime.now().isoformat(),
                 },
             )
