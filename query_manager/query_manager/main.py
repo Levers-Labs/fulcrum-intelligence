@@ -9,6 +9,7 @@ from query_manager.config import get_settings
 from query_manager.core.routes import router as core_router
 from query_manager.exceptions import add_exception_handlers
 from query_manager.health import router as health_check_router
+from query_manager.semantic_manager.routes import router as semantic_router
 
 
 def get_application() -> FastAPI:
@@ -24,6 +25,7 @@ def get_application() -> FastAPI:
     )
     _app.include_router(core_router, prefix="/v1")
     _app.include_router(health_check_router, prefix="/v1")
+    _app.include_router(semantic_router, prefix="/v2")
     swagger_router = setup_swagger_ui("Query Manager", settings.URL_PREFIX)
     _app.include_router(swagger_router)
     _app.openapi = custom_openapi(_app, settings)  # type: ignore
