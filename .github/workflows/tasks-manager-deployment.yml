@@ -9,6 +9,7 @@ on:
       - "commons/**"
       - "core/**"
       - "story_manager/**"
+      - "query_manager/**"
 
   workflow_dispatch:
     inputs:
