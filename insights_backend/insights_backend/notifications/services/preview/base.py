@@ -18,9 +18,9 @@ class BasePreviewService(ABC, Generic[T]):
     """Base class for preview services"""
 
     COMMON_VARIABLES = {
-        "grain": ["day", "week", "month"],
-        "pop": ["d/d", "w/w", "m/m"],
-        "eoi": {"day": "EOD", "week": "EOW", "month": "EOM"},
+        "day": {"pop": "d/d", "delta": {"days": 1}, "eoi": "EOD", "interval": "daily"},
+        "week": {"pop": "w/w", "delta": {"weeks": 1}, "eoi": "EOW", "interval": "weekly"},
+        "month": {"pop": "m/m", "delta": {"months": 1}, "eoi": "EOM", "interval": "monthly"},
     }
 
     def __init__(self, template_service: TemplateService, notification_type: NotificationType):
@@ -38,7 +38,7 @@ class BasePreviewService(ABC, Generic[T]):
         if self.notification_type == NotificationType.ALERT:
             return f"[{context['metric']['label']}] New Stories Alert"
         else:  # Report
-            return f"📊 {context['grain'].title()} {context['report_name']} Report"
+            return f"📊 {context['data']['interval'].title()} Report for {context['config']['name']}"
 
     async def preview(self, data: T) -> dict[str, Any]:
         """Generate preview for notification channels"""

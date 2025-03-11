@@ -380,7 +380,7 @@ async def test_list_notifications(
 ):
     """Test listing notifications with various filters"""
     response = await async_client.get(
-        "/v1/notification/?notification_type=ALERT&grain=day",
+        "/v1/notification",
     )
 
     assert response.status_code == status.HTTP_200_OK
@@ -401,10 +401,56 @@ async def test_get_tags(async_client: AsyncClient, multiple_alerts: list[Alert])
     assert any(tag.startswith("tag") for tag in data)  # Individual tags
 
 
+async def test_list_notifications_with_filters(async_client: AsyncClient, sample_alert: Alert, sample_report: Report):
+    """Test listing notifications with filters"""
+    # Test with notification type filter
+    response = await async_client.get("/v1/notification", params={"name": "Existing"})
+    assert response.status_code == 200
+    data = response.json()
+    assert all(item["type"] == "ALERT" for item in data["results"])
+    assert len(data["results"]) == 1
+    assert data["results"][0]["name"] == "Existing Alert"
+
+    # Test with grain filter
+    response = await async_client.get("/v1/notification", params={"grain": "day"})
+    assert response.status_code == 200
+    data = response.json()
+    assert all(item["grain"] == "day" for item in data["results"])
+    assert len(data["results"]) == 2  # Both alert and report have day grain
+
+    # Test with is_active filter
+    response = await async_client.get("/v1/notification", params={"is_active": "true"})
+    assert response.status_code == 200
+    data = response.json()
+    assert all(item["is_active"] for item in data["results"])
+    assert len(data["results"]) == 2
+
+    # Test with name partial match
+    response = await async_client.get("/v1/notification", params={"name": "Test"})
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data["results"]) == 1
+    assert "Test" in data["results"][0]["name"]
+
+    # Test with tags filter
+    response = await async_client.get("/v1/notification", params={"tags": ["revenue"]})
+    assert response.status_code == 200
+    data = response.json()
+    assert all("revenue" in item["tags"] for item in data["results"])
+    assert len(data["results"]) == 2
+
+    # Test with is_published filter
+    response = await async_client.get("/v1/notification", params={"is_published": "false"})
+    assert response.status_code == 200
+    data = response.json()
+    assert all(not item["is_published"] for item in data["results"])
+    assert len(data["results"]) == 2
+
+
 async def test_list_notifications_invalid_filters(async_client: AsyncClient):
     """Test listing notifications with invalid filters"""
     response = await async_client.get(
-        "/v1/notification/?notification_type=Invalid&grain=Invalid",
+        "/v1/notification?notification_type=Invalid&grain=Invalid",
     )
 
     assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
@@ -698,7 +744,7 @@ async def test_bulk_delete_nonexistent_ids(async_client: AsyncClient):
 async def test_bulk_delete_empty_ids(async_client: AsyncClient):
     """Test bulk deletion with empty ID lists"""
     response = await async_client.request("DELETE", "/v1/notification/bulk", json={"alert_ids": [], "report_ids": []})
-    assert response.status_code == status.HTTP_200_OK
+    assert response.status_code == status.HTTP_400_BAD_REQUEST
 
 
 async def test_publish_already_published_alert(async_client: AsyncClient, sample_alert: Alert):
