@@ -75,3 +75,10 @@ class StoryDetail(BaseModel):
             self.section = list(matching_sections)
 
         return self
+
+
+class StoryStatsResponse(BaseModel):
+    """Story stats response model"""
+
+    story_date: datetime
+    count: int

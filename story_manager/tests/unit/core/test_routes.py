@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 from unittest import mock
 
 import pytest
@@ -348,3 +348,411 @@ async def test_get_stories(db_session, async_client, jwt_payload):
     assert response.status_code == status.HTTP_200_OK
     data = response.json()
     assert data["count"] == 5
+
+
+@pytest.mark.asyncio
+async def test_get_story_stats_basic(db_session, async_client, jwt_payload):
+    """Test basic functionality of the story stats endpoint."""
+    tenant_id = jwt_payload["tenant_id"]
+    # Set tenant context
+    set_tenant_id(tenant_id)
+
+    # Create test stories with different dates
+    today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+    yesterday = today - timedelta(days=1)
+    last_week = today - timedelta(days=7)
+
+    stories = [
+        # Today's stories
+        Story(
+            genre=StoryGenre.GROWTH,
+            story_group=StoryGroup.GROWTH_RATES,
+            story_date=today,
+            grain=Granularity.DAY,
+            story_type=StoryType.SLOWING_GROWTH,
+            metric_id="CAC",
+            title="Test Story 1",
+            title_template="Test Template 1",
+            detail="Test Detail 1",
+            detail_template="Test Detail Template 1",
+            is_salient=True,
+            in_cool_off=False,
+            is_heuristic=True,
+            tenant_id=tenant_id,
+        ),
+        Story(
+            genre=StoryGenre.GROWTH,
+            story_group=StoryGroup.GROWTH_RATES,
+            story_date=today,
+            grain=Granularity.DAY,
+            story_type=StoryType.ACCELERATING_GROWTH,
+            metric_id="NewMRR",
+            title="Test Story 2",
+            title_template="Test Template 2",
+            detail="Test Detail 2",
+            detail_template="Test Detail Template 2",
+            is_salient=True,
+            in_cool_off=False,
+            is_heuristic=True,
+            tenant_id=tenant_id,
+        ),
+        # Yesterday's stories
+        Story(
+            genre=StoryGenre.TRENDS,
+            story_group=StoryGroup.TREND_CHANGES,
+            story_date=yesterday,
+            grain=Granularity.WEEK,
+            story_type=StoryType.NEW_UPWARD_TREND,
+            metric_id="NewBizDeals",
+            title="Test Story 3",
+            title_template="Test Template 3",
+            detail="Test Detail 3",
+            detail_template="Test Detail Template 3",
+            is_salient=False,
+            in_cool_off=False,
+            is_heuristic=False,
+            tenant_id=tenant_id,
+        ),
+        # Last week's stories
+        Story(
+            genre=StoryGenre.PERFORMANCE,
+            story_group=StoryGroup.STATUS_CHANGE,
+            story_date=last_week,
+            grain=Granularity.MONTH,
+            story_type=StoryType.IMPROVING_STATUS,
+            metric_id="Revenue",
+            title="Test Story 4",
+            title_template="Test Template 4",
+            detail="Test Detail 4",
+            detail_template="Test Detail Template 4",
+            is_salient=True,
+            in_cool_off=True,
+            is_heuristic=True,
+            tenant_id=tenant_id,
+        ),
+    ]
+
+    db_session.add_all(stories)
+    await db_session.flush()
+
+    # Test basic stats retrieval
+    response = await async_client.get("/v1/stories/stats")
+    assert response.status_code == status.HTTP_200_OK
+
+    data = response.json()
+    assert isinstance(data, list)
+    assert len(data) == 3  # Should have stats for 3 different dates
+
+    # Verify the structure of the response
+    for date_stats in data:
+        assert "story_date" in date_stats
+        assert "count" in date_stats
+        assert isinstance(date_stats["count"], int)
+
+    # Verify the counts are correct
+    date_counts = {item["story_date"].split("T")[0]: item["count"] for item in data}
+    assert date_counts[today.strftime("%Y-%m-%d")] == 2
+    assert date_counts[yesterday.strftime("%Y-%m-%d")] == 1
+    assert date_counts[last_week.strftime("%Y-%m-%d")] == 1
+
+
+@pytest.mark.asyncio
+async def test_get_story_stats_with_filters(db_session, async_client, jwt_payload):
+    """Test story stats endpoint with various filters."""
+    tenant_id = jwt_payload["tenant_id"]
+    # Set tenant context
+    set_tenant_id(tenant_id)
+
+    # Create test stories with different attributes
+    today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+
+    stories = [
+        # Growth stories
+        Story(
+            genre=StoryGenre.GROWTH,
+            story_group=StoryGroup.GROWTH_RATES,
+            story_date=today,
+            grain=Granularity.DAY,
+            story_type=StoryType.SLOWING_GROWTH,
+            metric_id="CAC",
+            title="Test Story 1",
+            title_template="Test Template 1",
+            detail="Test Detail 1",
+            detail_template="Test Detail Template 1",
+            is_salient=True,
+            in_cool_off=False,
+            is_heuristic=True,
+            tenant_id=tenant_id,
+        ),
+        Story(
+            genre=StoryGenre.GROWTH,
+            story_group=StoryGroup.GROWTH_RATES,
+            story_date=today,
+            grain=Granularity.DAY,
+            story_type=StoryType.ACCELERATING_GROWTH,
+            metric_id="NewMRR",
+            title="Test Story 2",
+            title_template="Test Template 2",
+            detail="Test Detail 2",
+            detail_template="Test Detail Template 2",
+            is_salient=True,
+            in_cool_off=False,
+            is_heuristic=True,
+            tenant_id=tenant_id,
+        ),
+        # Trend stories
+        Story(
+            genre=StoryGenre.TRENDS,
+            story_group=StoryGroup.TREND_CHANGES,
+            story_date=today,
+            grain=Granularity.WEEK,
+            story_type=StoryType.NEW_UPWARD_TREND,
+            metric_id="NewBizDeals",
+            title="Test Story 3",
+            title_template="Test Template 3",
+            detail="Test Detail 3",
+            detail_template="Test Detail Template 3",
+            is_salient=False,
+            in_cool_off=False,
+            is_heuristic=False,
+            tenant_id=tenant_id,
+        ),
+        # Performance stories
+        Story(
+            genre=StoryGenre.PERFORMANCE,
+            story_group=StoryGroup.STATUS_CHANGE,
+            story_date=today,
+            grain=Granularity.MONTH,
+            story_type=StoryType.IMPROVING_STATUS,
+            metric_id="Revenue",
+            title="Test Story 4",
+            title_template="Test Template 4",
+            detail="Test Detail 4",
+            detail_template="Test Detail Template 4",
+            is_salient=True,
+            in_cool_off=True,
+            is_heuristic=True,
+            tenant_id=tenant_id,
+        ),
+    ]
+
+    db_session.add_all(stories)
+    await db_session.flush()
+
+    # Test filtering by story_group
+    response = await async_client.get("/v1/stories/stats?story_groups=GROWTH_RATES")
+    assert response.status_code == status.HTTP_200_OK
+    data = response.json()
+    assert len(data) == 1  # Should have stats for 1 date
+    assert data[0]["count"] == 2  # Should have 2 stories for GROWTH_RATES
+
+    # Test filtering by genre
+    response = await async_client.get("/v1/stories/stats?genres=TRENDS")
+    assert response.status_code == status.HTTP_200_OK
+    data = response.json()
+    assert len(data) == 1  # Should have stats for 1 date
+    assert data[0]["count"] == 1  # Should have 1 story for TRENDS genre
+
+    # Test filtering by story_type
+    response = await async_client.get("/v1/stories/stats?story_types=ACCELERATING_GROWTH")
+    assert response.status_code == status.HTTP_200_OK
+    data = response.json()
+    assert len(data) == 1  # Should have stats for 1 date
+    assert data[0]["count"] == 1  # Should have 1 story for ACCELERATING_GROWTH
+
+    # Test filtering by grain
+    response = await async_client.get("/v1/stories/stats?grains=week")
+    assert response.status_code == status.HTTP_200_OK
+    data = response.json()
+    assert len(data) == 1  # Should have stats for 1 date
+    assert data[0]["count"] == 1  # Should have 1 story with WEEK grain
+
+    # Test filtering by metric_id
+    response = await async_client.get("/v1/stories/stats?metric_ids=NewBizDeals")
+    assert response.status_code == status.HTTP_200_OK
+    data = response.json()
+    assert len(data) == 1  # Should have stats for 1 date
+    assert data[0]["count"] == 1  # Should have 1 story for NewBizDeals
+
+    # Test filtering by is_heuristic
+    response = await async_client.get("/v1/stories/stats?is_heuristic=true")
+    assert response.status_code == status.HTTP_200_OK
+    data = response.json()
+    assert len(data) == 1  # Should have stats for 1 date
+    assert data[0]["count"] == 3  # Should have 3 stories with is_heuristic=True
+
+    # Test filtering by digest and section
+    response = await async_client.get("/v1/stories/stats?digest=PORTFOLIO&section=STATUS_CHANGES")
+    assert response.status_code == status.HTTP_200_OK
+    data = response.json()
+    assert len(data) == 1  # Should have stats for 1 date
+    assert data[0]["count"] == 1  # Should have 1 story for STATUS_CHANGES section
+
+    # Test combining multiple filters
+    response = await async_client.get("/v1/stories/stats?genres=GROWTH&story_types=SLOWING_GROWTH")
+    assert response.status_code == status.HTTP_200_OK
+    data = response.json()
+    assert len(data) == 1  # Should have stats for 1 date
+    assert data[0]["count"] == 1  # Should have 1 story matching both filters
+
+
+@pytest.mark.asyncio
+async def test_get_story_stats_date_range(db_session, async_client, jwt_payload):
+    """Test story stats endpoint with date range filters."""
+    tenant_id = jwt_payload["tenant_id"]
+    # Set tenant context
+    set_tenant_id(tenant_id)
+
+    # Create test stories with different dates
+    today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+    yesterday = today - timedelta(days=1)
+    last_week = today - timedelta(days=7)
+    last_month = today - timedelta(days=30)
+
+    stories = [
+        # Today's story
+        Story(
+            genre=StoryGenre.GROWTH,
+            story_group=StoryGroup.GROWTH_RATES,
+            story_date=today,
+            grain=Granularity.DAY,
+            story_type=StoryType.SLOWING_GROWTH,
+            metric_id="CAC",
+            title="Today's Story",
+            title_template="Template",
+            detail="Detail",
+            detail_template="Detail Template",
+            is_salient=True,
+            in_cool_off=False,
+            is_heuristic=True,
+            tenant_id=tenant_id,
+        ),
+        # Yesterday's story
+        Story(
+            genre=StoryGenre.TRENDS,
+            story_group=StoryGroup.TREND_CHANGES,
+            story_date=yesterday,
+            grain=Granularity.WEEK,
+            story_type=StoryType.NEW_UPWARD_TREND,
+            metric_id="NewBizDeals",
+            title="Yesterday's Story",
+            title_template="Template",
+            detail="Detail",
+            detail_template="Detail Template",
+            is_salient=False,
+            in_cool_off=False,
+            is_heuristic=False,
+            tenant_id=tenant_id,
+        ),
+        # Last week's story
+        Story(
+            genre=StoryGenre.PERFORMANCE,
+            story_group=StoryGroup.STATUS_CHANGE,
+            story_date=last_week,
+            grain=Granularity.MONTH,
+            story_type=StoryType.IMPROVING_STATUS,
+            metric_id="Revenue",
+            title="Last Week's Story",
+            title_template="Template",
+            detail="Detail",
+            detail_template="Detail Template",
+            is_salient=True,
+            in_cool_off=True,
+            is_heuristic=True,
+            tenant_id=tenant_id,
+        ),
+        # Last month's story
+        Story(
+            genre=StoryGenre.ROOT_CAUSES,
+            story_group=StoryGroup.SEGMENT_DRIFT,
+            story_date=last_month,
+            grain=Granularity.MONTH,
+            story_type=StoryType.SHRINKING_SEGMENT,
+            metric_id="Churn",
+            title="Last Month's Story",
+            title_template="Template",
+            detail="Detail",
+            detail_template="Detail Template",
+            is_salient=True,
+            in_cool_off=False,
+            is_heuristic=True,
+            tenant_id=tenant_id,
+        ),
+    ]
+
+    db_session.add_all(stories)
+    await db_session.flush()
+
+    # Test with story_date_start filter
+    one_week_ago = (today - timedelta(days=7)).strftime("%Y-%m-%d")
+    response = await async_client.get(f"/v1/stories/stats?story_date_start={one_week_ago}")
+    assert response.status_code == status.HTTP_200_OK
+    data = response.json()
+    assert len(data) == 3  # Should have stats for today, yesterday, and last week
+
+    # Test with story_date_end filter
+    yesterday_str = yesterday.strftime("%Y-%m-%d")
+    response = await async_client.get(f"/v1/stories/stats?story_date_end={yesterday_str}")
+    assert response.status_code == status.HTTP_200_OK
+    data = response.json()
+    assert len(data) == 3  # Should have stats for yesterday, last week, and last month
+
+    # Test with both story_date_start and story_date_end filters
+    two_weeks_ago = (today - timedelta(days=14)).strftime("%Y-%m-%d")
+    three_days_ago = (today - timedelta(days=3)).strftime("%Y-%m-%d")
+    response = await async_client.get(
+        f"/v1/stories/stats?story_date_start={two_weeks_ago}&story_date_end={three_days_ago}"
+    )
+    assert response.status_code == status.HTTP_200_OK
+    data = response.json()
+    assert len(data) == 1  # Should only have stats for last week
+
+    # Test default behavior (past 2 months)
+    response = await async_client.get("/v1/stories/stats")
+    assert response.status_code == status.HTTP_200_OK
+    data = response.json()
+    assert len(data) == 4  # Should have stats for all dates
+
+
+@pytest.mark.asyncio
+async def test_get_story_stats_empty_results(db_session, async_client, jwt_payload):
+    """Test story stats endpoint when no stories match the filters."""
+    tenant_id = jwt_payload["tenant_id"]
+    # Set tenant context
+    set_tenant_id(tenant_id)
+
+    # Create a single story
+    today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+    story = Story(
+        genre=StoryGenre.GROWTH,
+        story_group=StoryGroup.GROWTH_RATES,
+        story_date=today,
+        grain=Granularity.DAY,
+        story_type=StoryType.SLOWING_GROWTH,
+        metric_id="CAC",
+        title="Test Story",
+        title_template="Test Template",
+        detail="Test Detail",
+        detail_template="Test Detail Template",
+        is_salient=True,
+        in_cool_off=False,
+        is_heuristic=True,
+        tenant_id=tenant_id,
+    )
+
+    db_session.add(story)
+    await db_session.flush()
+
+    # Test with a filter that won't match any stories
+    response = await async_client.get("/v1/stories/stats?metric_ids=NonExistentMetric")
+    assert response.status_code == status.HTTP_200_OK
+    data = response.json()
+    assert isinstance(data, list)
+    assert len(data) == 0  # Should have no results
+
+    # Test with multiple filters that won't match any stories
+    response = await async_client.get("/v1/stories/stats?story_groups=RECORD_VALUES&genres=PERFORMANCE")
+    assert response.status_code == status.HTTP_200_OK
+    data = response.json()
+    assert isinstance(data, list)
+    assert len(data) == 0  # Should have no results
