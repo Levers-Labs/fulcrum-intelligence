@@ -13,6 +13,7 @@ RUN pip install --no-cache-dir --upgrade pip "poetry<2.0.0"
 # Copy the shared dependencies first
 COPY ./commons /opt/prefect/commons
 COPY ./core /opt/prefect/core
+COPY ./query_manager /opt/prefect/query_manager
 COPY ./story_manager /opt/prefect/story_manager
 
 # Install dependencies
