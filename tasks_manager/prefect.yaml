@@ -3,8 +3,8 @@ name: tasks_manager
 prefect-version: 3.1.7
 
 pull:
-  - prefect.deployments.steps.set_working_directory:
-      directory: /opt/prefect/tasks_manager
+- prefect.deployments.steps.set_working_directory:
+    directory: /opt/prefect/tasks_manager
 
 # the definitions section allows you to provide reusable definitions for your project
 definitions:
@@ -14,49 +14,66 @@ definitions:
       work_queue_name: default
   schedules:
     daily_midnight: &daily_midnight
-      - cron: "0 0 * * *"
-        timezone: "UTC"
+    - cron: 0 0 * * *
+      timezone: UTC
 
 # the deployments section allows you to provide configuration for deploying flows
 deployments:
-  - name: "generate-stories"
-    version: "1.0.0"
-    tags:
-      - daily
-    description: "Generate stories for all tenants, metrics and groups"
-    entrypoint: tasks_manager.flows.stories:generate_stories
-    work_pool: *ecs_work_pool
-    schedules: *daily_midnight
-  - name: "process-story-alerts"
-    version: "1.0.0"
-    description: "Process stories and trigger relevant alerts"
-    entrypoint: tasks_manager.flows.alerts:process_story_alerts
-    work_pool: *ecs_work_pool
-    triggers:
-      - type: event
-        name: "story-generated-trigger"
-        description: "Triggered when stories are generated for a metric"
-        enabled: true
-        expect:
-          - metric.story.generated
-        parameters:
-          metric_id: "{{ event.resource.metric_id }}"
-          tenant_id: "{{ event.resource.tenant_id }}"
-          story_date: "{{ event.resource.story_date }}"
-          stories_str: "{{ event.payload.stories }}"
-  - name: "execute-alert"
-    version: "1.0.0"
-    description: "Execute a single alert"
-    entrypoint: tasks_manager.flows.alerts:execute_alert
-    work_pool: *ecs_work_pool
-    triggers:
-      - type: event
-        name: "alert-execution-trigger"
-        description: "Triggered when an alert needs to be executed"
-        enabled: true
-        expect:
-          - alert.execution.requested
-        parameters:
-          tenant_id: "{{ event.resource.tenant_id }}"
-          alert_id: "{{ event.resource.alert_id }}"
-          trigger_params_str: "{{ event.payload.trigger_params }}"
+- name: generate-stories
+  version: 1.0.0
+  tags:
+  - daily
+  description: Generate stories for all tenants, metrics and groups
+  entrypoint: tasks_manager.flows.stories:generate_stories
+  work_pool:
+    name: tasks-manager-ecs-pool
+    work_queue_name: default
+    job_variables: {}
+  schedules:
+  - cron: 0 0 * * *
+    timezone: UTC
+    day_or: true
+    active: true
+  concurrency_limit:
+  parameters: {}
+- name: process-story-alerts
+  version: 1.0.0
+  description: Process stories and trigger relevant alerts
+  entrypoint: tasks_manager.flows.alerts:process_story_alerts
+  work_pool: *ecs_work_pool
+  triggers:
+  - type: event
+    name: story-generated-trigger
+    description: Triggered when stories are generated for a metric
+    enabled: true
+    expect:
+    - metric.story.generated
+    parameters:
+      metric_id: '{{ event.resource.metric_id }}'
+      tenant_id: '{{ event.resource.tenant_id }}'
+      story_date: '{{ event.resource.story_date }}'
+      stories_str: '{{ event.payload.stories }}'
+- name: execute-alert
+  version: 1.0.0
+  description: Execute a single alert
+  entrypoint: tasks_manager.flows.alerts:execute_alert
+  work_pool: *ecs_work_pool
+  triggers:
+  - type: event
+    name: alert-execution-trigger
+    description: Triggered when an alert needs to be executed
+    enabled: true
+    expect:
+    - alert.execution.requested
+    parameters:
+      tenant_id: '{{ event.resource.tenant_id }}'
+      alert_id: '{{ event.resource.alert_id }}'
+      trigger_params_str: '{{ event.payload.trigger_params }}'
+- name: update-story-dates
+  version: 1.0.0
+  tags:
+  - daily
+  description: Update story dates for all tenants and grains
+  entrypoint: tasks_manager.flows.update_story_dates:update_story_dates
+  work_pool: *ecs_work_pool
+  schedules: *daily_midnight
