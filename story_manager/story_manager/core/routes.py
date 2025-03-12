@@ -41,8 +41,7 @@ async def get_story_group_meta(group: StoryGroup) -> StoryGroupMeta:
 
 
 @router.get(
-    "/", response_model=Page[StoryDetail],
-    # dependencies=[Security(oauth2_auth().verify, scopes=[STORY_MANAGER_ALL])]
+    "/", response_model=Page[StoryDetail], dependencies=[Security(oauth2_auth().verify, scopes=[STORY_MANAGER_ALL])]
 )
 async def get_stories(
     story_crud: CRUDStoryDep,
