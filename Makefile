@@ -1,34 +1,43 @@
 PYTHON_VERSION=3.10
+POETRY_VERSION=1.8.2
 
-setup:
+clean:
+	@echo "Cleaning up existing environment..."
+	@rm -rf env
+	@rm -rf venv
+	@rm -f .python-version
+	@rm -f requirements.txt
+
+setup: clean
 	( \
-		if [ -z $(PYENV_VERSION) ] ; then brew install pyenv ; else echo "pyenv already installed"; fi ; \
-		echo N | pyenv install $(PYTHON_VERSION) ; \
+		if [ -z "$(PYENV_VERSION)" ] ; then brew install pyenv ; else echo "pyenv already installed"; fi ; \
+		echo N | pyenv install $(PYTHON_VERSION) || true; \
 		pyenv local $(PYTHON_VERSION); \
 		python -m venv env; \
-		source venv/bin/activate; \
-		pip install --upgrade pip; \
-		pip install poetry; \
-		make install-all-deps; \
+		. env/bin/activate && \
+		pip install --upgrade pip && \
+		pip install "poetry==$(POETRY_VERSION)" pre-commit && \
+		make install-all-deps && \
 		make setup-pre-commit; \
 	)
 
 
 setup-pre-commit:
 	@echo "Setting up pre-commit hooks..."
-	@poetry run pre-commit install
+	@. env/bin/activate && pre-commit install
 
 install-deps:
 ifdef path
 	@echo "Installing dependencies @ $(path)"
-	@poetry export -f requirements.txt --output requirements.txt --without-hashes -C $(path)
+	@. env/bin/activate && poetry export --without-hashes --output requirements.txt --directory $(path)
+	@. env/bin/activate && pip install -U -r requirements.txt
 else
 	@echo "Installing dependencies @ root"
-	@poetry export -f requirements.txt --output requirements.txt --without-hashes --with dev
+	@. env/bin/activate && poetry export --without-hashes --output requirements.txt --with dev
+	@. env/bin/activate && pip install -U -r requirements.txt
 endif
-	@pip install -U -r requirements.txt
 	@echo "Removing requirements.txt file..."
-	@rm requirements.txt
+	@rm -f requirements.txt
 
 install-all-deps:
 	@echo "Installing all dependencies..."
@@ -78,7 +87,6 @@ lint-all:
 	@make lint path=insights_backend
 	@make lint path=tasks_manager
 
-
 start-shell:
 ifndef app
 	@echo "Error: No app provided. Please provide an app to start the shell."
@@ -100,3 +108,12 @@ test-all:
 	@make test app=analysis_manager
 	@make test app=story_manager
 	@make test app=insights_backend
+
+update-deps:
+	@echo "Updating all dependencies..."
+	@poetry update
+	@make install-all-deps
+
+check-outdated-deps:
+	@echo "Checking for outdated dependencies..."
+	@poetry show --outdated

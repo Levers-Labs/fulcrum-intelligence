@@ -7,19 +7,21 @@ license = "Proprietary"
 
 [tool.poetry.dependencies]
 python = ">=3.10,<3.12"
-pydantic = { extras = ["email", "dotenv"], version = "^2.7.4" }
+pydantic = { extras = ["email"], version = "^2.7.4" }
 pandas = "^2.2.1"
-numpy = "^1.26.4"
+numpy = "1.24.3"
+setuptools = "65.5.0"
 pandas-stubs = "^2.2.0.240218"
 pmdarima = "^2.0.4"
 scipy = "^1.13.0"
 scikit-learn = "^1.5.0"
 httpx = "^0.27.0"
 networkx = "3.2.1"
-dowhy = "^0.11.1"
+dowhy = "0.11.0"
 prophet = "^1.1.5"
 sympy = "^1.13.1"
 matplotlib = "^3.9.2"
+anyio = ">=3.5.0,<5.0.0"
 
 [build-system]
 requires = ["poetry-core>=1.0.0,<2.0.0"]

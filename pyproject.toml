@@ -9,6 +9,7 @@ package-mode = false
 [tool.poetry.dependencies]
 python = "^3.10"
 typer = "^0.9.0"
+setuptools = "^67.0"
 
 
 # Define dependencies specific to the entire project
