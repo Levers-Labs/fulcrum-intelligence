@@ -1,6 +1,4 @@
 from datetime import date, timedelta
-from typing import List
-
 import pandas as pd
 
 from commons.models.enums import Granularity

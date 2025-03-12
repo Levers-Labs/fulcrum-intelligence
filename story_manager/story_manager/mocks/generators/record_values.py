@@ -14,10 +14,6 @@ class RecordValuesMockGenerator(MockGeneratorBase):
 
     genre = StoryGenre.BIG_MOVES
     group = StoryGroup.RECORD_VALUES
-    supported_grains = [Granularity.DAY, Granularity.WEEK, Granularity.MONTH]
-
-    def __init__(self, mock_data_service: MockDataService):
-        self.data_service = mock_data_service
 
     def generate_stories(
         self, metric: dict[str, Any], grain: Granularity, story_date: date = None

@@ -19,15 +19,15 @@ class CRUDStory(CRUDBase[Story, Story, Story, StoryFilter]):
     filter_class = StoryFilter
 
     async def get_latest_story(
-        self,
-        metric_id: str,
-        story_type: StoryType,
-        grain: Granularity,
-        story_date: date,
-        tenant_id: int,
-        is_salient: bool | None = None,
-        is_cool_off: bool | None = None,
-        is_heuristic: bool | None = None,
+            self,
+            metric_id: str,
+            story_type: StoryType,
+            grain: Granularity,
+            story_date: date,
+            tenant_id: int,
+            is_salient: bool | None = None,
+            is_cool_off: bool | None = None,
+            is_heuristic: bool | None = None,
     ) -> Any:
         """
         Retrieve the latest story of a specific type and granularity before the current date,
@@ -71,14 +71,14 @@ class CRUDStory(CRUDBase[Story, Story, Story, StoryFilter]):
         return instance
 
     async def get_stories(
-        self,
-        metric_id: str,
-        grain: Granularity,
-        created_date: date,
-        tenant_id: int,
-        is_salient: bool | None = None,
-        is_cool_off: bool | None = None,
-        is_heuristic: bool | None = True,
+            self,
+            tenant_id: int,
+            metric_id: str | None = None,
+            grain: Granularity | None = None,
+            created_date: date | None = None,
+            is_salient: bool | None = None,
+            is_cool_off: bool | None = None,
+            is_heuristic: bool | None = True,
     ) -> Any:
         """
         Retrieve all stories for a specific metric, granularity and creation date, with optional filters.
@@ -102,13 +102,18 @@ class CRUDStory(CRUDBase[Story, Story, Story, StoryFilter]):
         # Build base query filtering by date range, grain, metric and tenant
         statement = (
             self.get_select_query()
+            # Filter by tenant id
+            .filter_by(tenant_id=tenant_id)
+        )
+        if created_date is not None:
             # Filter stories created on the specified date (inclusive of start, exclusive of end)
-            .filter(func.date(Story.created_at) >= func.date(created_date)).filter(
+            statement = statement.filter(func.date(Story.created_at) >= func.date(created_date)).filter(
                 func.date(Story.created_at) < func.date(created_date + timedelta(days=1))
             )
-            # Filter by core story attributes
-            .filter_by(grain=grain, metric_id=metric_id, tenant_id=tenant_id)
-        )
+        if grain is not None:
+            statement = statement.filter_by(grain=grain)
+        if metric_id is not None:
+            statement = statement.filter_by(metric_id=metric_id)
 
         # Apply optional boolean filters if specified
         if is_salient is not None:
@@ -129,6 +134,21 @@ class CRUDStory(CRUDBase[Story, Story, Story, StoryFilter]):
 
         return instances
 
+    async def update_story_date(self, story_id: int, new_date: date):
+        """
+        Update the date of a story in the database.
+        """
+        statement = self.get_select_query().where(Story.id == story_id)
+        result = await self.session.execute(statement)
+        story = result.scalar_one_or_none()
+        if story is None:
+            return False
+        story.story_date = new_date
+        self.session.add(story)
+        await self.session.commit()
+
+        return True
+
 
 class CRUDStoryConfig(CRUDBase[StoryConfig, StoryConfig, StoryConfig, StoryConfigFilter]):
     """
@@ -139,7 +159,7 @@ class CRUDStoryConfig(CRUDBase[StoryConfig, StoryConfig, StoryConfig, StoryConfi
     filter_class = StoryConfigFilter
 
     async def get_story_config(
-        self, story_type: StoryType, grain: Granularity, tenant_id: int
+            self, story_type: StoryType, grain: Granularity, tenant_id: int
     ) -> StoryConfig | None:  # noqa
         """
         Retrieve the StoryConfig for a specific story type and granularity.

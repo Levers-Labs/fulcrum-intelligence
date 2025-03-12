@@ -1,8 +1,6 @@
 import random
 from datetime import date
-from typing import Any, Dict, List
-
-import numpy as np
+from typing import Any
 
 from commons.models.enums import Granularity
 from story_manager.core.enums import (
@@ -12,8 +10,7 @@ from story_manager.core.enums import (
     StoryType,
 )
 from story_manager.mocks.generators.base import MockGeneratorBase
-from story_manager.mocks.services.data_service import MockDataService
-from story_manager.story_builder.constants import GRAIN_META, STORY_GROUP_TIME_DURATIONS
+from story_manager.story_builder.constants import GRAIN_META
 
 
 class ComponentDriftMockGenerator(MockGeneratorBase):
@@ -21,11 +18,7 @@ class ComponentDriftMockGenerator(MockGeneratorBase):
 
     genre = StoryGenre.ROOT_CAUSES
     group = StoryGroup.COMPONENT_DRIFT
-    supported_grains = [Granularity.DAY, Granularity.WEEK, Granularity.MONTH]
     min_component_count = 2
-
-    def __init__(self, mock_data_service: MockDataService):
-        self.data_service = mock_data_service
 
     def generate_stories(
         self, metric: dict[str, Any], grain: Granularity, story_date: date = None
@@ -55,7 +48,7 @@ class ComponentDriftMockGenerator(MockGeneratorBase):
         # Generate stories for top components
         for component in top_components:
             # Generate time series for this component
-            time_series = self.get_mock_time_series(grain, component["story_type"], component)
+            time_series = self.get_mock_component_series(component)
 
             # Generate variables for this component
             variables = self.get_mock_variables(metric, component["story_type"], grain, time_series, component)
@@ -74,33 +67,21 @@ class ComponentDriftMockGenerator(MockGeneratorBase):
 
         return stories
 
-    def get_mock_time_series(
-        self, grain: Granularity, story_type: StoryType, component: dict[str, Any]
-    ) -> list[dict[str, Any]]:
-        """Generate mock time series data for component drift stories"""
-        # Get date range
-        start_date, end_date = self.data_service._get_input_time_range(grain, self.group)
-
-        # Get dates within range
-        dates = self.data_service.get_dates_for_range(grain, start_date, end_date)
-        formatted_dates = self.data_service.get_formatted_dates(dates)
-
-        # We only need two data points for component drift: before and after
-        # Just use the first and last date
-        first_date = formatted_dates[0]
-        last_date = formatted_dates[-1]
-
-        # Get evaluation and comparison values from component
-        evaluation_value = component["evaluation_value"]
-        comparison_value = component["comparison_value"]
-
-        # Create a simple time series with just two points
-        time_series = [
-            {"date": first_date, "value": comparison_value, "component_id": component["metric_id"], "label": "Before"},
-            {"date": last_date, "value": evaluation_value, "component_id": component["metric_id"], "label": "After"},
+    @staticmethod
+    def get_mock_component_series(component: dict[str, Any]) -> list[dict[str, Any]]:
+        return [
+            {
+                "component_id": component["metric_id"],
+                "evaluation_value": component["evaluation_value"],
+                "comparison_value": component["comparison_value"],
+                "percentage_drift": component["percentage_drift"] / 100
+            }
         ]
 
-        return time_series
+    def get_mock_time_series(
+        self, grain: Granularity, story_type: StoryType
+    ) -> list[dict[str, Any]]:
+        pass
 
     def get_mock_variables(
         self,

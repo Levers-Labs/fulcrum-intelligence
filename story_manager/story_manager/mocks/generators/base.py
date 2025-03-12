@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from datetime import date
-from typing import Any, Dict, List
+from typing import Any
 
 import pandas as pd
 from jinja2 import Template
@@ -20,7 +20,6 @@ class MockGeneratorBase(ABC):
 
     genre: StoryGenre
     group: StoryGroup
-    supported_grains: list[Granularity]
 
     def __init__(self, mock_data_service):
         self.data_service = mock_data_service
@@ -99,7 +98,7 @@ class MockGeneratorBase(ABC):
         detail_template = Template(STORY_TYPES_META[story_type]["detail"])
 
         return {
-            "metric_id": metric["id"],
+            "metric_id": metric["metric_id"],
             "genre": self.genre,
             "story_group": self.group,
             "story_type": story_type,

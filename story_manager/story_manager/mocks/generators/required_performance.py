@@ -1,6 +1,6 @@
 import random
 from datetime import date, timedelta
-from typing import Any, Dict, List
+from typing import Any
 
 from dateutil.relativedelta import relativedelta
 
@@ -12,8 +12,7 @@ from story_manager.core.enums import (
     StoryType,
 )
 from story_manager.mocks.generators.base import MockGeneratorBase
-from story_manager.mocks.services.data_service import MockDataService
-from story_manager.story_builder.constants import GRAIN_META, STORY_GROUP_TIME_DURATIONS
+from story_manager.story_builder.constants import GRAIN_META
 
 
 class RequiredPerformanceMockGenerator(MockGeneratorBase):
@@ -21,10 +20,6 @@ class RequiredPerformanceMockGenerator(MockGeneratorBase):
 
     genre = StoryGenre.PERFORMANCE
     group = StoryGroup.REQUIRED_PERFORMANCE
-    supported_grains = [Granularity.DAY, Granularity.WEEK, Granularity.MONTH]
-
-    def __init__(self, mock_data_service: MockDataService):
-        self.data_service = mock_data_service
 
     def generate_stories(
         self, metric: dict[str, Any], grain: Granularity, story_date: date = None

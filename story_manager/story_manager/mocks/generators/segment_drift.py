@@ -1,12 +1,10 @@
-import random
 from datetime import date
-from typing import Any, Dict, List
+from typing import Any
 
 from commons.models.enums import Granularity
 from story_manager.core.enums import StoryGenre, StoryGroup, StoryType
 from story_manager.mocks.generators.base import MockGeneratorBase
-from story_manager.mocks.services.data_service import MockDataService
-from story_manager.story_builder.constants import GRAIN_META, STORY_GROUP_TIME_DURATIONS
+from story_manager.story_builder.constants import GRAIN_META
 
 
 class SegmentDriftMockGenerator(MockGeneratorBase):
@@ -14,10 +12,6 @@ class SegmentDriftMockGenerator(MockGeneratorBase):
 
     genre = StoryGenre.ROOT_CAUSES
     group = StoryGroup.SEGMENT_DRIFT
-    supported_grains = [Granularity.DAY, Granularity.WEEK, Granularity.MONTH]
-
-    def __init__(self, mock_data_service: MockDataService):
-        self.data_service = mock_data_service
 
     def generate_stories(
         self, metric: dict[str, Any], grain: Granularity, story_date: date = None
@@ -62,46 +56,28 @@ class SegmentDriftMockGenerator(MockGeneratorBase):
         dates = self.data_service.get_dates_for_range(grain, start_date, end_date)
         formatted_dates = self.data_service.get_formatted_dates(dates)
 
-        # Use first and last date
-        first_date = formatted_dates[0]
-        last_date = formatted_dates[-1]
-
         # Create time series based on story type
         if story_type in [StoryType.GROWING_SEGMENT, StoryType.SHRINKING_SEGMENT]:
             # Share-based stories
             time_series = [
                 {
-                    "date": first_date,
-                    "value": segment["previous_share"],
                     "dimension": segment["dimension"],
                     "slice": segment["slice"],
-                    "label": "Last month",
-                },
-                {
-                    "date": last_date,
-                    "value": segment["current_share"],
-                    "dimension": segment["dimension"],
-                    "slice": segment["slice"],
-                    "label": "This month",
-                },
+                    "previous_value": segment["previous_value"],
+                    "current_value": segment["current_value"],
+                    "deviation": segment["deviation"],
+                }
             ]
         else:
             # Value-based stories
             time_series = [
                 {
-                    "date": first_date,
-                    "value": segment["previous_value"],
                     "dimension": segment["dimension"],
                     "slice": segment["slice"],
-                    "label": "Before",
-                },
-                {
-                    "date": last_date,
-                    "value": segment["current_value"],
-                    "dimension": segment["dimension"],
-                    "slice": segment["slice"],
-                    "label": "After",
-                },
+                    "previous_value": segment["previous_value"],
+                    "current_value": segment["current_value"],
+                    "deviation": segment["deviation"],
+                }
             ]
 
         return time_series

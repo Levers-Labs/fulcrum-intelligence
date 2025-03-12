@@ -2,9 +2,9 @@
 name: tasks_manager
 prefect-version: 3.1.7
 
-pull:
-- prefect.deployments.steps.set_working_directory:
-    directory: /opt/prefect/tasks_manager
+#pull:
+#- prefect.deployments.steps.set_working_directory:
+#    directory: /opt/prefect/tasks_manager
 
 # the definitions section allows you to provide reusable definitions for your project
 definitions:
@@ -73,7 +73,16 @@ deployments:
   version: 1.0.0
   tags:
   - daily
-  description: Update story dates for all tenants and grains
-  entrypoint: tasks_manager.flows.update_story_dates:update_story_dates
-  work_pool: *ecs_work_pool
-  schedules: *daily_midnight
+  description: Update story dates for a specific tenant based on granularity
+  entrypoint: tasks_manager.flows.stories_update:update_story_dates
+  work_pool:
+    name: tasks-manager-ecs-pool
+    work_queue_name: default
+    job_variables: {}
+  schedules:
+  - cron: 0 13 * * *   # 5 AM PST = 13:00 UTC
+    timezone: UTC
+    day_or: true
+    active: true
+  concurrency_limit:
+  parameters: {}

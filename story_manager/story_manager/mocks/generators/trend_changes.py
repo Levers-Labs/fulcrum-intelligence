@@ -1,8 +1,6 @@
 import random
-from datetime import date, timedelta
-from typing import Any, Dict, List
-
-import numpy as np
+from datetime import date
+from typing import Any
 
 from commons.models.enums import Granularity
 from story_manager.core.enums import (
@@ -21,10 +19,6 @@ class TrendChangesMockGenerator(MockGeneratorBase):
 
     genre = StoryGenre.TRENDS
     group = StoryGroup.TREND_CHANGES
-    supported_grains = [Granularity.DAY, Granularity.WEEK, Granularity.MONTH]
-
-    def __init__(self, mock_data_service: MockDataService):
-        self.data_service = mock_data_service
 
     def generate_stories(
         self, metric: dict[str, Any], grain: Granularity, story_date: date = None
