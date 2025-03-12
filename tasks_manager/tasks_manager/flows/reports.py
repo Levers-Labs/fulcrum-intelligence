@@ -117,7 +117,7 @@ async def deliver_metric_reports(tenant_id: int, report_id: int):
         - Deployment ID: {run_info.get('deployment_id', 'Not available')}
         - Start Time: {run_info.get('start_time', 'Not available')}
         """
-        await create_markdown_artifact(
+        await create_markdown_artifact(  # type: ignore
             key=f"report-{report_id}-execution-{execution.get('id')}-summary",
             markdown=summary,
             description=f"Execution summary for report {report_id}",
