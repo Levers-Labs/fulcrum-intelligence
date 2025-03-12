@@ -4,12 +4,12 @@
             "type": "header",
             "text": {
                 "type": "plain_text",
-                "text": "🚀 [{{ metric.label }}] Stories • {{ grain|title }}",
+                "text": "🚀 [{{ data.metric.label }}] Stories • {{ data.grain|title }}",
                 "emoji": true
             }
         },
         {% set previous_group = None %}
-        {% for story in stories %}
+        {% for story in data.stories %}
             {% if story.story_group != previous_group %}
             {
                 "type": "section",
@@ -36,7 +36,7 @@
             "elements": [
                 {
                     "type": "mrkdwn",
-                    "text": "Generated on {{ time }} UTC"
+                    "text": "Generated on {{ data.fetched_at }} PST"
                 }
             ]
         },
@@ -44,7 +44,7 @@
             "type": "section",
             "text": {
                 "type": "mrkdwn",
-                "text": "<https://app.leverslabs.com?grains={{ grain }}&metric_ids={{ metric.id }}|View in app>"
+                "text": "<https://app.leverslabs.com?grains={{ data.grain }}&metric_ids={{ data.metric.metric_id }}|View in app>"
             }
         }
     ]

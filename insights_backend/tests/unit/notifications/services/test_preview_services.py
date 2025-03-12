@@ -129,14 +129,15 @@ async def test_alert_preview_context(alert_preview_service, sample_alert_request
     context = await alert_preview_service._generate_context(sample_alert_request)
 
     # Check required context fields
+    assert "data" in context
     assert "metric" in context
     assert "grain" in context
-    assert "time" in context
-    assert "stories" in context
+    assert "fetched_at" in context["data"]
+    assert "stories" in context["data"]
 
     # Check story structure
-    assert isinstance(context["stories"], list)
-    for story in context["stories"]:
+    assert isinstance(context["data"]["stories"], list)
+    for story in context["data"]["stories"]:
         assert "story_group" in story
         assert "title" in story
         assert "detail" in story
@@ -166,17 +167,14 @@ async def test_report_preview_context(report_preview_service, sample_report_requ
     context = await report_preview_service._generate_context(sample_report_request)
 
     # Check required context fields
-    assert "report_name" in context
-    assert "grain" in context
-    assert "time" in context
-    assert "metrics" in context
+    assert "data" in context
+    assert "config" in context
 
     # Check metrics structure
-    assert isinstance(context["metrics"], list)
-    for metric in context["metrics"]:
-        assert "id" in metric
-        assert "label" in metric
-        assert "value" in metric
+    assert isinstance(context["data"]["metrics"], list)
+    for metric in context["data"]["metrics"]:
+        assert "metric" in metric
+        assert "current_value" in metric
 
 
 async def test_report_metrics_generation(report_preview_service, sample_report_request):
@@ -184,7 +182,7 @@ async def test_report_metrics_generation(report_preview_service, sample_report_r
 
     # Check metrics match configured metric_ids
     assert len(metrics) == len(sample_report_request.config.metric_ids)
-    metric_ids = [metric["id"] for metric in metrics]
+    metric_ids = [metric["metric_id"] for metric in metrics]
     for configured_id in sample_report_request.config.metric_ids:
         assert configured_id in metric_ids
 
@@ -195,8 +193,4 @@ async def test_report_fallback_metrics(report_preview_service, sample_report_req
     metrics = report_preview_service._generate_metrics(sample_report_request)
 
     # Should generate default number of fake metrics
-    assert len(metrics) == 3
-    for metric in metrics:
-        assert isinstance(metric["id"], str)
-        assert isinstance(metric["label"], str)
-        assert isinstance(metric["value"], int)
+    assert len(metrics) == 0

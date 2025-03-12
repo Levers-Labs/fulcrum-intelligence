@@ -10,7 +10,7 @@ from commons.db.session import get_async_session as _get_async_session, get_sess
 from query_manager.config import get_settings
 
 # Used to load models for migrations
-MODEL_PATHS = ["query_manager.core.models"]
+MODEL_PATHS = ["query_manager.core.models", "query_manager.semantic_manager.models"]
 
 
 # sync session

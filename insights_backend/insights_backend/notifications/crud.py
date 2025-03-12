@@ -75,6 +75,7 @@ class CRUDNotifications:
                 model.summary,
                 model.tags,
                 model.is_active,
+                model.is_published,
                 func.max(NotificationExecution.executed_at).label("last_execution"),  # type: ignore
                 func.count(distinct(NotificationChannelConfig.id)).label("channel_count"),  # type: ignore
                 func.sum(func.jsonb_array_length(NotificationChannelConfig.recipients)).label("recipients_count"),
@@ -163,13 +164,13 @@ class CRUDNotifications:
     async def _delete(self, model: NotificationModel, ids: list[int]):
         invalid_ids = await self._validate_ids(ids, model)
         if invalid_ids:
-            raise ValueError(f"Data not found for {str(model.__tablename__)}: {list(invalid_ids)}")
+            raise NotFoundError(list(invalid_ids))
         await self.session.execute(delete(model).where(model.id.in_(ids)))  # type: ignore
 
     async def batch_delete(self, alert_ids: list[int], report_ids: list[int]) -> None:
         """Deletes all notification channels for one or multiple alerts / reports"""
         if not alert_ids and not report_ids:
-            return
+            raise ValueError("Alert ID or Report ID is required to proceed.")
         if alert_ids:
             await self._delete(Alert, alert_ids)  # type: ignore
         if report_ids:
@@ -179,14 +180,14 @@ class CRUDNotifications:
     async def _update_status(self, model: NotificationModel, ids: list[int], status: bool):
         invalid_ids = await self._validate_ids(ids, model)
         if invalid_ids:
-            raise ValueError(f"Data not found for {str(model.__tablename__)}: {list(invalid_ids)}")
+            raise NotFoundError(list(invalid_ids))
         await self.session.execute(update(model).where(model.id.in_(ids)).values(is_active=status))  # type: ignore
 
     async def batch_status_update(self, alert_ids: list[int], report_ids: list[int], is_active: bool) -> None:
         """Updates the active status of one or multiple Alerts."""
 
         if not alert_ids and not report_ids:
-            return
+            raise ValueError("Alert ID or Report ID is required to proceed.")
         if alert_ids:
             await self._update_status(Alert, alert_ids, is_active)  # type: ignore
         if report_ids:
@@ -209,7 +210,7 @@ class CRUDNotifications:
             ValueError: If any requested ID is not found
         """
 
-        async def fetch_items(model: type[NotificationModel], ids: list[int], name: str) -> list[NotificationModel]:
+        async def fetch_items(model: type[NotificationModel], ids: list[int]) -> list[NotificationModel]:
             if not ids:
                 return []
             result = await self.session.execute(select(model).where(model.id.in_(ids)))  # type: ignore
@@ -218,12 +219,12 @@ class CRUDNotifications:
             found_ids = {item.id for item in items}
             missing_ids = set(ids) - found_ids
             if missing_ids:
-                raise ValueError(f"{name} not found: {missing_ids}")
+                raise NotFoundError(missing_ids)
             return items  # type: ignore
 
-        alerts, reports = await asyncio.gather(
-            fetch_items(Alert, alert_ids, "Alerts"), fetch_items(Report, report_ids, "Reports")
-        )
+        # Execute queries sequentially instead of concurrently
+        alerts = await fetch_items(Alert, alert_ids)
+        reports = await fetch_items(Report, report_ids)
 
         return alerts, reports
 

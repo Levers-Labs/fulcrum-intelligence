@@ -63,7 +63,7 @@ async def prepare_report_metrics_data(
 
         # Prepare metrics data with or without comparisons
         metrics_data = await report_data_service.prepare_report_metrics_data(
-            metric_ids=metric_ids, grain=Granularity(grain), need_comparisons=bool(comparisons), include_raw_data=True
+            metric_ids=metric_ids, grain=Granularity(grain), include_raw_data=True, comparisons=comparisons
         )
 
         logger.info("Prepared report metrics data for tenant %s, metrics %s", tenant_id, metric_ids)

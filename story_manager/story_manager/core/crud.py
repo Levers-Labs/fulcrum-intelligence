@@ -1,13 +1,20 @@
 from datetime import date, timedelta
 from typing import Any
 
-from sqlalchemy import desc, func
+from sqlalchemy import (
+    Date as SQLDate,
+    cast,
+    desc,
+    func,
+    select,
+)
 
 from commons.db.crud import CRUDBase
 from commons.models.enums import Granularity
 from story_manager.core.enums import StoryType
 from story_manager.core.filters import StoryConfigFilter, StoryFilter
 from story_manager.core.models import Story, StoryConfig
+from story_manager.core.schemas import StoryStatsResponse
 
 
 class CRUDStory(CRUDBase[Story, Story, Story, StoryFilter]):
@@ -148,6 +155,34 @@ class CRUDStory(CRUDBase[Story, Story, Story, StoryFilter]):
         await self.session.commit()
 
         return True
+    
+    async def get_story_stats(self, filter_params: dict[str, Any]) -> list[StoryStatsResponse]:
+        """
+        Get story count statistics grouped by story date.
+
+        This method queries the database to count stories grouped by story_date,
+        applying the provided filters.
+
+        Args:
+            filter_params: Dictionary of filter parameters
+
+        Returns:
+            A list of StoryStatsResponse containing story_date and count
+        """
+        # Build the select statement with grouping and counting
+        stmt = select(cast(Story.story_date, SQLDate).label("story_date"), func.count().label("count")).group_by(
+            cast(Story.story_date, SQLDate)
+        )
+
+        # Apply filters
+        stmt = self.filter_class.apply_filters(stmt, filter_params)
+
+        # Order by story_date
+        stmt = stmt.order_by(cast(Story.story_date, SQLDate).desc())
+
+        # Execute the query
+        result = await self.session.execute(stmt)
+        return list(result.mappings())  # type: ignore
 
 
 class CRUDStoryConfig(CRUDBase[StoryConfig, StoryConfig, StoryConfig, StoryConfigFilter]):
