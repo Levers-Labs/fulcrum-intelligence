@@ -108,12 +108,3 @@ test-all:
 	@make test app=analysis_manager
 	@make test app=story_manager
 	@make test app=insights_backend
-
-update-deps:
-	@echo "Updating all dependencies..."
-	@poetry update
-	@make install-all-deps
-
-check-outdated-deps:
-	@echo "Checking for outdated dependencies..."
-	@poetry show --outdated
