@@ -26,15 +26,15 @@ class CRUDStory(CRUDBase[Story, Story, Story, StoryFilter]):
     filter_class = StoryFilter
 
     async def get_latest_story(
-            self,
-            metric_id: str,
-            story_type: StoryType,
-            grain: Granularity,
-            story_date: date,
-            tenant_id: int,
-            is_salient: bool | None = None,
-            is_cool_off: bool | None = None,
-            is_heuristic: bool | None = None,
+        self,
+        metric_id: str,
+        story_type: StoryType,
+        grain: Granularity,
+        story_date: date,
+        tenant_id: int,
+        is_salient: bool | None = None,
+        is_cool_off: bool | None = None,
+        is_heuristic: bool | None = None,
     ) -> Any:
         """
         Retrieve the latest story of a specific type and granularity before the current date,
@@ -78,14 +78,14 @@ class CRUDStory(CRUDBase[Story, Story, Story, StoryFilter]):
         return instance
 
     async def get_stories(
-            self,
-            tenant_id: int,
-            metric_id: str | None = None,
-            grain: Granularity | None = None,
-            created_date: date | None = None,
-            is_salient: bool | None = None,
-            is_cool_off: bool | None = None,
-            is_heuristic: bool | None = True,
+        self,
+        tenant_id: int,
+        metric_id: str | None = None,
+        grain: Granularity | None = None,
+        created_date: date | None = None,
+        is_salient: bool | None = None,
+        is_cool_off: bool | None = None,
+        is_heuristic: bool | None = True,
     ) -> Any:
         """
         Retrieve all stories for a specific metric, granularity and creation date, with optional filters.
@@ -155,7 +155,7 @@ class CRUDStory(CRUDBase[Story, Story, Story, StoryFilter]):
         await self.session.commit()
 
         return True
-    
+
     async def get_story_stats(self, filter_params: dict[str, Any]) -> list[StoryStatsResponse]:
         """
         Get story count statistics grouped by story date.
@@ -194,7 +194,7 @@ class CRUDStoryConfig(CRUDBase[StoryConfig, StoryConfig, StoryConfig, StoryConfi
     filter_class = StoryConfigFilter
 
     async def get_story_config(
-            self, story_type: StoryType, grain: Granularity, tenant_id: int
+        self, story_type: StoryType, grain: Granularity, tenant_id: int
     ) -> StoryConfig | None:  # noqa
         """
         Retrieve the StoryConfig for a specific story type and granularity.

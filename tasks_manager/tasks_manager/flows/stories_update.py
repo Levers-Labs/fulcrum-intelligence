@@ -12,7 +12,7 @@ from tasks_manager.tasks.stories_update import update_story_dates_for_tenant
     name="update-story-dates",
     description="Update story dates for a specific tenant based on granularity",
 )
-async def update_story_dates(tenant_id: str, update_date: date = None):
+async def update_story_dates(tenant_id: str):
     """
     Flow to update story dates for a specific tenant
 
@@ -28,7 +28,7 @@ async def update_story_dates(tenant_id: str, update_date: date = None):
         update_date: The date to use for determining if updates should run.
                     Defaults to today if not provided.
     """
-    update_date = update_date or date.today()
+    update_date = date.today()
     logger = get_run_logger()
 
     # Convert tenant_id to int

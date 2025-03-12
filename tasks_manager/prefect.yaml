@@ -19,6 +19,9 @@ definitions:
     daily_2am_pst: &daily_2am_pst
       - cron: "0 2 * * *"
         timezone: "America/Los_Angeles"
+    daily_5am_pst: &daily_5am_pst
+      - cron: "0 5 * * *"
+        timezone: "America/Los_Angeles"
     weekly_monday_230am_pst: &weekly_monday_230am_pst
       - cron: "30 2 * * 1" # Monday at 2:30 AM
         timezone: "America/Los_Angeles"
@@ -131,3 +134,14 @@ deployments:
           tenant_id_str: "{{ event.resource.tenant_id }}"
           metric_id: "{{ event.resource.metric_id }}"
           grain: "{{ event.resource.grain }}"
+
+  - name: "update-story-dates"
+    version: "1.0.0"
+    description: "Update story dates for a specific tenant based on granularity"
+    entrypoint: tasks_manager.flows.stories_update:update_story_dates
+    tags:
+      - daily
+    work_pool: *ecs_work_pool
+    schedules: *daily_5am_pst
+    parameters:
+      tenant_id: "{{ event.resource.tenant_id }}"
