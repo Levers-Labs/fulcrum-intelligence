@@ -190,7 +190,7 @@ async def get_tenant_config(tenant_id: Annotated[int, Depends(get_tenant_id)], t
     Retrieve the configuration for the current tenant.
     """
     try:
-        config: TenantConfig = await tenant_crud_client.get_tenant_config(tenant_id)
+        config: TenantConfigRead = await tenant_crud_client.get_tenant_config(tenant_id)
         return config
     except NotFoundError as e:
         raise HTTPException(status_code=404, detail="Tenant not found") from e
@@ -202,7 +202,8 @@ async def get_tenant_config(tenant_id: Annotated[int, Depends(get_tenant_id)], t
     dependencies=[Security(oauth2_auth().verify, scopes=[ADMIN_READ])],  # type: ignore
 )
 async def get_tenant_config_internal(
-    tenant_id: Annotated[int, Depends(get_tenant_id)], tenant_crud_client: TenantsCRUDDep
+    tenant_id: Annotated[int, Depends(get_tenant_id)],
+    tenant_crud_client: TenantsCRUDDep,
 ):
     """
     Internal endpoint to retrieve the complete tenant configuration including sensitive fields.
@@ -234,6 +235,26 @@ async def update_tenant_config(
         return updated_config
     except NotFoundError as e:
         # Raise an HTTPException if the tenant is not found
+        raise HTTPException(status_code=404, detail="Tenant not found") from e
+
+
+@router.get(
+    "/tenant/internal",
+    response_model=TenantRead,
+    dependencies=[Security(oauth2_auth().verify, scopes=[ADMIN_READ])],  # type: ignore
+)
+async def get_tenant_internal(
+    tenant_crud_client: TenantsCRUDDep,
+    tenant_identifier: str,
+):
+    """
+    Internal endpoint to retrieve the complete tenant configuration including sensitive fields.
+    This endpoint should only be used by internal services.
+    """
+    try:
+        tenant: TenantRead = await tenant_crud_client.get_tenant(tenant_identifier)
+        return TenantRead.model_validate(tenant)
+    except NotFoundError as e:
         raise HTTPException(status_code=404, detail="Tenant not found") from e
 
 
