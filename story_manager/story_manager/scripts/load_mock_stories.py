@@ -6,11 +6,9 @@ from typing import Any
 
 from commons.models.enums import Granularity
 from commons.utilities.context import reset_context, set_tenant_id
-from story_manager.core.dependencies import QueryManagerClientDep, get_query_manager_client
+from story_manager.core.dependencies import get_query_manager_client
 from story_manager.core.enums import StoryGroup
-from story_manager.core.models import Story
 from story_manager.db.config import get_async_session
-from story_manager.mocks.services.data_service import MockDataService
 from story_manager.mocks.services.story_loader import MockStoryLoader
 
 # Set up logging
@@ -22,17 +20,16 @@ async def load_mock_stories(
     metric: dict[str, Any],
     story_groups: list[StoryGroup] = None,
     grains: list[Granularity] = None,
-    start_date: date = None,
-    end_date: date = None,
-) -> list[Story]:
+    start_date: date | None = None,
+    end_date: date | None = None,
+):
     """
     Load mock stories into the database for given parameters.
 
-    :param query_manager:
     :param tenant_id: Tenant ID
-    :param metric_id: Metric ID to generate stories for
+    :param metric: Metric dictionary containing metric_id
     :param story_groups: List of story groups to generate, defaults to all
-    :param grains: List of granularities to generate, defaults to all
+    :param grains: List of granularity to generate, defaults to all
     :param start_date: Optional start date for story generation
     :param end_date: Optional end date for story generation, defaults to today if start_date is provided
     :return: List of created Story objects
@@ -43,67 +40,68 @@ async def load_mock_stories(
     if not story_groups:
         story_groups = list(StoryGroup)
 
-    # Default to all granularities if not specified
+    # Default to all granularity if not specified
     if not grains:
         grains = [Granularity.DAY, Granularity.WEEK, Granularity.MONTH]
 
     # Handle date logic
     today = date.today()
-    using_date_range = start_date is not None
 
-    # If only end_date is provided without start_date, raise error
-    if start_date is None and end_date is not None:
+    # Validate date parameters
+    if end_date is not None and start_date is None:
         raise ValueError("start_date must be provided when end_date is provided")
 
-    # If start_date is provided but end_date is not, default end_date to today
     if start_date is not None and end_date is None:
         end_date = today
 
-    # If neither is provided, we'll use today's date with granularity filtering
-    if start_date is None and end_date is None:
-        end_date = today
-
-    all_stories = []
+    # Prepare a dictionary to hold dates for each granularity
+    grain_dates = {}
 
     async with get_async_session() as db_session:
-
         # Create the loader
         loader = MockStoryLoader(db_session)
-        mock_data_service = MockDataService()
+        mock_data_service = loader.mock_data
+
+        # Pre-compute dates for each granularity outside the loops
+        for grain in grains:
+            if start_date is not None:
+                # When using date range, get all dates within the range
+                grain_dates[grain] = mock_data_service.get_dates_for_range(
+                    grain, start_date=start_date, end_date=end_date
+                )
+            else:
+                # When not using date range, only use today if it matches granularity requirements
+                if grain == Granularity.DAY:
+                    grain_dates[grain] = [today]
+                elif grain == Granularity.WEEK and today.weekday() == 0:  # Monday
+                    grain_dates[grain] = [today]
+                elif grain == Granularity.MONTH and today.day == 1:  # First day of month
+                    grain_dates[grain] = [today]
+                else:
+                    grain_dates[grain] = []
 
         # Generate and load stories for each combination
         for story_group in story_groups:
             for grain in grains:
-                if using_date_range:
-                    # When using date range, get all dates within the range
-                    dates = mock_data_service.get_dates_for_range(grain, start_date=start_date, end_date=end_date)
-                else:
-                    # When not using date range, only use today if it matches granularity requirements
-                    dates = []
-                    # Only add today if it meets granularity requirements
-                    if grain == Granularity.DAY:
-                        dates = [today]
-                    elif grain == Granularity.WEEK and today.weekday() == 0:  # Monday
-                        dates = [today]
-                    elif grain == Granularity.MONTH and today.day == 1:  # First day of month
-                        dates = [today]
+                dates = grain_dates[grain]
+
+                if not dates:
+                    logger.info(f"No applicable dates for {story_group}, {grain}")
+                    continue
 
                 for story_date in dates:
                     try:
-                        stories = await loader.run(
+                        # Generate the stories
+                        stories = loader.generate_stories(
                             metric=metric, grain=grain, story_group=story_group, story_date=story_date
                         )
-                        all_stories.extend(stories)
-                        logger.info(
-                            f"Generated {len(stories)} stories for {story_group}, {grain}, {story_date}"
-                        )
+                        if stories:
+                            await loader.persist_stories(stories)
+                            logger.info(
+                                f"Generated and stored {len(stories)} stories for {story_group}, {grain}, {story_date}"
+                            )
                     except Exception as e:
-                        logger.error(
-                            f"Error generating stories for {story_group}, {grain}, {story_date}: {str(e)}"
-                        )
-
-    logger.info(f"Successfully loaded {len(all_stories)} mock stories")
-    return all_stories
+                        logger.error(f"Error generating stories for {story_group}, {grain}, {story_date}: {str(e)}")
 
 
 async def main(
@@ -120,7 +118,7 @@ async def main(
     :param tenant_id: The tenant ID
     :param metric_id: Metric ID to generate stories for
     :param story_groups: Optional comma-separated list of story groups
-    :param grains: Optional comma-separated list of granularities
+    :param grains: Optional comma-separated list of granularity
     :param start_date_str: Optional start date in YYYY-MM-DD format
     :param end_date_str: Optional end date in YYYY-MM-DD format
     """
