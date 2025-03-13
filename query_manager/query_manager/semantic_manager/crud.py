@@ -24,14 +24,18 @@ from commons.db.crud import CRUDBase
 from commons.db.filters import BaseFilter
 from commons.db.models import BaseTimeStampedTenantModel
 from commons.models.enums import Granularity
+from commons.utilities.context import get_tenant_id
+from query_manager.semantic_manager.filters import TargetFilter
 from query_manager.semantic_manager.models import (
     MetricDimensionalTimeSeries,
     MetricSyncStatus,
+    MetricTarget,
     MetricTimeSeries,
     SyncEvent,
     SyncStatus,
     SyncType,
 )
+from query_manager.semantic_manager.schemas import TargetCreate, TargetUpdate
 
 logger = logging.getLogger(__name__)
 
@@ -450,6 +454,66 @@ class CRUDMetricSyncStatus(CRUDSemantic[MetricSyncStatus, BaseModel, BaseModel, 
         )
 
 
+class CRUDMetricTarget(CRUDSemantic[MetricTarget, TargetCreate, TargetUpdate, TargetFilter]):
+    """CRUD operations for metric targets."""
+
+    filter_class = TargetFilter
+
+    def _get_unique_fields(self) -> list[str]:
+        """Get unique constraint fields for the model."""
+        return ["metric_id", "grain", "target_date", "tenant_id"]
+
+    async def delete_targets(
+        self,
+        metric_id: str,
+        grain: Granularity,
+        target_date: date | None = None,
+        target_date_ge: date | None = None,
+        target_date_le: date | None = None,
+    ) -> bool:
+        """Delete a target for a given metric, grain, and target date."""
+        tenant_id = get_tenant_id()
+        if tenant_id is None:
+            raise ValueError("Tenant ID is not set")
+        query = delete(self.model).where(
+            and_(
+                self.model.metric_id == metric_id,  # type: ignore
+                self.model.grain == grain,  # type: ignore
+                self.model.tenant_id == tenant_id,  # type: ignore
+            )
+        )
+
+        # Apply date based filters
+        if target_date:
+            query = query.where(self.model.target_date == target_date)  # type: ignore
+        if target_date_ge:
+            query = query.where(self.model.target_date >= target_date_ge)  # type: ignore
+        if target_date_le:
+            query = query.where(self.model.target_date <= target_date_le)  # type: ignore
+
+        try:
+            result = await self.session.execute(query)
+            await self.session.commit()
+            return result.rowcount > 0  # type: ignore
+        except SQLAlchemyError as e:
+            await self.session.rollback()
+            logger.error(f"Error deleting target: {e}")
+            raise
+
+    async def bulk_upsert_targets(self, targets: list[dict[str, Any]], batch_size: int | None = None) -> dict[str, Any]:
+        """Bulk upsert targets."""
+        tenant_id = get_tenant_id()
+        if tenant_id is None:
+            raise ValueError("Tenant ID is not set")
+        # Add tenant_id to each target
+        for target in targets:
+            target["tenant_id"] = tenant_id
+        stats = await self.bulk_upsert(targets, batch_size)
+        # Commit the transaction
+        await self.session.commit()
+        return stats
+
+
 class SemanticManager:
     """Manager class for semantic operations."""
 
@@ -458,6 +522,7 @@ class SemanticManager:
         self.metric_time_series = CRUDMetricTimeSeries(MetricTimeSeries, session)
         self.metric_dimensional_time_series = CRUDMetricDimensionalTimeSeries(MetricDimensionalTimeSeries, session)
         self.metric_sync_status = CRUDMetricSyncStatus(MetricSyncStatus, session)
+        self.metric_target = CRUDMetricTarget(MetricTarget, session)
 
     async def bulk_upsert_time_series(
         self, values: list[dict[str, Any]], batch_size: int | None = None

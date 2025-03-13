@@ -1,5 +1,6 @@
 """Tests for semantic manager CRUD operations."""
 
+from copy import deepcopy
 from datetime import date
 
 import pytest
@@ -8,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from commons.models.enums import Granularity
 from commons.utilities.context import set_tenant_id
+from commons.utilities.pagination import PaginationParams
 from query_manager.semantic_manager.crud import (
     CRUDMetricDimensionalTimeSeries,
     CRUDMetricSyncStatus,
@@ -47,6 +49,15 @@ async def metric_dimensional_time_series_crud(db_session: AsyncSession) -> CRUDM
 async def metric_sync_status_crud(db_session: AsyncSession) -> CRUDMetricSyncStatus:
     """Fixture for CRUDMetricSyncStatus instance."""
     return CRUDMetricSyncStatus(MetricSyncStatus, db_session)
+
+
+@pytest_asyncio.fixture
+async def metric_target_crud(db_session: AsyncSession):
+    """Fixture for CRUDMetricTarget instance."""
+    from query_manager.semantic_manager.crud import CRUDMetricTarget
+    from query_manager.semantic_manager.models import MetricTarget
+
+    return CRUDMetricTarget(MetricTarget, db_session)
 
 
 @pytest_asyncio.fixture
@@ -105,6 +116,37 @@ async def sample_dimensional_time_series(db_session: AsyncSession) -> list[Metri
         db_session.add(item)
     await db_session.commit()
     return data
+
+
+@pytest_asyncio.fixture
+async def sample_targets(db_session: AsyncSession) -> list[dict]:
+    """Sample target data for testing."""
+    set_tenant_id(1)
+    targets = [
+        {
+            "metric_id": "test_metric",
+            "grain": Granularity.DAY,
+            "target_date": date(2024, 1, 1),
+            "target_value": 100.0,
+            "target_upper_bound": 110.0,
+            "target_lower_bound": 90.0,
+            "yellow_buffer": 5.0,
+            "red_buffer": 10.0,
+            "tenant_id": 1,
+        },
+        {
+            "metric_id": "test_metric",
+            "grain": Granularity.DAY,
+            "target_date": date(2024, 1, 2),
+            "target_value": 200.0,
+            "target_upper_bound": 220.0,
+            "target_lower_bound": 180.0,
+            "yellow_buffer": 5.0,
+            "red_buffer": 10.0,
+            "tenant_id": 1,
+        },
+    ]
+    return targets
 
 
 async def test_bulk_upsert_time_series(metric_time_series_crud: CRUDMetricTimeSeries):
@@ -571,3 +613,88 @@ async def test_update_sync_status_with_error(metric_sync_status_crud: CRUDMetric
     # Assert
     assert sync_status.sync_status == SyncStatus.FAILED
     assert sync_status.error == "Test error message"
+
+
+async def test_bulk_upsert_targets(metric_target_crud, sample_targets):
+    """Test bulk upsert of targets."""
+    set_tenant_id(1)
+
+    # Test initial insert
+    result = await metric_target_crud.bulk_upsert_targets(sample_targets)
+    assert result["processed"] == 2
+    assert result["failed"] == 0
+    assert result["total"] == 2
+
+    # Verify data was inserted
+
+    filter_params = dict(metric_ids=["test_metric"])
+    pagination_params = PaginationParams(limit=10, offset=0)
+    targets, count = await metric_target_crud.paginate(filter_params=filter_params, params=pagination_params)
+    assert count == 2
+    assert targets[0].metric_id == "test_metric"
+    assert targets[0].target_value == 100.0
+
+    # Test update with modified values
+    updated_targets = deepcopy(sample_targets)
+    updated_targets[0]["target_value"] = 150.0
+
+    result = await metric_target_crud.bulk_upsert_targets(updated_targets)
+    assert result["processed"] == 2
+    assert result["failed"] == 0
+
+
+async def test_delete_targets(metric_target_crud, sample_targets):
+    """Test deleting targets."""
+    set_tenant_id(1)
+
+    # Insert test data
+    await metric_target_crud.bulk_upsert_targets(sample_targets)
+
+    # Test deleting a specific target
+    result = await metric_target_crud.delete_targets(
+        metric_id="test_metric", grain=Granularity.DAY, target_date=date(2024, 1, 1)
+    )
+    assert result is True
+
+    # Verify target was deleted
+
+    filter_params = dict(metric_ids=["test_metric"])
+    pagination_params = PaginationParams(limit=10, offset=0)
+    targets, count = await metric_target_crud.paginate(filter_params=filter_params, params=pagination_params)
+    assert count == 1
+    assert targets[0].target_date == date(2024, 1, 2)
+
+    # Test deleting with date range
+    await metric_target_crud.bulk_upsert_targets(sample_targets)  # Re-insert all data
+    result = await metric_target_crud.delete_targets(
+        metric_id="test_metric", grain=Granularity.DAY, target_date_ge=date(2024, 1, 1), target_date_le=date(2024, 1, 2)
+    )
+    assert result is True
+
+    # Verify all targets were deleted
+    targets, count = await metric_target_crud.paginate(filter_params=filter_params, params=pagination_params)
+    assert count == 0
+
+
+async def test_get_unique_fields_for_target(metric_target_crud):
+    """Test the _get_unique_fields method for MetricTarget."""
+    unique_fields = metric_target_crud._get_unique_fields()
+    assert unique_fields == ["metric_id", "grain", "target_date", "tenant_id"]
+
+
+async def test_bulk_upsert_targets_no_tenant_id(metric_target_crud, sample_targets, monkeypatch):
+    """Test bulk upsert of targets with no tenant ID."""
+    # Mock get_tenant_id to return None
+    monkeypatch.setattr("query_manager.semantic_manager.crud.get_tenant_id", lambda: None)
+
+    with pytest.raises(ValueError, match="Tenant ID is not set"):
+        await metric_target_crud.bulk_upsert_targets(sample_targets)
+
+
+async def test_delete_targets_no_tenant_id(metric_target_crud, monkeypatch):
+    """Test delete targets with no tenant ID."""
+    # Mock get_tenant_id to return None
+    monkeypatch.setattr("query_manager.semantic_manager.crud.get_tenant_id", lambda: None)
+
+    with pytest.raises(ValueError, match="Tenant ID is not set"):
+        await metric_target_crud.delete_targets(metric_id="test_metric", grain=Granularity.DAY)
