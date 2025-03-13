@@ -38,7 +38,7 @@ async def generate_stories(story_date: date | None = None, groups: list[StoryGro
         stories.extend(result)
     # Add stories as table artifact
     today = date.today()
-    await create_table_artifact(
+    await create_table_artifact(  # type: ignore
         key=f"{today}-stories",
         table=stories,
         description=f"Heuristic stories generated for {today}",

@@ -225,7 +225,7 @@ async def execute_alert(tenant_id: str, alert_id: str, trigger_params_str: str):
         - Deployment ID: {run_info.get('deployment_id', 'Not available')}
         - Start Time: {run_info.get('start_time', 'Not available')}
         """
-        await create_markdown_artifact(
+        await create_markdown_artifact(  # type: ignore
             key=f"alert-{alert_id}-execution-{execution.get('id')}-summary",
             markdown=summary,
             description=f"Execution summary for alert {alert_id}",

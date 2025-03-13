@@ -7,9 +7,10 @@ license = "Proprietary"
 
 [tool.poetry.dependencies]
 python = ">=3.10,<3.12"
-pydantic = { extras = ["email", "dotenv"], version = "^2.7.4" }
+pydantic = { extras = ["email"], version = "^2.7.4" }
 httpx = "^0.27.0"
 fastapi = "^0.115.6"
+anyio = ">=3.5.0,<5.0.0"
 sqlalchemy = { version = "^2.0.29", optional = true }
 sqlmodel = { version = "^0.0.16", optional = true }
 psycopg2-binary = { version = "^2.9.9", optional = true }
@@ -28,6 +29,9 @@ langchain-anthropic = "^0.3.0"
 pydantic-settings = "^2.6.1"
 blinker = "^1.9.0"
 boto3 = "^1.34.69"
+botocore = ">=1.34.41,<1.34.70"
+numpy = "1.24.3"
+cryptography = "42.0.8"
 
 [tool.poetry.extras]
 db = ["sqlmodel", "sqlalchemy", "psycopg2-binary", "alembic", "asyncpg", "greenlet", "blinker"]

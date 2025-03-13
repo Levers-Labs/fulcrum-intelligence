@@ -195,7 +195,7 @@ async def create_sync_summary_artifact(summary: SyncSummary) -> None:
 - Grand Total: {time_series['total'] + dim_totals['total']}
 {error_section}"""  # noqa: E501
 
-    await create_markdown_artifact(
+    await create_markdown_artifact(  # type: ignore
         key=f"metric-{summary['metric_id'].lower()}-{summary['grain'].lower()}-sync-summary", markdown=markdown
     )
 
