@@ -255,11 +255,25 @@ class Pattern(ABC, Generic[T]):
         Get pattern information.
 
         Returns:
-            Dictionary with pattern metadata
+            Dictionary with pattern metadata including full output schema
         """
-        return {
+        # Get basic pattern info
+        info: dict[str, Any] = {
             "name": cls.name,
             "description": cls.__doc__.strip().split("\n")[0] if cls.__doc__ else "",
             "required_primitives": cls.required_primitives,
-            "output_model": cls.output_model.__name__ if hasattr(cls, "output_model") else None,
         }
+
+        # Add output schema if available
+        if hasattr(cls, "output_model"):
+            try:
+                # Get the schema from the Pydantic model
+                schema = cls.output_model.model_json_schema()
+                info["output"] = schema
+            except Exception as e:
+                # Fallback if schema generation fails
+                info["output"] = {"error": f"Could not generate schema: {str(e)}"}
+        else:
+            info["output"] = None
+
+        return info

@@ -65,18 +65,26 @@ def get_primitive_metadata(primitive_name: str):
 
     # Extract metadata from docstring
     docstring = primitive_func.__doc__ or ""
-    lines = docstring.split("\n")
+    lines = [line.strip() for line in docstring.split("\n") if line.strip()]
+
+    # Get a better description - first non-empty line that's not a metadata tag
+    description = ""
+    for line in lines:
+        if line and not any(
+            line.startswith(tag) for tag in ["Family:", "Version:", "Args:", "Returns:", "Notes:", "Raises:"]
+        ):
+            description = line
+            break
 
     metadata = {
         "name": primitive_name,
-        "description": lines[0].strip() if lines else "",
+        "description": description,
         "family": "",
         "version": "",
     }
 
     # Extract family and version
     for line in lines:
-        line = line.strip()
         if line.startswith("Family:"):
             metadata["family"] = line.replace("Family:", "").strip()
         elif line.startswith("Version:"):
