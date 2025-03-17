@@ -63,8 +63,8 @@ def should_update_grain(check_date: date, grain: Granularity) -> bool:
     elif grain == Granularity.YEAR:
         # Update yearly grain only on Jan 1
         return check_date.day == 1 and check_date.month == 1
-    else:
-        return False
+
+    raise ValueError(f"Unsupported grain: {grain}")
 
 
 def increment_date_by_grain(current_date: date, grain: Granularity) -> date:
