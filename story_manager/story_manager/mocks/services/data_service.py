@@ -87,7 +87,7 @@ class MockDataService:
         # Generate dates
         while current_date <= end_date:
             dates.append(current_date)
-            current_date = (current_date + delta).date()
+            current_date = (current_date + delta).date()  # type: ignore
 
         return dates
 

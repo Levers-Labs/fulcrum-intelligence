@@ -190,7 +190,7 @@ async def get_tenant_config(tenant_id: Annotated[int, Depends(get_tenant_id)], t
     Retrieve the configuration for the current tenant.
     """
     try:
-        config: TenantConfigRead = await tenant_crud_client.get_tenant_config(tenant_id)
+        config = await tenant_crud_client.get_tenant_config(tenant_id)
         return config
     except NotFoundError as e:
         raise HTTPException(status_code=404, detail="Tenant not found") from e

@@ -145,7 +145,7 @@ class CRUDStory(CRUDBase[Story, Story, Story, StoryFilter]):
         """
         Update the date of a story in the database.
         """
-        statement = self.get_select_query().where(Story.id == story_id)
+        statement = self.get_select_query().where(Story.id == story_id)  # type: ignore
         result = await self.session.execute(statement)
         story = result.scalar_one_or_none()
         if story is None:
