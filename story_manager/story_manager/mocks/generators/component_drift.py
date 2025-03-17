@@ -21,7 +21,7 @@ class ComponentDriftMockGenerator(MockGeneratorBase):
     min_component_count = 2
 
     def generate_stories(
-        self, metric: dict[str, Any], grain: Granularity, story_date: date = None
+        self, metric: dict[str, Any], grain: Granularity, story_date: date | None = None
     ) -> list[dict[str, Any]]:
         """Generate mock component drift stories"""
         if story_date:
@@ -29,12 +29,12 @@ class ComponentDriftMockGenerator(MockGeneratorBase):
 
         stories = []
 
-        # Check if metric has components
-        if not metric.get("components") or len(metric.get("components", [])) < self.min_component_count:
-            return []
+        # Extract components from metric expression or use direct components if available
+        components = self._extract_components_from_metric(metric)
 
-        # Get components from metric
-        components = metric.get("components", [])
+        # Check if we have enough components
+        if len(components) < self.min_component_count:
+            return []
 
         # Generate mock component data
         component_data = self._generate_mock_component_data(components)
@@ -67,6 +67,27 @@ class ComponentDriftMockGenerator(MockGeneratorBase):
 
         return stories
 
+    def _extract_components_from_metric(self, metric: dict[str, Any]) -> list[str]:
+        """Extract component metric IDs from the metric expression or direct components."""
+        components = []
+
+        # First check if components are directly available
+        if metric.get("components") and len(metric.get("components", [])) >= self.min_component_count:
+            return [comp for comp in metric.get("components", [])]
+
+        # If not, try to extract from metric_expression
+        expression = metric.get("metric_expression", {})
+
+        # Extract from expression if it exists
+        if expression and expression.get("expression"):
+            # Get the operands from the expression
+            operands = expression.get("expression", {}).get("operands", [])
+            for operand in operands:
+                if operand.get("type") == "metric" and operand.get("metric_id"):
+                    components.append(operand.get("metric_id"))
+
+        return components
+
     @staticmethod
     def get_mock_component_series(component: dict[str, Any]) -> list[dict[str, Any]]:
         return [
@@ -74,49 +95,40 @@ class ComponentDriftMockGenerator(MockGeneratorBase):
                 "component_id": component["metric_id"],
                 "evaluation_value": component["evaluation_value"],
                 "comparison_value": component["comparison_value"],
-                "percentage_drift": component["percentage_drift"] / 100
+                "percentage_drift": component["percentage_drift"] / 100,
             }
         ]
 
-    def get_mock_time_series(
-        self, grain: Granularity, story_type: StoryType
-    ) -> list[dict[str, Any]]:
-        pass
+    def get_mock_time_series(self, grain: Granularity, story_type: StoryType) -> list[dict[str, Any]]:
+        """Required by base class but not used for component drift"""
+        return []
 
     def get_mock_variables(
         self,
         metric: dict[str, Any],
         story_type: StoryType,
         grain: Granularity,
-        time_series: list[dict[str, Any]] = None,
-        component: dict[str, Any] = None,
+        time_series: list[dict[str, Any]] | None = None,
+        component: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """Generate mock variables for component drift stories"""
-        # Get grain metadata
         grain_meta = GRAIN_META[grain]
 
-        # Get evaluation and comparison values
-        evaluation_value = component["evaluation_value"]
-        comparison_value = component["comparison_value"]
-
         # Create variables dict
-        variables = {
+        return {
             "metric": {"id": metric["id"], "label": metric["label"]},
             "grain": grain.value,
             "eoi": grain_meta["eoi"],
             "pop": grain_meta["pop"],
             "interval": grain_meta["interval"],
-            "component": component["metric_id"],
-            "percentage_drift": round(abs(component["percentage_drift"]), 2),
-            "relative_impact": round(abs(component["relative_impact"]), 2),
-            "contribution": round(abs(component["marginal_contribution_root"]), 2),
-            "pressure": component["pressure"],
-            # Add these explicit values to match the example
-            "evaluation_value": evaluation_value,
-            "comparison_value": comparison_value,
+            "component": component["metric_id"],  # type: ignore
+            "percentage_drift": round(abs(component["percentage_drift"]), 2),  # type: ignore
+            "relative_impact": round(abs(component["relative_impact"]), 2),  # type: ignore
+            "contribution": round(abs(component["marginal_contribution_root"]), 2),  # type: ignore
+            "pressure": component["pressure"],  # type: ignore
+            "evaluation_value": component["evaluation_value"],  # type: ignore
+            "comparison_value": component["comparison_value"],  # type: ignore
         }
-
-        return variables
 
     def _generate_mock_component_data(self, components: list[str]) -> list[dict[str, Any]]:
         """Generate mock data for components"""
@@ -136,7 +148,7 @@ class ComponentDriftMockGenerator(MockGeneratorBase):
             else:
                 # Randomly distribute contribution, ensuring some is left for remaining components
                 max_contribution = remaining_contribution - (len(components) - i - 1) * 5
-                contribution = random.uniform(5, max(10, max_contribution))
+                contribution = random.uniform(5, max(10, max_contribution))  # type: ignore
                 remaining_contribution -= contribution
 
             # Decide if component is improving or worsening
@@ -187,6 +199,4 @@ class ComponentDriftMockGenerator(MockGeneratorBase):
     def _create_ranked_df(self, component_data: list[dict[str, Any]]) -> list[dict[str, Any]]:
         """Rank components by absolute marginal contribution"""
         # Sort by absolute marginal contribution in descending order
-        ranked_components = sorted(component_data, key=lambda x: abs(x["marginal_contribution_root"]), reverse=True)
-
-        return ranked_components
+        return sorted(component_data, key=lambda x: abs(x["marginal_contribution_root"]), reverse=True)

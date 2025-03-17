@@ -18,8 +18,8 @@ logger = logging.getLogger(__name__)
 async def load_mock_stories(
     tenant_id: int,
     metric: dict[str, Any],
-    story_groups: list[StoryGroup] = None,
-    grains: list[Granularity] = None,
+    story_groups: list[StoryGroup] | None = None,
+    grains: list[Granularity] | None = None,
     start_date: date | None = None,
     end_date: date | None = None,
 ):
@@ -67,7 +67,7 @@ async def load_mock_stories(
             if start_date is not None:
                 # When using date range, get all dates within the range
                 grain_dates[grain] = mock_data_service.get_dates_for_range(
-                    grain, start_date=start_date, end_date=end_date
+                    grain, start_date=start_date, end_date=end_date  # type: ignore
                 )
             else:
                 # When not using date range, only use today if it matches granularity requirements
@@ -92,8 +92,8 @@ async def load_mock_stories(
                 for story_date in dates:
                     try:
                         # Generate the stories
-                        stories = loader.generate_stories(
-                            metric=metric, grain=grain, story_group=story_group, story_date=story_date
+                        stories = loader.prepare_stories(
+                            metric=metric, grain=grain, story_group=story_group, story_date=story_date  # type: ignore
                         )
                         if stories:
                             await loader.persist_stories(stories)

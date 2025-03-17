@@ -50,6 +50,15 @@ class InsightBackendClient(AsyncHttpClient):
                 raise InvalidTenantError(tenant_id) from e
             raise
 
+    async def get_tenant(self, **params) -> dict:
+        """
+        Get tenant for tenant identifier.
+        Raises a Tenant not found exception if the tenant is not found.
+        :return: dict
+        """
+        tenant = await self.get("/tenant/internal", params=params)
+        return tenant
+
     async def get_slack_channel_details(self, channel_id: str) -> Any:
         """
         Get tenant configuration for tenant from context.

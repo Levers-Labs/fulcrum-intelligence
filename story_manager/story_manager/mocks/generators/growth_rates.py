@@ -9,13 +9,13 @@ from story_manager.story_builder.constants import GRAIN_META, STORY_GROUP_TIME_D
 
 
 class GrowthRatesMockGenerator(MockGeneratorBase):
-    """Mock generator for Growth Rates stories with more pronounced visual patterns"""
+    """Mock generator for Growth Rates stories"""
 
     genre = StoryGenre.GROWTH
     group = StoryGroup.GROWTH_RATES
 
     def generate_stories(
-        self, metric: dict[str, Any], grain: Granularity, story_date: date = None
+        self, metric: dict[str, Any], grain: Granularity, story_date: date | None = None
     ) -> list[dict[str, Any]]:
         """Generate mock growth rates stories"""
         if story_date:
@@ -23,36 +23,28 @@ class GrowthRatesMockGenerator(MockGeneratorBase):
 
         stories = []
 
-        # Generate accelerating growth story
-        accelerating_series = self.get_mock_time_series(grain, StoryType.ACCELERATING_GROWTH)
-        accelerating_vars = self.get_mock_variables(metric, StoryType.ACCELERATING_GROWTH, grain, accelerating_series)
-        accelerating_story = self.prepare_story_dict(
-            metric,
-            StoryType.ACCELERATING_GROWTH,
-            grain,
-            accelerating_series,
-            accelerating_vars,
-            story_date or self.data_service.story_date,
-        )
-        stories.append(accelerating_story)
+        # Define story types to generate
+        story_types = [StoryType.ACCELERATING_GROWTH, StoryType.SLOWING_GROWTH]
 
-        # Generate slowing growth story
-        slowing_series = self.get_mock_time_series(grain, StoryType.SLOWING_GROWTH)
-        slowing_vars = self.get_mock_variables(metric, StoryType.SLOWING_GROWTH, grain, slowing_series)
-        slowing_story = self.prepare_story_dict(
-            metric,
-            StoryType.SLOWING_GROWTH,
-            grain,
-            slowing_series,
-            slowing_vars,
-            story_date or self.data_service.story_date,
-        )
-        stories.append(slowing_story)
+        # Generate stories for each type
+        for story_type in story_types:
+            time_series = self.get_mock_time_series(grain, story_type)
+            variables = self.get_mock_variables(metric, story_type, grain, time_series)
+
+            story = self.prepare_story_dict(
+                metric,
+                story_type,
+                grain,
+                time_series,
+                variables,
+                story_date or self.data_service.story_date,
+            )
+            stories.append(story)
 
         return stories
 
     def get_mock_time_series(self, grain: Granularity, story_type: StoryType) -> list[dict[str, Any]]:
-        """Generate mock time series data with more pronounced visual patterns"""
+        """Generate mock time series data for growth rate stories"""
         # Get date range
         start_date, end_date = self.data_service._get_input_time_range(grain, self.group)
 
@@ -61,111 +53,93 @@ class GrowthRatesMockGenerator(MockGeneratorBase):
         formatted_dates = self.data_service.get_formatted_dates(dates)
         num_points = len(dates)
 
-        # Generate values with more interesting patterns
         if story_type == StoryType.ACCELERATING_GROWTH:
+            # Generate accelerating growth pattern
             values, growth_rates = self._generate_accelerating_pattern(num_points)
-        else:  # SLOWING_GROWTH
+        else:
+            # Generate slowing growth pattern
             values, growth_rates = self._generate_slowing_pattern(num_points)
 
         # Create time series with values and growth rates
         return [
             {"date": date, "value": round(value), "growth_rate": None if i == 0 else round(growth_rate, 2)}
-            for i, (date, value, growth_rate) in enumerate(zip(formatted_dates, values, growth_rates))
+            for i, (date, value, growth_rate) in enumerate(
+                zip(formatted_dates, values, [0] + growth_rates)  # Add a placeholder for first point
+            )
         ]
 
     def _generate_accelerating_pattern(self, num_points: int) -> tuple[list[float], list[float]]:
-        """Generate a pattern with more pronounced acceleration and variations"""
-        # Start with a base value
-        base_value = random.uniform(200, 400)
-        values = [base_value]
-
-        # Create distinct segments with different growth patterns
-        # Divide the timeline into segments
-        segment_count = min(4, num_points // 3)
-        if segment_count < 2:
-            segment_count = 2
-
-        segments = []
-        remaining_points = num_points
-
-        # Create segments of different lengths
-        for i in range(segment_count - 1):
-            segment_length = max(2, random.randint(2, remaining_points // 2))
-            segments.append(segment_length)
-            remaining_points -= segment_length
-
-        segments.append(remaining_points)  # Last segment gets remaining points
-
-        # Generate growth rates for each segment
+        """Generate an accelerating growth pattern"""
+        values = []
         growth_rates = []
-        current_base_growth = random.uniform(1.5, 3.0)
 
-        for i, segment_length in enumerate(segments):
-            # Increase base growth rate for each segment
-            segment_growth = current_base_growth * (1 + 0.4 * i)
+        # Start with a base value
+        base_value = random.uniform(200, 500)
+        values.append(base_value)
 
-            # Add random variations within the segment
-            segment_rates = []
-            for j in range(segment_length):
-                # Add more variation at segment boundaries
-                if j < 2 or j >= segment_length - 2:
-                    variation = random.uniform(-1.0, 1.0)
-                else:
-                    variation = random.uniform(-0.5, 0.5)
+        # Start with modest growth, increase over time
+        growth = 2.0  # Start with 2% growth
 
-                rate = segment_growth + variation
-                segment_rates.append(max(0.5, rate))
-
-            growth_rates.extend(segment_rates)
-
-            # Ensure a visible jump between segments
-            current_base_growth = segment_growth * random.uniform(1.1, 1.3)
-
-        # Ensure the last few points show clear acceleration
-        for i in range(min(3, num_points // 4)):
-            if num_points > 3 + i:
-                growth_rates[-3 - i] = growth_rates[-3 - i] * random.uniform(1.1, 1.2)
-
-        # Calculate values based on growth rates
         for i in range(1, num_points):
-            next_value = values[-1] * (1 + growth_rates[i - 1] / 100)
+            # Increase growth rate over time
+            if i < num_points // 2:
+                # First half: modest increases
+                growth += random.uniform(0.2, 0.5)
+            else:
+                # Second half: more dramatic increases
+                growth += random.uniform(0.5, 1.0)
+
+            # Add some variability
+            actual_growth = max(0.5, growth * random.uniform(0.9, 1.1))
+            growth_rates.append(actual_growth)
+
+            # Calculate next value
+            next_value = values[-1] * (1 + actual_growth / 100)
             values.append(next_value)
 
         return values, growth_rates
 
     def _generate_slowing_pattern(self, num_points: int) -> tuple[list[float], list[float]]:
-        """Simple approach to generate a pattern with dramatic flattening at the end"""
-        # Start with a base value
-        base_value = random.uniform(100, 400)
-        values = [base_value]
-
-        # Use a simple exponential decay function for growth rates
-        # Start with high growth and decay to near-zero
-        initial_growth_rate = random.uniform(10, 15)  # Start with 10-15% growth
-        final_growth_rate = random.uniform(0.2, 1.0)  # End with 0.2-1% growth
-
-        # Calculate decay factor to reach final rate
-        decay_factor = (final_growth_rate / initial_growth_rate) ** (1 / (num_points - 1))
-
-        # Generate growth rates with exponential decay
+        """Generate a slowing growth pattern with visual flattening"""
+        values = []
         growth_rates = []
-        current_rate = initial_growth_rate
 
-        for _ in range(num_points):
-            # Add some random variation
-            rate = current_rate * random.uniform(0.8, 1.2)
-            growth_rates.append(rate)
+        # Start with a base value
+        base_value = random.uniform(200, 500)
+        values.append(base_value)
 
-            # Decay the rate for next point
-            current_rate = current_rate * decay_factor
+        # Start with high growth, dramatically decrease over time
+        initial_growth = 15.0  # Start with 15% growth (higher initial growth)
+        growth = initial_growth
 
-        # Make the last few points especially flat
-        for i in range(min(3, num_points // 4)):
-            growth_rates[-i - 1] = random.uniform(0.1, 0.5)
-
-        # Calculate values based on growth rates
+        # More dramatic decay toward the end
         for i in range(1, num_points):
-            next_value = values[-1] * (1 + growth_rates[i] / 100)
+            # Calculate position in sequence (0 to 1)
+            position = i / (num_points - 1)
+
+            # Apply exponential decay to growth rate
+            # This creates a much more dramatic slowdown
+            if position < 0.5:
+                # First half: gentle decline
+                growth = initial_growth * (1 - position * 0.5)
+            elif position < 0.8:
+                # Next 30%: faster decline
+                growth = initial_growth * (1 - 0.25 - (position - 0.5) * 2)
+            else:
+                # Final 20%: dramatic decline to near-zero or negative
+                growth = initial_growth * (1 - 0.85 - (position - 0.8) * 7.5)
+
+            # Add randomness but maintain trend
+            actual_growth = growth * random.uniform(0.9, 1.1)
+
+            # Allow slightly negative growth at the very end (creates visual downturn)
+            if position > 0.9:
+                actual_growth = min(actual_growth, 0.5 - (position - 0.9) * 5)
+
+            growth_rates.append(max(-1.0, actual_growth))  # Cap minimum at -1%
+
+            # Calculate next value
+            next_value = values[-1] * (1 + growth_rates[-1] / 100)
             values.append(next_value)
 
         return values, growth_rates
@@ -175,7 +149,7 @@ class GrowthRatesMockGenerator(MockGeneratorBase):
         metric: dict[str, Any],
         story_type: StoryType,
         grain: Granularity,
-        time_series: list[dict[str, Any]] = None,
+        time_series: list[dict[str, Any]] | None = None,
     ) -> dict[str, Any]:
         """Generate mock variables for growth rates stories"""
         # Get grain metadata
@@ -184,39 +158,21 @@ class GrowthRatesMockGenerator(MockGeneratorBase):
         # Get required periods
         periods = STORY_GROUP_TIME_DURATIONS[self.group][grain]["input"]
 
-        # Filter out None growth rates
-        valid_growth_rates = [point["growth_rate"] for point in time_series if point["growth_rate"] is not None]
+        # Get valid growth rates (skip the first None value)
+        valid_growth_rates = [point["growth_rate"] for point in time_series if point["growth_rate"] is not None]  # type: ignore
 
-        # Get the current growth rate (latest non-None value)
+        # Get the current growth rate
         current_growth = valid_growth_rates[-1]
 
-        # Calculate average growth rate
-        if story_type == StoryType.ACCELERATING_GROWTH:
-            # For accelerating, use earlier periods for average to show contrast
-            if len(valid_growth_rates) > 5:
-                avg_growth = sum(valid_growth_rates[:-3]) / len(valid_growth_rates[:-3])
-            else:
-                avg_growth = sum(valid_growth_rates[:-1]) / max(1, len(valid_growth_rates) - 1)
-
-            # Ensure current is higher than average
-            if current_growth <= avg_growth:
-                current_growth = avg_growth * random.uniform(1.1, 1.2)
-
-        else:  # SLOWING_GROWTH
-            # For slowing, use earlier periods for average to show contrast
-            if len(valid_growth_rates) > 5:
-                # Use the first half or first two-thirds for a higher average
-                cutoff = len(valid_growth_rates) // 2
-                avg_growth = sum(valid_growth_rates[:cutoff]) / cutoff
-            else:
-                avg_growth = sum(valid_growth_rates[:-1]) / max(1, len(valid_growth_rates) - 1)
-
-            # Ensure current is lower than average
-            if current_growth >= avg_growth:
-                current_growth = avg_growth * random.uniform(0.4, 0.6)
+        # Calculate average growth rate (excluding the last point)
+        if len(valid_growth_rates) > 1:
+            avg_growth = sum(valid_growth_rates[:-1]) / (len(valid_growth_rates) - 1)
+        else:
+            # Fallback if we somehow only have one point
+            avg_growth = current_growth * 0.8 if story_type == StoryType.ACCELERATING_GROWTH else current_growth * 1.2
 
         # Create variables dict
-        variables = {
+        return {
             "metric": {"id": metric["id"], "label": metric["label"]},
             "grain": grain.value,
             "eoi": grain_meta["eoi"],
@@ -226,5 +182,3 @@ class GrowthRatesMockGenerator(MockGeneratorBase):
             "current_growth": round(current_growth, 2),
             "avg_growth": round(avg_growth, 2),
         }
-
-        return variables

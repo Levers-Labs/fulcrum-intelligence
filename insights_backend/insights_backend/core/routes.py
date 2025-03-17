@@ -252,7 +252,7 @@ async def get_tenant_internal(
     This endpoint should only be used by internal services.
     """
     try:
-        tenant: TenantRead = await tenant_crud_client.get_tenant(tenant_identifier)
+        tenant = await tenant_crud_client.get_tenant(tenant_identifier)
         return TenantRead.model_validate(tenant)
     except NotFoundError as e:
         raise HTTPException(status_code=404, detail="Tenant not found") from e

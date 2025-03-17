@@ -50,8 +50,8 @@ class MockStoryLoader:
             StoryGroup.SIGNIFICANT_SEGMENTS: SignificantSegmentMockGenerator(self.mock_data),
         }
 
-    def generate_stories(
-        self, metric: dict[str, Any], grain: Granularity, story_group: StoryGroup, story_date: date = None
+    def prepare_stories(
+        self, metric: dict[str, Any], grain: Granularity, story_group: StoryGroup, story_date: date | None = None
     ) -> list[dict[str, Any]]:
         """
         Generate mock stories without persisting them

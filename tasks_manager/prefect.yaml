@@ -2,9 +2,9 @@
 name: tasks_manager
 prefect-version: 3.1.7
 
-#pull:
-#- prefect.deployments.steps.set_working_directory:
-#    directory: /opt/prefect/tasks_manager
+pull:
+- prefect.deployments.steps.set_working_directory:
+    directory: /opt/prefect/tasks_manager
 
 # Reusable definitions
 definitions:
@@ -135,13 +135,13 @@ deployments:
           metric_id: "{{ event.resource.metric_id }}"
           grain: "{{ event.resource.grain }}"
 
-  - name: "update-story-dates"
+  - name: "update-demo-stories"
     version: "1.0.0"
-    description: "Update story dates for a specific tenant based on granularity"
-    entrypoint: tasks_manager.flows.stories_update:update_story_dates
+    description: "Update demo stories dates for demo tenant based on granularity"
+    entrypoint: tasks_manager.flows.stories:update_demo_stories
     tags:
       - daily
     work_pool: *ecs_work_pool
     schedules: *daily_5am_pst
     parameters:
-      tenant_id: "{{ event.resource.tenant_id }}"
+      tenant_identifier: "{{ event.resource.tenant_identifier }}"

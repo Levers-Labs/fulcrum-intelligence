@@ -1,4 +1,5 @@
 from datetime import date, timedelta
+
 import pandas as pd
 
 from commons.models.enums import Granularity
@@ -8,7 +9,7 @@ from story_manager.story_builder.constants import GRAIN_META, STORY_GROUP_TIME_D
 class MockDataService:
     """Service to provide date utilities for mock generators"""
 
-    def __init__(self, story_date: date = None):
+    def __init__(self, story_date: date | None = None):
         self.story_date = story_date or date.today()
         self.date_format = "%B %d, %Y"  # e.g., "January 01, 2023"
 
@@ -47,12 +48,12 @@ class MockDataService:
             raise ValueError(f"Unsupported grain: {grain}")
         return start_date, end_date
 
-    def _get_input_time_range(self, grain: Granularity, group) -> tuple[date, date]:
+    def get_input_time_range(self, grain: Granularity, group) -> tuple[date, date]:
         """
         Get the time range for the input data based on the grain.
 
         :param grain: The grain for which the time range is retrieved.
-        :param input_periods: Number of periods to look back
+        :param group: group of story
         :return: The start and end date of the time range.
         """
         periods = STORY_GROUP_TIME_DURATIONS[group][grain]["input"]

@@ -19,112 +19,92 @@ class InfluenceDriftMockGenerator(MockGeneratorBase):
 
     genre = StoryGenre.ROOT_CAUSES
     group = StoryGroup.INFLUENCE_DRIFT
+    DEFAULT_MOCK_INFLUENCERS = ["Revenue", "Cost", "Customer Satisfaction", "Market Share", "Conversion Rate"]
 
     def generate_stories(
-        self, metric: dict[str, Any], grain: Granularity, story_date: date = None
+        self, metric: dict[str, Any], grain: Granularity, story_date: date | None = None
     ) -> list[dict[str, Any]]:
         """Generate mock influence drift stories"""
         if story_date:
             self.data_service.story_date = story_date
 
-        stories = []
-
-        # Check if metric has influencers
-        if not metric.get("influencers"):
-            return []
-
-        # Get influencers from metric
+        # Get influencers from metric or create mock ones if none exist
         influencers = metric.get("influencers", [])
+        if not influencers:
+            # Create 2-3 mock influencers
+            num_influencers = random.randint(2, 3)
+            influencers = self._create_mock_influencers(num_influencers)
 
         # Generate mock influence data
-        influence_data = self._generate_mock_influence_data(influencers, metric)
+        influence_data = self._generate_mock_influence_data(influencers)
 
         # Generate stories for each influence
+        stories = []
         for influence in influence_data:
-            # Generate relationship strength stories (Stronger/Weaker Influence)
-            relationship_series = self.get_mock_time_series(grain, influence["relationship_story_type"], influence)
-            relationship_vars = self.get_mock_variables(
-                metric, influence["relationship_story_type"], grain, relationship_series, influence
-            )
-            relationship_story = self.prepare_story_dict(
-                metric,
-                influence["relationship_story_type"],
-                grain,
-                relationship_series,
-                relationship_vars,
-                story_date or self.data_service.story_date,
-            )
-            stories.append(relationship_story)
+            # Generate both story types for each influence
+            story_types = [influence["relationship_story_type"], influence["metric_story_type"]]
 
-            # Generate influence metric stories (Improving/Worsening Influence)
-            metric_series = self.get_mock_time_series(grain, influence["metric_story_type"], influence)
-            metric_vars = self.get_mock_variables(
-                metric, influence["metric_story_type"], grain, metric_series, influence
-            )
-            metric_story = self.prepare_story_dict(
-                metric,
-                influence["metric_story_type"],
-                grain,
-                metric_series,
-                metric_vars,
-                story_date or self.data_service.story_date,
-            )
-            stories.append(metric_story)
+            for story_type in story_types:
+                time_series = self.get_mock_time_series(grain, story_type, influence)
+                variables = self.get_mock_variables(metric, story_type, grain, time_series, influence)
+
+                story = self.prepare_story_dict(
+                    metric,
+                    story_type,
+                    grain,
+                    time_series,
+                    variables,
+                    story_date or self.data_service.story_date,
+                )
+                stories.append(story)
 
         return stories
 
+    def _create_mock_influencers(self, count: int) -> list[str]:
+        """Create mock influencer names when none are provided"""
+        # Select a random sample from our default influencers
+        return random.sample(self.DEFAULT_MOCK_INFLUENCERS, min(count, len(self.DEFAULT_MOCK_INFLUENCERS)))
+
     def get_mock_time_series(
-        self, grain: Granularity, story_type: StoryType, influence: dict[str, Any]
+        self, grain: Granularity, story_type: StoryType, influence: dict[str, Any] | None = None
     ) -> list[dict[str, Any]]:
         """Generate mock time series data for influence drift stories"""
-        # Get date range
-        start_date, end_date = self.data_service._get_input_time_range(grain, self.group)
-
-        # Get dates within range
+        # Get date range and dates within range
+        start_date, end_date = self.data_service.get_input_time_range(grain, self.group)
         dates = self.data_service.get_dates_for_range(grain, start_date, end_date)
         formatted_dates = self.data_service.get_formatted_dates(dates)
 
-        # Generate values based on influence data
-        values = []
-        output_values = []
+        # Extract values from influence data
+        latest_value = influence["latest_value"]  # type: ignore
+        previous_value = influence["previous_value"]  # type: ignore
+        output_latest = influence["output_latest"]  # type: ignore
+        output_previous = influence["output_previous"]  # type: ignore
 
-        # Get influence values
-        latest_value = influence["latest_value"]
-        previous_value = influence["previous_value"]
+        # Generate series showing the trend
+        num_points = len(formatted_dates)
+        time_series = []
 
-        # Get output values
-        output_latest = influence["output_latest"]
-        output_previous = influence["output_previous"]
-
-        # Generate a series that shows the trend
-        for i in range(len(formatted_dates)):
-            # Calculate progress
-            progress = i / (len(formatted_dates) - 1)
+        for i, date_str in enumerate(formatted_dates):
+            # Calculate progress in the time series
+            progress = i / (num_points - 1) if num_points > 1 else 1
 
             # Interpolate between previous and latest values
             value = previous_value + progress * (latest_value - previous_value)
             output_value = output_previous + progress * (output_latest - output_previous)
 
-            # Add some random noise
-            noise = random.uniform(-0.05, 0.05) * value
-            output_noise = random.uniform(-0.05, 0.05) * output_value
+            # Add some random noise (±5%)
+            value += value * random.uniform(-0.05, 0.05)
+            output_value += output_value * random.uniform(-0.05, 0.05)
 
-            value += noise
-            output_value += output_noise
-
-            values.append(round(value))
-            output_values.append(round(output_value))
-
-        # Create time series
-        time_series = []
-        for i, (date_str, value, output_value) in enumerate(zip(formatted_dates, values, output_values)):
-            point = {
-                "date": date_str,
-                "value": value,
-                "output_value": output_value,
-                "influence_id": influence["influence_metric_id"],
-            }
-            time_series.append(point)
+            # Add point to time series
+            time_series.append(
+                {
+                    "date": date_str,
+                    "value": round(value),
+                    "output_value": round(output_value),
+                    "influence_id": influence["influence_metric_id"],  # type: ignore
+                }
+            )
 
         return time_series
 
@@ -133,35 +113,31 @@ class InfluenceDriftMockGenerator(MockGeneratorBase):
         metric: dict[str, Any],
         story_type: StoryType,
         grain: Granularity,
-        time_series: list[dict[str, Any]] = None,
-        influence: dict[str, Any] = None,
+        time_series: list[dict[str, Any]] | None = None,
+        influence: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """Generate mock variables for influence drift stories"""
-        # Get grain metadata
         grain_meta = GRAIN_META[grain]
 
-        # Create base variables dict
-        variables = {
+        return {
             "metric": {"id": metric["id"], "label": metric["label"]},
             "grain": grain.value,
             "eoi": grain_meta["eoi"],
             "pop": grain_meta["pop"],
             "interval": grain_meta["interval"],
-            "influence_metric": influence["influence_metric_id"],
+            "influence_metric": influence["influence_metric_id"],  # type: ignore
             "output_metric": metric["label"],
-            "influence_deviation": round(abs(influence["influence_deviation"]), 2),
-            "output_deviation": round(abs(influence["output_deviation"]), 2),
-            "prev_output_deviation": round(abs(influence["prev_output_deviation"]), 2),
-            "movement": influence["movement"],
-            "pressure": influence["pressure"],
-            "latest_strength": round(influence["latest_strength"], 2),
-            "previous_strength": round(influence["previous_strength"], 2),
-            "current_value": round(influence["output_latest"], 2),
+            "influence_deviation": round(abs(influence["influence_deviation"]), 2),  # type: ignore
+            "output_deviation": round(abs(influence["output_deviation"]), 2),  # type: ignore
+            "prev_output_deviation": round(abs(influence["prev_output_deviation"]), 2),  # type: ignore
+            "movement": influence["movement"],  # type: ignore
+            "pressure": influence["pressure"],  # type: ignore
+            "latest_strength": round(influence["latest_strength"], 2),  # type: ignore
+            "previous_strength": round(influence["previous_strength"], 2),  # type: ignore
+            "current_value": round(influence["output_latest"], 2),  # type: ignore
         }
 
-        return variables
-
-    def _generate_mock_influence_data(self, influencers: list[str], metric: dict[str, Any]) -> list[dict[str, Any]]:
+    def _generate_mock_influence_data(self, influencers: list[str]) -> list[dict[str, Any]]:
         """Generate mock data for influences"""
         influence_data = []
 

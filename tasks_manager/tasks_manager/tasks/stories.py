@@ -153,7 +153,7 @@ async def generate_stories_for_tenant(
     metrics_future = fetch_metrics_for_tenant.submit(tenant_id)  # type: ignore
     # Get results from futures
     metrics = metrics_future.result()
-    metric_ids = [metric["metric_id"] for metric in metrics]
+    metric_ids = [metric["metric_id"] for metric in metrics]  # type: ignore
     logger = get_run_logger()
     logger.info("Tenant %s, metrics %s", tenant_id, metric_ids)
 

@@ -2,7 +2,6 @@ from abc import ABC, abstractmethod
 from datetime import date
 from typing import Any
 
-import pandas as pd
 from jinja2 import Template
 
 from commons.models.enums import Granularity
@@ -25,7 +24,9 @@ class MockGeneratorBase(ABC):
         self.data_service = mock_data_service
 
     @abstractmethod
-    def generate_stories(self, metric: dict[str, Any], grain: Granularity, story_date: date) -> list[dict[str, Any]]:
+    def generate_stories(
+        self, metric: dict[str, Any], grain: Granularity, story_date: date | None = None
+    ) -> list[dict[str, Any]]:
         """Generate mock stories for the given parameters"""
         pass
 
@@ -53,22 +54,6 @@ class MockGeneratorBase(ABC):
         """
         pass
 
-    def calculate_metrics_from_series(self, time_series: list[dict[str, Any]]) -> dict[str, float]:
-        """Calculate metrics like average growth and overall growth from a time series"""
-        values = [point["value"] for point in time_series]
-        series = pd.Series(values)
-
-        # Calculate average growth
-        growth_rates = series.pct_change() * 100
-        avg_growth = growth_rates.mean()
-
-        # Calculate overall growth
-        initial_value = series.iloc[0]
-        final_value = series.iloc[-1]
-        overall_growth = ((final_value - initial_value) / initial_value) * 100 if initial_value != 0 else 0
-
-        return {"avg_growth": round(avg_growth, 2), "overall_growth": round(overall_growth, 2)}
-
     def prepare_story_dict(
         self,
         metric: dict[str, Any],
@@ -76,7 +61,7 @@ class MockGeneratorBase(ABC):
         grain: Granularity,
         time_series: list[dict[str, Any]],
         variables: dict[str, Any],
-        story_date: date = None,
+        story_date: date | None = None,
     ) -> dict[str, Any]:
         """
         Create a story dictionary with all required fields

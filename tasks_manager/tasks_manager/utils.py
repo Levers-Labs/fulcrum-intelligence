@@ -1,9 +1,10 @@
 from datetime import date, timedelta
 
+import pandas as pd
+
 from commons.clients.auth import ClientCredsAuth
 from commons.models.enums import Granularity
 from tasks_manager.config import AppConfig
-import pandas as pd
 
 
 def get_eligible_grains(grains: list[Granularity], today: date) -> list[str]:
@@ -42,7 +43,7 @@ def get_client_auth_from_config(config: AppConfig) -> ClientCredsAuth:
 def should_update_grain(check_date: date, grain: Granularity) -> bool:
     """
     Determine if a grain should be updated on the given date
-    
+
     :param check_date: The date to check
     :param grain: The granularity to check
     :return: True if the grain should be updated, False otherwise
@@ -69,7 +70,7 @@ def should_update_grain(check_date: date, grain: Granularity) -> bool:
 def increment_date_by_grain(current_date: date, grain: Granularity) -> date:
     """
     Increment a date by one grain unit
-    
+
     :param current_date: The date to increment
     :param grain: The granularity unit to increment by
     :return: The incremented date
