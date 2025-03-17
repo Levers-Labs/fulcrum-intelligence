@@ -46,7 +46,7 @@ class GrowthRatesMockGenerator(MockGeneratorBase):
     def get_mock_time_series(self, grain: Granularity, story_type: StoryType) -> list[dict[str, Any]]:
         """Generate mock time series data for growth rate stories"""
         # Get date range
-        start_date, end_date = self.data_service._get_input_time_range(grain, self.group)
+        start_date, end_date = self.data_service.get_input_time_range(grain, self.group)
 
         # Get dates within range
         dates = self.data_service.get_dates_for_range(grain, start_date, end_date)
@@ -74,7 +74,7 @@ class GrowthRatesMockGenerator(MockGeneratorBase):
         growth_rates = []
 
         # Start with a base value
-        base_value = random.uniform(200, 500)
+        base_value = random.uniform(200, 500)  # noqa
         values.append(base_value)
 
         # Start with modest growth, increase over time
@@ -84,13 +84,13 @@ class GrowthRatesMockGenerator(MockGeneratorBase):
             # Increase growth rate over time
             if i < num_points // 2:
                 # First half: modest increases
-                growth += random.uniform(0.2, 0.5)
+                growth += random.uniform(0.2, 0.5)  # noqa
             else:
                 # Second half: more dramatic increases
-                growth += random.uniform(0.5, 1.0)
+                growth += random.uniform(0.5, 1.0)  # noqa
 
             # Add some variability
-            actual_growth = max(0.5, growth * random.uniform(0.9, 1.1))
+            actual_growth = max(0.5, growth * random.uniform(0.9, 1.1))  # noqa
             growth_rates.append(actual_growth)
 
             # Calculate next value
@@ -105,12 +105,11 @@ class GrowthRatesMockGenerator(MockGeneratorBase):
         growth_rates = []
 
         # Start with a base value
-        base_value = random.uniform(200, 500)
+        base_value = random.uniform(200, 500)  # noqa
         values.append(base_value)
 
         # Start with high growth, dramatically decrease over time
         initial_growth = 15.0  # Start with 15% growth (higher initial growth)
-        growth = initial_growth
 
         # More dramatic decay toward the end
         for i in range(1, num_points):
@@ -130,7 +129,7 @@ class GrowthRatesMockGenerator(MockGeneratorBase):
                 growth = initial_growth * (1 - 0.85 - (position - 0.8) * 7.5)
 
             # Add randomness but maintain trend
-            actual_growth = growth * random.uniform(0.9, 1.1)
+            actual_growth = growth * random.uniform(0.9, 1.1)  # noqa
 
             # Allow slightly negative growth at the very end (creates visual downturn)
             if position > 0.9:

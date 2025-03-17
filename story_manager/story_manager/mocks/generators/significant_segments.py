@@ -1,11 +1,10 @@
 import random
 from datetime import date
-from typing import Any, Dict, List
+from typing import Any
 
 from commons.models.enums import Granularity
 from story_manager.core.enums import StoryGenre, StoryGroup, StoryType
 from story_manager.mocks.generators.base import MockGeneratorBase
-from story_manager.mocks.services.data_service import MockDataService
 from story_manager.story_builder.constants import GRAIN_META
 
 
@@ -145,7 +144,7 @@ class SignificantSegmentMockGenerator(MockGeneratorBase):
             # Generate segments for each value
             for value in values:
                 # Generate a random value between 100 and 1000 (avoiding zeros)
-                segment_value = random.randint(100, 1000)
+                segment_value = random.randint(100, 1000)  # noqa
 
                 segment_data.append(
                     {

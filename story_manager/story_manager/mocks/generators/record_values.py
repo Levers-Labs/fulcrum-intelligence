@@ -56,12 +56,12 @@ class RecordValuesMockGenerator(MockGeneratorBase):
         formatted_dates = self.data_service.get_formatted_dates(dates)
 
         # Generate base values with random variation
-        base_value = random.uniform(400, 800)
+        base_value = random.uniform(400, 800)  # noqa
         values = []
 
         # Generate all values except the last two (which will be manipulated for record purposes)
         for _ in range(len(dates) - 2):
-            noise = random.uniform(-0.3, 0.3) * base_value
+            noise = random.uniform(-0.3, 0.3) * base_value  # noqa
             value = max(100, base_value + noise)  # Ensure minimum value
             values.append(round(value))
 
@@ -81,31 +81,31 @@ class RecordValuesMockGenerator(MockGeneratorBase):
 
     def _add_high_record_values(self, values: list, is_second_rank: bool) -> None:
         """Add values for record high scenarios"""
-        highest_value = max(values) * random.uniform(1.1, 1.2)
+        highest_value = max(values) * random.uniform(1.1, 1.2)  # noqa
 
         if is_second_rank:
             # Second highest: Make second-to-last value the highest, last value slightly lower
             values.append(round(highest_value))  # Second-to-last is highest
-            second_highest = highest_value * random.uniform(0.9, 0.95)
+            second_highest = highest_value * random.uniform(0.9, 0.95)  # noqa
             values.append(round(second_highest))  # Last is second highest
         else:
             # Highest: Add a random non-record value, then the record value
-            values.append(round(random.uniform(min(values), max(values))))  # Second-to-last is random
+            values.append(round(random.uniform(min(values), max(values))))  # noqa
             values.append(round(highest_value))  # Last is highest
 
     def _add_low_record_values(self, values: list, is_second_rank: bool) -> None:
         """Add values for record low scenarios"""
-        lowest_value = min(values) * random.uniform(0.7, 0.9)
+        lowest_value = min(values) * random.uniform(0.7, 0.9)  # noqa
         lowest_value = max(100, lowest_value)  # Ensure minimum value
 
         if is_second_rank:
             # Second lowest: Make second-to-last value the lowest, last value slightly higher
             values.append(round(lowest_value))  # Second-to-last is lowest
-            second_lowest = lowest_value * random.uniform(1.05, 1.15)
+            second_lowest = lowest_value * random.uniform(1.05, 1.15)  # noqa
             values.append(round(max(100, second_lowest)))  # Last is second lowest
         else:
             # Lowest: Add a random non-record value, then the record value
-            values.append(round(random.uniform(min(values), max(values))))  # Second-to-last is random
+            values.append(round(random.uniform(min(values), max(values))))  # noqa
             values.append(round(lowest_value))  # Last is lowest
 
     def get_mock_variables(

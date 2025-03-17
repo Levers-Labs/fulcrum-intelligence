@@ -45,7 +45,7 @@ class LikelyStatusMockGenerator(MockGeneratorBase):
     def get_mock_time_series(self, grain: Granularity, story_type: StoryType) -> list[dict[str, Any]]:
         """Generate mock time series data for likely status stories"""
         # Get historical date range and dates
-        start_date, end_date = self.data_service._get_input_time_range(grain, self.group)
+        start_date, end_date = self.data_service.get_input_time_range(grain, self.group)
         historical_dates = self.data_service.get_dates_for_range(grain, start_date, end_date)
         formatted_historical_dates = self.data_service.get_formatted_dates(historical_dates)
 
@@ -56,47 +56,47 @@ class LikelyStatusMockGenerator(MockGeneratorBase):
         if grain == Granularity.DAY:
             # For day grain, keep values in a more controlled range
             # Target will be in the 500-800 range
-            end_period_target = random.uniform(500, 800)
+            end_period_target = random.uniform(500, 800)  # noqa
 
             # Set base value to be a percentage of the target
             if story_type == StoryType.LIKELY_OFF_TRACK:
-                base_value = end_period_target * random.uniform(0.50, 0.70)
+                base_value = end_period_target * random.uniform(0.50, 0.70)  # noqa
                 # Target starts slightly lower than end target
-                base_target = end_period_target * random.uniform(0.85, 0.95)
+                base_target = end_period_target * random.uniform(0.85, 0.95)  # noqa
             else:  # LIKELY_ON_TRACK
-                base_value = end_period_target * random.uniform(0.65, 0.85)
+                base_value = end_period_target * random.uniform(0.65, 0.85)  # noqa
                 # Target starts slightly lower than end target
-                base_target = end_period_target * random.uniform(0.85, 0.95)
+                base_target = end_period_target * random.uniform(0.85, 0.95)  # noqa
         else:
             # For other grains, use the original logic
-            base_value = random.uniform(400, 800)
-            base_target = base_value * random.uniform(0.9, 1.1)
-            end_period_target = base_target * random.uniform(1.05, 1.15)
+            base_value = random.uniform(400, 800)  # noqa
+            base_target = base_value * random.uniform(0.9, 1.1)  # noqa
+            end_period_target = base_target * random.uniform(1.05, 1.15)  # noqa
 
         # Determine forecasted value based on story type
         if story_type == StoryType.LIKELY_ON_TRACK:
-            forecasted_value = end_period_target * random.uniform(1.05, 1.2)  # Above target
+            forecasted_value = end_period_target * random.uniform(1.05, 1.2)  # noqa
         else:  # LIKELY_OFF_TRACK
             # For day grain, keep the forecasted value lower relative to target but with more variety
             if grain == Granularity.DAY:
                 # Select the pattern type for day grain off-track
-                pattern_type = random.choice(["moderate_decline", "sharp_decline", "plateau_then_drop"])
+                pattern_type = random.choice(["moderate_decline", "sharp_decline", "plateau_then_drop"])  # noqa
 
                 # Different forecast values based on pattern type
                 if pattern_type == "moderate_decline":
                     # Moderate decline - not too far below target
-                    forecasted_value = end_period_target * random.uniform(0.75, 0.85)
+                    forecasted_value = end_period_target * random.uniform(0.75, 0.85)  # noqa
                 elif pattern_type == "sharp_decline":
                     # Sharp decline - significantly below target
-                    forecasted_value = end_period_target * random.uniform(0.65, 0.75)
+                    forecasted_value = end_period_target * random.uniform(0.65, 0.75)  # noqa
                 else:  # plateau_then_drop
                     # Plateau followed by drop - moderately below target
-                    forecasted_value = end_period_target * random.uniform(0.70, 0.80)
+                    forecasted_value = end_period_target * random.uniform(0.70, 0.80)  # noqa
 
                 # Store pattern type for later use in generating points
                 self.pattern_type = pattern_type
             else:
-                forecasted_value = end_period_target * random.uniform(0.7, 0.95)  # Below target
+                forecasted_value = end_period_target * random.uniform(0.7, 0.95)  # noqa
 
         # Generate historical values and targets with adjustment for day grain
         time_series = self._generate_historical_points(
@@ -172,42 +172,42 @@ class LikelyStatusMockGenerator(MockGeneratorBase):
                     if position < decline_start - 0.15 if plateau_phase else decline_start:
                         # Growth phase: moderate growth with randomness
                         growth_factor = 1 - (current_value / max_value)  # Slow down as we approach max
-                        trend = random.uniform(0.001, 0.008) * base_value * growth_factor
+                        trend = random.uniform(0.001, 0.008) * base_value * growth_factor  # noqa
                     # Plateau phase (if applicable)
                     elif plateau_phase and position < decline_start:
                         # Plateau phase: minimal growth/plateau
-                        trend = random.uniform(-0.002, 0.003) * base_value
+                        trend = random.uniform(-0.002, 0.003) * base_value  # noqa
                     # Decline phase
                     else:
                         # Decline phase: gradual decline with randomness
                         # Vary the decline rate based on pattern type
                         if pattern_type == "sharp_decline":
-                            trend = random.uniform(-0.012, -0.006) * base_value
+                            trend = random.uniform(-0.012, -0.006) * base_value  # noqa
                         else:
-                            trend = random.uniform(-0.008, -0.002) * base_value
+                            trend = random.uniform(-0.008, -0.002) * base_value  # noqa
                 elif is_day_grain:
                     # For day grain on-track, still controlled growth but higher ceiling
                     growth_factor = 1 - (current_value / max_value)
                     if position < 0.80:
-                        trend = random.uniform(0.001, 0.01) * base_value * growth_factor
+                        trend = random.uniform(0.001, 0.01) * base_value * growth_factor  # noqa
                     else:
-                        trend = random.uniform(-0.002, 0.008) * base_value * growth_factor
+                        trend = random.uniform(-0.002, 0.008) * base_value * growth_factor  # noqa
                 else:
                     # Normal growth trend for other grains
-                    trend = random.uniform(-0.02, 0.04) * base_value
+                    trend = random.uniform(-0.02, 0.04) * base_value  # noqa
 
                 # For day grain, use smaller noise to create smoother curves
                 if is_day_grain:
-                    noise = random.uniform(-0.003, 0.003) * base_value
+                    noise = random.uniform(-0.003, 0.003) * base_value  # noqa
                 else:
-                    noise = random.uniform(-0.05, 0.05) * base_value
+                    noise = random.uniform(-0.05, 0.05) * base_value  # noqa
 
                 # Update value
                 current_value += trend + noise
 
                 # Ensure value doesn't exceed max for day grain
                 if is_day_grain and current_value > max_value:
-                    current_value = max_value * random.uniform(0.97, 1.0)
+                    current_value = max_value * random.uniform(0.97, 1.0)  # noqa
 
             # Calculate target with progression toward end period target
             progress = i / (len(formatted_dates) - 1) if len(formatted_dates) > 1 else 0

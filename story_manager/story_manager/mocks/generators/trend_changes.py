@@ -62,7 +62,7 @@ class TrendChangesMockGenerator(MockGeneratorBase):
         num_points = len(dates)
 
         # Generate base values
-        base_value = random.uniform(400, 800)
+        base_value = random.uniform(400, 800)  # noqa
         central_line = base_value
         ucl = central_line * 1.3  # Upper control limit
         lcl = central_line * 0.7  # Lower control limit
@@ -84,12 +84,12 @@ class TrendChangesMockGenerator(MockGeneratorBase):
 
         # Create time series with control limits
         time_series = []
-        for i, (date, value, slope, slope_change, is_trend_signal) in enumerate(
+        for i, (series_date, value, slope, slope_change, is_trend_signal) in enumerate(
             zip(formatted_dates, values, slopes, slope_changes, trend_signals)
         ):
             time_series.append(
                 {
-                    "date": date,
+                    "date": series_date,
                     "value": value,
                     "central_line": round(central_line + i * slope * central_line),
                     "ucl": round(ucl + i * slope * ucl),
@@ -106,12 +106,12 @@ class TrendChangesMockGenerator(MockGeneratorBase):
     def _generate_stable_trend(self, num_points: int, base_value: float) -> tuple[list[int], list[float], list[bool]]:
         """Generate a stable trend pattern"""
         values = []
-        slope = random.uniform(0.03, 0.08)  # type: ignore
+        slope = random.uniform(0.03, 0.08)  # noqa
 
         # Generate values with stable trend and noise
         for i in range(num_points):
             trend = i * slope * base_value
-            noise = random.uniform(-0.05, 0.05) * base_value
+            noise = random.uniform(-0.05, 0.05) * base_value  # noqa
             value = base_value + trend + noise
             values.append(round(value))
 
@@ -127,23 +127,21 @@ class TrendChangesMockGenerator(MockGeneratorBase):
         transition_point = num_points - 7  # Transition point between trends
 
         # Define slopes for prior and new trend (increased growth rates)
-        prior_slope = random.uniform(0.04, 0.06)  # Increased to 4-6% growth
-        new_slope = random.uniform(0.08, 0.15)  # Significantly higher 8-15% growth
+        prior_slope = random.uniform(0.04, 0.06)  # noqa
+        new_slope = random.uniform(0.08, 0.15)  # noqa
 
         # Generate values with two different trends
         for i in range(num_points):
             if i < transition_point:
                 # Prior trend
                 trend = i * prior_slope * base_value
-                slope = prior_slope
             else:
                 # New upward trend
                 prior_trend_value = (transition_point - 1) * prior_slope * base_value
                 new_trend_offset = (i - transition_point) * new_slope * base_value
                 trend = prior_trend_value + new_trend_offset
-                slope = new_slope
 
-            noise = random.uniform(-0.05, 0.05) * base_value
+            noise = random.uniform(-0.05, 0.05) * base_value  # noqa
             value = base_value + trend + noise
             values.append(round(value))
 
@@ -159,23 +157,21 @@ class TrendChangesMockGenerator(MockGeneratorBase):
         transition_point = num_points - 7  # Transition point between trends
 
         # Define slopes for prior and new trend (more pronounced)
-        prior_slope = random.uniform(0.04, 0.06)  # Increased to 4-6% growth
-        new_slope = random.uniform(-0.10, -0.05)  # More dramatic -5 to -10% decline
+        prior_slope = random.uniform(0.04, 0.06)  # noqa
+        new_slope = random.uniform(-0.10, -0.05)  # noqa
 
         # Generate values with two different trends
         for i in range(num_points):
             if i < transition_point:
                 # Prior trend
                 trend = i * prior_slope * base_value
-                slope = prior_slope
             else:
                 # New downward trend
                 prior_trend_value = (transition_point - 1) * prior_slope * base_value
                 new_trend_offset = (i - transition_point) * new_slope * base_value
                 trend = prior_trend_value + new_trend_offset
-                slope = new_slope
 
-            noise = random.uniform(-0.05, 0.05) * base_value
+            noise = random.uniform(-0.05, 0.05) * base_value  # noqa
             value = max(10, base_value + trend + noise)  # Ensure value is at least 10
             values.append(round(value))
 
@@ -191,23 +187,21 @@ class TrendChangesMockGenerator(MockGeneratorBase):
         transition_point = num_points - 7  # Transition point between trends
 
         # Define slopes for prior and plateau trend (more dramatic contrast)
-        prior_slope = random.uniform(0.06, 0.10)  # Increased to 6-10% growth
-        plateau_slope = random.uniform(0.005, 0.02)  # Increased slightly to 0.5-2% growth
+        prior_slope = random.uniform(0.06, 0.10)  # noqa
+        plateau_slope = random.uniform(0.005, 0.02)  # noqa
 
         # Generate values with two different trends
         for i in range(num_points):
             if i < transition_point:
                 # Prior trend
                 trend = i * prior_slope * base_value
-                slope = prior_slope
             else:
                 # Plateau trend
                 prior_trend_value = (transition_point - 1) * prior_slope * base_value
                 new_trend_offset = (i - transition_point) * plateau_slope * base_value
                 trend = prior_trend_value + new_trend_offset
-                slope = plateau_slope
 
-            noise = random.uniform(-0.03, 0.03) * base_value
+            noise = random.uniform(-0.03, 0.03) * base_value  # noqa
             value = base_value + trend + noise
             values.append(round(value))
 

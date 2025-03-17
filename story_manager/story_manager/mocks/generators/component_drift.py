@@ -135,7 +135,7 @@ class ComponentDriftMockGenerator(MockGeneratorBase):
         component_data = []
 
         # Total contribution should sum to 100%
-        total_contribution = 100
+        total_contribution = 100.0
         remaining_contribution = total_contribution
 
         # Make sure we have at least one improving and one worsening component
@@ -148,19 +148,19 @@ class ComponentDriftMockGenerator(MockGeneratorBase):
             else:
                 # Randomly distribute contribution, ensuring some is left for remaining components
                 max_contribution = remaining_contribution - (len(components) - i - 1) * 5
-                contribution = random.uniform(5, max(10, max_contribution))  # type: ignore
+                contribution = random.uniform(5, max(10, max_contribution))  # noqa
                 remaining_contribution -= contribution
 
             # Decide if component is improving or worsening
             is_improving = i < improving_count
 
             # Generate evaluation and comparison values with significant differences
-            base_value = random.uniform(500, 2000)
+            base_value = random.uniform(500, 2000)  # noqa
 
             if is_improving:
                 # For improving component, evaluation > comparison
                 comparison_value = base_value
-                evaluation_value = base_value * random.uniform(1.2, 1.5)
+                evaluation_value = base_value * random.uniform(1.2, 1.5)  # noqa
                 story_type = StoryType.IMPROVING_COMPONENT
                 pressure = Pressure.UPWARD.value
                 # Calculate percentage drift for improving component
@@ -170,7 +170,7 @@ class ComponentDriftMockGenerator(MockGeneratorBase):
             else:
                 # For worsening component, evaluation < comparison
                 comparison_value = base_value
-                evaluation_value = base_value * random.uniform(0.5, 0.8)
+                evaluation_value = base_value * random.uniform(0.5, 0.8)  # noqa
                 story_type = StoryType.WORSENING_COMPONENT
                 pressure = Pressure.DOWNWARD.value
                 # Calculate percentage drift for worsening component
@@ -179,7 +179,7 @@ class ComponentDriftMockGenerator(MockGeneratorBase):
                 contribution = -abs(contribution)
 
             # Calculate relative impact (random portion of contribution)
-            relative_impact = abs(contribution) * random.uniform(0.7, 1.0)
+            relative_impact = abs(contribution) * random.uniform(0.7, 1.0)  # noqa
 
             component_data.append(
                 {

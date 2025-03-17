@@ -1,13 +1,12 @@
 import random
 from datetime import date
-from typing import Any, Dict, List
+from typing import Any
 
 import pandas as pd
 
 from commons.models.enums import Granularity
 from story_manager.core.enums import StoryGenre, StoryGroup, StoryType
 from story_manager.mocks.generators.base import MockGeneratorBase
-from story_manager.mocks.services.data_service import MockDataService
 from story_manager.story_builder.constants import GRAIN_META, STORY_GROUP_TIME_DURATIONS
 
 
@@ -54,7 +53,7 @@ class LongRangeMockGenerator(MockGeneratorBase):
         formatted_dates = self.data_service.get_formatted_dates(dates)
 
         # Initialize values
-        base_value = random.uniform(200, 3000)
+        base_value = random.uniform(200, 3000)  # noqa
         current_value = base_value
         values = []
 
@@ -64,19 +63,19 @@ class LongRangeMockGenerator(MockGeneratorBase):
         # Generate values with trend and noise
         for _ in range(len(dates)):
             # Set trend direction based on story type
-            trend_strength = random.uniform(0.03, 0.07)
+            trend_strength = random.uniform(0.03, 0.07)  # noqa
             trend = current_value * trend_strength * (1 if is_improving else -1)
 
             # Add random noise
-            volatility = random.uniform(0.05, 0.15)
-            noise = random.uniform(-volatility, volatility) * current_value
+            volatility = random.uniform(0.05, 0.15)  # noqa
+            noise = random.uniform(-volatility, volatility) * current_value  # noqa
 
             # Calculate new value (ensure it stays positive)
             current_value = max(1, current_value + trend + noise)
             values.append(round(current_value))
 
         # Create time series
-        return [{"date": date, "value": value} for date, value in zip(formatted_dates, values)]
+        return [{"date": series_date, "value": value} for series_date, value in zip(formatted_dates, values)]
 
     def get_mock_variables(
         self,

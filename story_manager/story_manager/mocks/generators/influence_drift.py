@@ -32,7 +32,7 @@ class InfluenceDriftMockGenerator(MockGeneratorBase):
         influencers = metric.get("influencers", [])
         if not influencers:
             # Create 2-3 mock influencers
-            num_influencers = random.randint(2, 3)
+            num_influencers = random.randint(2, 3)  # noqa
             influencers = self._create_mock_influencers(num_influencers)
 
         # Generate mock influence data
@@ -93,8 +93,8 @@ class InfluenceDriftMockGenerator(MockGeneratorBase):
             output_value = output_previous + progress * (output_latest - output_previous)
 
             # Add some random noise (±5%)
-            value += value * random.uniform(-0.05, 0.05)
-            output_value += output_value * random.uniform(-0.05, 0.05)
+            value += value * random.uniform(-0.05, 0.05)  # noqa
+            output_value += output_value * random.uniform(-0.05, 0.05)  # noqa
 
             # Add point to time series
             time_series.append(
@@ -142,9 +142,9 @@ class InfluenceDriftMockGenerator(MockGeneratorBase):
         influence_data = []
 
         # Generate output metric values
-        output_latest = random.uniform(500, 2000)
-        output_previous = output_latest * random.uniform(0.8, 1.2)
-        output_prev_to_prev = output_previous * random.uniform(0.8, 1.2)
+        output_latest = random.uniform(500, 2000)  # noqa
+        output_previous = output_latest * random.uniform(0.8, 1.2)  # noqa
+        output_prev_to_prev = output_previous * random.uniform(0.8, 1.2)  # noqa
 
         # Calculate output deviations
         output_deviation = ((output_latest - output_previous) / output_previous) * 100
@@ -156,25 +156,25 @@ class InfluenceDriftMockGenerator(MockGeneratorBase):
 
         for influence_metric_id in influencers:
             # Generate influence values
-            latest_value = random.uniform(500, 2000)
-            previous_value = latest_value * random.uniform(0.8, 1.2)
+            latest_value = random.uniform(500, 2000)  # noqa
+            previous_value = latest_value * random.uniform(0.8, 1.2)  # noqa
 
             # Calculate influence deviation
             influence_deviation = ((latest_value - previous_value) / previous_value) * 100
 
             # Generate relationship strengths
             # Randomly decide if relationship is getting stronger or weaker
-            is_stronger = random.choice([True, False])
+            is_stronger = random.choice([True, False])  # noqa
 
             if is_stronger:
                 # Relationship is getting stronger
-                previous_strength = random.uniform(0.1, 0.5)
-                latest_strength = previous_strength * random.uniform(1.2, 1.5)
+                previous_strength = random.uniform(0.1, 0.5)  # noqa
+                latest_strength = previous_strength * random.uniform(1.2, 1.5)  # noqa
                 relationship_story_type = StoryType.STRONGER_INFLUENCE
             else:
                 # Relationship is getting weaker
-                previous_strength = random.uniform(0.5, 0.9)
-                latest_strength = previous_strength * random.uniform(0.5, 0.8)
+                previous_strength = random.uniform(0.5, 0.9)  # noqa
+                latest_strength = previous_strength * random.uniform(0.5, 0.8)  # noqa
                 relationship_story_type = StoryType.WEAKER_INFLUENCE
 
             # Calculate marginal contribution

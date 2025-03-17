@@ -1,6 +1,6 @@
 import random
 from datetime import date
-from typing import Any, Dict, List
+from typing import Any
 
 from commons.models.enums import Granularity
 from story_manager.core.enums import StoryGenre, StoryGroup, StoryType
@@ -70,11 +70,11 @@ class StatusChangeMockGenerator(MockGeneratorBase):
         num_points = len(formatted_dates)
 
         # Initialize base values
-        base_value = random.uniform(400, 800)
+        base_value = random.uniform(400, 800)  # noqa
         base_target = base_value
 
         # Previous duration (how long it was consistently in previous status)
-        prev_duration = random.randint(2, min(5, num_points - 1))
+        prev_duration = random.randint(2, min(5, num_points - 1))  # noqa
 
         values: list = []
         targets = []
@@ -92,7 +92,7 @@ class StatusChangeMockGenerator(MockGeneratorBase):
                 is_on_track = status == StoryType.ON_TRACK
             else:
                 # Earlier points have mixed statuses
-                if random.random() < 0.3:  # 30% chance of opposite status
+                if random.random() < 0.3:  # 30% chance of opposite status  # noqa
                     status = current_status
                     is_on_track = status == StoryType.ON_TRACK
                 else:
@@ -100,26 +100,26 @@ class StatusChangeMockGenerator(MockGeneratorBase):
                     is_on_track = status == StoryType.ON_TRACK
 
             # Set target with some randomness
-            target = base_target * (1 + random.uniform(0.05, 0.15))
+            target = base_target * (1 + random.uniform(0.05, 0.15))  # noqa
 
             # Set value based on on-track status
             if is_on_track:
-                value = target * (1 + random.uniform(0.05, 0.15))  # Value above target
+                value = target * (1 + random.uniform(0.05, 0.15))  # noqa
             else:
-                value = target * (1 - random.uniform(0.05, 0.15))  # Value below target
+                value = target * (1 - random.uniform(0.05, 0.15))  # noqa
 
             values.append(round(value))
             targets.append(round(target))
             statuses.append(status)
 
             # Update base values with some trend for next iteration
-            base_value = value * (1 + random.uniform(-0.05, 0.05))
-            base_target = target * (1 + random.uniform(-0.05, 0.05))
+            base_value = value * (1 + random.uniform(-0.05, 0.05))  # noqa
+            base_target = target * (1 + random.uniform(-0.05, 0.05))  # noqa
 
         # Create time series
         return [
-            {"date": date, "value": value, "target": target, "status": status}
-            for date, value, target, status in zip(formatted_dates, values, targets, statuses)
+            {"date": series_date, "value": value, "target": target, "status": status}
+            for series_date, value, target, status in zip(formatted_dates, values, targets, statuses)
         ]
 
     def get_mock_variables(

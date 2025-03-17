@@ -60,14 +60,14 @@ class RequiredPerformanceMockGenerator(MockGeneratorBase):
         interval, period_end_date = self._get_end_date_of_period(grain, self.data_service.story_date)
 
         # Generate base value and targets
-        base_value = random.uniform(400, 800)
+        base_value = random.uniform(400, 800)  # noqa
 
         # Different handling based on story type
         if story_type == StoryType.REQUIRED_PERFORMANCE:
-            end_period_target = base_value * random.uniform(1.1, 1.2)  # Target 10-20% above base
+            end_period_target = base_value * random.uniform(1.1, 1.2)  # noqa
             time_series = self._generate_required_performance_series(formatted_dates, base_value, end_period_target)
         else:  # HOLD_STEADY
-            end_period_target = base_value * random.uniform(1.05, 1.1)  # Target 5-10% above base
+            end_period_target = base_value * random.uniform(1.05, 1.1)  # Target 5-10% above base  # noqa
             time_series = self._generate_hold_steady_series(formatted_dates, base_value, end_period_target)
 
         # Store values needed for variables
@@ -87,7 +87,7 @@ class RequiredPerformanceMockGenerator(MockGeneratorBase):
         growth_rates = []
 
         # Current growth rate (not enough to reach target)
-        current_growth_rate = random.uniform(1.5, 3.0)
+        current_growth_rate = random.uniform(1.5, 3.0)  # noqa
 
         # For day grain, add more randomization
         is_day_grain = len(formatted_dates) > 20  # Typically day grain has more points
@@ -96,11 +96,11 @@ class RequiredPerformanceMockGenerator(MockGeneratorBase):
         above_target_indices = []
         if is_day_grain:
             # For day grain, randomly select 2-4 points that might exceed target
-            num_exceed_points = random.randint(2, 4)
+            num_exceed_points = random.randint(2, 4)  # noqa
             potential_indices = list(range(num_points // 4, num_points - 5))  # Middle section of the series
             if potential_indices:
                 above_target_indices = sorted(
-                    random.sample(potential_indices, min(num_exceed_points, len(potential_indices)))
+                    random.sample(potential_indices, min(num_exceed_points, len(potential_indices)))  # noqa
                 )
 
         for i in range(num_points):
@@ -111,9 +111,9 @@ class RequiredPerformanceMockGenerator(MockGeneratorBase):
             else:
                 # Apply growth rate with more noise
                 if is_day_grain:
-                    noise_factor = random.uniform(-1.5, 1.5)  # More variation for day grain
+                    noise_factor = random.uniform(-1.5, 1.5)  # noqa
                 else:
-                    noise_factor = random.uniform(-0.5, 0.5)
+                    noise_factor = random.uniform(-0.5, 0.5)  # noqa
 
                 growth_rate = current_growth_rate + noise_factor  # type: ignore
                 value = values[i - 1] * (1 + growth_rate / 100)
@@ -125,8 +125,8 @@ class RequiredPerformanceMockGenerator(MockGeneratorBase):
             # Occasionally allow values to exceed target (only at predetermined points)
             if is_day_grain and i in above_target_indices:
                 # 80% chance to exceed
-                if random.random() < 0.8:
-                    value = target * random.uniform(1.01, 1.10)  # 1-10% above target  # type: ignore
+                if random.random() < 0.8:  # noqa
+                    value = target * random.uniform(1.01, 1.10)  # 1-10% above target  # noqa
 
             values.append(round(value))
             growth_rates.append(round(growth_rate, 2))
@@ -134,7 +134,7 @@ class RequiredPerformanceMockGenerator(MockGeneratorBase):
 
         # Ensure last value is below target (maintaining story integrity)
         if values[-1] >= end_period_target:
-            values[-1] = end_period_target * random.uniform(0.85, 0.95)  # type: ignore
+            values[-1] = end_period_target * random.uniform(0.85, 0.95)  # noqa
 
         # Create time series
         return [
@@ -155,10 +155,10 @@ class RequiredPerformanceMockGenerator(MockGeneratorBase):
             # Generate value
             if i == 0:
                 value = base_value
-                growth_rate = 0
+                growth_rate = 0.0
             else:
                 # Apply good growth rate with noise
-                growth_rate = random.uniform(2.0, 4.0) + random.uniform(-0.5, 0.5)  # type: ignore
+                growth_rate = random.uniform(2.0, 4.0) + random.uniform(-0.5, 0.5)  # noqa
                 value = values[i - 1] * (1 + growth_rate / 100)
 
             values.append(round(value))
@@ -171,7 +171,7 @@ class RequiredPerformanceMockGenerator(MockGeneratorBase):
 
         # Ensure last value is at or above target
         if values[-1] < end_period_target:
-            values[-1] = end_period_target * random.uniform(1.05, 1.15)  # type: ignore
+            values[-1] = end_period_target * random.uniform(1.05, 1.15)  # noqa
 
         # Create time series
         return [
@@ -205,9 +205,8 @@ class RequiredPerformanceMockGenerator(MockGeneratorBase):
             "duration": len(time_series),  # type: ignore
             "req_duration": req_duration,
             "target": self.end_period_target,
-            "interval": interval.value,
             "target_date": self.target_date,
-            "is_min_data": random.choice([True, False]),
+            "is_min_data": random.choice([True, False]),  # noqa
         }
 
         # Add story type specific variables

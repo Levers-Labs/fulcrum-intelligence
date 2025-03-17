@@ -50,7 +50,7 @@ class TrendExceptionsMockGenerator(MockGeneratorBase):
         formatted_dates = self.data_service.get_formatted_dates(dates)
 
         # Generate base value and control limits
-        base_value = random.uniform(400, 800)  # type: ignore
+        base_value = random.uniform(400, 800)  # noqa
         central_line = base_value
         ucl = central_line * 1.3  # Upper control limit
         lcl = central_line * 0.7  # Lower control limit
@@ -61,25 +61,25 @@ class TrendExceptionsMockGenerator(MockGeneratorBase):
         # Add the exceptional last value based on story type
         if story_type == StoryType.SPIKE:
             # For spike, set the last value above UCL
-            spike_value = ucl * random.uniform(1.1, 1.3)  # type: ignore
+            spike_value = ucl * random.uniform(1.1, 1.3)  # noqa
             values.append(round(spike_value))
         else:  # DROP
             # For drop, set the last value below LCL
-            drop_value = lcl * random.uniform(0.7, 0.9)  # type: ignore
+            drop_value = lcl * random.uniform(0.7, 0.9)  # noqa
             values.append(round(max(10, drop_value)))  # type: ignore
 
         # Create time series with process control data
         time_series = []
-        for date, value in zip(formatted_dates, values):
+        for series_date, value in zip(formatted_dates, values):
             time_series.append(
                 {
-                    "date": date,
+                    "date": series_date,
                     "value": value,
                     "central_line": round(central_line),
                     "ucl": round(ucl),
                     "lcl": round(lcl),
-                    "slope": random.uniform(-0.5, 0.5),  # type: ignore
-                    "slope_change": random.uniform(-0.2, 0.2),  # type: ignore
+                    "slope": random.uniform(-0.5, 0.5),  # noqa
+                    "slope_change": random.uniform(-0.2, 0.2),  # noqa
                     "trend_signal_detected": False,
                 }
             )
@@ -91,7 +91,7 @@ class TrendExceptionsMockGenerator(MockGeneratorBase):
         values = []
         for _ in range(count):
             # Generate values that stay close to the central line
-            noise = random.uniform(-0.15, 0.15) * central_line  # type: ignore
+            noise = random.uniform(-0.15, 0.15) * central_line  # noqa
             value = central_line + noise
             values.append(round(value))
         return values

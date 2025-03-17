@@ -49,8 +49,8 @@ class GoalVsActualMockGenerator(MockGeneratorBase):
         formatted_dates = self.data_service.get_formatted_dates(dates)
 
         # Initialize base values
-        base_value = random.uniform(100, 500)
-        base_target = base_value * random.uniform(0.95, 1.05)
+        base_value = random.uniform(100, 500)  # noqa
+        base_target = base_value * random.uniform(0.95, 1.05)  # noqa
 
         values = []
         targets = []
@@ -59,21 +59,21 @@ class GoalVsActualMockGenerator(MockGeneratorBase):
         # Generate data points - mixed statuses but ensure last point matches story_type
         for i, _ in enumerate(dates):
             # Generate target with some randomness
-            target = base_target * (1 + random.uniform(-0.05, 0.05))
+            target = base_target * (1 + random.uniform(-0.05, 0.05))  # noqa
 
             # Randomly determine if this point is on track or off track
             # For the last point, ensure it matches the requested story type
             if i == len(dates) - 1:  # Last point
                 is_on_track = story_type == StoryType.ON_TRACK
             else:
-                is_on_track = random.choice([True, False])
+                is_on_track = random.choice([True, False])  # noqa
 
             # Set value based on on-track status
             if is_on_track:
-                value = target * (1 + random.uniform(0, 0.2))  # Above target
+                value = target * (1 + random.uniform(0, 0.2))  # noqa
                 status = StoryType.ON_TRACK
             else:
-                value = target * (1 - random.uniform(0.05, 0.2))  # Below target
+                value = target * (1 - random.uniform(0.05, 0.2))  # noqa
                 status = StoryType.OFF_TRACK
 
             values.append(round(value))

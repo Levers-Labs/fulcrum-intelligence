@@ -55,13 +55,13 @@ class SegmentDriftMockGenerator(MockGeneratorBase):
 
         # Generate time series with a trend for growing or shrinking segments
         time_series = []
-        for i, date in enumerate(formatted_dates):
+        for i, _ in enumerate(formatted_dates):
             # Apply realistic changes in values over time
             current_value = segment["previous_value"] + (segment["value_trend"] * i)  # type: ignore
 
             # Ensure variation and prevent zero deviation
             while current_value == segment["previous_value"]:  # type: ignore
-                current_value += random.randint(1, 10)  # Add a small random value
+                current_value += random.randint(1, 10)  # noqa
 
             # Calculate other values based on current_value and previous_value
             current_share = segment["previous_share"] + (segment["share_trend"] * i)  # type: ignore
@@ -69,12 +69,12 @@ class SegmentDriftMockGenerator(MockGeneratorBase):
                 (current_share - segment["previous_share"]) / segment["previous_share"]  # type: ignore
             ) * 100
             deviation = round((current_value - segment["previous_value"]) / segment["previous_value"] * 100, 2)  # type: ignore
-            pressure_change = round(abs(deviation) * random.uniform(0.5, 2), 2)  # type: ignore
+            pressure_change = round(abs(deviation) * random.uniform(0.5, 2), 2)  # noqa
             pressure_direction = "upward" if deviation > 0 else "downward"
 
             # Ensure deviation is not zero for Improving/Worsening segments
             if story_type in [StoryType.IMPROVING_SEGMENT, StoryType.WORSENING_SEGMENT] and deviation == 0:
-                deviation = random.choice([-1, 1]) * random.uniform(1, 10)  # Ensure it's non-zero
+                deviation = random.choice([-1, 1]) * random.uniform(1, 10)  # noqa
 
             # Ensure all required fields are populated
             time_series.append(
@@ -149,25 +149,25 @@ class SegmentDriftMockGenerator(MockGeneratorBase):
 
     def _create_segment(self, story_type: StoryType, value_trend: int = 0, share_trend: int = 0) -> dict[str, Any]:
         """Helper to create a randomized segment based on story type"""
-        dimension = random.choice(["Region", "Segment", "Category"])
-        slice_value = random.choice(["Asia", "Europe", "North America", "South America", "Enterprise", "SMB"])
+        dimension = random.choice(["Region", "Segment", "Category"])  # noqa
+        slice_value = random.choice(["Asia", "Europe", "North America", "South America", "Enterprise", "SMB"])  # noqa
 
-        previous_share = random.randint(20, 50)
+        previous_share = random.randint(20, 50)  # noqa
         current_share = (
-            previous_share + random.randint(1, 10)
+            previous_share + random.randint(1, 10)  # noqa
             if story_type == StoryType.GROWING_SEGMENT
-            else previous_share - random.randint(1, 10)
+            else previous_share - random.randint(1, 10)  # noqa
         )
         slice_share_change_percentage = ((current_share - previous_share) / previous_share) * 100
 
-        previous_value = random.randint(100, 1000)
-        current_value = previous_value + (value_trend if value_trend else random.randint(-50, 50))
+        previous_value = random.randint(100, 1000)  # noqa
+        current_value = previous_value + (value_trend if value_trend else random.randint(-50, 50))  # noqa
         deviation = round((current_value - previous_value) / previous_value * 100, 2)
 
         pressure_direction = "upward" if deviation > 0 else "downward"
-        pressure_change = round(abs(deviation) * random.uniform(0.5, 2), 2)
+        pressure_change = round(abs(deviation) * random.uniform(0.5, 2), 2)  # noqa
 
-        impact = round(random.uniform(1, 3), 2)
+        impact = round(random.uniform(1, 3), 2)  # noqa
 
         return {
             "story_type": story_type,
