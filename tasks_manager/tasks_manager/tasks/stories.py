@@ -190,7 +190,7 @@ async def update_demo_tenant_stories(tenant_id: int, current_date: date) -> dict
     set_tenant_id(tenant_id)
     os.environ["SERVER_HOST"] = config.story_manager_server_host
 
-    logger.info(f"Updating story dates for tenant {tenant_id} as of {current_date}")
+    logger.info(f"Updating story dates for tenant {tenant_id}")
 
     updates_by_grain = {
         Granularity.DAY: 0,
@@ -224,10 +224,7 @@ async def update_demo_tenant_stories(tenant_id: int, current_date: date) -> dict
                     updates_by_grain[grain] += 1
                     stories_updated += 1
 
-        # Commit all updates
-        await session.commit()
-
-    # Clean up tenant context
+    # # Clean up tenant context
     reset_context()
 
     logger.info(f"Updated {stories_updated} stories for tenant {tenant_id}")

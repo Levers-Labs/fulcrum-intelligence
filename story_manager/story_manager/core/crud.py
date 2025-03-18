@@ -152,8 +152,6 @@ class CRUDStory(CRUDBase[Story, Story, Story, StoryFilter]):
             return False
         story.story_date = new_date
         self.session.add(story)
-        await self.session.commit()
-
         return True
 
     async def get_story_stats(self, filter_params: dict[str, Any]) -> list[StoryStatsResponse]:

@@ -5,7 +5,7 @@ from prefect.artifacts import create_table_artifact
 from prefect.futures import PrefectFutureList
 
 from story_manager.core.enums import StoryGroup
-from tasks_manager.tasks.common import fetch_tenants
+from tasks_manager.tasks.common import fetch_tenant_id, fetch_tenants
 from tasks_manager.tasks.stories import generate_stories_for_tenant, update_demo_tenant_stories
 
 
@@ -70,21 +70,16 @@ async def update_demo_stories(tenant_identifier: str):
     current_date = date.today()
     logger = get_run_logger()
 
-    # Convert tenant_id to int
-    # tenant_id_int = await get_tenant_id(tenant_identifier=tenant_identifier)
-    tenant_id_int = 3
-    logger.info(f"Attempting to convert tenant identifier to int for {tenant_identifier}")
-
+    # fetch tenant_id for the identifier
+    tenant_id_int = await fetch_tenant_id(tenant_identifier=tenant_identifier)
     logger.info(f"Starting story date updates for tenant id {tenant_id_int} as of {current_date}")
 
     try:
         # Process the specified tenant
-        result = await update_demo_tenant_stories(tenant_id=tenant_id_int, current_date=current_date)
+        result = update_demo_tenant_stories.submit(tenant_id=tenant_id_int, current_date=current_date)
         logger.info(f"update_demo_tenant_stories call completed for tenant {tenant_id_int}")
 
-        logger.info(
-            f"Completed story date updates for tenant {tenant_id_int}: {result['stories_updated']} stories " f"updated"
-        )
+        logger.info(f"Completed story date updates for tenant {tenant_id_int}.")
         return result
 
     except Exception as e:

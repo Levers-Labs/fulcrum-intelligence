@@ -58,8 +58,8 @@ def get_grains(tenant_id: int, day: date | None = None) -> list[str]:
     return grains
 
 
-@task(task_run_name="get_tenant_id")
-async def get_tenant_id(**params) -> int:
+@task(task_run_name="fetch_tenant_id")
+async def fetch_tenant_id(**params) -> int:
     """Fetch all active tenants"""
     logger = get_run_logger()
     logger.info("Attempting to fetch tenant_id with parameters: %s", params)
