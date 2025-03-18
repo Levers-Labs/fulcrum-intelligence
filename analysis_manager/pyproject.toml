@@ -6,20 +6,8 @@ authors = ["leverslabs"]
 
 [tool.poetry.dependencies]
 python = ">=3.10,<3.12"
-fastapi = "^0.115.6"
-uvicorn = "^0.27.1"
-gunicorn = "^21.2.0"
-hupper = "^1.12.1"
-rich = "^13.7.1"
-psycopg2-binary = "^2.9.9"
-sqlmodel = "^0.0.16"
-alembic = "^1.13.1"
-asyncpg = "^0.29.0"
-greenlet = "^3.0.3"
 fulcrum-core = { path = "../core", develop = true }
 commons = { path = "../commons", extras = ["db"]}
-typer = "^0.9.0"
-mangum = "0.17.0"
 
 [build-system]
 requires = ["poetry-core>=1.0.0,<2.0.0"]
