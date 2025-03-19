@@ -285,21 +285,36 @@ class TrendChangesMockGenerator(MockGeneratorBase):
         prior_slope = 0.0129  # 1.29% daily growth
         plateau_slope = 0.0005  # Nearly flat
 
-        # Generate central lines
+        # Generate central lines and values
         central_lines: list = []
+        values: list = []
+
         for i in range(num_points):
             if i < transition_point:
+                # Before plateau: normal growth
                 cl = base_value * (1 + prior_slope * i)
+                # Normal variations before plateau
+                position_weight = i / transition_point
+                noise = self._generate_dramatic_variation(cl, 0, position_weight)
             else:
-                # Continue from last point of prior trend but flatten
-                last_prior = central_lines[transition_point - 1]
-                cl = last_prior * (1 + plateau_slope * (i - transition_point + 1))
-            central_lines.append(cl)
+                # Plateau phase
+                if i == transition_point:
+                    # Use last value as base for plateau
+                    plateau_base = values[i - 1]
+                    cl = plateau_base
+                else:
+                    # Very slight slope during plateau
+                    cl = central_lines[i - 1] * (1 + plateau_slope)
 
-        # Generate values around central line
-        values = []
-        for cl in central_lines:
-            noise = self._generate_dramatic_variation(cl, 0)
+                # Much smaller variations during plateau
+                plateau_variation = 0.01  # 1% maximum variation
+                noise = random.uniform(-plateau_variation, plateau_variation) * cl  # noqa
+
+                # Occasionally add slightly larger variation (but still controlled)
+                if random.random() < 0.1:  # 10% chance  # noqa
+                    noise *= 1.5  # Still only 1.5% maximum
+
+            central_lines.append(cl)
             values.append(cl + noise)
 
         trend_signals = [False] * transition_point + [True] * (num_points - transition_point)
