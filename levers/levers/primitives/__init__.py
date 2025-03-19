@@ -2,6 +2,8 @@
 # Import and expose all primitives for easy access
 
 # Numeric primitives
+from levers.exceptions import PrimitiveError
+
 from .numeric import (
     calculate_difference,
     calculate_percentage_difference,
@@ -61,7 +63,11 @@ def get_primitive_metadata(primitive_name: str):
     primitive_func = globals().get(primitive_name)
 
     if not primitive_func:
-        raise ValueError(f"Primitive '{primitive_name}' not found")
+        raise PrimitiveError(
+            "Primitive not found",
+            primitive_name,
+            {"code": "PRIMITIVE_NOT_FOUND"},
+        )
 
     # Extract metadata from docstring
     docstring = primitive_func.__doc__ or ""
