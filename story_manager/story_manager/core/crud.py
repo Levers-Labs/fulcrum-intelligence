@@ -79,10 +79,9 @@ class CRUDStory(CRUDBase[Story, Story, Story, StoryFilter]):
 
     async def get_stories(
         self,
-        metric_id: str,
-        grain: Granularity,
-        created_date: date,
-        tenant_id: int,
+        metric_id: str | None = None,
+        grain: Granularity | None = None,
+        created_date: date | None = None,
         is_salient: bool | None = None,
         is_cool_off: bool | None = None,
         is_heuristic: bool | None = True,
@@ -98,7 +97,6 @@ class CRUDStory(CRUDBase[Story, Story, Story, StoryFilter]):
             metric_id: The ID of the metric to retrieve stories for
             grain: The time granularity of the stories (e.g. daily, weekly)
             created_date: The date when the stories were created
-            tenant_id: The tenant ID for data isolation
             is_salient: Optional filter for salient stories
             is_cool_off: Optional filter for stories in cool-off period
             is_heuristic: Optional filter for heuristic stories, defaults to True
@@ -107,15 +105,16 @@ class CRUDStory(CRUDBase[Story, Story, Story, StoryFilter]):
             list[Story] | None: A list of Story objects matching the criteria, or None if no stories found
         """
         # Build base query filtering by date range, grain, metric and tenant
-        statement = (
-            self.get_select_query()
+        statement = self.get_select_query()
+        if created_date is not None:
             # Filter stories created on the specified date (inclusive of start, exclusive of end)
-            .filter(func.date(Story.created_at) >= func.date(created_date)).filter(
+            statement = statement.filter(func.date(Story.created_at) >= func.date(created_date)).filter(
                 func.date(Story.created_at) < func.date(created_date + timedelta(days=1))
             )
-            # Filter by core story attributes
-            .filter_by(grain=grain, metric_id=metric_id, tenant_id=tenant_id)
-        )
+        if grain is not None:
+            statement = statement.filter_by(grain=grain)
+        if metric_id is not None:
+            statement = statement.filter_by(metric_id=metric_id)
 
         # Apply optional boolean filters if specified
         if is_salient is not None:
@@ -135,6 +134,19 @@ class CRUDStory(CRUDBase[Story, Story, Story, StoryFilter]):
         instances: list(Story) | None = result.scalars().all()  # type: ignore
 
         return instances
+
+    async def update_story_date(self, story_id: int, new_date: date):
+        """
+        Update the date of a story in the database.
+        """
+        statement = self.get_select_query().where(Story.id == story_id)  # type: ignore
+        result = await self.session.execute(statement)
+        story = result.scalar_one_or_none()
+        if story is None:
+            return False
+        story.story_date = new_date
+        self.session.add(story)
+        return True
 
     async def get_story_stats(self, filter_params: dict[str, Any]) -> list[StoryStatsResponse]:
         """

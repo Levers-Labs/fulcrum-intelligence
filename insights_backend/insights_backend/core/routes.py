@@ -167,11 +167,12 @@ async def list_tenants(
         Depends(PaginationParams),
     ],
     enable_story_generation: bool | None = None,
+    identifier: str | None = None,
 ):
     """
     Retrieve all tenants in DB.
     """
-    tenant_config_filter = TenantConfigFilter(enable_story_generation=enable_story_generation)
+    tenant_config_filter = TenantConfigFilter(enable_story_generation=enable_story_generation, identifier=identifier)
     results, count = await tenant_crud_client.paginate(
         params=params, filter_params=tenant_config_filter.dict(exclude_unset=True)
     )
@@ -190,7 +191,7 @@ async def get_tenant_config(tenant_id: Annotated[int, Depends(get_tenant_id)], t
     Retrieve the configuration for the current tenant.
     """
     try:
-        config: TenantConfig = await tenant_crud_client.get_tenant_config(tenant_id)
+        config = await tenant_crud_client.get_tenant_config(tenant_id)
         return config
     except NotFoundError as e:
         raise HTTPException(status_code=404, detail="Tenant not found") from e
@@ -202,7 +203,8 @@ async def get_tenant_config(tenant_id: Annotated[int, Depends(get_tenant_id)], t
     dependencies=[Security(oauth2_auth().verify, scopes=[ADMIN_READ])],  # type: ignore
 )
 async def get_tenant_config_internal(
-    tenant_id: Annotated[int, Depends(get_tenant_id)], tenant_crud_client: TenantsCRUDDep
+    tenant_id: Annotated[int, Depends(get_tenant_id)],
+    tenant_crud_client: TenantsCRUDDep,
 ):
     """
     Internal endpoint to retrieve the complete tenant configuration including sensitive fields.

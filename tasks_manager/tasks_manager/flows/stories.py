@@ -5,8 +5,8 @@ from prefect.artifacts import create_table_artifact
 from prefect.futures import PrefectFutureList
 
 from story_manager.core.enums import StoryGroup
-from tasks_manager.tasks.common import fetch_tenants
-from tasks_manager.tasks.stories import generate_stories_for_tenant
+from tasks_manager.tasks.common import fetch_tenants, get_tenant_by_identifier
+from tasks_manager.tasks.stories import generate_stories_for_tenant, update_demo_tenant_stories
 
 
 @flow(  # type: ignore
@@ -38,7 +38,7 @@ async def generate_stories(story_date: date | None = None, groups: list[StoryGro
         stories.extend(result)
     # Add stories as table artifact
     today = date.today()
-    await create_table_artifact(
+    await create_table_artifact(  # type: ignore
         key=f"{today}-stories",
         table=stories,
         description=f"Heuristic stories generated for {today}",
@@ -47,3 +47,41 @@ async def generate_stories(story_date: date | None = None, groups: list[StoryGro
     logger.info("All stories generated for %s", today)
 
     return stories
+
+
+@flow(
+    name="update-demo-stories",
+    description="Update demo stories dates for demo tenant based on granularity",
+)
+async def update_demo_stories(tenant_identifier: str):
+    """
+    Flow to update story dates for a specific tenant
+
+    This flow increments story dates by one unit of their granularity:
+    - Day grain: +1 day (updated daily)
+    - Week grain: +1 week (updated only on Mondays)
+    - Month grain: +1 month (updated only on 1st of month)
+    - Quarter grain: +3 months (updated only on 1st day of quarter)
+    - Year grain: +1 year (updated only on Jan 1st)
+
+    Args:
+        tenant_identifier: The tenant Identifier to run updates for.
+    """
+    current_date = date.today()
+    logger = get_run_logger()
+
+    # fetch tenant_id for the identifier
+    tenant_id_int = await get_tenant_by_identifier(identifier=tenant_identifier)
+    logger.info(f"Starting story date updates for tenant id {tenant_id_int} as of {current_date}")
+
+    try:
+        # Process the specified tenant
+        result = update_demo_tenant_stories.submit(tenant_id=tenant_id_int, current_date=current_date)
+        logger.info(f"update_demo_tenant_stories call completed for tenant {tenant_id_int}")
+
+        logger.info(f"Completed story date updates for tenant {tenant_id_int}.")
+        return result
+
+    except Exception as e:
+        logger.error(f"Error updating story dates for tenant {tenant_id_int}: {e}")
+        raise

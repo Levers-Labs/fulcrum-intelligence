@@ -7,6 +7,10 @@ class TenantConfigFilter(BaseFilter[TenantConfig]):
         field=TenantConfig.enable_story_generation,  # type: ignore
         operator="is",
         default=None,
-        join_model=TenantConfig,  # Add the join model
-        join_condition=lambda: TenantConfig.tenant_id == Tenant.id,  # Add the join condition
+    )
+    identifier: str | None = FilterField(
+        field=Tenant.identifier,  # type: ignore
+        operator="eq",
+        default=None,
+        select_from=Tenant,
     )

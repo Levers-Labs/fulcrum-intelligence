@@ -227,7 +227,7 @@ class StoryBuilderBase(ABC):
 
         if "date" in df.columns:
             df["date"] = df["date"].dt.strftime(self.date_text_format) if hasattr(df["date"], "dt") else df["date"]
-        df.replace([float("inf"), float("-inf"), np.NaN], [None, None, None], inplace=True)
+        df.replace([float("inf"), float("-inf"), np.NaN], [None, None, None], inplace=True)  # type: ignore
         series = df.tail(series_length) if series_length else df
         return series.to_dict(orient="records")
 
