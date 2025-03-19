@@ -30,14 +30,15 @@ def calculate_difference(value: float, reference_value: float) -> float:
     Raises:
         ValidationError: If inputs are not numeric
     """
-    # Input validation
-    if not isinstance(value, (int, float)) or not isinstance(reference_value, (int, float)):
+    try:
+        value = float(value)
+        reference_value = float(reference_value)
+        return value - reference_value
+    except (TypeError, ValueError) as exc:
         raise ValidationError(
             "Both value and reference_value must be numeric",
             {"value": value, "reference_value": reference_value},
-        )
-
-    return value - reference_value
+        ) from exc
 
 
 def calculate_percentage_difference(value: float, reference_value: float, handle_zero_reference: bool = False) -> float:
@@ -59,12 +60,14 @@ def calculate_percentage_difference(value: float, reference_value: float, handle
         ValidationError: If inputs are not numeric
         CalculationError: If reference_value is zero and handle_zero_reference is False
     """
-    # Input validation
-    if not isinstance(value, (int, float)) or not isinstance(reference_value, (int, float)):
+    try:
+        value = float(value)
+        reference_value = float(reference_value)
+    except (TypeError, ValueError) as exc:
         raise ValidationError(
             "Both value and reference_value must be numeric",
             {"value": value, "reference_value": reference_value},
-        )
+        ) from exc
 
     # Check for division by zero
     if reference_value == 0:

@@ -6,6 +6,7 @@ is on/off track versus its target. It classifies the current status, tracks stat
 changes, and provides details about any gap or overperformance.
 """
 
+import logging
 from datetime import datetime
 
 import pandas as pd
@@ -28,6 +29,8 @@ from levers.primitives import (
     monitor_threshold_proximity,
     track_status_durations,
 )
+
+logger = logging.getLogger(__name__)
 
 
 class PerformanceStatusPattern(Pattern[MetricPerformance]):
@@ -80,9 +83,6 @@ class PerformanceStatusPattern(Pattern[MetricPerformance]):
             if df.empty:
                 return self.handle_empty_data(metric_id, analysis_window)
 
-            # Extract grain from validated window
-            grain = analysis_window.grain
-
             # Calculate current and prior values
             current_value = float(df["value"].iloc[-1])
             prior_value = float(df["value"].iloc[-2]) if len(df) > 1 else None
@@ -110,12 +110,10 @@ class PerformanceStatusPattern(Pattern[MetricPerformance]):
                 pct_diff = None
 
             # Initialize result dictionary with base fields
-            analysis_date = df["date"].iloc[-1].date()
             result = {
-                "pattern_name": self.name,
+                "pattern": self.name,
                 "version": self.version,
-                "grain": grain,
-                "analysis_date": analysis_date,
+                "analysis_window": analysis_window,
                 "metric_id": metric_id,
                 "evaluation_time": datetime.now(),
                 "current_value": current_value,
@@ -180,7 +178,7 @@ class PerformanceStatusPattern(Pattern[MetricPerformance]):
                 },
             ) from e
 
-    def _calculate_status_change(self, data: pd.DataFrame, current_status: MetricGVAStatus) -> StatusChange | None:
+    def _calculate_status_change(self, data: pd.DataFrame, current_status: str) -> StatusChange | None:
         """
         Calculate information about status changes using the detect_status_changes primitive.
 
@@ -191,36 +189,42 @@ class PerformanceStatusPattern(Pattern[MetricPerformance]):
         Returns:
             StatusChange object or None if no status change
         """
-        # Use the detect_status_changes primitive
-        if "date" in data.columns:
-            status_changes_df = detect_status_changes(data, status_col="status", sort_by_date="date")
-        else:
-            status_changes_df = detect_status_changes(data, status_col="status")
+        try:
+            # Detect status changes
+            if "date" in data.columns:
+                status_changes = detect_status_changes(data, status_col="status", sort_by_date="date")
+            else:
+                status_changes = detect_status_changes(data, status_col="status")
 
-        # Check if there was a status change in the most recent row
-        if not status_changes_df.empty and status_changes_df.iloc[-1].get("status_flip", False):
-            last_row = status_changes_df.iloc[-1]
+            # If there are no status changes, or the most recent status change is not a flip, return None
+            if status_changes.empty or not status_changes.iloc[-1].get("status_flip", False):
+                return None
 
-            # Calculate duration of old status
-            old_status_durations = None
-            if "prev_status" in last_row:
-                old_status = last_row["prev_status"]
-                # Use track_status_durations to get duration info
-                status_runs = track_status_durations(data, status_col="status")
-                if not status_runs.empty:
-                    # Find the last run with the old status
-                    old_status_runs = status_runs[status_runs["status"] == old_status]
-                    if not old_status_runs.empty:
-                        old_status_durations = old_status_runs.iloc[-1]["run_length"]
+            # Find the most recent status flip
+            last_row = status_changes.iloc[-1]
+            old_status = last_row["prev_status"]
+
+            # Track status durations
+            status_runs = track_status_durations(data, status_col="status")
+            # If there are no status runs, return None
+            if status_runs.empty:
+                return None
+
+            # Get the duration of the old status
+            old_status_runs = status_runs[status_runs["status"] == old_status]
+            old_status_duration = None
+            if not old_status_runs.empty:
+                old_status_duration = old_status_runs.iloc[-1]["run_length"]
 
             return StatusChange(
                 has_flipped=True,
-                old_status=last_row.get("prev_status"),
+                old_status=old_status,
                 new_status=current_status,
-                old_status_duration_grains=old_status_durations,
+                old_status_duration_grains=old_status_duration,
             )
-
-        return None
+        except Exception as exc:
+            logger.error("Error calculating status change: %s", exc)
+            return None
 
     def _calculate_streak_info(self, data: pd.DataFrame, current_status: MetricGVAStatus) -> Streak | None:
         """
@@ -267,11 +271,10 @@ class PerformanceStatusPattern(Pattern[MetricPerformance]):
         abs_change = calculate_difference(streak_end_value, streak_start_value)
 
         # Calculate percentage change using numeric primitive
+        pct_change = calculate_percentage_difference(streak_end_value, streak_start_value)
         try:
-            pct_change = calculate_percentage_difference(streak_end_value, streak_start_value)
             avg_pct_change = pct_change / streak_length
         except Exception:
-            pct_change = None
             avg_pct_change = None
 
         return Streak(
