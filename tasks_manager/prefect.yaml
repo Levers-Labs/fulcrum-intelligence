@@ -144,4 +144,4 @@ deployments:
     work_pool: *ecs_work_pool
     schedules: *daily_5am_pst
     parameters:
-      tenant_identifier: "{{ event.resource.tenant_identifier }}"
+      tenant_identifier: "leversdemo"

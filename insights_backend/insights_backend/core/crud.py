@@ -63,20 +63,6 @@ class TenantCRUD(CRUDBase[Tenant, Tenant, Tenant, TenantConfigFilter]):  # type:
         result = await self.session.execute(statement=statement)
         return result.scalar_one_or_none()
 
-    async def get_tenant(self, identifier: str) -> Tenant | None:
-        """
-        Method to retrieve a single tenant by external id.
-        """
-
-        statement = select(Tenant).filter_by(identifier=identifier)
-        result = await self.session.execute(statement=statement)
-        instance: Tenant | None = result.scalar_one_or_none()
-
-        if instance is None:
-            raise NotFoundError(id=identifier)
-
-        return instance
-
     async def update_tenant_config(self, tenant_id: int, new_config: TenantConfigUpdate) -> TenantConfig:
         """
         Updates the configuration for a tenant based on the provided new configuration. This method first converts the

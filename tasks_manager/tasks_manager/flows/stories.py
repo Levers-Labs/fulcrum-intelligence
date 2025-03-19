@@ -5,7 +5,7 @@ from prefect.artifacts import create_table_artifact
 from prefect.futures import PrefectFutureList
 
 from story_manager.core.enums import StoryGroup
-from tasks_manager.tasks.common import fetch_tenant_id, fetch_tenants
+from tasks_manager.tasks.common import fetch_tenants, get_tenant_by_identifier
 from tasks_manager.tasks.stories import generate_stories_for_tenant, update_demo_tenant_stories
 
 
@@ -71,7 +71,7 @@ async def update_demo_stories(tenant_identifier: str):
     logger = get_run_logger()
 
     # fetch tenant_id for the identifier
-    tenant_id_int = await fetch_tenant_id(tenant_identifier=tenant_identifier)
+    tenant_id_int = await get_tenant_by_identifier(identifier=tenant_identifier)
     logger.info(f"Starting story date updates for tenant id {tenant_id_int} as of {current_date}")
 
     try:

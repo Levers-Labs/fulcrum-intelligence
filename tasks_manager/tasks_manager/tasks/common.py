@@ -58,15 +58,16 @@ def get_grains(tenant_id: int, day: date | None = None) -> list[str]:
     return grains
 
 
-@task(task_run_name="fetch_tenant_id")
-async def fetch_tenant_id(**params) -> int:
+@task(task_run_name="get_tenant_by_identifier")
+async def get_tenant_by_identifier(**params) -> int:
     """Fetch all active tenants"""
     logger = get_run_logger()
     logger.info("Attempting to fetch tenant_id with parameters: %s", params)
     config = await AppConfig.load("default")
     auth = get_client_auth_from_config(config)
     insights_client = InsightBackendClient(config.insights_backend_server_host, auth=auth)
-    response = await insights_client.get_tenant(**params)
-    tenant_id = response["id"]
+    response = await insights_client.get_tenants(**params)
+    tenants = response["results"]
+    tenant_id = int(tenants[0]["id"])
     logger.info("Fetched tenant_id %d", tenant_id)
-    return int(tenant_id)
+    return tenant_id

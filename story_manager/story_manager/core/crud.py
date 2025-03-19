@@ -79,7 +79,6 @@ class CRUDStory(CRUDBase[Story, Story, Story, StoryFilter]):
 
     async def get_stories(
         self,
-        # tenant_id: int,
         metric_id: str | None = None,
         grain: Granularity | None = None,
         created_date: date | None = None,
@@ -107,11 +106,6 @@ class CRUDStory(CRUDBase[Story, Story, Story, StoryFilter]):
         """
         # Build base query filtering by date range, grain, metric and tenant
         statement = self.get_select_query()
-        # statement = (
-        #     self.get_select_query()
-        #     # Filter by tenant id
-        #     # .filter_by(tenant_id=tenant_id)
-        # )
         if created_date is not None:
             # Filter stories created on the specified date (inclusive of start, exclusive of end)
             statement = statement.filter(func.date(Story.created_at) >= func.date(created_date)).filter(

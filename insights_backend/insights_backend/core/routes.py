@@ -167,11 +167,12 @@ async def list_tenants(
         Depends(PaginationParams),
     ],
     enable_story_generation: bool | None = None,
+    identifier: str | None = None,
 ):
     """
     Retrieve all tenants in DB.
     """
-    tenant_config_filter = TenantConfigFilter(enable_story_generation=enable_story_generation)
+    tenant_config_filter = TenantConfigFilter(enable_story_generation=enable_story_generation, identifier=identifier)
     results, count = await tenant_crud_client.paginate(
         params=params, filter_params=tenant_config_filter.dict(exclude_unset=True)
     )
@@ -235,26 +236,6 @@ async def update_tenant_config(
         return updated_config
     except NotFoundError as e:
         # Raise an HTTPException if the tenant is not found
-        raise HTTPException(status_code=404, detail="Tenant not found") from e
-
-
-@router.get(
-    "/tenant/internal",
-    response_model=TenantRead,
-    dependencies=[Security(oauth2_auth().verify, scopes=[ADMIN_READ])],  # type: ignore
-)
-async def get_tenant_internal(
-    tenant_crud_client: TenantsCRUDDep,
-    tenant_identifier: str,
-):
-    """
-    Internal endpoint to retrieve the complete tenant configuration including sensitive fields.
-    This endpoint should only be used by internal services.
-    """
-    try:
-        tenant = await tenant_crud_client.get_tenant(tenant_identifier)
-        return TenantRead.model_validate(tenant)
-    except NotFoundError as e:
         raise HTTPException(status_code=404, detail="Tenant not found") from e
 
 
