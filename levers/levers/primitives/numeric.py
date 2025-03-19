@@ -102,12 +102,14 @@ def safe_divide(
     Raises:
         ValidationError: If inputs are not numeric
     """
-    # Input validation
-    if not isinstance(numerator, (int, float)) or not isinstance(denominator, (int, float)):
+    try:
+        numerator = float(numerator)
+        denominator = float(denominator)
+    except (TypeError, ValueError) as exc:
         raise ValidationError(
             "Both numerator and denominator must be numeric",
             {"numerator": numerator, "denominator": denominator},
-        )
+        ) from exc
 
     if denominator == 0:
         return default_value
@@ -133,10 +135,13 @@ def round_to_precision(value: float, precision: int = 2) -> float:
     Raises:
         ValidationError: If value is not numeric or precision is not an integer
     """
-    if not isinstance(value, (int, float)):
-        raise ValidationError("Value must be numeric", {"value": value})
-
-    if not isinstance(precision, int):
-        raise ValidationError("Precision must be an integer", {"precision": precision})
+    try:
+        value = float(value)
+        precision = int(precision)
+    except (TypeError, ValueError) as exc:
+        raise ValidationError(
+            "Value must be numeric and precision must be an integer",
+            {"value": value, "precision": precision},
+        ) from exc
 
     return round(value, precision)
