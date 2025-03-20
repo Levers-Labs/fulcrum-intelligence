@@ -53,7 +53,7 @@ def test_digest_section_filters(base_query):
     query = StoryFilter.apply_filters(base_query, filters)
     sql = str(query.compile(compile_kwargs={"literal_binds": True}))
     assert "WHERE" in sql
-    assert "story.story_group IN ('SEGMENT_DRIFT', 'COMPONENT_DRIFT')" in sql
+    assert "story.story_group IN ('SEGMENT_DRIFT', 'COMPONENT_DRIFT', 'INFLUENCE_DRIFT')" in sql
 
 
 def test_combined_filters(base_query):
