@@ -1,7 +1,10 @@
-from sqlalchemy import select, update
+from sqlalchemy import Select, select, update
+from sqlalchemy.dialects.postgresql import insert
+from sqlalchemy.orm import selectinload
 
 from commons.db.crud import CRUDBase, NotFoundError
 from commons.models.tenant import SlackConnectionConfig, TenantConfigUpdate
+from commons.utilities.context import get_tenant_id
 from insights_backend.core.filters import TenantConfigFilter
 from insights_backend.core.models import (
     Tenant,
@@ -10,6 +13,7 @@ from insights_backend.core.models import (
     UserCreate,
     UserUpdate,
 )
+from insights_backend.core.models.users import UserTenant
 
 
 class CRUDUser(CRUDBase[User, UserCreate, UserUpdate, None]):  # type: ignore
@@ -17,23 +21,39 @@ class CRUDUser(CRUDBase[User, UserCreate, UserUpdate, None]):  # type: ignore
     CRUD for User Model.
     """
 
+    def get_select_query(self) -> Select:
+        query = select(User).options(
+            selectinload(User.tenants),  # type: ignore
+        )
+        return query
+
     async def get_user_by_email(self, email: str) -> User | None:
         """
         Method to retrieve a single user by email.
         """
-        statement = select(User).filter_by(email=email)  # type: ignore
+        statement = self.get_select_query().filter_by(email=email)  # type: ignore
         result = await self.session.execute(statement=statement)
         return result.scalar_one_or_none()
 
-    async def create(self, *, obj_in: UserCreate) -> User:
-        values = obj_in.dict()
-        # Remove tenant_org_id from values
-        values.pop("tenant_org_id")
-        obj = self.model(**values)
-        self.session.add(obj)
+    async def create(self, *, obj_in: UserCreate) -> User | None:
+        existing_user = await self.get_user_by_email(obj_in.email)
+        if not existing_user:
+            values = obj_in.dict()
+            # Remove tenant_org_id from values
+            values.pop("tenant_org_id")
+            existing_user = self.model(**values)
+            self.session.add(existing_user)
+            await self.session.flush()
+        # Upsert user-tenant
+        stmt = (
+            insert(UserTenant)
+            .values(user_id=existing_user.id, tenant_id=get_tenant_id())  # type: ignore
+            .on_conflict_do_nothing(constraint="uq_user_tenant")
+        )
+        await self.session.execute(stmt)
         await self.session.commit()
-        await self.session.refresh(obj)
-        return obj
+        await self.session.refresh(existing_user)
+        return existing_user
 
 
 class TenantCRUD(CRUDBase[Tenant, Tenant, Tenant, TenantConfigFilter]):  # type: ignore
