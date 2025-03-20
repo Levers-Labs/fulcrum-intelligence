@@ -41,6 +41,7 @@ aiofiles = "^23.2.1"
 slack-sdk = "^3.33.3"
 pyyaml = "^6.0.2"
 setuptools = "65.5.0"
+pydantic-extra-types = "^2.10.3"
 
 [tool.poetry.extras]
 db = ["sqlmodel", "sqlalchemy", "psycopg2-binary", "alembic", "asyncpg", "greenlet", "blinker"]
