@@ -6,6 +6,7 @@ from levers.exceptions import PrimitiveError
 
 from .numeric import (
     calculate_difference,
+    calculate_gap_to_target,
     calculate_percentage_difference,
     round_to_precision,
     safe_divide,
@@ -33,6 +34,7 @@ _primitive_families = {
         calculate_percentage_difference,
         safe_divide,
         round_to_precision,
+        calculate_gap_to_target,
     ],
     "performance": [
         calculate_metric_gva,
@@ -105,6 +107,7 @@ __all__ = [
     "calculate_percentage_difference",
     "safe_divide",
     "round_to_precision",
+    "calculate_gap_to_target",
     # Performance primitives
     "calculate_metric_gva",
     "calculate_historical_gva",

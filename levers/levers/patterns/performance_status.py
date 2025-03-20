@@ -23,6 +23,7 @@ from levers.models.patterns.performance_status import (
 from levers.patterns.base import Pattern
 from levers.primitives import (
     calculate_difference,
+    calculate_gap_to_target,
     calculate_percentage_difference,
     classify_metric_status,
     detect_status_changes,
@@ -98,10 +99,10 @@ class PerformanceStatusPattern(Pattern[MetricPerformance]):
             # Calculate status
             if target_value is not None:
                 status = classify_metric_status(current_value, target_value, threshold_ratio)
-                abs_diff = calculate_difference(current_value, target_value)
+                abs_diff = calculate_difference(target_value, current_value)
 
                 try:
-                    pct_diff = calculate_percentage_difference(current_value, target_value)
+                    pct_diff = calculate_gap_to_target(current_value, target_value)
                 except Exception:
                     pct_diff = None
             else:
@@ -131,13 +132,13 @@ class PerformanceStatusPattern(Pattern[MetricPerformance]):
                 except Exception:
                     result["pop_change_percent"] = None
 
-            # Add gap or overperformance information
+            # Add gap or over performance information
             if status == MetricGVAStatus.OFF_TRACK:
-                result["absolute_gap"] = abs(abs_diff) if abs_diff and abs_diff < 0 else 0.0
-                result["percent_gap"] = abs(pct_diff) if pct_diff and pct_diff < 0 else 0.0
-            elif status == MetricGVAStatus.ON_TRACK and target_value is not None:
-                result["absolute_over_performance"] = max(0.0, abs_diff) if abs_diff is not None else 0.0
-                result["percent_over_performance"] = max(0.0, pct_diff) if pct_diff is not None else 0.0
+                result["absolute_gap"] = abs_diff
+                result["percent_gap"] = pct_diff
+            elif status == MetricGVAStatus.ON_TRACK:
+                result["absolute_over_performance"] = abs(abs_diff) if abs_diff else None
+                result["percent_over_performance"] = abs(pct_diff) if pct_diff else None
 
             # Calculate status change info if historical data is available
             if has_target and len(df) > 1:
@@ -190,30 +191,41 @@ class PerformanceStatusPattern(Pattern[MetricPerformance]):
             StatusChange object or None if no status change
         """
         try:
+            # Ensure we have enough data to detect changes
+            if len(data) < 2:
+                return None
+
             # Detect status changes
             if "date" in data.columns:
                 status_changes = detect_status_changes(data, status_col="status", sort_by_date="date")
             else:
                 status_changes = detect_status_changes(data, status_col="status")
 
-            # If there are no status changes, or the most recent status change is not a flip, return None
-            if status_changes.empty or not status_changes.iloc[-1].get("status_flip", False):
+            # Check if there are any status changes
+            if status_changes.empty:
                 return None
 
-            # Find the most recent status flip
-            last_row = status_changes.iloc[-1]
-            old_status = last_row["prev_status"]
+            # Check if the most recent row has a status flip
+            last_change = status_changes.iloc[-1]
+            if not last_change.get("status_flip", False):
+                return None
 
-            # Track status durations
+            # Get the previous status from the most recent flip
+            old_status = last_change["prev_status"]
+
+            # Track status durations for all statuses
             status_runs = track_status_durations(data, status_col="status")
-            # If there are no status runs, return None
             if status_runs.empty:
                 return None
 
-            # Get the duration of the old status
+            # Find the duration of the old status
+            # Filter for runs of the old status that occurred before the current status
             old_status_runs = status_runs[status_runs["status"] == old_status]
+
             old_status_duration = None
             if not old_status_runs.empty:
+                # Get the most recent run length of the old status
+                # This is the duration it lasted before flipping to the current status
                 old_status_duration = old_status_runs.iloc[-1]["run_length"]
 
             return StatusChange(
@@ -265,7 +277,7 @@ class PerformanceStatusPattern(Pattern[MetricPerformance]):
             return None
 
         # Calculate change over streak
-        streak_start_value = values[-(streak_length)]
+        streak_start_value = values[-streak_length]
         streak_end_value = values[-1]
         # Use numeric primitive for difference calculation
         abs_change = calculate_difference(streak_end_value, streak_start_value)
@@ -304,7 +316,7 @@ class PerformanceStatusPattern(Pattern[MetricPerformance]):
 
         # Calculate margin percentage using numeric primitive
         try:
-            margin_percent = calculate_percentage_difference(value, target)
+            margin_percent = calculate_gap_to_target(value, target)
         except Exception:
             margin_percent = None
 
