@@ -17,7 +17,7 @@ import pandas as pd
 from levers.exceptions import CalculationError, ValidationError
 from levers.models.common import GrowthTrend
 from levers.models.patterns import MetricGVAStatus, SmoothingMethod
-from levers.primitives import calculate_difference, calculate_percentage_difference
+from levers.primitives import calculate_difference, calculate_gap_to_target
 
 
 def calculate_metric_gva(
@@ -60,7 +60,7 @@ def calculate_metric_gva(
             pct = float("-inf")
     else:
         try:
-            pct = calculate_percentage_difference(actual_value, target_value)
+            pct = calculate_gap_to_target(actual_value, target_value)
         except CalculationError:
             pct = None
 
@@ -260,7 +260,7 @@ def track_status_durations(df: pd.DataFrame, status_col: str = "status", date_co
         return pd.DataFrame(columns=cols)
 
     # Ensure a clean, zero-indexed DataFrame
-    df_clean = df.reset_index(drop=True).copy()
+    df_clean = df.reset_index().copy()
 
     # Identify runs by grouping on changes in status
     df_clean["group"] = (df_clean[status_col] != df_clean[status_col].shift(1)).cumsum()

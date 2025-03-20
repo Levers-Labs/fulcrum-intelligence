@@ -81,6 +81,42 @@ def calculate_percentage_difference(value: float, reference_value: float, handle
     return ((value - reference_value) / abs(reference_value)) * 100.0
 
 
+def calculate_gap_to_target(value: float, target: float, handle_zero_target: bool = False) -> float:
+    """
+    Calculate the percentage gap between current value and target.
+
+    A positive result indicates value is below target (gap to close).
+    A negative result indicates value is above target (exceeding target).
+
+    Args:
+        value: The current value
+        target: The target value
+        handle_zero_target: If True, returns 0 for zero target instead of raising an error
+
+    Returns:
+        The percentage gap to target
+    """
+    try:
+        value = float(value)
+        target = float(target)
+    except (TypeError, ValueError) as exc:
+        raise ValidationError(
+            "Both value and target must be numeric",
+            {"value": value, "target": target},
+        ) from exc
+
+    # Check for division by zero
+    if target == 0:
+        if handle_zero_target:
+            return 0.0
+        raise CalculationError(
+            "Cannot calculate gap to target with zero target value",
+            {"value": value, "target": target},
+        )
+
+    return (abs(target - value) / abs(target)) * 100.0
+
+
 def safe_divide(
     numerator: float, denominator: float, default_value: float | None = None, as_percentage: bool = False
 ) -> float | None:
