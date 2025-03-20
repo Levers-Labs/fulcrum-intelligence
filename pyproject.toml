@@ -45,7 +45,7 @@ combine_as_imports = true
 use_parentheses = true
 force_grid_wrap = 4
 include_trailing_comma = true
-known_first_party = "app,commons,fulcrum_core,analysis_manager,query_manager,story_manager,insights_backend,tasks_manager"
+known_first_party = "app,levers,commons,fulcrum_core,analysis_manager,query_manager,story_manager,insights_backend,tasks_manager"
 skip_glob = ["core/fulcrum_core/modules/__init__.py", "commons/commons/db/signals/__init__.py"]
 
 [tool.black]
@@ -75,6 +75,7 @@ exclude = [
     "core/tests/",
     "commons/tests/",
     "insights_backend/tests/",
+    "levers/tests/",
     # Migrations
     "analysis_manager/migrations/",
     "story_manager/migrations/",
