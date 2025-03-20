@@ -165,3 +165,40 @@ class MetricDimensionalTimeSeries(BaseTimeStampedTenantModel, table=True):  # ty
         # Schema definition
         {"schema": "query_store"},
     )
+
+
+class MetricTarget(BaseTimeStampedTenantModel, table=True):  # type: ignore
+    """
+    Stores target values for metrics at different granularities.
+    """
+
+    __tablename__ = "metric_target"
+
+    metric_id: str
+    grain: Granularity
+    target_date: date
+    target_value: float
+    target_upper_bound: float | None = None
+    target_lower_bound: float | None = None
+    yellow_buffer: float | None = None
+    red_buffer: float | None = None
+
+    # Define table arguments including schema, indexes, and constraints
+    __table_args__ = (
+        # Unique constraint
+        UniqueConstraint("metric_id", "grain", "target_date", "tenant_id", name="uq_metric_target"),
+        # Indexes
+        Index("idx_metric_target_metric_tenant", "metric_id", "tenant_id"),
+        Index("idx_metric_target_date", "target_date", postgresql_ops={"target_date": "DESC"}),
+        Index("idx_metric_target_grain", "grain"),
+        Index(
+            "idx_target_metric_tenant_grain_date",
+            "metric_id",
+            "tenant_id",
+            "grain",
+            "target_date",
+            postgresql_ops={"target_date": "DESC"},
+        ),
+        # Schema definition
+        {"schema": "query_store"},
+    )

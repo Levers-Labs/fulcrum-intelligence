@@ -5,6 +5,7 @@ omit=
     story_manager/utilities/logger.py
     story_manager/utilities/docs.py
     story_manager/health.py
+    story_manager/mocks/*
 
 [report]
 fail_under = 80

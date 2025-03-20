@@ -9,6 +9,7 @@ from commons.models.enums import Granularity
 from query_manager.semantic_manager.models import (
     MetricDimensionalTimeSeries,
     MetricSyncStatus,
+    MetricTarget,
     MetricTimeSeries,
     SyncEvent,
     SyncStatus,
@@ -232,3 +233,89 @@ def test_sync_event_type():
     assert event["sync_status"] == SyncStatus.FAILED
     assert event["error"] == "Sync failed due to network error"
     assert event["records_processed"] is None
+
+
+def test_metric_target_model():
+    """Test MetricTarget model validation."""
+    # Test valid model
+    model = MetricTarget(
+        tenant_id=1,
+        metric_id="test_metric",
+        grain=Granularity.DAY,
+        target_date=date(2024, 1, 1),
+        target_value=100.0,
+        target_upper_bound=110.0,
+        target_lower_bound=90.0,
+        yellow_buffer=5.0,
+        red_buffer=10.0,
+    )
+    assert model.tenant_id == 1
+    assert model.metric_id == "test_metric"
+    assert model.grain == Granularity.DAY
+    assert model.target_date == date(2024, 1, 1)
+    assert model.target_value == 100.0
+    assert model.target_upper_bound == 110.0
+    assert model.target_lower_bound == 90.0
+    assert model.yellow_buffer == 5.0
+    assert model.red_buffer == 10.0
+
+    # Test with optional fields omitted
+    model = MetricTarget(
+        tenant_id=1,
+        metric_id="test_metric",
+        grain=Granularity.DAY,
+        target_date=date(2024, 1, 1),
+        target_value=100.0,
+    )
+    assert model.target_upper_bound is None
+    assert model.target_lower_bound is None
+    assert model.yellow_buffer is None
+    assert model.red_buffer is None
+
+    # Test invalid value type
+    with pytest.raises(ValidationError):
+        MetricTarget.model_validate(
+            dict(
+                tenant_id=1,
+                metric_id="test_metric",
+                grain=Granularity.DAY,
+                target_date=date(2024, 1, 1),
+                target_value="invalid",  # type: ignore
+            )
+        )
+
+    # Test missing required fields
+    with pytest.raises(ValidationError):
+        MetricTarget.model_validate(
+            dict(
+                tenant_id=1,
+                metric_id="test_metric",
+                # Missing grain
+                target_date=date(2024, 1, 1),
+                target_value=100.0,
+            )
+        )
+
+    # Test invalid grain value
+    with pytest.raises(ValidationError):
+        MetricTarget.model_validate(
+            dict(
+                tenant_id=1,
+                metric_id="test_metric",
+                grain="INVALID_GRAIN",  # type: ignore
+                target_date=date(2024, 1, 1),
+                target_value=100.0,
+            )
+        )
+
+    # Test with invalid date type
+    with pytest.raises(ValidationError):
+        MetricTarget.model_validate(
+            dict(
+                tenant_id=1,
+                metric_id="test_metric",
+                grain=Granularity.DAY,
+                target_date="not-a-date",  # type: ignore
+                target_value=100.0,
+            )
+        )

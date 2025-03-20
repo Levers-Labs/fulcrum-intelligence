@@ -62,7 +62,7 @@ class SlackAlertsService:
         async with get_async_session() as db_session:
             # Query stories using CRUD operations
             story_crud = CRUDStory(model=Story, session=db_session)
-            stories = await story_crud.get_stories(metric_id, grain, created_date, tenant_id, is_heuristic=True)
+            stories = await story_crud.get_stories(metric_id, grain, created_date, is_heuristic=True)
 
             logger.debug(
                 "Fetched %d stories for metric_id=%s, grain=%s, tenant_id=%d, created_date=%s",

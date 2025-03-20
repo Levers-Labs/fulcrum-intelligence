@@ -3,8 +3,8 @@ name: tasks_manager
 prefect-version: 3.1.7
 
 pull:
-  - prefect.deployments.steps.set_working_directory:
-      directory: /opt/prefect/tasks_manager
+- prefect.deployments.steps.set_working_directory:
+    directory: /opt/prefect/tasks_manager
 
 # Reusable definitions
 definitions:
@@ -18,6 +18,9 @@ definitions:
         timezone: "America/Los_Angeles"
     daily_2am_pst: &daily_2am_pst
       - cron: "0 2 * * *"
+        timezone: "America/Los_Angeles"
+    daily_5am_pst: &daily_5am_pst
+      - cron: "0 5 * * *"
         timezone: "America/Los_Angeles"
     weekly_monday_230am_pst: &weekly_monday_230am_pst
       - cron: "30 2 * * 1" # Monday at 2:30 AM
@@ -131,3 +134,14 @@ deployments:
           tenant_id_str: "{{ event.resource.tenant_id }}"
           metric_id: "{{ event.resource.metric_id }}"
           grain: "{{ event.resource.grain }}"
+
+  - name: "update-demo-stories"
+    version: "1.0.0"
+    description: "Update demo stories dates for demo tenant based on granularity"
+    entrypoint: tasks_manager.flows.stories:update_demo_stories
+    tags:
+      - daily
+    work_pool: *ecs_work_pool
+    schedules: *daily_5am_pst
+    parameters:
+      tenant_identifier: "leversdemo"

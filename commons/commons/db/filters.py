@@ -22,6 +22,7 @@ class FilterField(FieldInfo):
         filter_fn: Callable[[Select, Any], Select] | None = None,
         join_model: Any = None,
         join_condition: Any = None,
+        select_from: Any | None = None,
         **kwargs,
     ):
         """
@@ -41,6 +42,7 @@ class FilterField(FieldInfo):
         self.filter_fn = filter_fn or self.get_filter_function()
         self.join_model = join_model
         self.join_condition = join_condition
+        self.select_from = select_from
 
     def get_filter_function(self) -> Callable[[Select, Any], Select]:
         """
@@ -118,6 +120,9 @@ class BaseFilter(BaseModel, Generic[T]):
                 if not isinstance(filter_field, FilterField):
                     logger.error("Field %s is not a FilterField", field_name)
                     continue
+
+                if hasattr(filter_field, "select_from") and filter_field.select_from:  # type: ignore
+                    query = query.select_from(filter_field.select_from)
 
                 # If the filter field has a join model specified, apply the join
                 if hasattr(filter_field, "join_model") and filter_field.join_model:

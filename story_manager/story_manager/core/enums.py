@@ -271,13 +271,13 @@ STORY_TYPES_META: dict[str, dict[str, str]] = {
         "growth and has fallen {{overall_growth}}% overall since {{start_date}}.",
     },
     StoryType.ON_TRACK: {
-        "title": "Beats {{duration}} {{grain}}s target",
+        "title": "Beats {{interval}} target",
         # e.g.,  As of EOD, NewBizDeals was at 85, up 5% d/d and beating its target of 80 by 6.25%.
         "detail": "As of {{eoi}}, {{metric.label}} was at {{current_value}}, {{direction}} {{current_growth}}% {{"
         "pop}} and beating its target of {{target}} by {{deviation}}%.",
     },
     StoryType.OFF_TRACK: {
-        "title": "Missed {{duration}} {{grain}}s target",
+        "title": "Missed {{interval}} target",
         # e.g.,  As of EOD, NewBizDeals was at 75, down 2% d/d and missing its target 80 by 6.25%.
         "detail": "As of {{eoi}}, {{metric.label}} was at {{current_value}}, {{direction}} {{current_growth}}% {{"
         "pop}} and missing its target of {{target}} by {{deviation}}%.",
