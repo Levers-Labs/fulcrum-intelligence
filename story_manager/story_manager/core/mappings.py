@@ -50,13 +50,13 @@ FILTER_MAPPING = {
     },
     # Why Is It Happening section focuses on segment and component drift
     (Digest.METRIC, Section.WHY_IS_IT_HAPPENING): {
-        "story_groups": [StoryGroup.SEGMENT_DRIFT, StoryGroup.COMPONENT_DRIFT]
+        "story_groups": [StoryGroup.SEGMENT_DRIFT, StoryGroup.COMPONENT_DRIFT, StoryGroup.INFLUENCE_DRIFT]
     },
     # What Happens Next section deals with likely status
     (Digest.METRIC, Section.WHAT_HAPPENS_NEXT): {"story_groups": [StoryGroup.LIKELY_STATUS]},
 }
 
-# This dictionary maps each StoryType to its corresponding heuristic expressions for different granularities.
+# This dictionary maps each StoryType to its corresponding heuristic expressions for different granularity.
 # The heuristic expressions are used to evaluate the salience of a story based on the provided variables.
 # Each heuristic_expression is a Jinja2 template string that will be rendered with the actual values of the variables.
 
