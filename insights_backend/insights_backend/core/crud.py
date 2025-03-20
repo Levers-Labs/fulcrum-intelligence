@@ -23,7 +23,7 @@ class CRUDUser(CRUDBase[User, UserCreate, UserUpdate, None]):  # type: ignore
 
     def get_select_query(self) -> Select:
         query = select(User).options(
-            selectinload(User.tenants),  # type: ignore
+            selectinload(User.tenant_ids),  # type: ignore
         )
         return query
 
@@ -54,6 +54,24 @@ class CRUDUser(CRUDBase[User, UserCreate, UserUpdate, None]):  # type: ignore
         await self.session.commit()
         await self.session.refresh(existing_user)
         return existing_user
+
+    async def update(self, *, obj: User, obj_in: UserUpdate) -> User:
+        """Update user details."""
+        # If email is being updated, check if new email already exists
+        if obj_in.email != obj.email:
+            existing_user = await self.get_user_by_email(obj_in.email)
+            if existing_user:
+                raise ValueError("Email already exists")
+
+        # Update user attributes
+        update_data = obj_in.model_dump(exclude_unset=True)
+        for field, value in update_data.items():
+            setattr(obj, field, value)
+
+        self.session.add(obj)
+        await self.session.commit()
+        await self.session.refresh(obj)
+        return obj
 
 
 class TenantCRUD(CRUDBase[Tenant, Tenant, Tenant, TenantConfigFilter]):  # type: ignore

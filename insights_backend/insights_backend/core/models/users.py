@@ -23,7 +23,7 @@ class UserBase(BaseSQLModel):
 class User(UserBase, BaseTimeStampedModel, table=True):  # type: ignore
     __table_args__ = {"schema": "insights_store"}
     provider: AuthProviders | None = Field(sa_column=Column(Enum(AuthProviders, name="provider", inherit_schema=True)))
-    tenants: list["UserTenant"] = Relationship(
+    tenant_ids: list["UserTenant"] = Relationship(
         back_populates="user", sa_relationship_kwargs={"cascade": "all, delete-orphan", "lazy": "selectin"}
     )
 
@@ -46,9 +46,9 @@ class UserCreate(BaseModel):
 
 class UserRead(UserBase):
     id: int
-    tenants: list[int] | None = Field(default_factory=list)
+    tenant_ids: list[int] | None = Field(default_factory=list)
 
-    @field_validator("tenants", mode="before")
+    @field_validator("tenant_ids", mode="before")
     @classmethod
     def convert_tenants_to_ids(cls, v):
         if isinstance(v, list) and v and hasattr(v[0], "tenant_id"):
@@ -73,4 +73,4 @@ class UserTenant(InsightsSchemaBaseModel, table=True):  # type: ignore
     )
 
     user_id: int = Field(foreign_key="insights_store.user.id")
-    user: User = Relationship(back_populates="tenants", sa_relationship_kwargs={"lazy": "selectin"})
+    user: User = Relationship(back_populates="tenant_ids", sa_relationship_kwargs={"lazy": "selectin"})

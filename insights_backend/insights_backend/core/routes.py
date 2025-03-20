@@ -38,7 +38,6 @@ from insights_backend.core.filters import TenantConfigFilter
 from insights_backend.core.models import (
     TenantList,
     TenantRead,
-    User,
     UserCreate,
     UserList,
 )
@@ -118,11 +117,10 @@ async def update_user(user_id: int, user: UserUpdate, user_crud_client: UsersCRU
     Update a user by ID.
     """
     try:
-        old_user_obj: User = await user_crud_client.get(user_id)
-    except NotFoundError as e:
-        raise HTTPException(status_code=404, detail="User not found") from e
-
-    return await user_crud_client.update(obj=old_user_obj, obj_in=user)
+        user_obj = await user_crud_client.get(user_id)
+        return await user_crud_client.update(obj=user_obj, obj_in=user)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
 
 
 @user_router.get(
