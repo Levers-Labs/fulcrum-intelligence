@@ -54,7 +54,8 @@ install-all-deps:
 		echo "Installing all dependencies..." && \
 		make install-deps && \
 		make install-deps path=core && \
-		make install-deps path=commons && \
+		make install-deps path=levers
+	@make install-deps path=commons && \
 		make install-deps path=query_manager && \
 		make install-deps path=analysis_manager && \
 		make install-deps path=story_manager && \
@@ -84,7 +85,8 @@ format-all:
 	@( \
 		make format path=commons && \
 		make format path=core && \
-		make format path=query_manager && \
+		make format path=levers
+	@make format path=query_manager && \
 		make format path=analysis_manager && \
 		make format path=story_manager && \
 		make format path=insights_backend && \
@@ -98,7 +100,8 @@ lint-all:
 	@( \
 		make lint path=commons && \
 		make lint path=core && \
-		make lint path=query_manager && \
+		make lint path=levers
+	@make lint path=query_manager && \
 		make lint path=analysis_manager && \
 		make lint path=story_manager && \
 		make lint path=insights_backend && \
@@ -123,7 +126,8 @@ test-all:
 		echo "Running all tests..." && \
 		make test app=commons && \
 		make test app=core && \
-		make test app=query_manager && \
+		make test app=levers
+	@make test app=query_manager && \
 		make test app=analysis_manager && \
 		make test app=story_manager && \
 		make test app=insights_backend \
