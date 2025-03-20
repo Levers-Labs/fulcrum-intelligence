@@ -48,7 +48,7 @@ class LongRangeMockGenerator(MockGeneratorBase):
     def get_mock_time_series(self, grain: Granularity, story_type: StoryType) -> list[dict[str, Any]]:
         """Generate mock time series data for long range stories"""
         # Get date range and dates
-        start_date, end_date = self.data_service._get_input_time_range(grain, self.group)
+        start_date, end_date = self.data_service.get_input_time_range(grain, self.group)
         dates = self.data_service.get_dates_for_range(grain, start_date, end_date)
         formatted_dates = self.data_service.get_formatted_dates(dates)
 
