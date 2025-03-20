@@ -55,7 +55,7 @@ class UserRead(UserBase):
             return [t.tenant_id for t in v]
         return v
 
-    model_config = ConfigDict(
+    model_config = ConfigDict(  # type: ignore
         from_attributes=True,
     )
 

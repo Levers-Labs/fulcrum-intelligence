@@ -35,7 +35,7 @@ class CRUDUser(CRUDBase[User, UserCreate, UserUpdate, None]):  # type: ignore
         result = await self.session.execute(statement=statement)
         return result.scalar_one_or_none()
 
-    async def create(self, *, obj_in: UserCreate) -> User | None:
+    async def create(self, *, obj_in: UserCreate) -> User | None:  # type: ignore
         existing_user = await self.get_user_by_email(obj_in.email)
         if not existing_user:
             values = obj_in.dict()
@@ -55,7 +55,7 @@ class CRUDUser(CRUDBase[User, UserCreate, UserUpdate, None]):  # type: ignore
         await self.session.refresh(existing_user)
         return existing_user
 
-    async def update(self, *, obj: User, obj_in: UserUpdate) -> User:
+    async def update(self, *, obj: User, obj_in: UserUpdate) -> User:  # type: ignore
         """Update user details."""
         # If email is being updated, check if new email already exists
         if obj_in.email != obj.email:
