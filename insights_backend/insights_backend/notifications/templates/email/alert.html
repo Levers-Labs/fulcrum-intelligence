@@ -32,7 +32,6 @@
 
         .email-header p {
             font-size: 22px;
-            margin-bottom: 10px;
             font-weight: 600;
             color: #1f1f1f;
         }
@@ -41,17 +40,9 @@
             margin-top: 10px;
         }
 
-        .email-body p:first-child {
-            font-size: 16px;
-            font-weight: 500;
-            color: #1f1f1f;
-            margin-bottom: 8px;
-        }
-
-        .email-body p:last-child {
+        .email-body p {
             font-size: 15px;
             color: #666;
-            margin-bottom: 16px;
             line-height: 1.5;
         }
 
@@ -89,8 +80,10 @@
 
         <div class='email-body'>
             {% for story in data.stories %}
-                <p>{{ story.story_group| replace('_', ' ') | title }}</p>
-                <p>{{ story.title }}<br>{{ story.detail }}</p>
+                <h4>{{ story.story_group| replace('_', ' ') | title }}</h4>
+                <p>{{ story.title }}</p>
+                <p>{{ story.detail }}</p>
+                <br>
             {% endfor %}
         </div>
         <hr>

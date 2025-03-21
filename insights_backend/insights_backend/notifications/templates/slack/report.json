@@ -4,8 +4,7 @@
             "type": "header",
             "text": {
                 "type": "plain_text",
-                "text": "{{ data.interval|title }} report for {{ config.name }}",
-                "emoji": true
+                "text": "{{ data.interval|title }} Report for {{ config.name }}"
             }
         },
         {
@@ -21,8 +20,7 @@
                     "type": "section",
                     "text": {
                         "type": "mrkdwn",
-                        "text": "\uD83D\uDFE2 {{ current_value }} *{{ metric.metric.label }}* (+{{ metric.absolute_change }} (+{{metric.percentage_change}}%))",
-                        "emoji": true
+                        "text": "🟢 {{ metric.current_value }} *{{ metric.metric.label }}* (+{{ metric.absolute_change }} (+{{ metric.percentage_change}}%))"
                     }
                 },
             {% else %}
@@ -30,8 +28,7 @@
                     "type": "section",
                     "text": {
                         "type": "mrkdwn",
-                        "text": "\uD83D\uDD34 {{ metric.current_value }} *{{ metric.label }}* ({{ metric.absolute_change }} ({{metric.percentage_change}}%))",
-                        "emoji": true
+                        "text": "🔴 {{ metric.current_value }} *{{ metric.metric.label }}* ({{ metric.absolute_change }} ({{metric.percentage_change}}%))"
                     }
                 },
             {% endif %}

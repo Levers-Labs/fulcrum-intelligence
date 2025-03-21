@@ -3,6 +3,7 @@ from typing import Any, TypeVar
 
 from sqlalchemy import (
     and_,
+    case,
     column,
     delete,
     distinct,
@@ -78,7 +79,15 @@ class CRUDNotifications:
                 model.is_published,
                 func.max(NotificationExecution.executed_at).label("last_execution"),  # type: ignore
                 func.count(distinct(NotificationChannelConfig.id)).label("channel_count"),  # type: ignore
-                func.sum(func.jsonb_array_length(NotificationChannelConfig.recipients)).label("recipients_count"),
+                func.coalesce(
+                    func.sum(
+                        case(
+                            (NotificationChannelConfig.recipients.is_(None), 0),  # type: ignore
+                            else_=func.jsonb_array_length(NotificationChannelConfig.recipients),
+                        )
+                    ),
+                    0,
+                ).label("recipients_count"),
             )
             .select_from(model)
             .outerjoin(NotificationExecution, execution_fk == model_id)  # type: ignore
