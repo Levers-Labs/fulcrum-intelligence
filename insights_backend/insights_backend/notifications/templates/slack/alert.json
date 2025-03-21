@@ -24,7 +24,14 @@
                 "type": "section",
                 "text": {
                     "type": "mrkdwn",
-                    "text": "*{{ story.title }}*\\n{{ story.detail | replace('\\n', '\\n') }}"
+                    "text": "*{{ story.title }}*"
+                }
+            },
+            {
+                "type": "section",
+                "text": {
+                    "type": "mrkdwn",
+                    "text": "{{ story.detail | replace('\\n', '\\n') }}"
                 }
             },
         {% endfor %}

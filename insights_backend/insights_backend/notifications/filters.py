@@ -1,12 +1,7 @@
 from datetime import datetime
 
 from pydantic import BaseModel
-from sqlalchemy import (
-    Select,
-    and_,
-    func,
-    or_,
-)
+from sqlalchemy import Select, func, or_
 from sqlalchemy.dialects import postgresql
 
 from commons.db.filters import BaseFilter, FilterField
@@ -34,37 +29,27 @@ class NotificationConfigFilter(BaseModel):
 
     def apply_filters(self, query: Select, model: type[Alert] | type[Report]) -> Select:
         """Apply filters to the query, handling both Alert and Report models."""
-        # Get non-None filter values using Pydantic's dict() method
         filters = self.model_dump(exclude_none=True)
 
         # Apply model-specific filters
-        model_filters = {
+        filter_mappings = {
             "grain": model.grain,
             "is_active": model.is_active,
             "is_published": model.is_published,
             "name": lambda v: model.name.ilike(f"%{v}%"),  # type: ignore
             "tags": lambda v: model.tags.op("&&")(postgresql.array(v)),  # type: ignore
-        }
-
-        for field, value in filters.items():
-            if field in model_filters:
-                filter_condition = model_filters[field]
-                query = query.filter(
-                    filter_condition(value) if callable(filter_condition) else filter_condition == value
-                )
-
-        # Apply channel config filters
-        channel_filters = {
-            "notification_type": NotificationChannelConfig.notification_type,
+            "notification_type": model.type,
             "channel_type": NotificationChannelConfig.channel_type,
         }
 
-        channel_conditions = [
-            channel_filters[field] == value for field, value in filters.items() if field in channel_filters
-        ]
-
-        if channel_conditions:
-            query = query.filter(and_(*channel_conditions))
+        # Apply all filters
+        for field, value in filters.items():
+            if field in filter_mappings:
+                filter_condition = filter_mappings[field]
+                if callable(filter_condition):
+                    query = query.filter(filter_condition(value))
+                else:
+                    query = query.filter(filter_condition == value)
 
         return query
 
