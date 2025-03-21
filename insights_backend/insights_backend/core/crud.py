@@ -35,15 +35,22 @@ class CRUDUser(CRUDBase[User, UserCreate, UserUpdate, None]):  # type: ignore
         result = await self.session.execute(statement=statement)
         return result.scalar_one_or_none()
 
-    async def create(self, *, obj_in: UserCreate) -> User | None:  # type: ignore
+    async def upsert(self, *, obj_in: UserCreate) -> User | None:  # type: ignore
         existing_user = await self.get_user_by_email(obj_in.email)
-        if not existing_user:
+        if existing_user:
+            # Update existing user's attributes
+            update_data = obj_in.dict(exclude={"tenant_org_id"})
+            for field, value in update_data.items():
+                setattr(existing_user, field, value)
+            self.session.add(existing_user)
+        else:
+            # Create new user
             values = obj_in.dict()
-            # Remove tenant_org_id from values
             values.pop("tenant_org_id")
             existing_user = self.model(**values)
             self.session.add(existing_user)
-            await self.session.flush()
+
+        await self.session.flush()
         # Upsert user-tenant
         stmt = (
             insert(UserTenant)

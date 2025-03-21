@@ -64,14 +64,14 @@ async def handle_tenant_context_from_org_id(org_id: str, tenant_crud_client: Ten
     response_model=UserRead,
     dependencies=[Security(oauth2_auth().verify, scopes=[USER_WRITE])],  # type: ignore
 )
-async def create_user(user: UserCreate, user_crud_client: UsersCRUDDep, tenant_crud_client: TenantsCRUDDep):
+async def upsert_user(user: UserCreate, user_crud_client: UsersCRUDDep, tenant_crud_client: TenantsCRUDDep):
     """
     To create a new user in DB, this endpoint will be used by Auth0 for user registration.
     """
     # Handle tenant context from org id
     await handle_tenant_context_from_org_id(user.tenant_org_id, tenant_crud_client)
     try:
-        return await user_crud_client.create(obj_in=user)
+        return await user_crud_client.upsert(obj_in=user)
     except IntegrityError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e.orig)) from e
 
