@@ -38,7 +38,6 @@ from insights_backend.core.filters import TenantConfigFilter
 from insights_backend.core.models import (
     TenantList,
     TenantRead,
-    User,
     UserCreate,
     UserList,
 )
@@ -65,14 +64,14 @@ async def handle_tenant_context_from_org_id(org_id: str, tenant_crud_client: Ten
     response_model=UserRead,
     dependencies=[Security(oauth2_auth().verify, scopes=[USER_WRITE])],  # type: ignore
 )
-async def create_user(user: UserCreate, user_crud_client: UsersCRUDDep, tenant_crud_client: TenantsCRUDDep):
+async def upsert_user(user: UserCreate, user_crud_client: UsersCRUDDep, tenant_crud_client: TenantsCRUDDep):
     """
     To create a new user in DB, this endpoint will be used by Auth0 for user registration.
     """
     # Handle tenant context from org id
     await handle_tenant_context_from_org_id(user.tenant_org_id, tenant_crud_client)
     try:
-        return await user_crud_client.create(obj_in=user)
+        return await user_crud_client.upsert(obj_in=user)
     except IntegrityError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e.orig)) from e
 
@@ -118,11 +117,10 @@ async def update_user(user_id: int, user: UserUpdate, user_crud_client: UsersCRU
     Update a user by ID.
     """
     try:
-        old_user_obj: User = await user_crud_client.get(user_id)
-    except NotFoundError as e:
-        raise HTTPException(status_code=404, detail="User not found") from e
-
-    return await user_crud_client.update(obj=old_user_obj, obj_in=user)
+        user_obj = await user_crud_client.get(user_id)
+        return await user_crud_client.update(obj=user_obj, obj_in=user)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
 
 
 @user_router.get(
