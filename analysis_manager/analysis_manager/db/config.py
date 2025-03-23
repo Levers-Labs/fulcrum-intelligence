@@ -12,7 +12,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from analysis_manager.config import get_settings
 
 # Used to load models for migrations migrations
-MODEL_PATHS = ["analysis_manager.core.models"]
+MODEL_PATHS = ["analysis_manager.patterns.models"]
 
 
 # sync session
