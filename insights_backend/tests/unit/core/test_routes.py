@@ -393,3 +393,93 @@ async def test_list_tenants_with_stories_enabled_filter(mocker, insert_tenant, a
     assert data["count"] == 1
     assert len(data["results"]) == 1
     assert data["results"][0]["identifier"] == "test_tenant_2"
+
+
+async def test_update_user_success(insert_tenant, db_user_json, async_client: AsyncClient):
+    # Create User first
+    response = await async_client.post("/v1/users/", json=db_user_json)
+    user_id = response.json()["id"]
+
+    # Update data
+    update_data = {
+        "name": "Updated Name",
+        "email": "updated.email@example.com",
+        "external_user_id": "new_ext_id",
+        "profile_picture": "https://new-picture.com/pic.jpg",
+    }
+
+    # Act
+    response = await async_client.put(f"/v1/users/{user_id}", json=update_data)
+
+    # Assert
+    assert response.status_code == 200
+    updated_user = response.json()
+    assert updated_user["name"] == update_data["name"]
+    assert updated_user["email"] == update_data["email"]
+    assert updated_user["external_user_id"] == update_data["external_user_id"]
+    assert updated_user["profile_picture"] == update_data["profile_picture"]
+
+
+async def test_update_user_email_exists(insert_tenant, db_user_json, async_client: AsyncClient):
+    # Create first user
+    response = await async_client.post("/v1/users/", json=db_user_json)
+
+    # Create second user with different email
+    second_user = db_user_json.copy()
+    second_user["email"] = "second.user@example.com"
+    response = await async_client.post("/v1/users/", json=second_user)
+    second_user_id = response.json()["id"]
+
+    # Try to update second user with first user's email
+    update_data = {
+        "name": "Updated Name",
+        "email": db_user_json["email"],  # Using first user's email
+        "external_user_id": "new_ext_id",
+        "profile_picture": "https://new-picture.com/pic.jpg",
+    }
+
+    # Act
+    response = await async_client.put(f"/v1/users/{second_user_id}", json=update_data)
+
+    # Assert
+    assert response.status_code == 400
+    assert "Email already exists" in response.json()["detail"]
+
+
+async def test_update_user_partial(insert_tenant, db_user_json, async_client: AsyncClient):
+    # Create User first
+    response = await async_client.post("/v1/users/", json=db_user_json)
+    user_id = response.json()["id"]
+    original_user = response.json()
+
+    # Update only name
+    update_data = {"name": "Updated Name", "email": original_user["email"]}  # Keep original email
+
+    # Act
+    response = await async_client.put(f"/v1/users/{user_id}", json=update_data)
+
+    # Assert
+    assert response.status_code == 200
+    updated_user = response.json()
+    assert updated_user["name"] == update_data["name"]
+    assert updated_user["email"] == original_user["email"]
+    assert updated_user["external_user_id"] == original_user["external_user_id"]
+    assert updated_user["profile_picture"] == original_user["profile_picture"]
+
+
+async def test_update_user_same_email(insert_tenant, db_user_json, async_client: AsyncClient):
+    # Create User first
+    response = await async_client.post("/v1/users/", json=db_user_json)
+    user_id = response.json()["id"]
+
+    # Update with same email but different name
+    update_data = {"name": "Updated Name", "email": db_user_json["email"]}  # Same email
+
+    # Act
+    response = await async_client.put(f"/v1/users/{user_id}", json=update_data)
+
+    # Assert
+    assert response.status_code == 200
+    updated_user = response.json()
+    assert updated_user["name"] == update_data["name"]
+    assert updated_user["email"] == db_user_json["email"]
