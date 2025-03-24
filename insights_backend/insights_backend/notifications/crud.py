@@ -94,11 +94,11 @@ class CRUDNotifications:
                 ).label("recipients_count"),
             )
             .select_from(model)
-            .outerjoin(NotificationExecution, execution_fk == model_id)
+            .outerjoin(NotificationExecution, execution_fk == model_id)  # type: ignore
             .outerjoin(
                 NotificationChannelConfig,
                 and_(
-                    config_fk == model_id,
+                    config_fk == model_id,  # type: ignore
                     NotificationChannelConfig.notification_type == notification_type,  # type: ignore
                 ),
             )
