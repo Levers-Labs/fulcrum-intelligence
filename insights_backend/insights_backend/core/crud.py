@@ -1,7 +1,10 @@
-from sqlalchemy import select, update
+from sqlalchemy import Select, select, update
+from sqlalchemy.dialects.postgresql import insert
+from sqlalchemy.orm import selectinload
 
 from commons.db.crud import CRUDBase, NotFoundError
 from commons.models.tenant import SlackConnectionConfig, TenantConfigUpdate
+from commons.utilities.context import get_tenant_id
 from insights_backend.core.filters import TenantConfigFilter
 from insights_backend.core.models import (
     Tenant,
@@ -10,6 +13,7 @@ from insights_backend.core.models import (
     UserCreate,
     UserUpdate,
 )
+from insights_backend.core.models.users import UserTenant
 
 
 class CRUDUser(CRUDBase[User, UserCreate, UserUpdate, None]):  # type: ignore
@@ -17,19 +21,60 @@ class CRUDUser(CRUDBase[User, UserCreate, UserUpdate, None]):  # type: ignore
     CRUD for User Model.
     """
 
+    def get_select_query(self) -> Select:
+        query = select(User).options(
+            selectinload(User.tenant_ids),  # type: ignore
+        )
+        return query
+
     async def get_user_by_email(self, email: str) -> User | None:
         """
         Method to retrieve a single user by email.
         """
-        statement = select(User).filter_by(email=email)  # type: ignore
+        statement = self.get_select_query().filter_by(email=email)  # type: ignore
         result = await self.session.execute(statement=statement)
         return result.scalar_one_or_none()
 
-    async def create(self, *, obj_in: UserCreate) -> User:
-        values = obj_in.dict()
-        # Remove tenant_org_id from values
-        values.pop("tenant_org_id")
-        obj = self.model(**values)
+    async def upsert(self, *, obj_in: UserCreate) -> User | None:  # type: ignore
+        existing_user = await self.get_user_by_email(obj_in.email)
+        if existing_user:
+            # Update existing user's attributes
+            update_data = obj_in.dict(exclude={"tenant_org_id"})
+            for field, value in update_data.items():
+                setattr(existing_user, field, value)
+            self.session.add(existing_user)
+        else:
+            # Create new user
+            values = obj_in.dict()
+            values.pop("tenant_org_id")
+            existing_user = self.model(**values)
+            self.session.add(existing_user)
+
+        await self.session.flush()
+        # Upsert user-tenant
+        stmt = (
+            insert(UserTenant)
+            .values(user_id=existing_user.id, tenant_id=get_tenant_id())  # type: ignore
+            .on_conflict_do_nothing(constraint="uq_user_tenant")
+        )
+        await self.session.execute(stmt)
+        await self.session.commit()
+        await self.session.refresh(existing_user)
+        return existing_user
+
+    async def update(self, *, obj: User, obj_in: UserUpdate) -> User:  # type: ignore
+        """Update user details."""
+        # If email is being updated, check if new email already exists
+        if obj_in.email != obj.email:
+            existing_user = await self.get_user_by_email(obj_in.email)
+            if existing_user:
+                raise ValueError("Email already exists")
+
+        # Update user attributes
+        update_data = obj_in.model_dump(exclude_unset=True)
+        for field, value in update_data.items():
+            setattr(obj, field, value)
+
         self.session.add(obj)
         await self.session.commit()
         await self.session.refresh(obj)
