@@ -5,6 +5,7 @@ from typing import Any
 from jinja2 import Template
 
 from commons.models.enums import Granularity
+from commons.utilities.grain_utils import GRAIN_META
 from story_manager.core.enums import (
     STORY_TYPES_META,
     StoryGenre,
@@ -77,6 +78,11 @@ class MockGeneratorBase(ABC):
         Returns:
             Complete story dictionary
         """
+
+        grain_meta = GRAIN_META[grain]
+        variables["eoi"] = grain_meta["eoi"]
+        variables["pop"] = grain_meta["pop"]
+        variables["interval"] = grain_meta["interval"]
 
         output = STORY_GROUP_TIME_DURATIONS[self.group][grain]["output"]
         title_template = Template(STORY_TYPES_META[story_type]["title"])

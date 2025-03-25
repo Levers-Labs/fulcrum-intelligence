@@ -10,7 +10,6 @@ from story_manager.core.enums import (
     StoryType,
 )
 from story_manager.mocks.generators.base import MockGeneratorBase
-from story_manager.story_builder.constants import GRAIN_META
 
 
 class TrendExceptionsMockGenerator(MockGeneratorBase):
@@ -46,8 +45,7 @@ class TrendExceptionsMockGenerator(MockGeneratorBase):
         """Generate mock time series data for trend exceptions stories"""
         # Get dates for the time series
         start_date, end_date = self.data_service.get_input_time_range(grain, self.group)
-        dates = self.data_service.get_dates_for_range(grain, start_date, end_date)
-        formatted_dates = self.data_service.get_formatted_dates(dates)
+        formatted_dates = self.data_service.get_formatted_dates(grain, start_date, end_date)
 
         # Generate base value and control limits
         base_value = random.uniform(400, 800)  # noqa
@@ -56,7 +54,7 @@ class TrendExceptionsMockGenerator(MockGeneratorBase):
         lcl = central_line * 0.7  # Lower control limit
 
         # Generate normal values for all but the last point
-        values = self._generate_normal_values(central_line, len(dates) - 1)
+        values = self._generate_normal_values(central_line, len(formatted_dates) - 1)
 
         # Add the exceptional last value based on story type
         if story_type == StoryType.SPIKE:
@@ -104,8 +102,6 @@ class TrendExceptionsMockGenerator(MockGeneratorBase):
         time_series: list[dict[str, Any]] | None = None,
     ) -> dict[str, Any]:
         """Generate mock variables for trend exceptions stories"""
-        # Get grain metadata
-        grain_meta = GRAIN_META[grain]
 
         # Get the latest data point
         latest_point = time_series[-1]  # type: ignore
@@ -125,9 +121,6 @@ class TrendExceptionsMockGenerator(MockGeneratorBase):
         return {
             "metric": {"id": metric["id"], "label": metric["label"]},
             "grain": grain.value,
-            "eoi": grain_meta["eoi"],
-            "pop": grain_meta["pop"],
-            "interval": grain_meta["interval"],
             "deviation": round(abs(deviation), 2),
             "position": position,
         }

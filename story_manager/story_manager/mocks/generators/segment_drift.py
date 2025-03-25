@@ -5,7 +5,6 @@ from typing import Any
 from commons.models.enums import Granularity
 from story_manager.core.enums import StoryGenre, StoryGroup, StoryType
 from story_manager.mocks.generators.base import MockGeneratorBase
-from story_manager.story_builder.constants import GRAIN_META
 
 
 class SegmentDriftMockGenerator(MockGeneratorBase):
@@ -50,8 +49,7 @@ class SegmentDriftMockGenerator(MockGeneratorBase):
         start_date, end_date = self.data_service.get_input_time_range(grain, self.group)
 
         # Get dates within range
-        dates = self.data_service.get_dates_for_range(grain, start_date, end_date)
-        formatted_dates = self.data_service.get_formatted_dates(dates)
+        formatted_dates = self.data_service.get_formatted_dates(grain, start_date, end_date)
 
         # Generate time series with a trend for growing or shrinking segments
         time_series = []
@@ -104,16 +102,11 @@ class SegmentDriftMockGenerator(MockGeneratorBase):
         segment: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """Generate mock variables for segment drift stories"""
-        # Get grain metadata
-        grain_meta = GRAIN_META[grain]
 
         # Create variables dict with all segment data
         variables = {
             "metric": {"id": metric["id"], "label": metric["label"]},
             "grain": grain.value,
-            "eoi": grain_meta["eoi"],
-            "pop": grain_meta["pop"],
-            "interval": grain_meta["interval"],
             "dimension": segment["dimension"],  # type: ignore
             "slice": segment["slice"],  # type: ignore
             "previous_share": segment["previous_share"],  # type: ignore

@@ -5,7 +5,6 @@ from typing import Any
 from commons.models.enums import Granularity
 from story_manager.core.enums import StoryGenre, StoryGroup, StoryType
 from story_manager.mocks.generators.base import MockGeneratorBase
-from story_manager.story_builder.constants import GRAIN_META
 
 
 class SignificantSegmentMockGenerator(MockGeneratorBase):
@@ -83,8 +82,7 @@ class SignificantSegmentMockGenerator(MockGeneratorBase):
         """Generate mock time series data for significant segments stories"""
         # Get date range and dates
         start_date, end_date = self.data_service.get_input_time_range(grain, self.group)
-        dates = self.data_service.get_dates_for_range(grain, start_date, end_date)
-        formatted_dates = self.data_service.get_formatted_dates(dates)
+        formatted_dates = self.data_service.get_formatted_dates(grain, start_date, end_date)
 
         # Use the last date for the current values
         current_date = formatted_dates[-1]
@@ -116,15 +114,11 @@ class SignificantSegmentMockGenerator(MockGeneratorBase):
     ) -> dict[str, Any]:
         """Generate mock variables for significant segments stories"""
         # Get grain metadata
-        grain_meta = GRAIN_META[grain]
 
         # Create variables dict with guaranteed average value
         return {
             "metric": {"id": metric["id"], "label": metric["label"]},
             "grain": grain.value,
-            "eoi": grain_meta["eoi"],
-            "pop": grain_meta["pop"],
-            "interval": grain_meta["interval"],
             "average": extra_data.get("average", 500) if extra_data else 500,  # type: ignore
         }
 

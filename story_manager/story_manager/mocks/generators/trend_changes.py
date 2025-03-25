@@ -10,7 +10,7 @@ from story_manager.core.enums import (
     StoryType,
 )
 from story_manager.mocks.generators.base import MockGeneratorBase
-from story_manager.story_builder.constants import GRAIN_META, STORY_GROUP_TIME_DURATIONS
+from story_manager.story_builder.constants import STORY_GROUP_TIME_DURATIONS
 
 
 class TrendChangesMockGenerator(MockGeneratorBase):
@@ -57,9 +57,8 @@ class TrendChangesMockGenerator(MockGeneratorBase):
         """Generate mock time series data for trend changes stories"""
         # Get date range and dates
         start_date, end_date = self.data_service.get_input_time_range(grain, self.group)
-        dates = self.data_service.get_dates_for_range(grain, start_date, end_date)
-        formatted_dates = self.data_service.get_formatted_dates(dates)
-        num_points = len(dates)
+        formatted_dates = self.data_service.get_formatted_dates(grain, start_date, end_date)
+        num_points = len(formatted_dates)
 
         # Generate base values with more appropriate ranges
         base_value = random.uniform(100, 200)  # noqa
@@ -328,8 +327,7 @@ class TrendChangesMockGenerator(MockGeneratorBase):
         time_series: list[dict[str, Any]] | None = None,
     ) -> dict[str, Any]:
         """Generate mock variables for trend changes stories"""
-        # Get grain metadata and required periods
-        grain_meta = GRAIN_META[grain]
+        # Get required periods
         periods = STORY_GROUP_TIME_DURATIONS[self.group][grain]["output"]
 
         # Get the output period data
@@ -339,9 +337,6 @@ class TrendChangesMockGenerator(MockGeneratorBase):
         variables = {
             "metric": {"id": metric["id"], "label": metric["label"]},
             "grain": grain.value,
-            "eoi": grain_meta["eoi"],
-            "pop": grain_meta["pop"],
-            "interval": grain_meta["interval"],
         }
 
         # Add story-specific variables
