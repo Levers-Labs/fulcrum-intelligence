@@ -8,6 +8,7 @@ on:
         - 'analysis_manager/**'
         - 'commons/**'
         - 'core/**'
+        - 'levers/**'
 
   workflow_dispatch:
     inputs:

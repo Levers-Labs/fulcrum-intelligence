@@ -57,12 +57,46 @@ class PatternCRUD(Generic[T, P]):
         # Store raw pattern result for future-proofing
         raw_result = pattern_result.model_dump()
 
-        # Create database model with raw result
-        db_obj = self.model(**raw_result)
+        # Get tenant_id from context if not provided
+        tenant_id = get_tenant_id()
+        metric_id = raw_result["metric_id"]
+        pattern = raw_result["pattern"]
+        analysis_date = raw_result.get("analysis_date", date.today())
 
-        self.session.add(db_obj)
-        await self.session.flush()
-        return db_obj
+        # Prepare data for upsert
+        raw_result["tenant_id"] = tenant_id
+
+        try:
+            # Create an upsert statement using PostgreSQL's INSERT ... ON CONFLICT
+            stmt = insert(self.model).values(**raw_result)
+
+            # Define the conflict target (unique constraint columns)
+            stmt = stmt.on_conflict_do_update(
+                index_elements=["metric_id", "tenant_id", "pattern", "analysis_date"],
+                set_={k: getattr(stmt.excluded, k) for k in raw_result if hasattr(self.model, k)},
+            )
+
+            # Execute the upsert
+            await self.session.execute(stmt)
+            await self.session.commit()
+
+            # Fetch the upserted record
+            query = self.get_select_query().where(
+                and_(
+                    self.model.tenant_id == tenant_id,  # type: ignore
+                    self.model.metric_id == metric_id,  # type: ignore
+                    self.model.pattern == pattern,  # type: ignore
+                    self.model.analysis_date == analysis_date,  # type: ignore
+                )
+            )
+            result = await self.session.execute(query)
+            db_obj = result.scalar_one()
+
+            return cast(T, db_obj)
+        except SQLAlchemyError as e:
+            await self.session.rollback()
+            logger.error("Error storing pattern result: %s", e)
+            raise
 
     async def to_pattern_result(self, db_model: T) -> P:
         """
@@ -190,7 +224,7 @@ class PatternCRUD(Generic[T, P]):
                     # Define update dict
                     update_dict = {
                         c.name: stmt.excluded[c.name]
-                        for c in self.model.__table__.columns
+                        for c in self.model.__table__.columns  # type: ignore
                         if c.name not in unique_fields and c.name != "id"
                     }
                     update_dict["updated_at"] = func.now()

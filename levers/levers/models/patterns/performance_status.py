@@ -50,7 +50,7 @@ class HoldSteady(BaseModel):
 class MetricPerformance(BasePattern):
     """Performance status analysis output"""
 
-    pattern_name: str = "performance_status"
+    pattern: str = "performance_status"
     # Current vs. prior values
     current_value: float
     prior_value: float | None = None

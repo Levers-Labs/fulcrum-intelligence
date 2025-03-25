@@ -58,6 +58,23 @@ deployments:
           story_date: "{{ event.resource.story_date }}"
           stories_str: "{{ event.payload.stories }}"
 
+  - name: "pattern-analysis-metric"
+    version: "1.0.0"
+    description: "Run pattern analysis for a specific metric"
+    entrypoint: tasks_manager.flows.pattern_analysis:analyze_metric_patterns
+    work_pool: *ecs_work_pool
+    triggers:
+      - type: event
+        name: "metric-sync-success-trigger"
+        description: "Triggered when metric semantic sync is successful"
+        enabled: true
+        expect:
+          - metric.semantic.sync.success
+        parameters:
+          tenant_id_str: "{{ event.resource.tenant_id }}"
+          metric_id: "{{ event.resource.metric_id }}"
+          grain: "{{ event.resource.grain }}"
+
   - name: "execute-alert"
     version: "1.0.0"
     description: "Execute a single alert"

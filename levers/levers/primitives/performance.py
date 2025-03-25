@@ -147,7 +147,7 @@ def calculate_historical_gva(
 
 def classify_metric_status(
     actual_value: float,
-    target_value: float,
+    target_value: float | None = None,
     threshold_ratio: float = 0.05,
     allow_negative_target: bool = False,
     status_if_no_target: MetricGVAStatus = MetricGVAStatus.NO_TARGET,
@@ -177,7 +177,7 @@ def classify_metric_status(
     """
     # Input validation
     if not isinstance(actual_value, (int, float)) or pd.isna(actual_value):
-        return status_if_no_target
+        return status_if_no_target  # type: ignore
 
     if target_value is None or np.isnan(target_value):
         return status_if_no_target
@@ -303,7 +303,7 @@ def monitor_threshold_proximity(
     """
     # Input validation
     if not isinstance(val, (int, float)) or pd.isna(val):
-        return False
+        return False  # type: ignore
 
     if target is None or np.isnan(target):
         return False
