@@ -14,6 +14,25 @@ class ReportDataService:
     def __init__(self, query_client: QueryManagerClient):
         self.query_client = query_client
 
+    def _get_report_period_dates(
+        self, grain: Granularity, include_previous: bool = False
+    ) -> tuple[date, date] | tuple[date, date, date, date]:
+        """
+        Calculate report period date ranges based on granularity.
+        Args:
+            grain: Time granularity for the report period
+            include_previous: Whether to include previous period dates for comparison
+        Returns:
+            Tuple of (current_start, current_end) or (current_start, current_end, previous_start, previous_end)
+        """
+        current_start, current_end = GrainPeriodCalculator.get_current_period_range(grain, date.today())
+
+        if include_previous:
+            previous_start, previous_end = GrainPeriodCalculator.get_current_period_range(grain, current_start)
+            return current_start, current_end, previous_start, previous_end
+
+        return current_start, current_end
+
     def _calculate_metric_change(self, current_value: T, previous_value: T) -> float:
         """
         Calculate percentage change between current and previous values.
@@ -111,8 +130,8 @@ class ReportDataService:
                 - metrics: List of formatted metric data for the report
                 - fetched_at: ISO formatted timestamp
         """
-        current_start, current_end, previous_start, previous_end = GrainPeriodCalculator.get_period_dates(
-            grain, include_previous=True
+        current_start, current_end, previous_start, previous_end = self._get_report_period_dates(  # type: ignore
+            grain=grain, include_previous=True
         )
         metrics_data = []
 

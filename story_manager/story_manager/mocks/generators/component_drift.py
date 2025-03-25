@@ -111,8 +111,6 @@ class ComponentDriftMockGenerator(MockGeneratorBase):
         component: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """Generate mock variables for component drift stories"""
-        # grain_meta = GRAIN_META[grain]
-
         # Create variables dict
         return {
             "metric": {"id": metric["id"], "label": metric["label"]},

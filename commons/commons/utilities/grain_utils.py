@@ -52,18 +52,6 @@ class GrainPeriodCalculator:
             raise ValueError(f"Unsupported grain: {grain}")
         return start_date, end_date
 
-    def get_period_dates(
-        self, grain: Granularity, include_previous: bool = False
-    ) -> tuple[date, date] | tuple[date, date, date, date]:
-
-        current_start, current_end = self.get_current_period_range(grain, date.today())
-
-        if include_previous:
-            previous_start, previous_end = self.get_current_period_range(grain, current_start)
-            return current_start, current_end, previous_start, previous_end
-
-        return current_start, current_end
-
     @staticmethod
     def get_period_start_date(grain: Granularity, period_count: int, latest_start_date: date) -> date:
         # figure out relevant grain delta .e.g weeks : 1
