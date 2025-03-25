@@ -26,7 +26,7 @@ run-flow:  ## Run a flow (usage: make run-flow GROUP=daily)
 	prefect deployment run 'Generate Stories/story-generator' -p "group=$(GROUP)"
 
 deploy-all:  ## Deploy all flows
-	prefect deploy --all
+	prefect --no-prompt deploy --all
 
 clean:  ## Clean up generated files and virtual environment
 	rm -f story-generator-deployment.yaml
