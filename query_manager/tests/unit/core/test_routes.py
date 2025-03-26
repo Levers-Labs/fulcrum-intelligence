@@ -2,14 +2,11 @@ from unittest.mock import ANY, AsyncMock
 
 import pytest
 from httpx import AsyncClient
-from slack_sdk.errors import SlackApiError
 from sqlalchemy.exc import IntegrityError
 
 from commons.clients.base import HttpClientError
-from commons.clients.insight_backend import InsightBackendClient
 from commons.db.crud import NotFoundError
 from commons.llm.exceptions import LLMError
-from query_manager.core.crud import CRUDMetricNotifications
 from query_manager.core.enums import TargetAim
 from query_manager.core.models import Metric
 from query_manager.core.schemas import (
@@ -17,7 +14,6 @@ from query_manager.core.schemas import (
     DimensionDetail,
     MetricDetail,
     MetricList,
-    MetricSlackNotificationRequest,
 )
 from query_manager.exceptions import DimensionNotFoundError, MetricNotFoundError
 from query_manager.services.cube import CubeClient
@@ -336,76 +332,6 @@ async def test_connect_cube_invalid_credentials(async_client: AsyncClient, mocke
 
 
 @pytest.mark.asyncio
-async def test_metric_slack_notifications(async_client: AsyncClient, mocker, metric):
-    metric = Metric(id=1, tenant_id=1, metric_id="metric1", label="Metric 1")
-    # Mock the necessary dependencies
-    mock_get_metric_details = AsyncMock(return_value=metric)
-    mocker.patch.object(QueryClient, "get_metric_details", mock_get_metric_details)
-
-    mock_get_slack_channel_details = AsyncMock(return_value="test-channel")
-    mocker.patch.object(InsightBackendClient, "get_slack_channel_details", mock_get_slack_channel_details)
-
-    mock_create_notifications = AsyncMock(
-        return_value={
-            "slack_enabled": True,
-            "slack_channels": [
-                {
-                    "id": "channel1",
-                    "name": "test-channel",
-                    "is_channel": True,
-                    "is_group": False,
-                    "is_dm": False,
-                    "is_private": False,
-                }
-            ],
-        }
-    )
-    mocker.patch.object(CRUDMetricNotifications, "create_metric_notifications", mock_create_notifications)
-
-    metric_id = metric.metric_id
-
-    req = MetricSlackNotificationRequest(slack_enabled=True, channel_ids=["channel1"])
-
-    # Test successful creation
-    response = await async_client.post(f"/v1/metrics/{metric_id}/notifications/slack", json=req.dict())
-    assert response.status_code == 200
-    assert response.json() == {
-        "slack_enabled": True,
-        "slack_channels": [
-            {
-                "id": "channel1",
-                "name": "test-channel",
-                "is_channel": True,
-                "is_group": False,
-                "is_dm": False,
-                "is_private": False,
-            }
-        ],
-    }
-
-    # Test invalid request (empty channel_ids when slack_enabled is True)
-    response = await async_client.post(
-        f"/v1/metrics/{metric_id}/notifications/slack?slack_enabled=true",
-        json={"channel_ids": []},
-    )
-    assert response.status_code == 422
-
-    # Test invalid channel_id
-    mock_get_slack_channel_details = AsyncMock(
-        side_effect=SlackApiError("Channel not found", {"error": "channel_not_found"})
-    )
-    mocker.patch.object(InsightBackendClient, "get_slack_channel_details", mock_get_slack_channel_details)
-
-    invalid_req = MetricSlackNotificationRequest(slack_enabled=True, channel_ids=["invalid_channel"])
-    response = await async_client.post(
-        f"/v1/metrics/{metric_id}/notifications/slack",
-        json=invalid_req.dict(),
-    )
-    assert response.status_code == 404
-    assert response.json()["detail"] == "Channel not found for invalid_channel"
-
-
-@pytest.mark.asyncio
 async def test_parse_expression_success(async_client: AsyncClient, mocker, metric):
     """Test successful expression parsing."""
     # Mock expression parser service
@@ -467,31 +393,6 @@ async def test_parse_expression_llm_error(async_client: AsyncClient, mocker):
     assert response.status_code == 400
     assert response.json()["detail"] == "Failed to parse expression"
     mock_process.assert_awaited_once_with(expression)
-
-
-@pytest.mark.asyncio
-async def test_list_metrics_slack_enabled_single_metric(async_client: AsyncClient, mocker, metric):
-    # Mock the list_metrics method to return a specific response
-    mock_list_metrics = AsyncMock(return_value=([Metric.parse_obj(metric)], 1))
-    mocker.patch.object(QueryClient, "list_metrics", mock_list_metrics)
-
-    # Make the API call
-    response = await async_client.get("/v1/metrics?slack_enabled=true")
-
-    # Assert the response status code
-    assert response.status_code == 200
-
-    # Assert the response JSON structure
-    assert response.json() == {
-        "count": 1,
-        "limit": 10,
-        "offset": 0,
-        "pages": 1,
-        "results": [MetricList(**metric).model_dump(mode="json")],
-    }
-
-    # Ensure that the mock was called with the correct parameters
-    mock_list_metrics.assert_called_once_with(slack_enabled=True, metric_ids=None, metric_label=None, params=mocker.ANY)
 
 
 @pytest.mark.asyncio
