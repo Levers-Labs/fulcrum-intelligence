@@ -11,7 +11,6 @@ from story_manager.core.enums import (
     StoryType,
 )
 from story_manager.mocks.generators.base import MockGeneratorBase
-from story_manager.story_builder.constants import GRAIN_META
 
 
 class InfluenceDriftMockGenerator(MockGeneratorBase):
@@ -71,8 +70,7 @@ class InfluenceDriftMockGenerator(MockGeneratorBase):
         """Generate mock time series data for influence drift stories"""
         # Get date range and dates within range
         start_date, end_date = self.data_service.get_input_time_range(grain, self.group)
-        dates = self.data_service.get_dates_for_range(grain, start_date, end_date)
-        formatted_dates = self.data_service.get_formatted_dates(dates)
+        formatted_dates = self.data_service.get_formatted_dates(grain, start_date, end_date)
 
         # Extract values from influence data
         latest_value = influence["latest_value"]  # type: ignore
@@ -117,14 +115,10 @@ class InfluenceDriftMockGenerator(MockGeneratorBase):
         influence: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """Generate mock variables for influence drift stories"""
-        grain_meta = GRAIN_META[grain]
 
         return {
             "metric": {"id": metric["id"], "label": metric["label"]},
             "grain": grain.value,
-            "eoi": grain_meta["eoi"],
-            "pop": grain_meta["pop"],
-            "interval": grain_meta["interval"],
             "influence_metric": influence["influence_metric_id"],  # type: ignore
             "output_metric": metric["label"],
             "influence_deviation": round(abs(influence["influence_deviation"]), 2),  # type: ignore

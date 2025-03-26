@@ -1,7 +1,7 @@
 import logging
 from abc import ABC, abstractmethod
 from collections.abc import Hashable
-from datetime import date, timedelta
+from datetime import date
 from typing import Any
 
 import numpy as np
@@ -12,6 +12,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from commons.clients.analysis_manager import AnalysisManagerClient
 from commons.clients.query_manager import QueryManagerClient
 from commons.models.enums import Granularity
+from commons.utilities.grain_utils import GRAIN_META, GrainPeriodCalculator
 from fulcrum_core import AnalysisManager
 from story_manager.core.enums import (
     STORY_TYPES_META,
@@ -20,7 +21,7 @@ from story_manager.core.enums import (
     StoryType,
 )
 from story_manager.core.models import Story
-from story_manager.story_builder.constants import GRAIN_META, STORY_GROUP_TIME_DURATIONS
+from story_manager.story_builder.constants import STORY_GROUP_TIME_DURATIONS
 
 logger = logging.getLogger(__name__)
 
@@ -323,26 +324,7 @@ class StoryBuilderBase(ABC):
         :param grain: The grain for which the end date is retrieved.
         :return: The start and end date of the period.
         """
-        today = self.story_date
-        if grain == Granularity.DAY:
-            end_date = today - timedelta(days=1)
-            start_date = end_date
-        elif grain == Granularity.WEEK:
-            end_date = today - timedelta(days=today.weekday() + 1)
-            start_date = end_date - timedelta(days=6)
-        elif grain == Granularity.MONTH:
-            end_date = date(today.year, today.month, 1) - timedelta(days=1)
-            start_date = date(end_date.year, end_date.month, 1)
-        elif grain == Granularity.QUARTER:
-            quarter_end_month = (today.month - 1) // 3 * 3
-            end_date = date(today.year, quarter_end_month + 1, 1) - timedelta(days=1)
-            start_date = date(end_date.year, end_date.month - 2, 1)
-        elif grain == Granularity.YEAR:
-            end_date = date(today.year - 1, 12, 31)
-            start_date = date(end_date.year, 1, 1)
-        else:
-            raise ValueError(f"Unsupported grain: {grain}")
-        return start_date, end_date
+        return GrainPeriodCalculator.get_current_period_range(grain, self.story_date)
 
     def get_time_durations(self, grain: Granularity, half_time_range: bool = False) -> dict[str, Any]:
         """
@@ -376,14 +358,7 @@ class StoryBuilderBase(ABC):
 
         # figure out the number of grain deltas to go back
         period_count = grain_durations["input"]
-
-        # figure out relevant grain delta .e.g weeks : 1
-        delta_eq = GRAIN_META[grain]["delta"]
-
-        # Go back by the determined grain delta
-        delta = pd.DateOffset(**delta_eq)
-        start_date = (latest_start_date - period_count * delta).date()
-
+        start_date = GrainPeriodCalculator.get_prev_period_start_date(grain, period_count, latest_start_date)
         return start_date, latest_end_date
 
     async def _get_time_series_data_with_targets(

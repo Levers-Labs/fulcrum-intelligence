@@ -1,8 +1,9 @@
-from datetime import date, datetime, timedelta
+from datetime import date, datetime
 from typing import Any, TypeVar
 
 from commons.clients.query_manager import QueryManagerClient
 from commons.models.enums import ExecutionStatus, Granularity
+from commons.utilities.grain_utils import GRAIN_META, GrainPeriodCalculator
 
 T = TypeVar("T", bound=float | int)
 
@@ -10,67 +11,24 @@ T = TypeVar("T", bound=float | int)
 class ReportDataService:
     """Service for preparing metric data for reports, including period-based values and comparisons."""
 
-    GRAIN_META = {
-        Granularity.DAY: {"interval": "daily"},
-        Granularity.WEEK: {"interval": "weekly"},
-        Granularity.MONTH: {"interval": "monthly"},
-    }
-
     def __init__(self, query_client: QueryManagerClient):
         self.query_client = query_client
-
-    def _get_current_period_range(self, grain: Granularity, today: date | None) -> tuple[date, date]:
-        """
-        Get the end date of the last period based on the grain.
-        Based on the current date, the end date is calculated as follows:
-        - For day grain: yesterday
-        - For week grain: the last Sunday
-        - For month grain: the last day of the previous month
-        - For quarter grain: the last day of the previous quarter
-        - For year grain: December 31 of the previous year
-        For each grain, the start date of the period is calculated based on the end date.
-
-        :param grain: The grain for which the end date is retrieved.
-        :return: The start and end date of the period.
-        """
-        today = today or date.today()
-        if grain == Granularity.DAY:
-            end_date = today - timedelta(days=1)
-            start_date = end_date
-        elif grain == Granularity.WEEK:
-            end_date = today - timedelta(days=today.weekday() + 1)
-            start_date = end_date - timedelta(days=6)
-        elif grain == Granularity.MONTH:
-            end_date = date(today.year, today.month, 1) - timedelta(days=1)
-            start_date = date(end_date.year, end_date.month, 1)
-        elif grain == Granularity.QUARTER:
-            quarter_end_month = (today.month - 1) // 3 * 3
-            end_date = date(today.year, quarter_end_month + 1, 1) - timedelta(days=1)
-            start_date = date(end_date.year, end_date.month - 2, 1)
-        elif grain == Granularity.YEAR:
-            end_date = date(today.year - 1, 12, 31)
-            start_date = date(end_date.year, 1, 1)
-        else:
-            raise ValueError(f"Unsupported grain: {grain}")
-        return start_date, end_date
 
     def _get_report_period_dates(
         self, grain: Granularity, include_previous: bool = False
     ) -> tuple[date, date] | tuple[date, date, date, date]:
         """
         Calculate report period date ranges based on granularity.
-
         Args:
             grain: Time granularity for the report period
             include_previous: Whether to include previous period dates for comparison
-
         Returns:
             Tuple of (current_start, current_end) or (current_start, current_end, previous_start, previous_end)
         """
-        current_start, current_end = self._get_current_period_range(grain, date.today())
+        current_start, current_end = GrainPeriodCalculator.get_current_period_range(grain, date.today())
 
         if include_previous:
-            previous_start, previous_end = self._get_current_period_range(grain, current_start)
+            previous_start, previous_end = GrainPeriodCalculator.get_current_period_range(grain, current_start)
             return current_start, current_end, previous_start, previous_end
 
         return current_start, current_end
@@ -173,7 +131,7 @@ class ReportDataService:
                 - fetched_at: ISO formatted timestamp
         """
         current_start, current_end, previous_start, previous_end = self._get_report_period_dates(  # type: ignore
-            grain, include_previous=True
+            grain=grain, include_previous=True
         )
         metrics_data = []
 
@@ -193,5 +151,5 @@ class ReportDataService:
             "start_date": current_start.strftime("%b %d, %Y"),
             "end_date": current_end.strftime("%b %d, %Y"),
             "fetched_at": datetime.now().strftime("%b %d, %Y"),
-            "interval": self.GRAIN_META[grain]["interval"],
+            "interval": GRAIN_META[grain]["interval"],
         }

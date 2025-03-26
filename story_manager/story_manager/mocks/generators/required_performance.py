@@ -12,7 +12,6 @@ from story_manager.core.enums import (
     StoryType,
 )
 from story_manager.mocks.generators.base import MockGeneratorBase
-from story_manager.story_builder.constants import GRAIN_META
 
 
 class RequiredPerformanceMockGenerator(MockGeneratorBase):
@@ -53,8 +52,7 @@ class RequiredPerformanceMockGenerator(MockGeneratorBase):
         """Generate mock time series data for required performance stories"""
         # Get dates for the time series
         start_date, end_date = self.data_service.get_input_time_range(grain, self.group)
-        dates = self.data_service.get_dates_for_range(grain, start_date, end_date)
-        formatted_dates = self.data_service.get_formatted_dates(dates)
+        formatted_dates = self.data_service.get_formatted_dates(grain, start_date, end_date)
 
         # Get end of period info
         interval, period_end_date = self._get_end_date_of_period(grain, self.data_service.story_date)
@@ -187,8 +185,6 @@ class RequiredPerformanceMockGenerator(MockGeneratorBase):
         time_series: list[dict[str, Any]] | None = None,
     ) -> dict[str, Any]:
         """Generate mock variables for required performance stories"""
-        # Get grain metadata
-        grain_meta = GRAIN_META[grain]
 
         # Get current period data and calculate required duration
         current_period = time_series[-1]  # type: ignore
@@ -199,9 +195,6 @@ class RequiredPerformanceMockGenerator(MockGeneratorBase):
         variables = {
             "metric": {"id": metric["id"], "label": metric["label"]},
             "grain": grain.value,
-            "eoi": grain_meta["eoi"],
-            "pop": grain_meta["pop"],
-            "interval": grain_meta["interval"],
             "duration": len(time_series),  # type: ignore
             "req_duration": req_duration,
             "target": self.end_period_target,

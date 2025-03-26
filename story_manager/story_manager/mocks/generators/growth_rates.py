@@ -5,7 +5,7 @@ from typing import Any
 from commons.models.enums import Granularity
 from story_manager.core.enums import StoryGenre, StoryGroup, StoryType
 from story_manager.mocks.generators.base import MockGeneratorBase
-from story_manager.story_builder.constants import GRAIN_META, STORY_GROUP_TIME_DURATIONS
+from story_manager.story_builder.constants import STORY_GROUP_TIME_DURATIONS
 
 
 class GrowthRatesMockGenerator(MockGeneratorBase):
@@ -49,9 +49,8 @@ class GrowthRatesMockGenerator(MockGeneratorBase):
         start_date, end_date = self.data_service.get_input_time_range(grain, self.group)
 
         # Get dates within range
-        dates = self.data_service.get_dates_for_range(grain, start_date, end_date)
-        formatted_dates = self.data_service.get_formatted_dates(dates)
-        num_points = len(dates)
+        formatted_dates = self.data_service.get_formatted_dates(grain, start_date, end_date)
+        num_points = len(formatted_dates)
 
         if story_type == StoryType.ACCELERATING_GROWTH:
             # Generate accelerating growth pattern
@@ -151,8 +150,6 @@ class GrowthRatesMockGenerator(MockGeneratorBase):
         time_series: list[dict[str, Any]] | None = None,
     ) -> dict[str, Any]:
         """Generate mock variables for growth rates stories"""
-        # Get grain metadata
-        grain_meta = GRAIN_META[grain]
 
         # Get required periods
         periods = STORY_GROUP_TIME_DURATIONS[self.group][grain]["input"]
@@ -174,9 +171,6 @@ class GrowthRatesMockGenerator(MockGeneratorBase):
         return {
             "metric": {"id": metric["id"], "label": metric["label"]},
             "grain": grain.value,
-            "eoi": grain_meta["eoi"],
-            "pop": grain_meta["pop"],
-            "interval": grain_meta["interval"],
             "duration": periods,
             "current_growth": round(current_growth, 2),
             "avg_growth": round(avg_growth, 2),

@@ -6,6 +6,7 @@ from typing import Any
 
 from commons.models.enums import Granularity
 from commons.utilities.context import reset_context, set_tenant_id
+from commons.utilities.grain_utils import GrainPeriodCalculator
 from story_manager.core.dependencies import get_query_manager_client
 from story_manager.core.enums import StoryGroup
 from story_manager.db.config import get_async_session
@@ -60,13 +61,11 @@ async def load_mock_stories(
     async with get_async_session() as db_session:
         # Create the loader
         loader = MockStoryLoader(db_session)
-        mock_data_service = loader.mock_data
-
         # Pre-compute dates for each granularity outside the loops
         for grain in grains:
             if start_date is not None:
                 # When using date range, get all dates within the range
-                grain_dates[grain] = mock_data_service.get_dates_for_range(
+                grain_dates[grain] = GrainPeriodCalculator.get_dates_for_range(
                     grain, start_date=start_date, end_date=end_date  # type: ignore
                 )
             else:

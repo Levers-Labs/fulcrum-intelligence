@@ -7,7 +7,6 @@ from dateutil.relativedelta import relativedelta
 from commons.models.enums import Granularity
 from story_manager.core.enums import StoryGenre, StoryGroup, StoryType
 from story_manager.mocks.generators.base import MockGeneratorBase
-from story_manager.story_builder.constants import GRAIN_META
 
 
 class LikelyStatusMockGenerator(MockGeneratorBase):
@@ -46,8 +45,7 @@ class LikelyStatusMockGenerator(MockGeneratorBase):
         """Generate mock time series data for likely status stories"""
         # Get historical date range and dates
         start_date, end_date = self.data_service.get_input_time_range(grain, self.group)
-        historical_dates = self.data_service.get_dates_for_range(grain, start_date, end_date)
-        formatted_historical_dates = self.data_service.get_formatted_dates(historical_dates)
+        formatted_historical_dates = self.data_service.get_formatted_dates(grain, start_date, end_date)
 
         # Get forecast period information
         interval, forecast_start_date, forecast_end_date = self._get_story_period(grain, self.data_service.story_date)
@@ -309,7 +307,6 @@ class LikelyStatusMockGenerator(MockGeneratorBase):
         grain: Granularity,
     ) -> dict[str, Any]:
         """Generate mock variables for likely status stories"""
-        grain_meta = GRAIN_META[grain]
 
         # Calculate deviation based on story type
         if story_type == StoryType.LIKELY_ON_TRACK:
@@ -320,8 +317,6 @@ class LikelyStatusMockGenerator(MockGeneratorBase):
         return {
             "metric": {"id": metric["id"], "label": metric["label"]},
             "grain": grain.value,
-            "eoi": grain_meta["eoi"],
-            "pop": grain_meta["pop"],
             "interval": self.interval.value,
             "forecasted_value": self.forecasted_value,
             "target": self.target_value,
