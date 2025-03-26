@@ -101,3 +101,21 @@ class GrainPeriodCalculator:
             current_date = (current_date + delta).date()  # type: ignore
 
         return dates
+
+    @staticmethod
+    def generate_date_label(grain: Granularity, date: date) -> str:
+        if grain == Granularity.DAY:
+            return date.strftime("%b %d, %Y")  # Example: "Mar 26, 2025"
+        elif grain == Granularity.WEEK:
+            # Returns a week label, like: "Week of Mar 26, 2025"
+            return "Week of " + date.strftime("%b %d, %Y")
+        elif grain == Granularity.MONTH:
+            return date.strftime("%b, %Y")  # Example: "Mar, 2025"
+        elif grain == Granularity.QUARTER:
+            # Returns the quarter and year, like: "Q1, 2025"
+            quarter = (date.month - 1) // 3 + 1
+            return f"Q{quarter}, {date.year}"
+        elif grain == Granularity.YEAR:
+            return str(date.year)  # Example: "2025"
+        else:
+            raise ValueError(f"Unsupported grain: {grain}")

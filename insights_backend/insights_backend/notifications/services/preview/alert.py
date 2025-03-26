@@ -6,6 +6,7 @@ from typing import Any
 
 from jinja2 import Environment, FileSystemLoader, Template
 
+from commons.utilities.grain_utils import GrainPeriodCalculator
 from insights_backend.notifications.enums import NotificationType
 from insights_backend.notifications.schemas import AlertRequest
 from insights_backend.notifications.services.preview.base import BasePreviewService
@@ -76,6 +77,7 @@ class AlertPreviewService(BasePreviewService[AlertRequest]):
                 "metric": metric,
                 "fetched_at": datetime.now().strftime("%b %d, %Y"),
                 "grain": alert_data.grain.value,
+                "date_label": GrainPeriodCalculator.generate_date_label(alert_data.grain, datetime.today()),
             },
             "config": alert_data,
             **variables,
@@ -87,7 +89,7 @@ class AlertPreviewService(BasePreviewService[AlertRequest]):
         """Get story groups from alert data"""
         if not alert_data.trigger or not alert_data.trigger.condition:
             return []
-        return getattr(alert_data.trigger.condition, "story_groups", ["TREND_CHANGES"])
+        return getattr(alert_data.trigger.condition, "story_groups", [])
 
     def _get_metric_info(self, alert_data: AlertRequest) -> dict[str, str]:
         """Get metric information"""

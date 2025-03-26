@@ -1,6 +1,7 @@
 from datetime import datetime
 from typing import Any
 
+from commons.utilities.grain_utils import GrainPeriodCalculator
 from insights_backend.notifications.enums import NotificationType
 from insights_backend.notifications.schemas import ReportRequest
 from insights_backend.notifications.services.preview.base import BasePreviewService
@@ -15,11 +16,12 @@ class ReportPreviewService(BasePreviewService[ReportRequest]):
     async def _generate_context(self, report_data: ReportRequest) -> dict[str, Any]:
         """Generate mock context data for report template rendering"""
         metrics = self._generate_metrics(report_data)
+        start_date, end_date = GrainPeriodCalculator.get_current_period_range(report_data.grain, datetime.today())
         context = {
             "data": {
                 "metrics": metrics,
-                "start_date": datetime.now().strftime("%b %d, %Y"),
-                "end_date": datetime.now().strftime("%b %d, %Y"),
+                "start_date": start_date.strftime("%b %d, %Y"),
+                "end_date": end_date.strftime("%b %d, %Y"),
                 "fetched_at": datetime.now().strftime("%b %d, %Y"),
                 "interval": self.COMMON_VARIABLES[report_data.grain.value.lower()]["interval"],
             },

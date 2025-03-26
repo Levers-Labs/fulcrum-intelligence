@@ -75,13 +75,12 @@
 <body>
     <div class='email-container'>
         <div class='email-header'>
-            <p>🚀 [{{ data.metric.label }}] Stories • {{ data.grain|title }}</p>
+            <p>🚀 [{{ data.metric.label }}] • {{ data.date_label }}</p>
         </div>
 
         <div class='email-body'>
             {% for story in data.stories %}
-                <h4>{{ story.story_group| replace('_', ' ') | title }}</h4>
-                <p>{{ story.title }}</p>
+                <h4>{{ story.story_group| replace('_', ' ') | title }} - {{ story.title }}</h4>
                 <p>{{ story.detail }}</p>
                 <br>
             {% endfor %}
