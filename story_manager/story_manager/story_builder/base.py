@@ -358,7 +358,7 @@ class StoryBuilderBase(ABC):
 
         # figure out the number of grain deltas to go back
         period_count = grain_durations["input"]
-        start_date = GrainPeriodCalculator.get_period_start_date(grain, period_count, latest_start_date)
+        start_date = GrainPeriodCalculator.get_prev_period_start_date(grain, period_count, latest_start_date)
         return start_date, latest_end_date
 
     async def _get_time_series_data_with_targets(

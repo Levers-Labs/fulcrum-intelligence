@@ -53,12 +53,27 @@ class GrainPeriodCalculator:
         return start_date, end_date
 
     @staticmethod
-    def get_period_start_date(grain: Granularity, period_count: int, latest_start_date: date) -> date:
-        # figure out relevant grain delta .e.g weeks : 1
+    def get_prev_period_start_date(grain: Granularity, period_count: int, latest_start_date: date) -> date:
+        """
+        Calculate the start date of a period that is a specified number of periods before the latest start date.
+
+        This method determines the start date of a period that is a specified number of periods before the
+        latest start date, based on the given granularity. It uses the granularity metadata to determine the delta
+        (e.g., weeks: 1) and then applies this delta to the latest start date to calculate the start date of the
+        previous period.
+
+        :param grain: The granularity of the period (e.g., day, week, month, etc.).
+        :param period_count: The number of periods to go back from the latest start date.
+        :param latest_start_date: The start date of the latest period.
+        :return: The start date of the period that is `period_count` periods before the `latest_start_date`.
+        """
+        # Retrieve the delta for the specified grain from the GRAIN_META dictionary.
         delta_eq = GRAIN_META[grain]["delta"]
 
-        # Go back by the determined grain delta
+        # Convert the delta dictionary into a pandas DateOffset object.
         delta = pd.DateOffset(**delta_eq)
+
+        # Calculate the start date of the period that is `period_count` periods before the `latest_start_date`.
         start_date = (latest_start_date - period_count * delta).date()
 
         return start_date

@@ -22,7 +22,7 @@ class MockDataService:
         """
         period_count = STORY_GROUP_TIME_DURATIONS[group][grain]["input"]
         latest_start_date, latest_end_date = GrainPeriodCalculator.get_current_period_range(grain, self.story_date)
-        start_date = GrainPeriodCalculator.get_period_start_date(grain, period_count, latest_start_date)
+        start_date = GrainPeriodCalculator.get_prev_period_start_date(grain, period_count, latest_start_date)
         return start_date, latest_end_date
 
     def get_formatted_dates(self, grain: Granularity, start_date: date, end_date: date) -> list[str]:
