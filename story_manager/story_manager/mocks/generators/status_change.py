@@ -5,7 +5,6 @@ from typing import Any
 from commons.models.enums import Granularity
 from story_manager.core.enums import StoryGenre, StoryGroup, StoryType
 from story_manager.mocks.generators.base import MockGeneratorBase
-from story_manager.story_builder.constants import GRAIN_META
 
 
 class StatusChangeMockGenerator(MockGeneratorBase):
@@ -52,8 +51,7 @@ class StatusChangeMockGenerator(MockGeneratorBase):
         """Generate mock time series data for status change stories"""
         # Get date range and dates
         start_date, end_date = self.data_service.get_input_time_range(grain, self.group)
-        dates = self.data_service.get_dates_for_range(grain, start_date, end_date)
-        formatted_dates = self.data_service.get_formatted_dates(dates)
+        formatted_dates = self.data_service.get_formatted_dates(grain, start_date, end_date)
 
         # Determine status transition based on story type
         is_improving = story_type == StoryType.IMPROVING_STATUS
@@ -130,8 +128,6 @@ class StatusChangeMockGenerator(MockGeneratorBase):
         time_series: list[dict[str, Any]] | None = None,
     ) -> dict[str, Any]:
         """Generate mock variables for status change stories"""
-        # Get grain metadata
-        grain_meta = GRAIN_META[grain]
 
         # Get current period data
         current_period = time_series[-1]  # type: ignore
@@ -161,9 +157,6 @@ class StatusChangeMockGenerator(MockGeneratorBase):
         return {
             "metric": {"id": metric["id"], "label": metric["label"]},
             "grain": grain.value,
-            "eoi": grain_meta["eoi"],
-            "pop": grain_meta["pop"],
-            "interval": grain_meta["interval"],
             "deviation": round(abs(deviation), 2),
             "prev_duration": prev_duration,
         }

@@ -10,7 +10,6 @@ from story_manager.core.enums import (
     StoryType,
 )
 from story_manager.mocks.generators.base import MockGeneratorBase
-from story_manager.story_builder.constants import GRAIN_META
 
 
 class ComponentDriftMockGenerator(MockGeneratorBase):
@@ -112,15 +111,10 @@ class ComponentDriftMockGenerator(MockGeneratorBase):
         component: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """Generate mock variables for component drift stories"""
-        grain_meta = GRAIN_META[grain]
-
         # Create variables dict
         return {
             "metric": {"id": metric["id"], "label": metric["label"]},
             "grain": grain.value,
-            "eoi": grain_meta["eoi"],
-            "pop": grain_meta["pop"],
-            "interval": grain_meta["interval"],
             "component": component["metric_id"],  # type: ignore
             "percentage_drift": round(abs(component["percentage_drift"]), 2),  # type: ignore
             "relative_impact": round(abs(component["relative_impact"]), 2),  # type: ignore

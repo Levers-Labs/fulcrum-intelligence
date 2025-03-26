@@ -5,7 +5,7 @@ from typing import Any
 from commons.models.enums import Granularity
 from story_manager.core.enums import StoryGenre, StoryGroup, StoryType
 from story_manager.mocks.generators.base import MockGeneratorBase
-from story_manager.story_builder.constants import GRAIN_META, STORY_GROUP_TIME_DURATIONS
+from story_manager.story_builder.constants import STORY_GROUP_TIME_DURATIONS
 
 
 class GoalVsActualMockGenerator(MockGeneratorBase):
@@ -45,8 +45,7 @@ class GoalVsActualMockGenerator(MockGeneratorBase):
         """Generate mock time series data for goal vs actual stories"""
         # Get date range and dates
         start_date, end_date = self.data_service.get_input_time_range(grain, self.group)
-        dates = self.data_service.get_dates_for_range(grain, start_date, end_date)
-        formatted_dates = self.data_service.get_formatted_dates(dates)
+        formatted_dates = self.data_service.get_formatted_dates(grain, start_date, end_date)
 
         # Initialize base values
         base_value = random.uniform(100, 500)  # noqa
@@ -57,13 +56,13 @@ class GoalVsActualMockGenerator(MockGeneratorBase):
         statuses = []
 
         # Generate data points - mixed statuses but ensure last point matches story_type
-        for i, _ in enumerate(dates):
+        for i, _ in enumerate(formatted_dates):
             # Generate target with some randomness
             target = base_target * (1 + random.uniform(-0.05, 0.05))  # noqa
 
             # Randomly determine if this point is on track or off track
             # For the last point, ensure it matches the requested story type
-            if i == len(dates) - 1:  # Last point
+            if i == len(formatted_dates) - 1:  # Last point
                 is_on_track = story_type == StoryType.ON_TRACK
             else:
                 is_on_track = random.choice([True, False])  # noqa
@@ -104,7 +103,6 @@ class GoalVsActualMockGenerator(MockGeneratorBase):
         time_series: list[dict[str, Any]] | None = None,
     ) -> dict[str, Any]:
         """Generate mock variables for goal vs actual stories"""
-        grain_meta = GRAIN_META[grain]
         periods = STORY_GROUP_TIME_DURATIONS[self.group][grain]["input"]
 
         # Get the latest data point
@@ -122,9 +120,6 @@ class GoalVsActualMockGenerator(MockGeneratorBase):
         return {
             "metric": {"id": metric["id"], "label": metric["label"]},
             "grain": grain.value,
-            "eoi": grain_meta["eoi"],
-            "pop": grain_meta["pop"],
-            "interval": grain_meta["interval"],
             "duration": periods,
             "current_value": current_value,
             "target": target,

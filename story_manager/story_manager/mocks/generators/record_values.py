@@ -5,7 +5,7 @@ from typing import Any
 from commons.models.enums import Granularity
 from story_manager.core.enums import StoryGenre, StoryGroup, StoryType
 from story_manager.mocks.generators.base import MockGeneratorBase
-from story_manager.story_builder.constants import GRAIN_META, STORY_GROUP_TIME_DURATIONS
+from story_manager.story_builder.constants import STORY_GROUP_TIME_DURATIONS
 
 
 class RecordValuesMockGenerator(MockGeneratorBase):
@@ -52,15 +52,14 @@ class RecordValuesMockGenerator(MockGeneratorBase):
         """Generate mock time series data for record values stories"""
         # Get dates for the time series
         start_date, end_date = self.data_service.get_input_time_range(grain, self.group)
-        dates = self.data_service.get_dates_for_range(grain, start_date, end_date)
-        formatted_dates = self.data_service.get_formatted_dates(dates)
+        formatted_dates = self.data_service.get_formatted_dates(grain, start_date, end_date)
 
         # Generate base values with random variation
         base_value = random.uniform(400, 800)  # noqa
         values = []
 
         # Generate all values except the last two (which will be manipulated for record purposes)
-        for _ in range(len(dates) - 2):
+        for _ in range(len(formatted_dates) - 2):
             noise = random.uniform(-0.3, 0.3) * base_value  # noqa
             value = max(100, base_value + noise)  # Ensure minimum value
             values.append(round(value))
@@ -118,7 +117,6 @@ class RecordValuesMockGenerator(MockGeneratorBase):
     ) -> dict[str, Any]:
         """Generate mock variables for record values stories"""
         # Get grain metadata
-        grain_meta = GRAIN_META[grain]
         periods = STORY_GROUP_TIME_DURATIONS[self.group][grain]["input"]
 
         # Get the latest data point (record point)
@@ -155,9 +153,6 @@ class RecordValuesMockGenerator(MockGeneratorBase):
         return {
             "metric": {"id": metric["id"], "label": metric["label"]},
             "grain": grain.value,
-            "eoi": grain_meta["eoi"],
-            "pop": grain_meta["pop"],
-            "interval": grain_meta["interval"],
             "duration": periods,
             "value": record_value,
             "prior_value": prior_value,

@@ -7,7 +7,7 @@ import pandas as pd
 from commons.models.enums import Granularity
 from story_manager.core.enums import StoryGenre, StoryGroup, StoryType
 from story_manager.mocks.generators.base import MockGeneratorBase
-from story_manager.story_builder.constants import GRAIN_META, STORY_GROUP_TIME_DURATIONS
+from story_manager.story_builder.constants import STORY_GROUP_TIME_DURATIONS
 
 
 class LongRangeMockGenerator(MockGeneratorBase):
@@ -49,8 +49,7 @@ class LongRangeMockGenerator(MockGeneratorBase):
         """Generate mock time series data for long range stories"""
         # Get date range and dates
         start_date, end_date = self.data_service.get_input_time_range(grain, self.group)
-        dates = self.data_service.get_dates_for_range(grain, start_date, end_date)
-        formatted_dates = self.data_service.get_formatted_dates(dates)
+        formatted_dates = self.data_service.get_formatted_dates(grain, start_date, end_date)
 
         # Initialize values
         base_value = random.uniform(200, 3000)  # noqa
@@ -61,7 +60,7 @@ class LongRangeMockGenerator(MockGeneratorBase):
         is_improving = story_type == StoryType.IMPROVING_PERFORMANCE
 
         # Generate values with trend and noise
-        for _ in range(len(dates)):
+        for _ in range(len(formatted_dates)):
             # Set trend direction based on story type
             trend_strength = random.uniform(0.03, 0.07)  # noqa
             trend = current_value * trend_strength * (1 if is_improving else -1)
@@ -86,7 +85,6 @@ class LongRangeMockGenerator(MockGeneratorBase):
     ) -> dict[str, Any]:
         """Generate mock variables for long range stories"""
         # Get grain metadata and required periods
-        grain_meta = GRAIN_META[grain]
         periods = STORY_GROUP_TIME_DURATIONS[self.group][grain]["input"]
 
         # Get the relevant portion of the time series
@@ -98,9 +96,6 @@ class LongRangeMockGenerator(MockGeneratorBase):
         return {
             "metric": {"id": metric["id"], "label": metric["label"]},
             "grain": grain.value,
-            "eoi": grain_meta["eoi"],
-            "pop": grain_meta["pop"],
-            "interval": grain_meta["interval"],
             "duration": periods,
             "avg_growth": round(abs(metrics["avg_growth"]), 2),
             "overall_growth": round(abs(metrics["overall_growth"]), 2),
