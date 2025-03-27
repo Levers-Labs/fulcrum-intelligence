@@ -80,7 +80,7 @@
 
         <div class='email-body'>
             {% for story in data.stories %}
-                <h4>{{ story.story_group| replace('_', ' ') | title }} - {{ story.title }}</h4>
+                <h4>➤ {{ story.story_group| replace('_', ' ') | title }} - {{ story.title }}</h4>
                 <p>{{ story.detail }}</p>
                 <br>
             {% endfor %}

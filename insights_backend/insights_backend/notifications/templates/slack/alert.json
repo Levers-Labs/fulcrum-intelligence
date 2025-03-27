@@ -13,7 +13,7 @@
                 "type": "section",
                 "text": {
                     "type": "mrkdwn",
-                    "text": "*{{ story.story_group| replace('_', ' ') | title }}* - *{{ story.title }}*"
+                    "text": "➤ *{{ story.story_group| replace('_', ' ') | title }}* - *{{ story.title }}*"
                 }
             },
             {
