@@ -4,27 +4,23 @@
             "type": "header",
             "text": {
                 "type": "plain_text",
-                "text": "🚀 [{{ data.metric.label }}] Stories • {{ data.grain|title }}",
+                "text": "🚀 [{{ data.metric.label }}] • {{ data.date_label }}",
                 "emoji": true
             }
         },
-        {% set previous_group = None %}
         {% for story in data.stories %}
-            {% if story.story_group != previous_group %}
             {
                 "type": "section",
                 "text": {
                     "type": "mrkdwn",
-                    "text": "*{{ story.story_group| replace('_', ' ') | title }}*"
+                    "text": "➤ *{{ story.story_group| replace('_', ' ') | title }}* - *{{ story.title }}*"
                 }
             },
-            {% set previous_group = story.story_group %}
-            {% endif %}
             {
                 "type": "section",
                 "text": {
                     "type": "mrkdwn",
-                    "text": "*{{ story.title }}*\\n{{ story.detail | replace('\\n', '\\n') }}"
+                    "text": "{{ story.detail | replace('\\n', '\\n') }}"
                 }
             },
         {% endfor %}

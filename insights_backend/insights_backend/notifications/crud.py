@@ -3,10 +3,12 @@ from typing import Any, TypeVar
 
 from sqlalchemy import (
     and_,
+    case,
     column,
     delete,
     distinct,
     func,
+    literal_column,
     select,
     union,
     update,
@@ -66,8 +68,10 @@ class CRUDNotifications:
         config_fk = NotificationChannelConfig.alert_id if model == Alert else NotificationChannelConfig.report_id
         notification_type = NotificationType.ALERT if model == Alert else NotificationType.REPORT
 
+        schedule_field = (Report.schedule if model == Report else literal_column("NULL::jsonb")).label("schedule")  # type: ignore
+
         return (
-            select(  # type: ignore
+            select(
                 model.id,
                 model.name,
                 model.type,
@@ -76,9 +80,18 @@ class CRUDNotifications:
                 model.tags,
                 model.is_active,
                 model.is_published,
+                schedule_field,
                 func.max(NotificationExecution.executed_at).label("last_execution"),  # type: ignore
                 func.count(distinct(NotificationChannelConfig.id)).label("channel_count"),  # type: ignore
-                func.sum(func.jsonb_array_length(NotificationChannelConfig.recipients)).label("recipients_count"),
+                func.coalesce(
+                    func.sum(
+                        case(
+                            (NotificationChannelConfig.recipients.is_(None), 0),  # type: ignore
+                            else_=func.jsonb_array_length(NotificationChannelConfig.recipients),
+                        )
+                    ),
+                    0,
+                ).label("recipients_count"),
             )
             .select_from(model)
             .outerjoin(NotificationExecution, execution_fk == model_id)  # type: ignore
@@ -89,7 +102,16 @@ class CRUDNotifications:
                     NotificationChannelConfig.notification_type == notification_type,  # type: ignore
                 ),
             )
-            .group_by(model.id, model.name, model.type, model.grain, model.summary, model.tags, model.is_active)
+            .group_by(
+                model.id,
+                model.name,
+                model.type,
+                model.grain,
+                model.summary,
+                model.tags,
+                model.is_active,
+                schedule_field,
+            )
         )
 
     async def get_notifications_list(

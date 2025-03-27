@@ -16,7 +16,6 @@
         body {
             background-color: #ffffff;
             color: #333;
-            max-width: 600px;
             margin: 0 auto;
             padding: 20px;
         }
@@ -52,25 +51,26 @@
             background-color: #ffffff;
         }
 
-        .metric-row > div {
-            display: inline-block; /* Treats each child as inline-blocks */
-            vertical-align: middle; /* Ensures vertical centering */
-            margin-right: 12px; /* Creates space between elements */
-            width: 25% !important;
+        .metric-row>div {
+            display: inline-block;
+            vertical-align: middle;
+            margin-right: 15px;
+            width: 30% !important;
         }
 
-        .metric-row > div:last-child {
-            margin-right: 0; /* Removes margin on the last item */
+        .metric-row>div:last-child {
+            margin-right: 0;
+            text-align:right;
+            width:30% !important;
         }
 
-        /* Define widths for the respective items */
         .metric-row .trend-icon {
             text-align: center;
             width: 25px !important;
         }
 
         .metric-row .metric-name {
-            width: auto; /* Automatically takes the remaining space */
+            width: auto;
         }
 
         .metric-row .metric-value {
@@ -83,18 +83,17 @@
             text-align: right;
         }
 
-
         .trend-icon {
             width: 24px;
             height: 24px;
             border-radius: 50%;
             margin-right: 15px;
             font-size: 16px;
-            text-align: center;  /* Horizontally centers the text/icon */
-            line-height: 24px;   /* Vertically centers the text/icon by matching line-height to height */
-            display: inline-block; /* Ensures it behaves like an inline element */
-            background-color: rgba(0, 200, 83, 0.1); /* Example background color for the icon */
-            color: #00c853; /* Example color for the icon (you can adjust as needed) */
+            text-align: center;
+            line-height: 24px;
+            display: inline-block;
+            background-color: rgba(0, 200, 83, 0.1);
+            color: #00c853;
         }
 
         .trend-up {
@@ -112,7 +111,6 @@
             width: auto;
             white-space: nowrap;
         }
-
 
         .metric-value {
             font-weight: 500;
@@ -144,7 +142,7 @@
 <body>
     <div class='email-container'>
         <div class='report-title'>
-            <h1>{{ data.interval|title }} report for {{ config.name|title }}</h1>
+            <h1>{{ data.interval|title }} Report for {{ config.name|title }}</h1>
             <p>{{ data.start_date }} – {{ data.end_date }}</p>
         </div>
 

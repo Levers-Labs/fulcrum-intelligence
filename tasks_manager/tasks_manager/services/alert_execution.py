@@ -6,6 +6,7 @@ from prefect import get_run_logger
 from commons.clients.query_manager import QueryManagerClient
 from commons.clients.story_manager import StoryManagerClient
 from commons.models.enums import Granularity
+from commons.utilities.grain_utils import GrainPeriodCalculator
 from tasks_manager.config import AppConfig
 from tasks_manager.utils import get_client_auth_from_config
 
@@ -94,6 +95,7 @@ class AlertExecutionService:
             "metric": metric,
             "fetched_at": datetime.now().strftime("%b %d, %Y"),
             "grain": grain,
+            "date_label": GrainPeriodCalculator.generate_date_label(Granularity(grain), datetime.today()),
         }
 
     async def _prepare_threshold_alert_data(

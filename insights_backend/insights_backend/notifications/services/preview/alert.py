@@ -4,8 +4,9 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
 
-from jinja2 import Template
+from jinja2 import Environment, FileSystemLoader, Template
 
+from commons.utilities.grain_utils import GrainPeriodCalculator
 from insights_backend.notifications.enums import NotificationType
 from insights_backend.notifications.schemas import AlertRequest
 from insights_backend.notifications.services.preview.base import BasePreviewService
@@ -16,9 +17,12 @@ class AlertPreviewService(BasePreviewService[AlertRequest]):
 
     def __init__(self, template_service):
         super().__init__(template_service, NotificationType.ALERT)
-        # Load story templates
         commons_path = Path(__file__).parent.parent.parent.parent.parent.parent / "commons" / "commons"
-        with open(commons_path / "templates" / "story_templates.json") as f:
+        self.template_dir = commons_path / "templates" / "story_templates.json"
+        self.env = Environment(
+            loader=FileSystemLoader(self.template_dir), autoescape=True, trim_blocks=True, lstrip_blocks=True
+        )
+        with open(self.template_dir) as f:
             self.story_template = json.load(f)
 
     async def _generate_context(self, alert_data: AlertRequest) -> dict[str, Any]:
@@ -73,6 +77,7 @@ class AlertPreviewService(BasePreviewService[AlertRequest]):
                 "metric": metric,
                 "fetched_at": datetime.now().strftime("%b %d, %Y"),
                 "grain": alert_data.grain.value,
+                "date_label": GrainPeriodCalculator.generate_date_label(alert_data.grain, datetime.today()),
             },
             "config": alert_data,
             **variables,
@@ -84,7 +89,7 @@ class AlertPreviewService(BasePreviewService[AlertRequest]):
         """Get story groups from alert data"""
         if not alert_data.trigger or not alert_data.trigger.condition:
             return []
-        return getattr(alert_data.trigger.condition, "story_groups", ["TREND_CHANGES"])
+        return getattr(alert_data.trigger.condition, "story_groups", [])
 
     def _get_metric_info(self, alert_data: AlertRequest) -> dict[str, str]:
         """Get metric information"""

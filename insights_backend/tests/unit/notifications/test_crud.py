@@ -40,6 +40,7 @@ async def alerts_with_tags_fixture(db_session: AsyncSession, jwt_payload: dict) 
             summary=f"Test summary {i}",
             tags=tags,
             is_active=True,
+            is_published=True,
             tenant_id=jwt_payload["tenant_id"],
             trigger={"type": "METRIC_STORY", "condition": {"metric_ids": ["revenue"]}},
         )
@@ -71,6 +72,7 @@ async def reports_with_tags_fixture(db_session: AsyncSession, jwt_payload: dict)
         "month": "*",
         "day_of_week": "MON",
         "timezone": "UTC",
+        "label": "DAY",
     }
 
     for i, tags in enumerate(tag_sets):
@@ -81,6 +83,7 @@ async def reports_with_tags_fixture(db_session: AsyncSession, jwt_payload: dict)
             summary=f"Test summary {i}",
             tags=tags,
             is_active=True,
+            is_published=True,
             tenant_id=jwt_payload["tenant_id"],
             config={"metric_ids": ["revenue"], "comparisons": ["PERCENTAGE_CHANGE"]},
             schedule=default_schedule,

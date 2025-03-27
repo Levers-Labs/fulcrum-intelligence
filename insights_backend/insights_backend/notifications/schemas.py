@@ -110,6 +110,7 @@ class NotificationList(BaseModel):
     type: NotificationType
     grain: Granularity
     summary: str
+    schedule: ScheduleConfig | None = None
     tags: list[str] | None = None
     last_execution: datetime | None = None
     recipients_count: int | None
