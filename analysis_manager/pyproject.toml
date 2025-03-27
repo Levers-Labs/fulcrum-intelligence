@@ -8,6 +8,7 @@ authors = ["leverslabs"]
 python = ">=3.10,<3.12"
 fulcrum-core = { path = "../core", develop = true }
 commons = { path = "../commons", extras = ["db"]}
+levers = { path = "../levers"}
 
 [build-system]
 requires = ["poetry-core>=1.0.0,<2.0.0"]
