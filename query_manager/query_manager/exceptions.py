@@ -53,13 +53,6 @@ class DimensionNotFoundError(QueryManagerError):
         super().__init__(status_code=HTTP_404_NOT_FOUND, detail=detail, code=ErrorCode.DIMENSION_NOT_FOUND)
 
 
-class MetricNotificationNotFoundError(QueryManagerError):
-    def __init__(self, metric_id: str):
-        self.metric_id = metric_id
-        detail = f"Metric Notification for '{metric_id}' not found."
-        super().__init__(status_code=HTTP_404_NOT_FOUND, detail=detail, code=ErrorCode.METRIC_NOTIFICATION_NOT_FOUND)
-
-
 def add_exception_handlers(app):
     @app.exception_handler(QueryManagerError)
     async def query_manager_exception_handler(request: Request, exc: QueryManagerError):

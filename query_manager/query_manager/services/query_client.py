@@ -35,18 +35,16 @@ class QueryClient:
         params: PaginationParams,
         metric_ids: list[str],
         metric_label: str | None = None,
-        slack_enabled: bool | None = None,
     ) -> tuple[list[Metric], int]:
         """
         Fetches a list of all metrics with their associated dimensions and influences, optionally in a paginated manner.
 
-        :param slack_enabled: Optional boolean flag for slack enabled
         :param params: Optional number of items per page for pagination.
         :param metric_ids: Optional list of metric IDs to filter the results by.
         :param metric_label: Optional label of metric to filter by metric label
         :return: A list of Metric objects with their dimensions and influences.
         """
-        filter_params = dict(metric_ids=metric_ids, metric_label=metric_label, slack_enabled=slack_enabled)
+        filter_params = dict(metric_ids=metric_ids, metric_label=metric_label)
         results, count = await self.metric_crud.paginate(
             params,
             filter_params=filter_params,
