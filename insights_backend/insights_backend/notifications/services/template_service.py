@@ -17,9 +17,6 @@ class TemplateService:
     def __init__(self):
         """
         Initialize template service with template directory.
-
-        Args:
-            template_dir: Base directory containing notification templates
         """
         self.template_dir = Path(__file__).parent.parent / "templates"
         self.env = Environment(
