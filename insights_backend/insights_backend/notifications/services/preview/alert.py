@@ -1,10 +1,10 @@
 import json
 import random
 from datetime import datetime, timedelta
+from pathlib import Path
 from typing import Any
 
-from config import Paths
-from jinja2 import Environment, FileSystemLoader, Template
+from jinja2 import Template
 
 from commons.utilities.grain_utils import GrainPeriodCalculator
 from insights_backend.notifications.enums import NotificationType
@@ -17,11 +17,7 @@ class AlertPreviewService(BasePreviewService[AlertRequest]):
 
     def __init__(self, template_service):
         super().__init__(template_service, NotificationType.ALERT)
-        commons_path = Paths.ROOT_DIR / "commons" / "commons"
-        self.template_dir = commons_path / "templates" / "story_templates.json"
-        self.env = Environment(
-            loader=FileSystemLoader(self.template_dir), autoescape=True, trim_blocks=True, lstrip_blocks=True
-        )
+        self.template_dir = Path(__file__).parent.parent.parent / "templates" / "story" / "story_templates.json"
         with open(self.template_dir) as f:
             self.story_template = json.load(f)
 
