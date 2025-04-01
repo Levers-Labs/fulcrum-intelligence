@@ -19,6 +19,12 @@ T = TypeVar("T", bound=BasePattern)
 class Levers(Generic[T]):
     """Main API class for accessing analytics primitives and patterns."""
 
+    # Map of pattern names to their respective pattern classes
+    _pattern_model_registry: dict[str, type[BasePattern]] = {
+        "performance_status": MetricPerformance,
+        # Add other patterns here as they are implemented
+    }
+
     def __init__(self) -> None:
         """Initialize the Levers API."""
         # Auto-discover and register patterns
@@ -31,6 +37,65 @@ class Levers(Generic[T]):
     def patterns(self) -> dict[str, type[Pattern[T]]]:
         """Get all registered patterns."""
         return self._pattern_registry._patterns
+
+    @classmethod
+    def get_pattern_model_class(cls, pattern_name: str) -> type[BasePattern]:
+        """
+        Get a pattern model class by name.
+
+        Args:
+            pattern_name: Name of the pattern model
+
+        Returns:
+            Pattern model class
+
+        Raises:
+            PatternError: If pattern model not found
+        """
+        pattern_class = cls._pattern_model_registry.get(pattern_name)
+        if not pattern_class:
+            raise PatternError(f"Unknown pattern type: {pattern_name}", pattern_name)
+        return pattern_class
+
+    @classmethod
+    def load_pattern_model(cls, pattern_data: dict[str, Any]) -> BasePattern:
+        """
+        Dynamically load a pattern model based on the 'pattern' field in the input dictionary.
+
+        This method examines the 'pattern' field in the input dictionary and creates an instance
+        of the appropriate pattern model class based on that value. For example, if pattern='performance_status',
+        it will create a MetricPerformance object.
+
+        Usage example:
+        ```python
+        # Load pattern data from a dictionary
+        pattern_run = {"pattern": "performance_status", "metric_id": "123", ...}
+        pattern_model = Levers.load_pattern_model(pattern_run)
+
+        # Now pattern_model is an instance of MetricPerformance
+        ```
+
+        Args:
+            pattern_data: Dictionary containing pattern data with a 'pattern' key
+
+        Returns:
+            Appropriate pattern model instance (e.g., MetricPerformance for pattern='performance_status')
+
+        Raises:
+            PatternError: If pattern type is not found or validation fails
+        """
+        pattern_type = pattern_data.get("pattern")
+        if not pattern_type:
+            raise PatternError("No pattern type specified in data", "unknown")
+
+        pattern_class = cls.get_pattern_model_class(pattern_type)
+
+        try:
+            return pattern_class(**pattern_data)
+        except Exception as e:
+            raise PatternError(
+                f"Failed to load pattern data: {str(e)}", pattern_type, {"validation_error": str(e)}
+            ) from e
 
     def get_pattern(self, pattern_name: str) -> type[Pattern[T]]:
         """

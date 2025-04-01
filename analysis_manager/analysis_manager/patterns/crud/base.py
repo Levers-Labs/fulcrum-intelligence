@@ -57,6 +57,9 @@ class PatternCRUD(Generic[T, P]):
         # Store raw pattern result for future-proofing
         raw_result = pattern_result.model_dump()
 
+        # remove the pattern run id from the raw result
+        raw_result.pop("pattern_run_id", None)
+
         # Get tenant_id from context if not provided
         tenant_id = get_tenant_id()
         metric_id = raw_result["metric_id"]

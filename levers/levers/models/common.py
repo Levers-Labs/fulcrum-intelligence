@@ -55,6 +55,9 @@ class AnalysisWindow(BaseModel):
 class BasePattern(BaseModel):
     """Base model for all pattern outputs"""
 
+    # Will be used when a loading pattern runs from a database
+    pattern_run_id: int | None = Field(alias="id", default=None)
+
     pattern: str
     version: str = "1.0.0"
     metric_id: str

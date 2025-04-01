@@ -5,6 +5,7 @@ This module contains Pydantic models used throughout the package.
 """
 
 from .common import (
+    AnalysisWindow,
     BaseModel,
     BasePattern,
     Granularity,
@@ -12,6 +13,7 @@ from .common import (
 )
 
 __all__ = [
+    "AnalysisWindow",
     "BaseModel",
     "BasePattern",
     "Granularity",

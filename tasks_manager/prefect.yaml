@@ -40,6 +40,25 @@ deployments:
     work_pool: *ecs_work_pool
     schedules: *daily_midnight
 
+  - name: "process-metric-pattern-stories"
+    version: "1.0.0"
+    description: "Create relevant stories for a metric pattern run by analyzing the pattern result"
+    entrypoint: tasks_manager.flows.stories:process_metric_pattern_stories
+    work_pool: *ecs_work_pool
+    triggers:
+      - type: event
+        name: "process-metric-pattern-stories-trigger"
+        description: "Triggered when a pattern run is successful"
+        enabled: true
+        expect:
+          - pattern.run.success
+        parameters:
+          pattern: "{{ event.resource.pattern }}"
+          tenant_id_str: "{{ event.resource.tenant_id }}"
+          metric_id: "{{ event.resource.metric_id }}"
+          grain: "{{ event.resource.grain }}"
+          pattern_run_str: "{{ event.payload }}"
+
   - name: "process-story-alerts"
     version: "1.0.0"
     description: "Process stories and trigger relevant alerts"
