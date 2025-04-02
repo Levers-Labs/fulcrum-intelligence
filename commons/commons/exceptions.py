@@ -1,7 +1,7 @@
 from enum import Enum
 
 from fastapi import HTTPException
-from starlette.status import HTTP_404_NOT_FOUND
+from starlette.status import HTTP_404_NOT_FOUND, HTTP_500_INTERNAL_SERVER_ERROR
 
 
 class ErrorCode(str, Enum):
@@ -10,6 +10,7 @@ class ErrorCode(str, Enum):
     """
 
     INVALID_TENANT = "invalid_tenant"
+    PREFECT_OPERATION_FAILED = "prefect_operation_failed"
 
 
 class ServiceError(HTTPException):
@@ -23,3 +24,13 @@ class InvalidTenantError(ServiceError):
         self.tenant_id = tenant_id
         detail = f"Tenant with id '{tenant_id}' not found."
         super().__init__(status_code=HTTP_404_NOT_FOUND, detail=detail, code=ErrorCode.INVALID_TENANT)
+
+
+class PrefectOperationError(ServiceError):
+    def __init__(self, operation: str, detail: str):
+        self.operation = operation
+        super().__init__(
+            status_code=HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Prefect {operation} failed: {detail}",
+            code=ErrorCode.PREFECT_OPERATION_FAILED,
+        )

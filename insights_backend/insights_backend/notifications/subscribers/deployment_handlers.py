@@ -20,9 +20,8 @@ def handle_creation(sender, instance: Report, **kwargs):
     deployment_manager = PrefectDeploymentManager()
 
     deployment_id = deployment_manager.create_deployment(instance)
-    if deployment_id:
-        instance.deployment_id = deployment_id
-        logger.info("Created Prefect deployment for Report %s: %s", instance.id, deployment_id)
+    instance.deployment_id = deployment_id
+    logger.info("Created Prefect deployment for Report %s: %s", instance.id, deployment_id)
 
 
 @subscribe(EventAction.UPDATE, sender=Report, timing=EventTiming.BEFORE)
