@@ -642,13 +642,23 @@ async def test_bulk_delete_mixed(
 
 async def test_publish_report(async_client: AsyncClient, sample_report: Report):
     """Test publishing a report"""
-    # Mock is_publishable to return True
-    with patch.object(Report, "is_publishable", return_value=True):
+    # Mock both is_publishable and PrefectDeploymentManager
+    with patch.object(Report, "is_publishable", return_value=True), patch(
+        "insights_backend.notifications.subscribers.deployment_handlers.PrefectDeploymentManager"
+    ) as mock_manager_class:
+        # Configure the mock deployment manager
+        mock_manager = mock_manager_class.return_value
+        mock_manager.create_deployment.return_value = "test-deployment-id"
+
         response = await async_client.post(f"/v1/notification/reports/{sample_report.id}/publish")
 
         assert response.status_code == status.HTTP_200_OK
         data = response.json()
         assert data["is_published"] is True
+        assert data["deployment_id"] == "test-deployment-id"
+
+        # Verify deployment manager was called
+        mock_manager.create_deployment.assert_called_once()
 
 
 async def test_update_alert(async_client: AsyncClient, sample_alert: Alert):
@@ -760,8 +770,15 @@ async def test_publish_already_published_alert(async_client: AsyncClient, sample
 
 async def test_publish_already_published_report(async_client: AsyncClient, sample_report: Report):
     """Test publishing an already published report"""
-    # First publish
-    with patch.object(Report, "is_publishable", return_value=True):
+    # First publish with proper mocking
+    with patch.object(Report, "is_publishable", return_value=True), patch(
+        "insights_backend.notifications.subscribers.deployment_handlers.PrefectDeploymentManager"
+    ) as mock_manager_class:
+        # Configure the mock deployment manager for first publish
+        mock_manager = mock_manager_class.return_value
+        mock_manager.create_deployment.return_value = "test-deployment-id"
+
+        # First publish
         await async_client.post(f"/v1/notification/reports/{sample_report.id}/publish")
 
     # Try to publish again

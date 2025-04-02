@@ -4,6 +4,7 @@ import logging
 import os
 from collections.abc import Callable
 from datetime import datetime, timedelta
+from unittest.mock import Mock
 
 import jwt
 import pytest
@@ -19,6 +20,7 @@ from testing.postgresql import Postgresql
 
 from commons.auth.auth import Oauth2Auth
 from insights_backend.db.config import MODEL_PATHS
+from insights_backend.notifications.services.deployment_manager import PrefectDeploymentManager
 
 logger = logging.getLogger(__name__)
 
@@ -162,3 +164,20 @@ async def async_client(app: FastAPI, mocker, jwt_payload, token):
     # Create an async client
     async with AsyncClient(app=app, base_url="http://test", headers=headers) as ac:
         yield ac
+
+
+@pytest.fixture
+def mock_deployment_manager(monkeypatch):
+    """Mock PrefectDeploymentManager for testing"""
+    mock_manager = Mock(spec=PrefectDeploymentManager)
+    mock_manager.create_deployment.return_value = "test-deployment-id"
+    mock_manager.delete_deployment.return_value = None
+    mock_manager.read_deployment_schedules.return_value = [{"id": "test-schedule-id", "active": True}]
+    mock_manager.update_deployment_schedule.return_value = True
+
+    # Patch the PrefectDeploymentManager class
+    monkeypatch.setattr(
+        "insights_backend.notifications.subscribers.deployment_handlers.PrefectDeploymentManager",
+        Mock(return_value=mock_manager),
+    )
+    return mock_manager
