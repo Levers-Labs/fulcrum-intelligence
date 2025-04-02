@@ -13,6 +13,7 @@ from fastapi import (
 
 from commons.auth.scopes import ALERT_REPORT_READ, ALERT_REPORT_WRITE
 from commons.db.signals import EventAction, EventTiming, publish_event
+from commons.exceptions import PrefectOperationError
 from commons.models.enums import ExecutionStatus
 from commons.notifiers.constants import NotificationChannel
 from commons.utilities.pagination import Page, PaginationParams
@@ -119,6 +120,8 @@ async def publish_alert(
         return await alert_crud.publish(alert_id)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
+    except PrefectOperationError as e:
+        raise e
 
 
 @notification_router.patch(
@@ -453,6 +456,9 @@ async def publish_report(
         return await report_crud.publish(report_id)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
+    except PrefectOperationError as e:
+        # The PrefectOperationError is already a ServiceError subclass with proper status code and format
+        raise e
 
 
 @notification_router.patch(

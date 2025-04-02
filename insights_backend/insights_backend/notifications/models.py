@@ -302,10 +302,13 @@ class NotificationExecutionCreate(NotificationExecutionBase):
 class NotificationExecution(NotificationExecutionBase, InsightsSchemaBaseModel, table=True):  # type: ignore
     """Database model for storing notification executions"""
 
-    # Foreign key to the alert that this channel is associated with
-    alert_id: int | None = Field(foreign_key="insights_store.alert.id", nullable=True)
-    # Foreign key to the report that this channel is associated with
-    report_id: int | None = Field(foreign_key="insights_store.report.id", nullable=True)
+    # Update these fields to include ondelete CASCADE
+    alert_id: int | None = Field(
+        sa_column=Column(Integer, ForeignKey("insights_store.alert.id", ondelete="CASCADE"), nullable=True)
+    )
+    report_id: int | None = Field(
+        sa_column=Column(Integer, ForeignKey("insights_store.report.id", ondelete="CASCADE"), nullable=True)
+    )
 
     alert: Alert | None = Relationship(back_populates="executions", sa_relationship_kwargs={"lazy": "selectin"})
     report: Report | None = Relationship(back_populates="executions", sa_relationship_kwargs={"lazy": "selectin"})

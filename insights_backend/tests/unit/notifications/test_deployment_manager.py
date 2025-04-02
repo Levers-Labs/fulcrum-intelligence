@@ -2,6 +2,7 @@ from unittest.mock import Mock
 
 import pytest
 
+from commons.exceptions import PrefectOperationError
 from insights_backend.notifications.enums import Comparisons, ScheduleLabel
 from insights_backend.notifications.models import Report, ReportConfig, ScheduleConfig
 from insights_backend.notifications.services.deployment_manager import PrefectDeploymentManager
@@ -54,16 +55,15 @@ def test_create_deployment_success(deployment_manager, sample_report):
     assert call_args.parameters == {"tenant_id": 2, "report_id": 123}
 
 
-def test_create_deployment_failure(deployment_manager, sample_report):
-    # Arrange
-    deployment_manager.prefect.create_deployment.side_effect = Exception("Failed to create deployment")
+async def test_create_deployment_failure(mock_deployment_manager):
+    """Test handling of deployment creation failure"""
+    # Configure the mock to simulate a failure
+    mock_deployment_manager.create_deployment.side_effect = Exception("Failed to create deployment")
 
-    # Act
-    result = deployment_manager.create_deployment(sample_report)
+    with pytest.raises(PrefectOperationError) as exc_info:
+        await mock_deployment_manager.create_deployment(Mock(id=123))
 
-    # Assert
-    assert result is None
-    deployment_manager.prefect.create_deployment.assert_called_once()
+    assert "Unable to create deployment for report 123" in str(exc_info.value)
 
 
 def test_create_deployment_without_schedule(deployment_manager):

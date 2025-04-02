@@ -54,7 +54,9 @@ async def alerts_with_tags_fixture(db_session: AsyncSession, jwt_payload: dict) 
 
 
 @pytest_asyncio.fixture(name="reports_with_tags")
-async def reports_with_tags_fixture(db_session: AsyncSession, jwt_payload: dict) -> list[Report]:
+async def reports_with_tags_fixture(
+    db_session: AsyncSession, jwt_payload: dict, mock_deployment_manager
+) -> list[Report]:
     """Create sample reports with tags"""
     set_tenant_id(jwt_payload["tenant_id"])
     reports = []
@@ -98,7 +100,10 @@ async def reports_with_tags_fixture(db_session: AsyncSession, jwt_payload: dict)
 
 
 async def test_get_unique_tags_no_search(
-    notifications_crud: CRUDNotifications, alerts_with_tags: list[Alert], reports_with_tags: list[Report]
+    notifications_crud: CRUDNotifications,
+    alerts_with_tags: list[Alert],
+    reports_with_tags: list[Report],
+    mock_deployment_manager,
 ):
     """Test getting all unique tags without search"""
     tags = await notifications_crud.get_unique_tags()

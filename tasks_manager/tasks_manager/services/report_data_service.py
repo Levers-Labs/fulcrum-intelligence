@@ -1,3 +1,4 @@
+import logging
 from datetime import date, datetime
 from typing import Any, TypeVar
 
@@ -108,7 +109,8 @@ class ReportDataService:
 
             return result
         except Exception as e:
-            return {"metric_id": metric_id, "error": str(e), "status": ExecutionStatus.FAILED}
+            logging.error(f"An exception occurred for {metric_id}: {str(e)}")
+            return {}
 
     async def prepare_report_metrics_data(
         self,
@@ -143,8 +145,8 @@ class ReportDataService:
                 previous_period=(previous_start, previous_end),
                 include_raw_data=include_raw_data,
             )
-
-            metrics_data.append(metric_data)
+            if metric_data:
+                metrics_data.append(metric_data)
 
         return {
             "metrics": metrics_data,

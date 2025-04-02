@@ -2,6 +2,7 @@ import logging
 from typing import Any
 
 from commons.clients.prefect import PrefectClient, PrefectDeployment
+from commons.exceptions import PrefectOperationError
 from insights_backend.config import get_settings
 from insights_backend.notifications.models import Report, ScheduleConfig
 from insights_backend.notifications.schemas import MetricTaskParameters
@@ -55,7 +56,10 @@ class PrefectDeploymentManager:
                 instance.id,
                 str(e),
             )
-            return None
+            raise PrefectOperationError(
+                operation="create",
+                detail=f"Unable to create deployment for {model_type.__name__.lower()} {instance.id}: {str(e)}",
+            ) from e
 
     def delete_deployment(self, deployment_id: str) -> bool:
         """Delete a Prefect deployment."""

@@ -43,6 +43,10 @@ async def deliver_metric_reports(tenant_id: int, report_id: int):
             tenant_id=tenant_id, metric_ids=metric_ids, grain=grain, comparisons=comparisons
         )
 
+        if not data.get("metrics"):
+            logger.warning(f"No valid metric data found for report {report_id}. Skipping notification delivery.")
+            return
+
         # Deliver notifications
         delivery_result = await deliver_notifications(  # type: ignore
             tenant_id=tenant_id,
