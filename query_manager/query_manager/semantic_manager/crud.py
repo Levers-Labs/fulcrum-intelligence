@@ -25,6 +25,7 @@ from commons.db.filters import BaseFilter
 from commons.db.models import BaseTimeStampedTenantModel
 from commons.models.enums import Granularity
 from commons.utilities.context import get_tenant_id
+from query_manager.core.models import Metric
 from query_manager.semantic_manager.filters import TargetFilter
 from query_manager.semantic_manager.models import (
     MetricDimensionalTimeSeries,
@@ -35,7 +36,12 @@ from query_manager.semantic_manager.models import (
     SyncStatus,
     SyncType,
 )
-from query_manager.semantic_manager.schemas import TargetCreate, TargetUpdate
+from query_manager.semantic_manager.schemas import (
+    MetricTargetOverview,
+    TargetCreate,
+    TargetStatus,
+    TargetUpdate,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -512,6 +518,53 @@ class CRUDMetricTarget(CRUDSemantic[MetricTarget, TargetCreate, TargetUpdate, Ta
         # Commit the transaction
         await self.session.commit()
         return stats
+
+    async def get_metrics_targets_list(self) -> tuple[list[MetricTargetOverview], int]:
+        """Get list of all metrics with their target status."""
+        tenant_id = get_tenant_id()
+        if tenant_id is None:
+            raise ValueError("Tenant ID is required")
+
+        # Get all metrics first (we need this to show metrics even without targets)
+        metrics_query = (
+            select(Metric.metric_id, Metric.label, Metric.aim)
+            .where(Metric.tenant_id == tenant_id)
+            .order_by(Metric.label)
+        )
+
+        # Get target information
+        targets_query = (
+            select(self.model.metric_id, self.model.grain, func.max(self.model.target_date).label("through_date"))
+            .where(self.model.tenant_id == tenant_id)
+            .group_by(self.model.metric_id, self.model.grain)
+        )
+
+        # Execute queries
+        metrics_result = await self.session.execute(metrics_query)
+        targets_result = await self.session.execute(targets_query)
+
+        # Process metrics
+        metrics = {
+            row.metric_id: {
+                "metric_id": row.metric_id,
+                "label": row.label,
+                "aim": row.aim,
+                "periods": {grain: TargetStatus(has_targets=False, through_date=None) for grain in Granularity},
+            }
+            for row in metrics_result.mappings()
+        }
+
+        # Update with target information
+        for row in targets_result.mappings():
+            if row.metric_id in metrics and row.grain:
+                metrics[row.metric_id]["periods"][row.grain] = TargetStatus(
+                    has_targets=True, through_date=row.through_date
+                )
+
+        # Convert to list of MetricTargetOverview objects
+        overviews = [MetricTargetOverview(**metric_data) for metric_data in metrics.values()]
+
+        return overviews, len(overviews)
 
 
 class SemanticManager:

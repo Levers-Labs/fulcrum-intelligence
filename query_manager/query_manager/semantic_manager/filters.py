@@ -9,6 +9,7 @@ class TargetFilter(BaseFilter):
     """Filter for targets."""
 
     metric_ids: list[str] | None = FilterField(field=MetricTarget.metric_id, operator="in")  # type: ignore
+    # metric_label: str | None = FilterField(field=MetricTarget.metric.label, operator="ilike")
     grain: Granularity | None = FilterField(field=MetricTarget.grain)  # type: ignore
     target_date: date | None = FilterField(field=MetricTarget.target_date)  # type: ignore
     target_date_ge: date | None = FilterField(field=MetricTarget.target_date, operator="ge")  # type: ignore
