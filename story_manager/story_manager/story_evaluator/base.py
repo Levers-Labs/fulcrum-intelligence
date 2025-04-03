@@ -48,7 +48,6 @@ class StoryEvaluatorBase(Generic[T], ABC):
         story_group: StoryGroup,
         metric_id: str,
         pattern_result: T,
-        metric: dict[str, Any],
         title: str,
         detail: str,
         grain: Granularity,

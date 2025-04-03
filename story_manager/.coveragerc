@@ -4,6 +4,7 @@ omit=
     */data/*
     story_manager/utilities/logger.py
     story_manager/utilities/docs.py
+    story_manager/scripts/*
     story_manager/health.py
     story_manager/mocks/*
 
