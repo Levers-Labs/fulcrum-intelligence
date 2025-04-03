@@ -108,6 +108,10 @@ This document outlines the steps required to set up and configure **Auth0.**
     - **Google Sign-In:** If we want users to log in with Google, enable the **Google** connection.
     - **User Password Authentication:** If we want password-based login, enable the **User Password Authentication** connection. ( Enable allow signups if we want users to signup)
 
+### **Step 3: Update Metadata of the Organization**
+
+- Under the **Overview** tab, Scroll for Metadata and Add **tenant_id** in Metadata to sync with the database. This **tenant_id** must be in sync with the tenant_id of the tenant in database.
+
 ---
 
 # **4. User Management**
