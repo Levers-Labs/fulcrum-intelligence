@@ -23,7 +23,6 @@ from commons.utilities.pagination import Page, PaginationParams
 from query_manager.core.dependencies import oauth2_auth
 from query_manager.semantic_manager.dependencies import SemanticManagerDep
 from query_manager.semantic_manager.filters import TargetFilter
-from query_manager.semantic_manager.models import MetricTarget
 from query_manager.semantic_manager.schemas import (
     MetricDimensionalTimeSeriesResponse,
     MetricTargetOverview,
@@ -31,7 +30,6 @@ from query_manager.semantic_manager.schemas import (
     TargetBulkUpsertRequest,
     TargetBulkUpsertResponse,
     TargetResponse,
-    TargetUpdate,
 )
 
 router = APIRouter(prefix="/semantic")
@@ -242,28 +240,6 @@ async def bulk_upsert_targets(
     result = await semantic_manager.metric_target.bulk_upsert_targets(targets_data)
 
     return TargetBulkUpsertResponse(total=result["total"], processed=result["processed"], failed=result["failed"])
-
-
-@router.put(
-    "/metrics/targets/{target_id}",
-    response_model=TargetResponse,
-    summary="Update a target",
-    dependencies=[Security(oauth2_auth().verify, scopes=[QUERY_MANAGER_ALL])],
-    tags=["targets"],
-)
-async def update_target(
-    target_id: int,
-    update_data: TargetUpdate,
-    semantic_manager: SemanticManagerDep,
-) -> MetricTarget:
-    """
-    Update an existing target.
-
-    - **target_id**: ID of the target
-    - **update_data**: Target data to update
-    """
-    target = await semantic_manager.metric_target.get(target_id)
-    return await semantic_manager.metric_target.update(obj=target, obj_in=update_data)
 
 
 @router.delete(

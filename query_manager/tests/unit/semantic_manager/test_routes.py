@@ -206,12 +206,11 @@ async def test_get_multi_metric_time_series(
     # Assert response
     assert response.status_code == 200
     data = response.json()
-    assert isinstance(data, dict)
     assert "results" in data
-    assert len(data["results"]) == 2
+    assert len(data["results"]) == 2  # type: ignore
 
     # Verify the response matches our schema
-    response_model = MetricTimeSeriesResponse(**data)
+    response_model = MetricTimeSeriesResponse(**data)  # type: ignore
     assert len(response_model.results) == 2
     # Sort results by value to ensure consistent comparison
     results = sorted(response_model.results, key=lambda x: x.value)
@@ -251,7 +250,7 @@ async def test_get_metric_dimensional_time_series(
     response_model = MetricDimensionalTimeSeriesResponse(**data)
     assert len(response_model.results) == 2
     # Sort results by dimension_slice to ensure consistent comparison
-    results = sorted(response_model.results, key=lambda x: x.dimension_slice)
+    results = sorted(response_model.results, key=lambda x: x.dimension_slice)  # type: ignore
     assert results[0].dimension_name == "region"
     assert results[0].dimension_slice == "EU"
     assert results[0].value == 150.0
@@ -529,35 +528,6 @@ async def test_bulk_upsert_targets(
     assert data["results"][0]["target_value"] == 150.0
 
 
-async def test_update_target(
-    app: FastAPI,
-    async_client: AsyncClient,
-    jwt_payload: dict,
-    sample_targets: list,
-):
-    """Test updating a target."""
-    from query_manager.semantic_manager.schemas import TargetUpdate
-
-    target_id = sample_targets[0].id
-
-    update_data = TargetUpdate(
-        target_value=999.0,
-        target_upper_bound=1100.0,
-        target_lower_bound=900.0,
-    )
-
-    response = await async_client.put(
-        f"/v2/semantic/metrics/targets/{target_id}",
-        json=update_data.model_dump(exclude_unset=True),
-    )
-    assert response.status_code == 200
-    data = response.json()
-    assert data["id"] == target_id
-    assert data["target_value"] == 999.0
-    assert data["target_upper_bound"] == 1100.0
-    assert data["target_lower_bound"] == 900.0
-
-
 async def test_delete_targets(
     app: FastAPI,
     async_client: AsyncClient,
@@ -596,26 +566,6 @@ async def test_get_target_not_found(
 ):
     """Test getting a non-existent target."""
     response = await async_client.get("/v2/semantic/metrics/targets/999999")
-    assert response.status_code == 404
-    data = response.json()
-    assert "detail" in data
-    assert "not found" in data["detail"].lower()
-
-
-async def test_update_target_not_found(
-    app: FastAPI,
-    async_client: AsyncClient,
-    jwt_payload: dict,
-):
-    """Test updating a non-existent target."""
-    from query_manager.semantic_manager.schemas import TargetUpdate
-
-    update_data = TargetUpdate(target_value=999.0)
-
-    response = await async_client.put(
-        "/v2/semantic/metrics/targets/999999",
-        json=update_data.model_dump(exclude_unset=True),
-    )
     assert response.status_code == 404
     data = response.json()
     assert "detail" in data

@@ -534,7 +534,7 @@ class CRUDMetricTarget(CRUDSemantic[MetricTarget, TargetCreate, TargetUpdate, Ta
 
         # Get target information
         targets_query = (
-            select(self.model.metric_id, self.model.grain, func.max(self.model.target_date).label("through_date"))
+            select(self.model.metric_id, self.model.grain, func.max(self.model.target_date).label("through_date"))  # type: ignore
             .where(self.model.tenant_id == tenant_id)
             .group_by(self.model.metric_id, self.model.grain)
         )
