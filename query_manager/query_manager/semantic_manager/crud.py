@@ -527,7 +527,7 @@ class CRUDMetricTarget(CRUDSemantic[MetricTarget, TargetCreate, TargetUpdate, Ta
 
         # Get all metrics first (we need this to show metrics even without targets)
         metrics_query = (
-            select(Metric.metric_id, Metric.label, Metric.aim)
+            select(Metric.metric_id, Metric.label, Metric.aim)  # type: ignore
             .where(Metric.tenant_id == tenant_id)
             .order_by(Metric.label)
         )
