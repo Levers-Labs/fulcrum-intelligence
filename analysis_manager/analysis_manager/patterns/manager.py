@@ -68,15 +68,3 @@ class PatternManager:
         if db_result:
             return await crud.to_pattern_result(db_result)
         return None
-
-    def register_pattern(
-        self, pattern_name: str, crud_class: type[PatternCRUD], model: type[T], pattern_model_class: type[P]
-    ):
-        """
-        Register a new pattern CRUD class.
-
-        Args:
-            pattern_name: The name of the pattern
-            crud_class: The CRUD class for the pattern
-        """
-        self._pattern_cruds[pattern_name] = crud_class(model, self.session, pattern_model_class)

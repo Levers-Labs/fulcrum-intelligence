@@ -1,13 +1,19 @@
+import importlib
 import logging
 import os
-from datetime import date
+from datetime import date, datetime, timedelta
 
 import pytest
+import pytest_asyncio
 from _pytest.monkeypatch import MonkeyPatch
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine
-from sqlmodel import Session
+from sqlalchemy import text
+from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
+from sqlalchemy.orm import sessionmaker
+from sqlmodel import SQLModel
 from testing.postgresql import Postgresql
+
+from analysis_manager.db.config import MODEL_PATHS
 
 logger = logging.getLogger(__name__)
 
@@ -59,19 +65,45 @@ def client(setup_env):
         yield client
 
 
-@pytest.fixture(scope="function")
-def db_session(postgres):
-    # Create an asynchronous engine
-    engine = create_engine(postgres.url(), echo=True)
+@pytest_asyncio.fixture()
+async def db_session(postgres):
+    db_sync_uri = postgres.url()
+    db_async_uri = db_sync_uri.replace("postgresql://", "postgresql+asyncpg://")
+    engine = create_async_engine(db_async_uri, echo=True)
+    async_session = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)  # type: ignore
+    async with engine.begin() as conn:
+        # recreate all models
+        for model_path in MODEL_PATHS:
+            importlib.import_module(model_path)
+        # Create schema
+        await conn.execute(text("CREATE SCHEMA IF NOT EXISTS analysis_store"))
+        await conn.run_sync(SQLModel.metadata.drop_all)
+        await conn.run_sync(SQLModel.metadata.create_all)
 
-    # Create a new session
-    with Session(engine) as session:
-        # Start a transaction
-        with session.begin():
-            yield session  # Provide the session to the test
+        async with async_session(bind=conn) as session:
+            yield session
+            await session.flush()
+            await session.rollback()
 
-    # Close the engine
-    engine.dispose()
+
+@pytest.fixture(scope="session", name="jwt_payload")
+def mock_jwt_payload():
+    return {
+        "sub": "PN0CtJASlMDm9TEivb3izsDnIf5dcFYA@clients",
+        "permissions": [
+            "user:write",
+            "user:read",
+            "admin:read",
+            "admin:write",
+            "alert_report:read",
+            "alert_report" ":write",
+        ],
+        "iat": datetime.now(),
+        "exp": datetime.now() + timedelta(hours=1),
+        "scope": "user:write user:read admin:read admin:write alert_report:read alert_report:write",
+        "tenant_id": 1,  # Include tenant_id if needed
+        "external_id": "auth0_123",
+    }
 
 
 @pytest.fixture(scope="session")
