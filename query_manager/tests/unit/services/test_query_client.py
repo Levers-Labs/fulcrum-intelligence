@@ -287,6 +287,7 @@ async def test_create_metric(mocker, query_client):
         owned_by_team=["team1"],
         definition="New metric definition",
         metadata={"some": "metadata"},
+        aim=None,
     )
     metric_create = MetricCreate(**metric_data)
     expected_metric = Metric(id=1, **metric_data)
