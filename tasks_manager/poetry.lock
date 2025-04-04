@@ -232,6 +232,24 @@ typing-extensions = ">=4.12"
 tz = ["tzdata"]
 
 [[package]]
+name = "analysis-manager"
+version = "0.1.0"
+description = "Analysis Manager for fulcrum intelligence"
+optional = false
+python-versions = ">=3.10,<3.12"
+files = []
+develop = false
+
+[package.dependencies]
+commons = {path = "../commons", extras = ["db"]}
+fulcrum-core = {path = "../core", develop = true}
+levers = {path = "../levers"}
+
+[package.source]
+type = "directory"
+url = "../analysis_manager"
+
+[[package]]
 name = "annotated-types"
 version = "0.7.0"
 description = "Reusable constraint types to use with typing.Annotated"
@@ -1496,7 +1514,7 @@ description = "Core Engine for fulcrum intelligence"
 optional = false
 python-versions = ">=3.10,<3.12"
 files = []
-develop = false
+develop = true
 
 [package.dependencies]
 anyio = ">=3.5.0,<5.0.0"
@@ -2232,6 +2250,24 @@ langsmith-pyo3 = ["langsmith-pyo3 (>=0.1.0rc2,<0.2.0)"]
 openai-agents = ["openai-agents (>=0.0.3,<0.0.4)"]
 otel = ["opentelemetry-api (>=1.30.0,<2.0.0)", "opentelemetry-exporter-otlp-proto-http (>=1.30.0,<2.0.0)", "opentelemetry-sdk (>=1.30.0,<2.0.0)"]
 pytest = ["pytest (>=7.0.0)", "rich (>=13.9.4,<14.0.0)"]
+
+[[package]]
+name = "levers"
+version = "1.0.0"
+description = "Levers is a collection of analytics primitives and patterns for metric analysis. Part of the Fulcrum Intelligence framework."
+optional = false
+python-versions = ">=3.10,<3.12"
+files = []
+develop = false
+
+[package.dependencies]
+numpy = "^1.24.3"
+pandas = "^2.2.1"
+pydantic = {version = "^2.7.4", extras = ["email"]}
+
+[package.source]
+type = "directory"
+url = "../levers"
 
 [[package]]
 name = "mako"
@@ -4923,6 +4959,7 @@ develop = false
 [package.dependencies]
 commons = {path = "../commons", extras = ["db"]}
 fulcrum-core = {path = "../core"}
+levers = {path = "../levers"}
 plotly = "^5.24.1"
 
 [package.source]
@@ -5689,4 +5726,4 @@ cffi = ["cffi (>=1.11)"]
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.10,<3.12"
-content-hash = "2e7cc08b7b3ab79fd8be539a6b13ea1b6069c99c033ff953cb1286521831cc60"
+content-hash = "8aa8aedbc15d7685af031b9b4313b0c42a8eb7201282cb1756ca4d1a85bfe457"

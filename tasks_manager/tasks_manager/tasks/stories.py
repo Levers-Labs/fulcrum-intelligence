@@ -8,14 +8,17 @@ from prefect.futures import PrefectFutureList
 
 from commons.models.enums import Granularity
 from commons.utilities.context import reset_context, set_tenant_id
+from levers import Levers
+from query_manager.core.schemas import MetricDetail
 from story_manager.core.crud import CRUDStory
 from story_manager.core.enums import StoryGroup
 from story_manager.core.models import Story
 from story_manager.db.config import get_async_session
 from story_manager.story_builder.manager import StoryManager
+from story_manager.story_evaluator.manager import StoryEvaluatorManager
 from tasks_manager.config import AppConfig
 from tasks_manager.tasks.common import get_grains
-from tasks_manager.tasks.query import fetch_metrics_for_tenant
+from tasks_manager.tasks.query import fetch_metrics_for_tenant, get_metric
 from tasks_manager.utils import increment_date_by_grain, should_update_grain
 
 
@@ -237,3 +240,103 @@ async def update_demo_tenant_stories(tenant_id: int, current_date: date) -> dict
     )
 
     return {"tenant_id": tenant_id, "stories_updated": stories_updated, "updates_by_grain": updates_by_grain}
+
+
+@task(
+    retries=2,
+    retry_delay_seconds=30,
+    tags=["story-generation", "db-operation"],
+    task_run_name="process_pattern_stories:{pattern}_metric:{metric_id}_tenant:{tenant_id}_grain:{grain}",
+)
+async def process_pattern_stories(
+    pattern: str, tenant_id: int, metric_id: str, grain: Granularity, pattern_run: dict
+) -> list[dict]:
+    """
+    Process pattern results and generate stories.
+
+    Args:
+        pattern: Pattern name
+        tenant_id: Tenant ID
+        metric_id: Metric ID
+        grain: Granularity
+        pattern_run: Pattern run results
+
+    Returns:
+        List of generated stories
+    """
+    logger = get_run_logger()
+    logger.info(
+        "Processing pattern stories for tenant %s, pattern %s, metric %s, grain %s",
+        tenant_id,
+        pattern,
+        metric_id,
+        grain.value,
+    )
+
+    # Setup tenant context
+    set_tenant_id(tenant_id)
+    config = await AppConfig.load("default")
+    os.environ["SERVER_HOST"] = config.story_manager_server_host
+
+    try:
+        # Load pattern data as the appropriate pattern model
+        pattern_run_obj = Levers.load_pattern_model(pattern_run)
+
+        # Get metric details
+        metric: MetricDetail = await get_metric(metric_id)
+
+        # Initialize story evaluator manager
+        manager = StoryEvaluatorManager()
+
+        # Process pattern results and generate stories
+        stories = await manager.evaluate_pattern_result(pattern_run_obj, metric.model_dump())
+        logger.info(
+            "Generated %d stories for pattern %s, metric %s, grain %s",
+            len(stories),
+            pattern,
+            metric_id,
+            grain.value,
+        )
+        async with get_async_session() as session:
+            story_objs = await manager.persist_stories(stories, session)
+            logger.info(
+                "Persisted %d stories for pattern %s, metric %s, grain %s",
+                len(stories),
+                pattern,
+                metric_id,
+                grain.value,
+            )
+            # Return stories as dictionaries for the event payload
+            story_dicts = [story.model_dump(mode="json") for story in story_objs]
+            # Need to keep these keys in the story Artifact
+            artifact_keys = [
+                "id",
+                "genre",
+                "story_group",
+                "story_type",
+                "grain",
+                "metric_id",
+                "title",
+                "detail",
+                "story_date",
+                "is_heuristic",
+                "pattern_run_id",
+            ]
+            # Filter story dicts to keep only the keys we want and heuristic stories
+            story_records = [{key: story[key] for key in artifact_keys} for story in story_dicts]
+            return story_records
+
+    except Exception as e:
+        logger.error(
+            "Error processing pattern stories for tenant %s, pattern %s, metric %s, grain %s: %s",
+            tenant_id,
+            pattern,
+            metric_id,
+            grain.value,
+            str(e),
+            exc_info=True,
+        )
+        raise
+    finally:
+        # Reset tenant context
+        reset_context()

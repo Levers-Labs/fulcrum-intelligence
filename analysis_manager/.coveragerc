@@ -2,6 +2,7 @@
 omit=
     # no need to data files
     */data/*
+    */scripts/*
     analysis_manager/health.py
     analysis_manager/exceptions.py
     analysis_manager/db/config.py

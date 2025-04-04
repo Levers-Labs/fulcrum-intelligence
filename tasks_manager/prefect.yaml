@@ -40,6 +40,25 @@ deployments:
     work_pool: *ecs_work_pool
     schedules: *daily_midnight
 
+  - name: "process-metric-pattern-stories"
+    version: "1.0.0"
+    description: "Create relevant stories for a metric pattern run by analyzing the pattern result"
+    entrypoint: tasks_manager.flows.stories:process_metric_pattern_stories
+    work_pool: *ecs_work_pool
+    triggers:
+      - type: event
+        name: "process-metric-pattern-stories-trigger"
+        description: "Triggered when a pattern run is successful"
+        enabled: true
+        expect:
+          - pattern.run.success
+        parameters:
+          pattern: "{{ event.resource.pattern }}"
+          tenant_id_str: "{{ event.resource.tenant_id }}"
+          metric_id: "{{ event.resource.metric_id }}"
+          grain: "{{ event.resource.grain }}"
+          pattern_run_str: "{{ event.payload }}"
+
   - name: "process-story-alerts"
     version: "1.0.0"
     description: "Process stories and trigger relevant alerts"
@@ -57,6 +76,24 @@ deployments:
           tenant_id: "{{ event.resource.tenant_id }}"
           story_date: "{{ event.resource.story_date }}"
           stories_str: "{{ event.payload.stories }}"
+
+  - name: "pattern-analysis-metric"
+    version: "1.0.0"
+    description: "Run pattern analysis for a specific metric"
+    entrypoint: tasks_manager.flows.pattern_analysis:analyze_metric_patterns
+    work_pool: *ecs_work_pool
+    triggers:
+      - type: event
+        name: "metric-sync-success-trigger"
+        description: "Triggered when metric semantic sync is successful"
+        enabled: true
+        expect:
+          - metric.semantic.sync.success
+          - metric.semantic.sync.partial_success
+        parameters:
+          tenant_id_str: "{{ event.resource.tenant_id }}"
+          metric_id: "{{ event.resource.metric_id }}"
+          grain: "{{ event.resource.grain }}"
 
   - name: "execute-alert"
     version: "1.0.0"

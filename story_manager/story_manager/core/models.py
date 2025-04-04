@@ -1,12 +1,11 @@
 from datetime import datetime
-from typing import Any
 
-from pydantic import model_validator
 from sqlalchemy import (
     Boolean,
     Column,
     DateTime,
     Enum,
+    Integer,
     String,
     Text,
     UniqueConstraint,
@@ -17,12 +16,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from commons.db.models import BaseTimeStampedTenantModel
 from commons.models.enums import Granularity
-from story_manager.core.enums import (
-    GROUP_TO_STORY_TYPE_MAPPING,
-    StoryGenre,
-    StoryGroup,
-    StoryType,
-)
+from story_manager.core.enums import StoryGenre, StoryGroup, StoryType
 
 
 class StorySchemaBaseModel(BaseTimeStampedTenantModel):
@@ -52,25 +46,10 @@ class Story(StorySchemaBaseModel, table=True):  # type: ignore
     is_salient: bool = Field(default=True, sa_column=Column(Boolean, default=True))
     in_cool_off: bool = Field(default=False, sa_column=Column(Boolean, default=False))
     is_heuristic: bool = Field(default=True, sa_column=Column(Boolean, default=True))
-
-    @model_validator(mode="before")
-    @classmethod
-    def check_valid_type_group_combination(cls, data: Any) -> Any:
-        """
-        Check if the story type is valid for the group
-        """
-        group = data.get("story_group")
-        story_type = data.get("story_type")
-
-        group_story_types = GROUP_TO_STORY_TYPE_MAPPING.get(group)
-
-        if group_story_types is None:
-            raise ValueError(f"Invalid group '{group}'")
-
-        if story_type not in group_story_types:
-            raise ValueError(f"Invalid type '{story_type}' for group '{group}'")
-
-        return data
+    # for new stories, we need to set the version to 2
+    version: int = Field(default=1, sa_column=Column(Integer, default=1, server_default="1"))
+    # For version 2, we need to add the pattern_run_id
+    pattern_run_id: int | None = Field(default=None, sa_column=Column(Integer, nullable=True, index=True))
 
     async def set_heuristics(self, session: AsyncSession) -> None:
         """

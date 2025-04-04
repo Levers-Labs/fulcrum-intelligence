@@ -6,11 +6,17 @@ import pandas as pd
 from commons.models.enums import Granularity
 
 GRAIN_META: dict[str, Any] = {
-    Granularity.DAY: {"pop": "d/d", "delta": {"days": 1}, "eoi": "EOD", "interval": "daily"},
-    Granularity.WEEK: {"pop": "w/w", "delta": {"weeks": 1}, "eoi": "EOW", "interval": "weekly"},
-    Granularity.MONTH: {"pop": "m/m", "delta": {"months": 1}, "eoi": "EOM", "interval": "monthly"},
-    Granularity.QUARTER: {"pop": "q/q", "delta": {"months": 3}, "eoi": "EOQ", "interval": "quarterly"},
-    Granularity.YEAR: {"pop": "y/y", "delta": {"years": 1}, "eoi": "EOY", "interval": "yearly"},
+    Granularity.DAY: {"pop": "d/d", "label": "day", "delta": {"days": 1}, "eoi": "EOD", "interval": "daily"},
+    Granularity.WEEK: {"pop": "w/w", "label": "week", "delta": {"weeks": 1}, "eoi": "EOW", "interval": "weekly"},
+    Granularity.MONTH: {"pop": "m/m", "label": "month", "delta": {"months": 1}, "eoi": "EOM", "interval": "monthly"},
+    Granularity.QUARTER: {
+        "pop": "q/q",
+        "label": "quarter",
+        "delta": {"months": 3},
+        "eoi": "EOQ",
+        "interval": "quarterly",
+    },
+    Granularity.YEAR: {"pop": "y/y", "label": "year", "delta": {"years": 1}, "eoi": "EOY", "interval": "yearly"},
 }
 
 

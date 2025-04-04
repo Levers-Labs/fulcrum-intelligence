@@ -28,7 +28,7 @@ RUN pip install --no-cache-dir --upgrade pip "poetry<2.0.0"
 ## Copy the local package dependencies
 COPY ./commons ./commons
 COPY ./core ./core
-
+COPY ./levers ./levers
 ## Copy the poetry files and export the dependencies
 COPY ./analysis_manager/pyproject.toml ./analysis_manager/poetry.lock* ./analysis_manager/
 RUN poetry export -f requirements.txt --output requirements.txt --without-hashes -C analysis_manager
