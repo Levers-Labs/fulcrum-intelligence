@@ -84,6 +84,9 @@ async def get_time_series_data(
     # Convert to DataFrame for easier manipulation
     df = pd.DataFrame([{"date": ts.date, "value": ts.value} for ts in time_series])
 
+    if df.empty:
+        logger.warning("No time series data found for metric %s with grain %s", metric_id, grain)
+        return df
     return df.sort_values("date")
 
 

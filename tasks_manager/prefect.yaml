@@ -89,6 +89,7 @@ deployments:
         enabled: true
         expect:
           - metric.semantic.sync.success
+          - metric.semantic.sync.partial_success
         parameters:
           tenant_id_str: "{{ event.resource.tenant_id }}"
           metric_id: "{{ event.resource.metric_id }}"
