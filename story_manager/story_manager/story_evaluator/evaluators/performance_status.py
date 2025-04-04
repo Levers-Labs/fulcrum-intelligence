@@ -5,11 +5,11 @@ Story evaluator for the performance status pattern.
 import logging
 from typing import Any
 
+from commons.utilities.grain_utils import GRAIN_META
 from levers.models.common import Granularity
 from levers.models.patterns.performance_status import MetricGVAStatus, MetricPerformance
 from story_manager.core.enums import StoryGenre, StoryGroup, StoryType
 from story_manager.story_evaluator import StoryEvaluatorBase, render_story_text
-from story_manager.story_evaluator.constants import GRAIN_MAPPING
 
 logger = logging.getLogger(__name__)
 
@@ -82,7 +82,7 @@ class PerformanceStatusEvaluator(StoryEvaluatorBase[MetricPerformance]):
         Returns:
             Template context dictionary
         """
-        grain_info = GRAIN_MAPPING.get(grain, {"label": "period", "pop": "PoP"})  # type: ignore
+        grain_info = GRAIN_META.get(grain, {"label": "period", "pop": "PoP"})  # type: ignore
 
         # Determine trend direction
         trend_direction = (

@@ -2,18 +2,8 @@
 Tests for the story evaluator constants module.
 """
 
-from commons.models.enums import Granularity
 from story_manager.core.enums import StoryType
-from story_manager.story_evaluator.constants import GRAIN_MAPPING, STORY_TEMPLATES
-
-
-def test_grain_mapping():
-    """Test GRAIN_MAPPING constant."""
-    assert GRAIN_MAPPING[Granularity.DAY] == {"label": "day", "pop": "d/d"}
-    assert GRAIN_MAPPING[Granularity.WEEK] == {"label": "week", "pop": "w/w"}
-    assert GRAIN_MAPPING[Granularity.MONTH] == {"label": "month", "pop": "m/m"}
-    assert GRAIN_MAPPING[Granularity.QUARTER] == {"label": "quarter", "pop": "q/q"}
-    assert GRAIN_MAPPING[Granularity.YEAR] == {"label": "year", "pop": "y/y"}
+from story_manager.story_evaluator.constants import STORY_TEMPLATES
 
 
 def test_story_templates():

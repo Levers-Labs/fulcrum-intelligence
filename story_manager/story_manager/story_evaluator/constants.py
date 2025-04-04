@@ -2,17 +2,7 @@
 Constants for story evaluators including templates for different story types.
 """
 
-from commons.models.enums import Granularity
 from story_manager.core.enums import StoryType
-
-# Grain to period/interval mapping
-GRAIN_MAPPING = {
-    Granularity.DAY: {"label": "day", "pop": "d/d"},
-    Granularity.WEEK: {"label": "week", "pop": "w/w"},
-    Granularity.MONTH: {"label": "month", "pop": "m/m"},
-    Granularity.QUARTER: {"label": "quarter", "pop": "q/q"},
-    Granularity.YEAR: {"label": "year", "pop": "y/y"},
-}
 
 # Templates for each story type
 STORY_TEMPLATES = {
