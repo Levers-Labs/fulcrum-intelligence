@@ -7,6 +7,7 @@ from typing import Any, Generic, TypeVar
 import pandas as pd
 
 from levers.exceptions import LeversError, PatternError, PrimitiveError
+from levers.models import PatternConfig
 from levers.models.common import AnalysisWindow, BasePattern, Granularity
 from levers.models.patterns import MetricPerformance
 from levers.patterns.base import Pattern
@@ -190,16 +191,15 @@ class Levers(Generic[T]):
         return list_primitives_by_family()
 
     def execute_pattern(
-        self, pattern_name: str, metric_id: str, data: pd.DataFrame, analysis_window: AnalysisWindow, **kwargs
+        self, pattern_name: str, analysis_window: AnalysisWindow, config: PatternConfig | None = None, **kwargs
     ) -> Any:
         """
         Execute an analysis pattern.
 
         Args:
             pattern_name: Name of the pattern to execute
-            metric_id: ID of the metric being analyzed
-            data: DataFrame containing the metric data
             analysis_window: AnalysisWindow object specifying the analysis time window
+            config: PatternConfig object specifying the pattern configuration
             **kwargs: Additional pattern-specific parameters
 
         Returns:
@@ -210,8 +210,8 @@ class Levers(Generic[T]):
         """
         try:
             pattern_class = self.get_pattern(pattern_name)
-            pattern = pattern_class()
-            result = pattern.analyze(metric_id=metric_id, data=data, analysis_window=analysis_window, **kwargs)
+            pattern = pattern_class(config=config)
+            result = pattern.analyze(analysis_window=analysis_window, **kwargs)
 
             # Return the model directly
             return result
@@ -257,3 +257,20 @@ class Levers(Generic[T]):
             analysis_window=analysis_window,
             threshold_ratio=threshold_ratio,
         )
+
+    # Pattern configuration methods
+    def get_pattern_default_config(self, pattern_name: str) -> PatternConfig:
+        """
+        Get the default configuration for a pattern.
+
+        Args:
+            pattern_name: Name of the pattern
+
+        Returns:
+            Default pattern configuration
+
+        Raises:
+            PatternError: If pattern not found
+        """
+        pattern_class = self.get_pattern(pattern_name)
+        return pattern_class.get_default_config()

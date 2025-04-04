@@ -11,6 +11,13 @@ from .common import (
     Granularity,
     GrowthTrend,
 )
+from .pattern_config import (
+    AnalysisWindowConfig,
+    DataSource,
+    DataSourceType,
+    PatternConfig,
+    WindowStrategy,
+)
 
 __all__ = [
     "AnalysisWindow",
@@ -18,4 +25,10 @@ __all__ = [
     "BasePattern",
     "Granularity",
     "GrowthTrend",
+    # Pattern configuration models
+    "AnalysisWindowConfig",
+    "DataSource",
+    "DataSourceType",
+    "PatternConfig",
+    "WindowStrategy",
 ]

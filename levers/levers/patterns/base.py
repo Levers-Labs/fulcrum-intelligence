@@ -11,6 +11,13 @@ from levers.exceptions import (
     TimeRangeError,
     ValidationError as LeversValidationError,
 )
+from levers.models import (
+    AnalysisWindowConfig,
+    DataSource,
+    DataSourceType,
+    PatternConfig,
+    WindowStrategy,
+)
 from levers.models.common import AnalysisWindow, BasePattern, Granularity
 
 T = TypeVar("T", bound=BasePattern)
@@ -26,12 +33,54 @@ class Pattern(ABC, Generic[T]):
     required_primitives: list[str] = []
     output_model: type[T]  # Will be defined by subclasses
 
-    def __init__(self) -> None:
-        """Initialize the pattern."""
+    # New attribute for pattern configuration
+    config: PatternConfig | None = None
+
+    def __init__(self, config: PatternConfig | None = None) -> None:
+        """
+        Initialize the pattern.
+
+        Args:
+            config: Optional pattern configuration. If not provided, default config will be used.
+        """
         if not self.name:
             self.name = self.__class__.__name__
         if not self.description and self.__doc__:
             self.description = self.__doc__.strip().split("\n")[0]
+
+        # Use provided config or default config
+        self.config = config or self.get_default_config()
+
+    @classmethod
+    def get_default_config(cls) -> PatternConfig:
+        """
+        Get the default configuration for this pattern.
+        Subclasses should override this method to provide a specific configuration.
+
+        Returns:
+            Default PatternConfig for this pattern
+        """
+        # Generic fallback configuration
+        return PatternConfig(
+            pattern_name=cls.name or cls.__name__,
+            description=cls.description,
+            version=cls.version,
+            data_sources=[DataSource(source_type=DataSourceType.METRIC_TIME_SERIES, is_required=True, data_key="data")],
+            analysis_window=AnalysisWindowConfig(
+                strategy=WindowStrategy.FIXED_TIME, days=180, min_days=30, max_days=365, include_today=False
+            ),
+        )
+
+    def get_data_requirements(self) -> list[str]:
+        """
+        Get the data requirements for this pattern.
+
+        Returns:
+            List of data keys required by the pattern
+        """
+        if self.config:
+            return [ds.data_key for ds in self.config.data_sources if ds.is_required]
+        return []
 
     @abstractmethod
     def analyze(self, metric_id: str, data: pd.DataFrame, analysis_window: AnalysisWindow, **kwargs) -> T:

@@ -9,6 +9,7 @@ import pytest
 
 from levers.api import Levers
 from levers.exceptions import PatternError, PrimitiveError
+from levers.models import PatternConfig
 from levers.models.common import AnalysisWindow, BasePattern, Granularity
 from levers.models.patterns import MetricPerformance
 from levers.patterns.base import Pattern
@@ -304,3 +305,47 @@ class TestLeversAPI:
         assert isinstance(call_args["analysis_window"], AnalysisWindow)
         assert call_args["analysis_window"].start_date == "2023-01-01"
         assert call_args["analysis_window"].end_date == "2023-01-10"
+
+    def test_get_pattern_default_config(self, api, mock_registry):
+        """Test get_pattern_default_config method."""
+        # Act
+        config = api.get_pattern_default_config("performance_status")
+
+        # Assert
+        assert isinstance(config, PatternConfig)
+        assert config.pattern_name == "performance_status"
+
+    def test_get_pattern_default_config_nonexistent_pattern(self, api, mock_registry):
+        """Test get_pattern_default_config method with nonexistent pattern."""
+        # Act & Assert
+        with pytest.raises(PatternError):
+            api.get_pattern_default_config("nonexistent_pattern")
+
+    def test_execute_pattern_with_config(self, api, mock_registry):
+        """Test execute_pattern method with config."""
+        # Arrange
+        config = api.get_pattern_default_config("performance_status")
+        metric_id = "test_metric"
+        data = pd.DataFrame({"date": pd.date_range(start="2023-01-01", end="2023-01-10", freq="D"), "value": range(10)})
+        analysis_window = AnalysisWindow(start_date="2023-01-01", end_date="2023-01-10", grain=Granularity.DAY)
+        # Mock execute_pattern to return a MetricPerformance object
+        mock_result = MagicMock(spec=MetricPerformance)
+        mock_result.pattern_name = "performance_status"
+        api.execute_pattern = MagicMock(return_value=mock_result)
+
+        # Act
+        result = api.execute_pattern(
+            pattern_name="performance_status",
+            metric_id=metric_id,
+            data=data,
+            analysis_window=analysis_window,
+            config=config,
+        )
+
+        # Assert
+        assert result is mock_result
+        api.execute_pattern.assert_called_once()
+        # Check that execute_pattern was called with the right parameters
+        call_args = api.execute_pattern.call_args[1]
+        assert call_args["pattern_name"] == "performance_status"
+        assert call_args["metric_id"] == metric_id

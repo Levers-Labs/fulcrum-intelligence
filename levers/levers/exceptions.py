@@ -85,6 +85,22 @@ class PatternError(LeversError):
         self.pattern_name = pattern_name
 
 
+class InvalidPatternConfigError(PatternError):
+    """Exception raised when pattern config is invalid"""
+
+    def __init__(
+        self,
+        message: str,
+        pattern_name: str,
+        config: Any,
+        details: ErrorDetails | None = None,
+        invalid_fields: InvalidFields | None = None,
+    ):
+        super().__init__(message, pattern_name, details)
+        self.config = config
+        self.invalid_fields = invalid_fields or {}
+
+
 class PrimitiveError(LeversError):
     """Exception raised for primitive-specific errors"""
 
