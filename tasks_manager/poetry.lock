@@ -232,6 +232,24 @@ typing-extensions = ">=4.12"
 tz = ["tzdata"]
 
 [[package]]
+name = "analysis-manager"
+version = "0.1.0"
+description = "Analysis Manager for fulcrum intelligence"
+optional = false
+python-versions = ">=3.10,<3.12"
+files = []
+develop = false
+
+[package.dependencies]
+commons = {path = "../commons", extras = ["db"]}
+fulcrum-core = {path = "../core", develop = true}
+levers = {path = "../levers"}
+
+[package.source]
+type = "directory"
+url = "../analysis_manager"
+
+[[package]]
 name = "annotated-types"
 version = "0.7.0"
 description = "Reusable constraint types to use with typing.Annotated"
@@ -1496,7 +1514,7 @@ description = "Core Engine for fulcrum intelligence"
 optional = false
 python-versions = ">=3.10,<3.12"
 files = []
-develop = false
+develop = true
 
 [package.dependencies]
 anyio = ">=3.5.0,<5.0.0"
@@ -4941,6 +4959,7 @@ develop = false
 [package.dependencies]
 commons = {path = "../commons", extras = ["db"]}
 fulcrum-core = {path = "../core"}
+levers = {path = "../levers"}
 plotly = "^5.24.1"
 
 [package.source]
@@ -5707,4 +5726,4 @@ cffi = ["cffi (>=1.11)"]
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.10,<3.12"
-content-hash = "170432a02d004fb0ffb66b4e13ca1909da94cc390cbe947223a98d7197036d98"
+content-hash = "8aa8aedbc15d7685af031b9b4313b0c42a8eb7201282cb1756ca4d1a85bfe457"

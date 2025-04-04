@@ -122,13 +122,12 @@ class AnalysisWindowConfig(BaseModel):
 
         return start_date
 
-    def get_date_range(self, grain: Granularity, available_dates: list[date] | None = None) -> tuple[date, date]:
+    def get_date_range(self, grain: Granularity) -> tuple[date, date]:
         """
         Get the date range for analysis based on the configured strategy.
 
         Args:
             grain: The data granularity (day, week, month, quarter, year)
-            available_dates: Optional list of available dates for FIXED_DATAPOINTS strategy
 
         Returns:
             Tuple of (start_date, end_date)

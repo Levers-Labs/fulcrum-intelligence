@@ -2,44 +2,45 @@ import os
 from datetime import date, datetime
 from typing import Any
 
-import pandas as pd
 from prefect import get_run_logger, task
 from prefect.artifacts import create_markdown_artifact
 from prefect.events import emit_event
 
+from analysis_manager.db.config import get_async_session as analysis_manager_session
 from analysis_manager.patterns.manager import PatternManager
 from commons.models.enums import Granularity
 from commons.utilities.context import get_tenant_id
-from levers.api import Levers
+from levers import Levers
 from levers.models.common import AnalysisWindow
-from query_manager.db.config import get_async_session
+from levers.models.pattern_config import PatternConfig
+from query_manager.core.schemas import MetricDetail
+from query_manager.db.config import get_async_session as query_manager_session
 from query_manager.semantic_manager.crud import SemanticManager
 from tasks_manager.config import AppConfig
+from tasks_manager.services.pattern_data_organiser import DataDict, PatternDataOrganiser
 
 
 @task(
     name="fetch_metric_time_series",
     retries=2,
     retry_delay_seconds=15,
+    timeout_seconds=300,  # 5 minutes
     task_run_name="fetch-metric-time-series-{metric_id}-{grain}",
 )
-async def fetch_metric_time_series(
-    metric_id: str, grain: Granularity, start_date: date | None = None, end_date: date | None = None
-) -> pd.DataFrame:
+async def fetch_pattern_data(
+    pattern_config: PatternConfig, metric_id: str, grain: Granularity, metric_definition: MetricDetail
+) -> DataDict:
     """
-    Fetch metric time series data for analysis.
+    Fetch pattern data for analysis.
 
     Args:
+        pattern_config: Pattern configuration
         metric_id: Metric ID
         grain: Data granularity
-        start_date: Start date for data retrieval (optional)
-        end_date: End date for data retrieval (optional)
+        metric_definition: Metric definition
 
     Returns:
-        DataFrame with metric time series data that includes:
-            - date
-            - value
-            - target
+        DataDict with data for the pattern for all the pattern data sources
     """
     logger = get_run_logger()
 
@@ -48,83 +49,79 @@ async def fetch_metric_time_series(
         config = await AppConfig.load("default")
         os.environ["SERVER_HOST"] = config.query_manager_server_host
 
-        async with get_async_session() as session:
+        async with query_manager_session() as session:
             semantic_manager = SemanticManager(session)
-
-            # Fetch metric data directly from semantic manager
-            data = await semantic_manager.get_metric_time_series_with_targets(
+            # create a pattern data organiser
+            data_organiser = PatternDataOrganiser(semantic_manager=semantic_manager)
+            # fetch data for the pattern
+            data = await data_organiser.fetch_data_for_pattern(
+                config=pattern_config,
                 metric_id=metric_id,
-                grain=grain,
-                start_date=start_date,
-                end_date=end_date,
+                grain=grain,  # type: ignore
+                metric_definition=metric_definition,
             )
-
-            # Convert to pandas DataFrame
-            df = pd.DataFrame(data)
-
-            logger.info("retrieved %s rows of data: %s", len(df), df.head())
-            return df
+            logger.info("retrieved data for pattern %s", pattern_config.pattern_name)
+            return data
     except Exception as e:
         logger.error("Error fetching metric data for metric %s, grain %s: %s", metric_id, grain, str(e))
         raise e
 
 
-@task(
-    name="prepare_pattern_data",
-    retries=1,
-    retry_delay_seconds=15,
-    task_run_name="prepare-pattern-data-{pattern}-{metric_id}-{grain}",
-)
-async def prepare_pattern_data(pattern: str, data: pd.DataFrame, metric_id: str, grain: Granularity) -> pd.DataFrame:
+def create_analysis_window(pattern_config: PatternConfig, grain: Granularity) -> AnalysisWindow:
     """
-    Prepare data specifically for a pattern's requirements.
+    Create an analysis window based on pattern config and grain.
 
     Args:
-        pattern: name of the pattern to run
-        data: Raw DataFrame with metric data
-        metric_id: Metric ID
-        grain: Data granularity
-
-    Returns:
-        Prepared DataFrame for the specific pattern
-    """
-    logger = get_run_logger()
-    logger.info("Preparing data for pattern %s", pattern)
-
-    # Add custom data preparation for the pattern
-    logger.info("Data prepared for pattern %s", pattern)
-    return data
-
-
-def create_analysis_window(data: pd.DataFrame, grain: Granularity) -> AnalysisWindow:
-    """
-    Create an analysis window based on the data.
-
-    Args:
-        data: DataFrame with metric data
+        pattern_config: Pattern configuration
         grain: Data granularity
 
     Returns:
         AnalysisWindow object
     """
-    # Use data range from DataFrame
-    date_column = "date"
-    if date_column in data.columns:
-        start_date = data[date_column].min().isoformat()
-        end_date = data[date_column].max().isoformat()
-    else:
-        raise ValueError("No date column found in the data")
+    # Get the date range for the analysis window
+    start_date, end_date = pattern_config.analysis_window.get_date_range(grain=grain)  # type: ignore
 
-    return AnalysisWindow(start_date=start_date, end_date=end_date, grain=grain)  # type: ignore
+    return AnalysisWindow(start_date=start_date.isoformat(), end_date=end_date.isoformat(), grain=grain)  # type: ignore
+
+
+@task(
+    name="get_pattern_config",
+    retries=1,
+    retry_delay_seconds=15,
+    timeout_seconds=120,  # 2 minutes
+    task_run_name="get-pattern-config-{pattern}",
+)
+async def get_pattern_config(pattern: str) -> PatternConfig:
+    """
+    Get the pattern configuration for a pattern.
+    """
+    logger = get_run_logger()
+
+    try:
+        # Set the server host for the query manager
+        config = await AppConfig.load("default")
+        os.environ["SERVER_HOST"] = config.analysis_manager_server_host
+
+        # Get the saved pattern configuration or the default one
+        async with analysis_manager_session() as session:
+            pattern_manager = PatternManager(session)
+            pattern_config = await pattern_manager.get_pattern_config(pattern)
+            return pattern_config
+    except Exception as e:
+        logger.warning("Error getting pattern config: %s. Using default config.", str(e))
+        raise
 
 
 @task(
     name="run_pattern",
     retries=1,
     retry_delay_seconds=30,
+    timeout_seconds=600,  # 10 minutes
     task_run_name="run-pattern-{pattern}-{metric_id}-{grain}",
 )
-async def run_pattern(pattern: str, metric_id: str, grain: Granularity, data: pd.DataFrame) -> dict[str, Any]:
+async def run_pattern(
+    pattern: str, metric_id: str, grain: Granularity, metric_definition: MetricDetail
+) -> dict[str, Any]:
     """
     Run a pattern on metric data.
 
@@ -132,7 +129,7 @@ async def run_pattern(pattern: str, metric_id: str, grain: Granularity, data: pd
         pattern: name of the pattern to run
         metric_id: Metric ID
         grain: Data granularity
-        data: DataFrame with metric data
+        metric_definition: Metric definition
 
     Returns:
         Dictionary containing pattern analysis result or error information
@@ -161,16 +158,52 @@ async def run_pattern(pattern: str, metric_id: str, grain: Granularity, data: pd
     )
 
     try:
-        # Check if pattern requires special data preparation
-        data = await prepare_pattern_data(pattern, data=data, metric_id=metric_id, grain=grain)  # type: ignore
+        # Get the pattern config
+        pattern_config = await get_pattern_config(pattern)  # type: ignore
+
+        # Fetch pattern data
+        data = await fetch_pattern_data(
+            pattern_config=pattern_config, metric_id=metric_id, grain=grain, metric_definition=metric_definition
+        )
+        logger.info("Fetched data for pattern %s", pattern)
+
+        # Check if data is available for all data sources
+        # If not, emit a skip event
+        for key, df in data.items():
+            if df.empty:
+                logger.warning("Empty dataset for %s in pattern %s", key, pattern)
+                # Emit the skip event
+                emit_event(
+                    event="metric.pattern.analysis.skipped",
+                    resource={
+                        "prefect.resource.id": f"metric.{metric_id}",
+                        "metric_id": metric_id,
+                        "grain": grain,
+                        "pattern": pattern,
+                    },
+                    payload={
+                        "status": "skipped",
+                        "reason": "no_data",
+                        "data_source": key,
+                        "pattern": pattern,
+                        "grain": grain,
+                        "metric_id": metric_id,
+                        "tenant_id": tenant_id,
+                    },
+                )
 
         # Create an analysis window based on data
-        analysis_window = create_analysis_window(data=data, grain=grain)
+        analysis_window = create_analysis_window(pattern_config=pattern_config, grain=grain)
+
+        # prepare the data arguments for the pattern run
+        data_args: dict[str, Any] = {"metric_id": metric_id}
+        for key, _key_data in data.items():
+            data_args[key] = _key_data
 
         logger.info("Running pattern %s for metric %s", pattern, metric_id)
         # Run pattern analysis
         result = levers.execute_pattern(
-            pattern_name=pattern, metric_id=metric_id, data=data, analysis_window=analysis_window
+            pattern_name=pattern, analysis_window=analysis_window, config=pattern_config, **data_args
         )
         logger.info("Successfully ran pattern %s for metric %s", pattern, metric_id)
 
@@ -194,7 +227,6 @@ async def run_pattern(pattern: str, metric_id: str, grain: Granularity, data: pd
         # Check if there's an error object in the stored result
         success = False if stored_result.get("error") else True
         return {"success": success, **stored_result}
-
     except Exception as e:
         logger.error("Error running pattern %s for metric %s: %s", pattern, metric_id, str(e))
 
@@ -243,9 +275,9 @@ async def store_pattern_result(result: Any) -> dict[str, Any]:
 
     # Set the server host for the query manager
     config = await AppConfig.load("default")
-    os.environ["SERVER_HOST"] = config.query_manager_server_host
+    os.environ["SERVER_HOST"] = config.analysis_manager_server_host
 
-    async with get_async_session() as session:
+    async with analysis_manager_session() as session:
         pattern_manager = PatternManager(session)
 
         # Store result using an analysis manager client

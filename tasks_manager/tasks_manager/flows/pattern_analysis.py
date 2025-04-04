@@ -7,7 +7,9 @@ from prefect.events import emit_event
 
 from commons.models.enums import Granularity
 from commons.utilities.context import reset_context, set_tenant_id
-from tasks_manager.tasks.pattern_analysis import create_pattern_artifact, fetch_metric_time_series, run_pattern
+from levers import Levers
+from tasks_manager.tasks.pattern_analysis import create_pattern_artifact, run_pattern
+from tasks_manager.tasks.query import get_metric
 
 
 @flow(
@@ -16,6 +18,7 @@ from tasks_manager.tasks.pattern_analysis import create_pattern_artifact, fetch_
     description="Run pattern analysis for a specific metric",
     retries=2,
     retry_delay_seconds=15,
+    timeout_seconds=3600,  # 1 hour
 )
 async def analyze_metric_patterns(tenant_id_str: str, metric_id: str, grain: str):
     """
@@ -37,24 +40,25 @@ async def analyze_metric_patterns(tenant_id_str: str, metric_id: str, grain: str
     set_tenant_id(tenant_id)
 
     try:
-        # TODO: Uncomment this when we have generic analyser to figure out what data patterns need to be ran
         # Get all patterns to run using Levers API
-        # levers = Levers()
+        levers: Levers = Levers()
 
-        # available_patterns = levers_api.list_patterns()
-        # logger.info("Found %s available patterns: %s", len(available_patterns), available_patterns)
+        available_patterns = levers.list_patterns()
+        logger.info("Found %s available patterns: %s", len(available_patterns), available_patterns)
 
-        # if not available_patterns:
-        #     logger.warning("No patterns available for analysis")
-        #     return {
-        #         "status": "skipped",
-        #         "reason": "no_patterns",
-        #         "tenant_id": tenant_id,
-        #         "metric_id": metric_id,
-        #         "grain": grain,
-        #     }
-
-        available_patterns = ["performance_status"]
+        if not available_patterns:
+            logger.warning("No patterns available for analysis")
+            # Emit the skip event
+            emit_event(
+                event="metric.pattern.analysis.skipped",
+                resource={
+                    "prefect.resource.id": f"metric.{metric_id}",
+                    "metric_id": metric_id,
+                    "tenant_id": tenant_id_str,
+                    "grain": grain,
+                },
+                payload={"status": "skipped", "reason": "no_patterns"},
+            )
 
         # Emit the start event
         emit_event(
@@ -67,26 +71,16 @@ async def analyze_metric_patterns(tenant_id_str: str, metric_id: str, grain: str
             },
             payload={"patterns": available_patterns},
         )
-        # metric data
-        df = await fetch_metric_time_series(metric_id=metric_id, grain=grain)
 
-        if df.empty:
-            logger.warning("No data available for metric %s", metric_id)
-            # Emit the skip event
-            emit_event(
-                event="metric.pattern.analysis.skipped",
-                resource={
-                    "prefect.resource.id": f"metric.{metric_id}",
-                    "metric_id": metric_id,
-                    "tenant_id": tenant_id_str,
-                    "grain": grain,
-                },
-                payload={"status": "skipped", "reason": "no_data"},
-            )
+        # Get the metric definition
+        metric_definition = await get_metric(metric_id=metric_id)
 
         # Run analysis for each pattern in parallel
         pattern_futures = run_pattern.map(
-            pattern=available_patterns, metric_id=metric_id, data=unmapped(df), grain=grain
+            pattern=available_patterns,
+            metric_id=metric_id,
+            grain=grain,
+            metric_definition=unmapped(metric_definition),
         )
 
         # Wait for all pattern analyses to complete
