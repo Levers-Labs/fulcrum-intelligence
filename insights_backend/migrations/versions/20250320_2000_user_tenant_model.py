@@ -61,7 +61,7 @@ def downgrade() -> None:
     op.create_index("ix_insights_store_user_tenant_id", "user", ["tenant_id"], unique=False, schema="insights_store")
     op.execute(
         "CREATE POLICY tenant_isolation_insights_store_user ON insights_store.user USING "
-        "(tenant_id = current_setting('app.current_tenant')::int);"
+        "(tenant_id = (SELECT current_setting('app.current_tenant')::int));"
     )
     op.drop_index(op.f("ix_insights_store_usertenant_tenant_id"), table_name="usertenant", schema="insights_store")
     op.drop_table("usertenant", schema="insights_store")

@@ -92,12 +92,12 @@ def upgrade() -> None:
     op.execute("ALTER TABLE analysis_store.correlate ENABLE ROW LEVEL SECURITY;")
     op.execute(
         "CREATE POLICY tenant_isolation_analysis_store_correlate ON analysis_store.correlate "
-        "USING (tenant_id = current_setting('app.current_tenant')::int);"
+        "USING (tenant_id = (SELECT current_setting('app.current_tenant')::int));"
     )
     op.execute("ALTER TABLE analysis_store.describe ENABLE ROW LEVEL SECURITY;")
     op.execute(
         "CREATE POLICY tenant_isolation_analysis_store_describe ON analysis_store.describe "
-        "USING (tenant_id = current_setting('app.current_tenant')::int);"
+        "USING (tenant_id = (SELECT current_setting('app.current_tenant')::int));"
     )
     # ### end Alembic commands ###
 
