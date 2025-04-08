@@ -6,7 +6,7 @@ authors = ["leverslabs"]
 
 [tool.poetry.dependencies]
 python = ">=3.10,<3.12"
-fulcrum-core = { path = "../core", develop = true }
+fulcrum-core = { path = "../core" }
 commons = { path = "../commons", extras = ["db"]}
 levers = { path = "../levers"}
 

@@ -1312,7 +1312,7 @@ description = "Core Engine for fulcrum intelligence"
 optional = false
 python-versions = ">=3.10,<3.12"
 files = []
-develop = true
+develop = false
 
 [package.dependencies]
 anyio = ">=3.5.0,<5.0.0"
@@ -4459,4 +4459,4 @@ cffi = ["cffi (>=1.11)"]
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.10,<3.12"
-content-hash = "c45aa7a940f92d607e6e4f9844aa88390701fba81b85157bf645d645fe66ed2c"
+content-hash = "aa175b07c2e61a570ce9f150ad98a0bfdc167941a88a2e689ea475ab62b8c1aa"
