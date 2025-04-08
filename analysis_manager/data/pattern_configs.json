@@ -1,0 +1,25 @@
+[
+    {
+        "pattern_name": "performance_status",
+        "version": "1.0",
+        "description": "Analyzes a metric's performance status against its target",
+        "data_sources": [
+            {
+                "source_type": "metric_with_targets",
+                "is_required": true,
+                "data_key": "data"
+            }
+        ],
+        "analysis_window": {
+            "strategy": "fixed_time",
+            "days": 180,
+            "min_days": 30,
+            "max_days": 365,
+            "include_today": false
+        },
+        "settings": {
+            "threshold_ratio": 0.05
+        },
+        "meta": {}
+    }
+]

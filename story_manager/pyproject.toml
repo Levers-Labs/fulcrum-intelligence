@@ -9,6 +9,7 @@ license = "Proprietary"
 python = ">=3.10,<3.12"
 commons = { path = "../commons", extras = ["db"] }
 fulcrum-core = { path = "../core" }
+levers = { path = "../levers" }
 plotly = "^5.24.1"
 
 [build-system]

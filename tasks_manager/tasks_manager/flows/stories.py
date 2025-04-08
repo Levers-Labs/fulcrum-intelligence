@@ -1,12 +1,15 @@
+import ast
 from datetime import date
 
 from prefect import flow, get_run_logger, unmapped
 from prefect.artifacts import create_table_artifact
+from prefect.events import emit_event
 from prefect.futures import PrefectFutureList
 
+from commons.models.enums import Granularity
 from story_manager.core.enums import StoryGroup
 from tasks_manager.tasks.common import fetch_tenants, get_tenant_by_identifier
-from tasks_manager.tasks.stories import generate_stories_for_tenant, update_demo_tenant_stories
+from tasks_manager.tasks.stories import generate_stories_for_tenant, process_pattern_stories, update_demo_tenant_stories
 
 
 @flow(  # type: ignore
@@ -84,4 +87,131 @@ async def update_demo_stories(tenant_identifier: str):
 
     except Exception as e:
         logger.error(f"Error updating story dates for tenant {tenant_id_int}: {e}")
+        raise
+
+
+@flow(
+    name="process-metric-pattern-stories",
+    flow_run_name="process-metric-pattern-stories:tenant={tenant_id_str}_pattern={pattern}_metric={metric_id}_grain={grain}",  # noqa
+    description="Process stories based on pattern run output",
+    retries=2,
+    retry_delay_seconds=15,
+)
+async def process_metric_pattern_stories(
+    pattern: str, tenant_id_str: str, metric_id: str, grain: str, pattern_run_str: str
+):
+    """
+    Process stories based on pattern run output.
+    This flow is triggered by the pattern.run.success event.
+
+    Args:
+        pattern: Pattern name
+        tenant_id_str: Tenant ID as string
+        metric_id: Metric ID
+        grain: Granularity (day, week, month)
+        pattern_run_str: JSON string containing pattern run results
+    """
+    logger = get_run_logger()
+    tenant_id = int(tenant_id_str)
+    grain_enum = Granularity(grain)
+    pattern_run = ast.literal_eval(pattern_run_str)
+
+    logger.info(
+        "Starting story generation for tenant %s, pattern %s, metric %s, grain %s",
+        tenant_id,
+        pattern,
+        metric_id,
+        grain,
+    )
+
+    # Emit start event
+    emit_event(
+        event="metric.story.generation.started",
+        resource={
+            "prefect.resource.id": f"metric.{metric_id}",
+            "metric_id": metric_id,
+            "tenant_id": tenant_id_str,
+            "grain": grain,
+            "pattern": pattern,
+        },
+        payload={
+            "timestamp": date.today().isoformat(),
+            "pattern_run": pattern_run,
+        },
+    )
+
+    try:
+        # Process pattern results and generate stories
+        stories = await process_pattern_stories(
+            pattern=pattern,
+            tenant_id=tenant_id,
+            metric_id=metric_id,
+            grain=grain_enum,
+            pattern_run=pattern_run,
+        )
+
+        # Create table artifact with stories
+        if stories:
+            key = f"{metric_id.lower()}-{grain.lower()}-{pattern.lower()}-stories"
+            # replace underscore, space with dashes
+            key = key.replace("_", "-")
+            key = key.replace(" ", "-")
+            await create_table_artifact(key=key, table=stories)  # type: ignore
+
+        # Emit success event
+        emit_event(
+            event="metric.story.generation.success",
+            resource={
+                "prefect.resource.id": f"metric.{metric_id}",
+                "metric_id": metric_id,
+                "tenant_id": tenant_id_str,
+                "grain": grain,
+                "pattern": pattern,
+            },
+            payload={
+                "timestamp": date.today().isoformat(),
+                "count": len(stories),
+                "results": stories,
+            },
+        )
+
+        logger.info(
+            "Successfully processed stories for tenant %s, pattern %s, metric %s, grain %s. Generated %d stories.",
+            tenant_id,
+            pattern,
+            metric_id,
+            grain,
+            len(stories),
+        )
+
+        return stories
+    except Exception as e:
+        logger.error(
+            "Failed to process stories for tenant %s, pattern %s, metric %s, grain %s: %s",
+            tenant_id,
+            pattern,
+            metric_id,
+            grain,
+            str(e),
+            exc_info=True,
+        )
+
+        # Emit failure event
+        emit_event(
+            event="metric.story.generation.failed",
+            resource={
+                "prefect.resource.id": f"metric.{metric_id}",
+                "metric_id": metric_id,
+                "tenant_id": tenant_id_str,
+                "grain": grain,
+                "pattern": pattern,
+            },
+            payload={
+                "timestamp": date.today().isoformat(),
+                "error": {
+                    "message": str(e),
+                    "type": type(e).__name__,
+                },
+            },
+        )
         raise

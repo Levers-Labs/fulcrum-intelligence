@@ -32,6 +32,7 @@ types-aiofiles = "^23.2.0.20240311"
 types-requests = "^2.32.0.20240712"
 types-python-dateutil = "^2.9.0.20240316"
 types-pyyaml = "^6.0.12.20241230"
+pandas-stubs = "^2.2.3.250308"
 
 [build-system]
 requires = ["poetry-core>=1.0.0,<2.0.0"]
@@ -45,7 +46,7 @@ combine_as_imports = true
 use_parentheses = true
 force_grid_wrap = 4
 include_trailing_comma = true
-known_first_party = "app,commons,fulcrum_core,analysis_manager,query_manager,story_manager,insights_backend,tasks_manager"
+known_first_party = "app,levers,commons,fulcrum_core,analysis_manager,query_manager,story_manager,insights_backend,tasks_manager"
 skip_glob = ["core/fulcrum_core/modules/__init__.py", "commons/commons/db/signals/__init__.py"]
 
 [tool.black]
@@ -75,6 +76,7 @@ exclude = [
     "core/tests/",
     "commons/tests/",
     "insights_backend/tests/",
+    "levers/tests/",
     # Migrations
     "analysis_manager/migrations/",
     "story_manager/migrations/",
