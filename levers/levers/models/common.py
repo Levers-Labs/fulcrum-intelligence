@@ -62,6 +62,7 @@ class BasePattern(BaseModel):
     version: str = "1.0.0"
     metric_id: str
     analysis_window: AnalysisWindow
+    num_periods: int
     analysis_date: date = Field(default_factory=date.today)
     evaluation_time: datetime = Field(default_factory=datetime.now)
     # Error information if pattern analysis fails

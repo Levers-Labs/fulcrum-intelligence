@@ -115,6 +115,7 @@ class PerformanceStatusPattern(Pattern[MetricPerformance]):
                 "pattern": self.name,
                 "version": self.version,
                 "analysis_window": analysis_window,
+                "num_periods": len(df),
                 "metric_id": metric_id,
                 "evaluation_time": datetime.now(),
                 "current_value": current_value,

@@ -25,7 +25,26 @@ from .performance import (
     track_status_durations,
 )
 
-# And so on for other primitive families...
+# Time Series primitives
+from .time_series import (
+    calculate_average_growth,
+    calculate_cumulative_growth,
+    calculate_pop_growth,
+    calculate_rolling_averages,
+    calculate_slope_of_time_series,
+    calculate_to_date_growth_rates,
+    convert_grain_to_freq,
+)
+
+# Trend Analysis primitives
+from .trend_analysis import (
+    analyze_metric_trend,
+    detect_performance_plateau,
+    detect_record_high,
+    detect_record_low,
+    detect_trend_exceptions,
+    process_control_analysis,
+)
 
 # Create a dictionary of primitives organized by family
 _primitive_families = {
@@ -47,7 +66,23 @@ _primitive_families = {
         classify_growth_trend,
         calculate_moving_target,
     ],
-    # Add other families here
+    "time_series": [
+        calculate_average_growth,
+        calculate_cumulative_growth,
+        calculate_pop_growth,
+        calculate_rolling_averages,
+        calculate_to_date_growth_rates,
+        convert_grain_to_freq,
+        calculate_slope_of_time_series,
+    ],
+    "trend_analysis": [
+        analyze_metric_trend,
+        detect_performance_plateau,
+        detect_record_high,
+        detect_record_low,
+        detect_trend_exceptions,
+        process_control_analysis,
+    ],
 }
 
 
@@ -118,6 +153,21 @@ __all__ = [
     "calculate_required_growth",
     "classify_growth_trend",
     "calculate_moving_target",
+    # Time Series primitives
+    "calculate_average_growth",
+    "calculate_cumulative_growth",
+    "calculate_pop_growth",
+    "calculate_rolling_averages",
+    "calculate_to_date_growth_rates",
+    "convert_grain_to_freq",
+    "calculate_slope_of_time_series",
+    # Trend Analysis primitives
+    "analyze_metric_trend",
+    "detect_performance_plateau",
+    "detect_record_high",
+    "detect_record_low",
+    "detect_trend_exceptions",
+    "process_control_analysis",
     # Utility functions
     "list_primitives_by_family",
     "get_primitive_metadata",

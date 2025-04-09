@@ -18,6 +18,12 @@ from .pattern_config import (
     PatternConfig,
     WindowStrategy,
 )
+from .time_series import (
+    AverageGrowthMethod,
+    CumulativeGrowthMethod,
+    DataFillMethod,
+    PartialInterval,
+)
 
 __all__ = [
     "AnalysisWindow",
@@ -25,6 +31,10 @@ __all__ = [
     "BasePattern",
     "Granularity",
     "GrowthTrend",
+    "DataFillMethod",
+    "AverageGrowthMethod",
+    "PartialInterval",
+    "CumulativeGrowthMethod",
     # Pattern configuration models
     "AnalysisWindowConfig",
     "DataSource",
