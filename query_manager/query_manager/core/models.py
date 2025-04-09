@@ -21,7 +21,7 @@ from sqlmodel import Field, Relationship, SQLModel
 from commons.db.models import BaseSQLModel, BaseTimeStampedTenantModel
 from commons.models import BaseModel
 from commons.models.enums import Granularity
-from query_manager.core.enums import Complexity, SemanticMemberType
+from query_manager.core.enums import Complexity, MetricAim, SemanticMemberType
 
 
 # Expression models
@@ -167,6 +167,7 @@ class MetricBase(BaseSQLModel):
     owned_by_team: list[str] = Field(sa_column=Column(ARRAY(String), nullable=True, default=list))
     meta_data: MetricMetadata = Field(sa_type=JSONB, default_factory=dict)
     hypothetical_max: float | None = Field(sa_column=Column(Float, nullable=True), default=None)
+    aim: MetricAim | None = Field(sa_column=Column(String(255), nullable=True), default=None)
 
 
 class Metric(MetricBase, QuerySchemaBaseModel, table=True):  # type: ignore

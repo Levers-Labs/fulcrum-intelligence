@@ -23,14 +23,13 @@ from commons.utilities.pagination import Page, PaginationParams
 from query_manager.core.dependencies import oauth2_auth
 from query_manager.semantic_manager.dependencies import SemanticManagerDep
 from query_manager.semantic_manager.filters import TargetFilter
-from query_manager.semantic_manager.models import MetricTarget
 from query_manager.semantic_manager.schemas import (
     MetricDimensionalTimeSeriesResponse,
+    MetricTargetOverview,
     MetricTimeSeriesResponse,
     TargetBulkUpsertRequest,
     TargetBulkUpsertResponse,
     TargetResponse,
-    TargetUpdate,
 )
 
 router = APIRouter(prefix="/semantic")
@@ -139,6 +138,28 @@ async def get_metric_dimensional_time_series(
 
 
 # Target Management Routes
+
+
+@router.get(
+    "/metrics/targets/overview",
+    response_model=Page[MetricTargetOverview],
+    summary="List all metrics with their target status",
+    dependencies=[Security(oauth2_auth().verify, scopes=[QUERY_MANAGER_ALL])],
+    tags=["targets"],
+)
+async def get_targets_overview(
+    params: Annotated[PaginationParams, Depends(PaginationParams)],
+    semantic_manager: SemanticManagerDep,
+) -> Page[MetricTargetOverview]:
+    """
+    Get targets for metrics with optional filtering.
+
+    - **metric_id**: Optional metric ID to filter by
+    """
+    results, count = await semantic_manager.metric_target.get_metrics_targets_list()
+    return Page.create(items=results, total_count=count, params=params)
+
+
 @router.get(
     "/metrics/targets",
     response_model=Page[TargetResponse],
@@ -152,8 +173,8 @@ async def get_targets(
     metric_ids: Annotated[list[str] | None, Query(description="List of metric IDs")] = None,
     grain: Granularity | None = None,
     target_date: date | None = None,
-    target_date_ge: date | None = None,
-    target_date_le: date | None = None,
+    start_date: date | None = None,
+    end_date: date | None = None,
 ) -> Page[TargetResponse]:
     """
     Get targets for metrics with optional filtering.
@@ -167,8 +188,8 @@ async def get_targets(
         metric_ids=metric_ids,
         grain=grain,
         target_date=target_date,
-        target_date_ge=target_date_ge,
-        target_date_le=target_date_le,
+        target_date_ge=start_date,
+        target_date_le=end_date,
     )
     results, count = await semantic_manager.metric_target.paginate(
         filter_params=targets_filter.model_dump(exclude_unset=True), params=params
@@ -219,28 +240,6 @@ async def bulk_upsert_targets(
     result = await semantic_manager.metric_target.bulk_upsert_targets(targets_data)
 
     return TargetBulkUpsertResponse(total=result["total"], processed=result["processed"], failed=result["failed"])
-
-
-@router.put(
-    "/metrics/targets/{target_id}",
-    response_model=TargetResponse,
-    summary="Update a target",
-    dependencies=[Security(oauth2_auth().verify, scopes=[QUERY_MANAGER_ALL])],
-    tags=["targets"],
-)
-async def update_target(
-    target_id: int,
-    update_data: TargetUpdate,
-    semantic_manager: SemanticManagerDep,
-) -> MetricTarget:
-    """
-    Update an existing target.
-
-    - **target_id**: ID of the target
-    - **update_data**: Target data to update
-    """
-    target = await semantic_manager.metric_target.get(target_id)
-    return await semantic_manager.metric_target.update(obj=target, obj_in=update_data)
 
 
 @router.delete(

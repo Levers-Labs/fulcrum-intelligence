@@ -231,4 +231,5 @@ def metric(dimension):
             },
         },
         "hypothetical_max": 100,
+        "aim": "Maximize",
     }

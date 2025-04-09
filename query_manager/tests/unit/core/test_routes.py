@@ -7,7 +7,6 @@ from sqlalchemy.exc import IntegrityError
 from commons.clients.base import HttpClientError
 from commons.db.crud import NotFoundError
 from commons.llm.exceptions import LLMError
-from query_manager.core.enums import TargetAim
 from query_manager.core.models import Metric
 from query_manager.core.schemas import (
     DimensionCompact,
@@ -165,7 +164,6 @@ async def test_get_metric_targets(mocker, async_client: AsyncClient):
         {
             "metric_id": "test_metric",
             "grain": "week",
-            "aim": TargetAim.MAXIMIZE.value,
             "target_value": 123.0,
             "target_date": "2022-01-01",
             "target_lower_bound": None,

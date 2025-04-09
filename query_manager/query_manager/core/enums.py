@@ -6,7 +6,7 @@ class OutputFormat(str, Enum):
     PARQUET = "PARQUET"
 
 
-class TargetAim(str, Enum):
+class MetricAim(str, Enum):
     MAXIMIZE = "Maximize"
     MINIMIZE = "Minimize"
     BALANCE = "Balance"
