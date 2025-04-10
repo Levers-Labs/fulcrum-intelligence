@@ -1,6 +1,6 @@
-"""Models for patterns."""
+"""Pattern models package."""
 
-from .base import BasePatternResult
-from .performance_status import PerformanceStatus
+from .pattern_result import AnalysisSchemaBaseModel, PatternResult
+from .config import PatternConfig
 
-__all__ = ["BasePatternResult", "PerformanceStatus"]
+__all__ = ["PatternResult", "AnalysisSchemaBaseModel", "PatternConfig"]
