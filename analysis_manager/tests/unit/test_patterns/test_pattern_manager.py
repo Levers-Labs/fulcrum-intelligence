@@ -41,6 +41,7 @@ def performance_status_model():
         percent_gap=0.09,
         analysis_date=date.today(),
         analysis_window=AnalysisWindow(grain=Granularity.DAY, start_date="2023-01-01", end_date="2023-01-31"),
+        num_periods=31,
     )
 
 

@@ -48,6 +48,7 @@ class MockPerformanceStatus(MagicMock):
             hold_steady=getattr(self, "hold_steady", None),
             analysis_date=self.analysis_date,
             analysis_window=self.analysis_window,
+            num_periods=31,
         )
 
     @property
@@ -75,6 +76,7 @@ def performance_status_model():
         pop_change_percent=0.11,
         absolute_gap=10.0,
         percent_gap=0.09,
+        num_periods=31,
     )
 
 
@@ -114,6 +116,7 @@ def performance_status_with_extras():
         hold_steady=HoldSteady(
             is_currently_at_or_above_target=True, time_to_maintain_grains=1, current_margin_percent=0.05
         ),
+        num_periods=31,
     )
 
 
