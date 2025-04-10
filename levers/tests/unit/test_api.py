@@ -46,7 +46,11 @@ class TestLeversAPI:
 
             def analyze(self, metric_id, data, analysis_window, **kwargs):
                 return TestOutputModel(
-                    pattern_name=self.name, version=self.version, metric_id=metric_id, result="test_success"
+                    pattern_name=self.name,
+                    version=self.version,
+                    metric_id=metric_id,
+                    result="test_success",
+                    num_periods=7,
                 )
 
             def get_info(self):
