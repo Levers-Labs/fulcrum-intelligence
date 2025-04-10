@@ -2,9 +2,10 @@
 
 from typing import Any
 
-from sqlmodel import JSON, Column, Field
+from sqlalchemy.dialects.postgresql import JSONB
+from sqlmodel import Field
 
-from analysis_manager.patterns.models.base import AnalysisSchemaBaseModel
+from analysis_manager.patterns.models import AnalysisSchemaBaseModel
 from levers.models import AnalysisWindowConfig, DataSource, PatternConfig as PatternConfigModel
 
 
@@ -16,10 +17,10 @@ class PatternConfig(AnalysisSchemaBaseModel, table=True):  # type: ignore
     pattern_name: str = Field(index=True, unique=True)
     version: str
     description: str | None = None
-    data_sources: list[DataSource] = Field(default_factory=list, sa_column=Column(JSON))
-    analysis_window: AnalysisWindowConfig = Field(sa_column=Column(JSON))
-    settings: dict[str, Any] = Field(default_factory=dict, sa_column=Column(JSON))
-    meta: dict[str, Any] = Field(default_factory=dict, sa_column=Column(JSON))
+    data_sources: list[DataSource] = Field(default_factory=list, sa_type=JSONB)
+    analysis_window: AnalysisWindowConfig = Field(sa_type=JSONB)
+    settings: dict[str, Any] = Field(default_factory=dict, sa_type=JSONB, sa_column_kwargs={"server_default": "{}"})
+    meta: dict[str, Any] = Field(default_factory=dict, sa_type=JSONB, sa_column_kwargs={"server_default": "{}"})
 
     def to_pydantic(self) -> PatternConfigModel:
         """Convert the database model to a Pydantic model."""
