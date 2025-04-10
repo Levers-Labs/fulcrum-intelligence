@@ -20,6 +20,7 @@ class TestOutputModel(BasePattern):
     """Test output model for API testing."""
 
     result: str
+    num_periods: int = 0  # Add default value
 
 
 class TestLeversAPI:

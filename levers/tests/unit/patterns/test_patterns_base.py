@@ -23,6 +23,7 @@ class TestOutputModel(BasePattern):
     """Test output model for pattern testing."""
 
     result: str
+    num_periods: int = 0  # Add default value
 
 
 class TestPattern(Pattern[TestOutputModel]):
@@ -37,7 +38,7 @@ class TestPattern(Pattern[TestOutputModel]):
     def analyze(self, metric_id: str, data: pd.DataFrame, analysis_window: AnalysisWindow, **kwargs) -> TestOutputModel:
         """Test implementation of analyze method."""
         # Validate and preprocess data
-        self.preprocess_data(data, analysis_window)
+        processed_data = self.preprocess_data(data, analysis_window)
 
         # Return a test result
         return TestOutputModel(
@@ -46,6 +47,7 @@ class TestPattern(Pattern[TestOutputModel]):
             metric_id=metric_id,
             analysis_window=analysis_window,
             result="test_success",
+            num_periods=len(processed_data),  # Calculate from data
         )
 
 
@@ -74,6 +76,7 @@ class TestPatternBase:
             "metric_id": "test_metric",
             "analysis_window": AnalysisWindow(start_date="2023-01-01", end_date="2023-01-31", grain=Granularity.DAY),
             "result": "test_success",
+            "num_periods": 31,
         }
 
         # Act
@@ -95,6 +98,7 @@ class TestPatternBase:
             metric_id="test_metric",
             analysis_window=AnalysisWindow(start_date="2023-01-01", end_date="2023-01-31", grain=Granularity.DAY),
             result="test_success",
+            num_periods=31,
         )
 
         # Act
