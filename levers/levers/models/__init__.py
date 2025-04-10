@@ -4,7 +4,6 @@ Models module for the levers package.
 This module contains Pydantic models used throughout the package.
 """
 
-from .common import AnalysisWindow, BaseModel, BasePattern
 from .enums import (
     AnomalyDetectionMethod,
     AverageGrowthMethod,
@@ -20,6 +19,7 @@ from .enums import (
     TrendType,
     WindowStrategy,
 )
+from .common import AnalysisWindow, BaseModel, BasePattern
 from .pattern_config import AnalysisWindowConfig, DataSource, PatternConfig
 from .time_series import AverageGrowth, TimeSeriesSlope, ToDateGrowth
 from .trend_analysis import (
@@ -28,6 +28,7 @@ from .trend_analysis import (
     RecordLow,
     TrendAnalysis,
 )
+
 
 __all__ = [
     # Enums
