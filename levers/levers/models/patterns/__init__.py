@@ -6,21 +6,20 @@ This module directly exposes all pattern output models for easy import.
 
 # Historical performance models
 from .historical_performance import (
-    AnomalyDetectionMethod,
     BenchmarkComparison,
+    GrowthStats,
     HistoricalPerformance,
+    PeriodMetrics,
+    RankSummary,
     Seasonality,
     TrendException,
-    TrendExceptionType,
-    TrendType,
+    TrendInfo,
 )
 
 # Performance status models
 from .performance_status import (
     HoldSteady,
-    MetricGVAStatus,
     MetricPerformance,
-    SmoothingMethod,
     StatusChange,
     Streak,
 )
@@ -29,8 +28,6 @@ from .performance_status import (
 
 __all__ = [
     # Performance status
-    "MetricGVAStatus",
-    "SmoothingMethod",
     "StatusChange",
     "Streak",
     "HoldSteady",
@@ -38,9 +35,10 @@ __all__ = [
     # Historical performance
     "BenchmarkComparison",
     "HistoricalPerformance",
+    "PeriodMetrics",
+    "RankSummary",
     "Seasonality",
     "TrendException",
-    "TrendExceptionType",
-    "TrendType",
-    "AnomalyDetectionMethod",
+    "TrendInfo",
+    "GrowthStats",
 ]

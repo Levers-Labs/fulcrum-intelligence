@@ -21,25 +21,17 @@ import pandas as pd
 from scipy.stats import linregress
 
 from levers.exceptions import InsufficientDataError, ValidationError
-
-# TODO: check these import why some files its levers.models.patterns.historical_performance is used
-# should we import from .patterns everywhere?
-from levers.models.patterns import (
+from levers.models import (
     AnomalyDetectionMethod,
-    BenchmarkComparison,
-    Seasonality,
-    TrendException,
-    TrendExceptionType,
-    TrendType,
-)
-from levers.models.trend_analysis import (
     PerformancePlateau,
     RecordHigh,
     RecordLow,
     TrendAnalysis,
+    TrendExceptionType,
+    TrendType,
 )
-from levers.primitives.numeric import calculate_difference, calculate_percentage_difference
-from levers.primitives.time_series import validate_date_sorted
+from levers.models.patterns import BenchmarkComparison, Seasonality, TrendException
+from levers.primitives import calculate_difference, calculate_percentage_difference, validate_date_sorted
 
 logger = logging.getLogger(__name__)
 
@@ -60,7 +52,13 @@ def analyze_metric_trend(
         window_size: Number of most recent periods to consider for trend
 
     Returns:
-        Dictionary with trend_type, trend_slope, trend_confidence, recent_trend_type, etc.
+        None or TrendAnalysis object containing trend analysis details,
+        - trend_type: str, the type of trend
+        - trend_slope: float, the slope of the trend
+        - trend_confidence: float, the confidence in the trend
+        - recent_trend_type: str, the type of trend in the most recent period
+        - is_accelerating: bool, whether the trend is accelerating
+        - is_plateaued: bool, whether the trend is plateaued
     """
     # Ensure data is sorted by date
     df_sorted = validate_date_sorted(df, date_col)
@@ -87,7 +85,7 @@ def analyze_metric_trend(
     plateau_result = detect_performance_plateau(df_sorted, value_col=value_col, tolerance=0.01, window=plateau_window)
     is_plateaued = plateau_result.is_plateaued
 
-    # todo: check with abhi if this logic is correct over original
+    # TODO: check with abhi if this logic is correct over original
     # Calculate normalized slope as percentage
     mean_val = np.mean(y[mask])
     if mean_val != 0:
@@ -163,9 +161,16 @@ def detect_record_high(df: pd.DataFrame, value_col: str = "value") -> RecordHigh
         value_col: Column name containing values
 
     Returns:
-        RecordHigh object with is_record_high, prior_max, rank, etc.
+        RecordHigh object containing record high details,
+        - is_record_high: bool, whether the current value is a record high
+        - current_value: float, the current value
+        - prior_max: float, the maximum value in the previous periods
+        - prior_max_index: int, the index of the maximum value in the previous periods
+        - rank: int, the rank of the current value
+        - periods_compared: int, the number of periods compared
+        - absolute_delta: float, the absolute difference between current and prior max
+        - percentage_delta: float, the percentage difference between current and prior max
     """
-    # TODO: should we raise an error here? or simply return None?
     if len(df) < 2:
         raise InsufficientDataError("Insufficient data to detect record high", data_details={"value_col": value_col})
 
@@ -210,7 +215,15 @@ def detect_record_low(df: pd.DataFrame, value_col: str = "value") -> RecordLow:
         value_col: Column name containing values
 
     Returns:
-        RecordLow object with is_record_low, prior_min, rank, etc.
+        RecordLow object containing record low details,
+        - is_record_low: bool, whether the current value is a record low
+        - current_value: float, the current value
+        - prior_min: float, the minimum value in the previous periods
+        - prior_min_index: int, the index of the minimum value in the previous periods
+        - rank: int, the rank of the current value
+        - periods_compared: int, the number of periods compared
+        - absolute_delta: float, the absolute difference between current and prior min
+        - percentage_delta: float, the percentage difference between current and prior min
     """
     if len(df) < 2:
         raise InsufficientDataError("Insufficient data to detect record low", data_details={"value_col": value_col})
@@ -244,7 +257,7 @@ def detect_record_low(df: pd.DataFrame, value_col: str = "value") -> RecordLow:
     )
 
 
-# todo: check with abhi if this logic is correct over original
+# TODO: check with abhi if this logic is correct over original
 # logic is quite different from original
 def detect_trend_exceptions(
     df: pd.DataFrame, date_col: str = "date", value_col: str = "value", window_size: int = 5, z_threshold: float = 2.0
@@ -263,63 +276,73 @@ def detect_trend_exceptions(
         z_threshold: Number of standard deviations to consider exceptional
 
     Returns:
-        List of TrendException objects or empty list if no exceptions are detected
+        Empty list or List of TrendException objects containing exception details,
+        - type: str, the type of exception
+        - current_value: float, the current value
+        - normal_range_low: float, the lower bound of the normal range
+        - normal_range_high: float, the upper bound of the normal range
+        - absolute_delta_from_normal_range: float, the absolute difference between current and normal range
+        - magnitude_percent: float, the percentage difference between current and normal range
     """
 
     # Ensure data is sorted by date
     df_sorted = validate_date_sorted(df, date_col)
 
-    # Check if we have enough data to calculate z-score
+    # Check if we have enough data
     if len(df_sorted) < window_size + 1:
-        logger.warning("Insufficient data to calculate z-score for trend exceptions")
+        logger.warning("Insufficient data for trend exceptions detection")
         return []
 
-    # Get the recent window and current value
-    recent_window = df_sorted[value_col].iloc[-(window_size + 1) : -1]
-    current_value = df_sorted[value_col].iloc[-1]
+    # Get the recent window for analysis
+    recent_subset = df_sorted[value_col].iloc[-window_size - 1 : -1]
 
     # Calculate mean and standard deviation of recent values
-    mean_val = recent_window.mean()
-    std_val = recent_window.std()
+    mean_val = recent_subset.mean()
+    std_val = recent_subset.std()
 
-    if std_val == 0 or pd.isna(std_val):
-        # Cannot calculate z-score with zero std dev
-        logger.warning("Cannot calculate z-score for trend exceptions")
+    # Cannot calculate bounds with invalid std dev
+    if std_val is None or pd.isna(std_val) or std_val == 0:
+        logger.warning("Cannot calculate bounds for trend exceptions (invalid std dev)")
         return []
 
-    # Calculate z-score of current value
-    z_score = (current_value - mean_val) / std_val
+    # Calculate upper and lower bounds based on threshold
+    upper_bound = mean_val + z_threshold * std_val
+    lower_bound = mean_val - z_threshold * std_val
 
-    # Check if current value is exceptional
+    # Get the current value (last value in the dataframe)
+    last_val = df_sorted[value_col].iloc[-1]
+
     exceptions = []
-    if z_score > z_threshold:
+
+    # Check if the current value is outside the bounds
+    if last_val > upper_bound:
         # Spike detected
-        upper_bound = mean_val + z_threshold * std_val
-        delta = current_value - upper_bound
+        delta_from_range = last_val - upper_bound
+        magnitude_percent = (delta_from_range / upper_bound * 100.0) if upper_bound != 0 else None
+
         exceptions.append(
             TrendException(
                 type=TrendExceptionType.SPIKE,
-                current_value=current_value,
-                normal_range_low=mean_val - z_threshold * std_val,
+                current_value=last_val,
+                normal_range_low=lower_bound,
                 normal_range_high=upper_bound,
-                absolute_delta_from_normal_range=delta,
-                magnitude_percent=(delta / upper_bound * 100) if upper_bound != 0 else None,
-                z_score=z_score,
+                absolute_delta_from_normal_range=delta_from_range,
+                magnitude_percent=magnitude_percent,
             )
         )
-    elif z_score < -z_threshold:
+    elif last_val < lower_bound:
         # Drop detected
-        lower_bound = mean_val - z_threshold * std_val
-        delta = lower_bound - current_value
+        delta_from_range = lower_bound - last_val
+        magnitude_percent = (delta_from_range / abs(lower_bound) * 100.0) if lower_bound != 0 else None
+
         exceptions.append(
             TrendException(
                 type=TrendExceptionType.DROP,
-                current_value=current_value,
+                current_value=last_val,
                 normal_range_low=lower_bound,
-                normal_range_high=mean_val + z_threshold * std_val,
-                absolute_delta_from_normal_range=-delta,  # Keep consistent with fulcrum implementation
-                magnitude_percent=(delta / abs(lower_bound) * 100) if lower_bound != 0 else None,
-                z_score=z_score,
+                normal_range_high=upper_bound,
+                absolute_delta_from_normal_range=-delta_from_range,  # Negative value for drops
+                magnitude_percent=magnitude_percent,
             )
         )
 
@@ -342,7 +365,11 @@ def detect_performance_plateau(
         window: Number of periods to analyze for plateau detection
 
     Returns:
-        PerformancePlateau object with plateau information
+        PerformancePlateau object containing plateau information,
+        - is_plateaued: bool, whether the time series has plateaued
+        - plateau_duration: int, the number of periods the time series has plateaued
+        - stability_score: float, the stability score of the time series
+        - mean_value: float, the mean value of the time series
     """
 
     if len(df) < window:
@@ -798,11 +825,6 @@ def detect_anomalies(
     Returns:
         DataFrame with added columns for anomaly detection
     """
-    # Input validation
-    if date_col not in df.columns:
-        raise ValidationError(f"Column '{date_col}' not found in DataFrame", invalid_fields={"date_col": date_col})
-    if value_col not in df.columns:
-        raise ValidationError(f"Column '{value_col}' not found in DataFrame", invalid_fields={"value_col": value_col})
 
     if method not in [AnomalyDetectionMethod.VARIANCE, AnomalyDetectionMethod.SPC, AnomalyDetectionMethod.COMBINED]:
         raise ValidationError(
@@ -845,7 +867,11 @@ def detect_seasonality_pattern(
         lookback_end: End date of the analysis window (defaults to last date in df)
 
     Returns:
-        Seasonality object with seasonality analysis results or None if insufficient data
+        None if insufficient data or Seasonality object containing seasonality analysis results,
+        - is_following_expected_pattern: bool, whether the current value is following the expected pattern
+        - expected_change_percent: float, the expected change percent
+        - actual_change_percent: float, the actual change percent
+        - deviation_percent: float, the deviation percent
     """
 
     # Ensure data is sorted by date
@@ -926,7 +952,10 @@ def calculate_benchmark_comparisons(
         grain: Time grain for analysis (day, week, month)
 
     Returns:
-        List of benchmark comparison dictionaries
+        List of BenchmarkComparison objects containing benchmark comparison details,
+        - reference_period: str, the reference period
+        - absolute_change: float, the absolute change
+        - change_percent: float, the change percent
     """
 
     # Ensure data is sorted by date

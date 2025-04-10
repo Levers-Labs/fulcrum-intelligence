@@ -6,35 +6,14 @@ These models define the structure of the pattern output when analyzing
 a metric's historical performance over time.
 """
 
-from enum import Enum
-
 from pydantic import Field
 
-from levers.models.common import BaseModel, BasePattern
-
-
-class TrendExceptionType(str, Enum):
-    """Type of trend exception."""
-
-    SPIKE = "Spike"
-    DROP = "Drop"
-
-
-class AnomalyDetectionMethod(str, Enum):
-    """Method of anomaly detection."""
-
-    VARIANCE = "variance"
-    SPC = "spc"
-    COMBINED = "combined"
-
-
-class TrendType(str, Enum):
-    """Classification of trend direction."""
-
-    STABLE = "stable"
-    UPWARD = "upward"
-    DOWNWARD = "downward"
-    PLATEAU = "plateau"
+from levers.models import (
+    BaseModel,
+    BasePattern,
+    TrendExceptionType,
+    TrendType,
+)
 
 
 class PeriodMetrics(BaseModel):
@@ -103,7 +82,6 @@ class TrendException(BaseModel):
     normal_range_high: float
     absolute_delta_from_normal_range: float | None = None
     magnitude_percent: float | None = None
-    z_score: float | None = None
 
 
 class HistoricalPerformance(BasePattern):

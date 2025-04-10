@@ -13,15 +13,16 @@ import pandas as pd
 
 from levers.exceptions import ValidationError
 from levers.models import (
+    AnalysisWindow,
     AnalysisWindowConfig,
     AverageGrowthMethod,
     DataSource,
     DataSourceType,
+    Granularity,
     PatternConfig,
     WindowStrategy,
 )
-from levers.models.common import AnalysisWindow, Granularity
-from levers.models.patterns.historical_performance import (
+from levers.models.patterns import (
     BenchmarkComparison,
     GrowthStats,
     HistoricalPerformance,
@@ -31,11 +32,12 @@ from levers.models.patterns.historical_performance import (
     TrendException,
     TrendInfo,
 )
-from levers.patterns.base import Pattern
-from levers.primitives.time_series import calculate_average_growth, calculate_pop_growth, convert_grain_to_freq
-from levers.primitives.trend_analysis import (
+from levers.patterns import Pattern
+from levers.primitives import (
     analyze_metric_trend,
+    calculate_average_growth,
     calculate_benchmark_comparisons,
+    calculate_pop_growth,
     detect_record_high,
     detect_record_low,
     detect_seasonality_pattern,
@@ -58,7 +60,6 @@ class HistoricalPerformancePattern(Pattern[HistoricalPerformance]):
         "detect_record_high",
         "detect_record_low",
         "detect_trend_exceptions",
-        "convert_grain_to_freq",
         "detect_seasonality_pattern",
         "calculate_benchmark_comparisons",
     ]
@@ -104,22 +105,22 @@ class HistoricalPerformancePattern(Pattern[HistoricalPerformance]):
             data_window_indexed = data_window.copy()
             data_window_indexed.set_index("date", inplace=True)
 
-            # Group by grain and filter to specified number of periods
-            grouped = self._group_by_grain(data_window_indexed, grain, num_periods)
+            # Filter to specified number of periods
+            period_data = self._filter_to_periods(data_window_indexed, num_periods)
 
-            # If insufficient data after grouping, return minimal output
-            if len(grouped) < 2:
-                logger.info("Insufficient data after grouping for metric_id=%s. Returning minimal output.", metric_id)
+            # If insufficient data after filtering, return minimal output
+            if len(period_data) < 2:
+                logger.info("Insufficient data after filtering for metric_id=%s. Returning minimal output.", metric_id)
                 return self.handle_empty_data(metric_id, analysis_window)
 
             # Compute period metrics (growth and acceleration)
-            period_metrics = self._compute_period_metrics(grouped)
+            period_metrics = self._compute_period_metrics(period_data)
 
             # Calculate growth summary statistics
-            growth_stats = self._calculate_growth_statistics(grouped, period_metrics)
+            growth_stats = self._calculate_growth_statistics(period_data, period_metrics)
 
             # Analyze trends
-            trend_info = self._analyze_trends(grouped, avg_pop_growth=growth_stats.average_pop_growth)
+            trend_info = self._analyze_trends(period_data, avg_pop_growth=growth_stats.average_pop_growth)
 
             # Detect record values
             value_rankings = self._detect_record_values(data_window)
@@ -131,7 +132,7 @@ class HistoricalPerformancePattern(Pattern[HistoricalPerformance]):
             benchmark_comparisons = self._calculate_benchmark_comparisons(data_window, grain)
 
             # Detect trend exceptions
-            trend_exceptions = self._detect_trend_exceptions(grouped)
+            trend_exceptions = self._detect_trend_exceptions(period_data)
 
             # Construct result object
             result = {
@@ -139,7 +140,7 @@ class HistoricalPerformancePattern(Pattern[HistoricalPerformance]):
                 "version": self.version,
                 "metric_id": metric_id,
                 "analysis_window": analysis_window,
-                "num_periods": len(grouped),
+                "num_periods": len(period_data),
                 "period_metrics": period_metrics,
                 "growth_stats": growth_stats,
                 "current_trend": trend_info["current_trend"],
@@ -165,43 +166,42 @@ class HistoricalPerformancePattern(Pattern[HistoricalPerformance]):
                 },
             ) from e
 
-    def _group_by_grain(self, data_window: pd.DataFrame, grain: Granularity, num_periods: int) -> pd.DataFrame:
+    def _filter_to_periods(self, data_window: pd.DataFrame, num_periods: int) -> pd.DataFrame:
         """
-        Resample the data by the specified grain and filter to the number of periods.
+        Filter the data to the specified number of periods.
 
         Args:
             data_window: DataFrame with data in the analysis window (with date as index)
-            grain: Time grain for grouping (day, week, month, etc.)
             num_periods: Number of periods to include
 
         Returns:
-            Grouped DataFrame filtered to specified number of periods
+            DataFrame filtered to specified number of periods
         """
-        # Resample/group the data by the chosen grain
-        freq = convert_grain_to_freq(grain)
-        # todo: Check if we need this step since we already pass data grain wise, also how does it aggregate?
-        grouped = data_window.resample(freq).last()[["value"]].dropna(subset=["value"])
-        grouped = grouped.reset_index()
+        period_data = data_window.reset_index()
 
         # Keep only up to the last `num_periods` entries
-        if len(grouped) > num_periods:
-            grouped = grouped.iloc[-num_periods:].copy()
+        if len(period_data) > num_periods:
+            period_data = period_data.iloc[-num_periods:].copy()
 
-        return grouped
+        return period_data
 
-    def _compute_period_metrics(self, grouped: pd.DataFrame) -> list[PeriodMetrics]:
+    def _compute_period_metrics(self, period_data: pd.DataFrame) -> list[PeriodMetrics]:
         """
         Compute period metrics including growth rates and acceleration rates.
 
         Args:
-            grouped: DataFrame grouped by the chosen grain
+            period_data: DataFrame containing time series data at the appropriate grain
 
         Returns:
-            List of PeriodMetrics objects with growth and acceleration data
+            List of PeriodMetrics objects containing growth and acceleration data,
+            - period_start: str, the start date of the period
+            - period_end: str, the end date of the period
+            - pop_growth_percent: float, the growth rate of the period
+            - pop_acceleration_percent: float, the acceleration rate of the period
         """
         # Compute period-over-period (PoP) growth
         grouped_growth = calculate_pop_growth(
-            df=grouped,
+            df=period_data,
             date_col="date",
             value_col="value",
             periods=1,
@@ -239,7 +239,7 @@ class HistoricalPerformancePattern(Pattern[HistoricalPerformance]):
 
     def _calculate_growth_statistics(
         self,
-        grouped: pd.DataFrame,
+        period_data: pd.DataFrame,
         period_metrics: list[PeriodMetrics],
     ) -> GrowthStats:
         """
@@ -247,17 +247,22 @@ class HistoricalPerformancePattern(Pattern[HistoricalPerformance]):
         acceleration, and consecutive periods accelerating/slowing.
 
         Args:
-            grouped: DataFrame grouped by the chosen grain
+            period_data: DataFrame containing time series data at the appropriate grain
             period_metrics: List of period metrics including growth and acceleration
 
         Returns:
-            GrowthStats object containing growth statistics
+            GrowthStats object containing growth statistics,
+            - current_pop_growth: float, the growth rate of the current period
+            - average_pop_growth: float, the average growth rate over the analysis window
+            - current_growth_acceleration: float, the acceleration rate of the current period
+            - num_periods_accelerating: int, the number of consecutive periods accelerating
+            - num_periods_slowing: int, the number of consecutive periods slowing
         """
         # Current period-over-period growth
         current_pop_growth = period_metrics[-1].pop_growth_percent if period_metrics else None
 
         # Calculate average growth using our primitive
-        avg_growth_results = calculate_average_growth(grouped, "date", "value", AverageGrowthMethod.ARITHMETIC)
+        avg_growth_results = calculate_average_growth(period_data, "date", "value", AverageGrowthMethod.ARITHMETIC)
         avg_pop_growth = avg_growth_results.average_growth
 
         # Current growth acceleration
@@ -289,20 +294,34 @@ class HistoricalPerformancePattern(Pattern[HistoricalPerformance]):
             num_periods_slowing=num_periods_slowing,
         )
 
-    def _analyze_trends(self, grouped: pd.DataFrame, avg_pop_growth: float | None) -> dict[str, TrendInfo | None]:
+    def _analyze_trends(self, period_data: pd.DataFrame, avg_pop_growth: float | None) -> dict[str, TrendInfo | None]:
         """
         Analyze metric trends and classify current and previous trends.
 
         Args:
-            grouped: DataFrame grouped by the chosen grain
+            period_data: DataFrame containing time series data at the appropriate grain
             avg_pop_growth: Average growth rate over the analysis window
 
         Returns:
-            Dictionary containing current and previous trend information
+            Dictionary containing current and previous trend information,
+            - current_trend: TrendInfo object containing current trend information,
+                - trend_type: str, the type of trend
+                - trend_slope: float, the slope of the trend
+                - trend_confidence: float, the confidence in the trend
+                - recent_trend_type: str, the type of trend in the most recent period
+                - is_accelerating: bool, whether the trend is accelerating
+                - is_plateaued: bool, whether the trend is plateaued
+            - previous_trend: TrendInfo object containing previous trend information,
+                - trend_type: str, the type of trend
+                - trend_slope: float, the slope of the trend
+                - trend_confidence: float, the confidence in the trend
+                - recent_trend_type: str, the type of trend in the most recent period
+                - is_accelerating: bool, whether the trend is accelerating
+                - is_plateaued: bool, whether the trend is plateaued
         """
         # Trend classification
         trend_result = analyze_metric_trend(
-            df=grouped, value_col="value", date_col="date", window_size=min(5, len(grouped))
+            df=period_data, value_col="value", date_col="date", window_size=min(5, len(period_data))
         )
         # If no trend, return None
         # No need to analyze previous trend in this case
@@ -312,35 +331,41 @@ class HistoricalPerformancePattern(Pattern[HistoricalPerformance]):
                 "previous_trend": None,
             }
 
-        # Define trend_start_date as the earliest date in grouped
-        trend_start_date = grouped["date"].iloc[0].strftime("%Y-%m-%d")
+        # Define trend_start_date as the earliest date in period_data
+        trend_start_date = period_data["date"].iloc[0].strftime("%Y-%m-%d")
 
         # For "previous" trend info, analyze the previous subset
-        previous_trend_info = self._analyze_previous_trend(grouped)
+        previous_trend_info = self._analyze_previous_trend(period_data)
 
         return {
             "current_trend": TrendInfo(
                 trend_type=trend_result.trend_type,
                 start_date=trend_start_date,
                 average_pop_growth=avg_pop_growth,
-                duration_grains=len(grouped),
+                duration_grains=len(period_data),
             ),
             "previous_trend": previous_trend_info,
         }
 
-    def _analyze_previous_trend(self, grouped: pd.DataFrame) -> TrendInfo | None:
+    def _analyze_previous_trend(self, period_data: pd.DataFrame) -> TrendInfo | None:
         """
         Analyze the previous trend by examining all points except the last one.
 
         Args:
-            grouped: DataFrame grouped by the chosen grain
+            period_data: DataFrame containing time series data at the appropriate grain
 
         Returns:
-            TrendInfo object containing previous trend information
+            TrendInfo object containing previous trend information,
+            - trend_type: str, the type of trend
+            - trend_slope: float, the slope of the trend
+            - trend_confidence: float, the confidence in the trend
+            - recent_trend_type: str, the type of trend in the most recent period
+            - is_accelerating: bool, whether the trend is accelerating
+            - is_plateaued: bool, whether the trend is plateaued
         """
-        if len(grouped) < 2:
+        if len(period_data) < 2:
             return None
-        prev_subset = grouped.iloc[:-1].copy()
+        prev_subset = period_data.iloc[:-1].copy()
         prev_trend_res = analyze_metric_trend(prev_subset, "value", "date")
         # If no trend, return None
         if prev_trend_res is None:
@@ -370,7 +395,23 @@ class HistoricalPerformancePattern(Pattern[HistoricalPerformance]):
             data_window: DataFrame with date and value columns
 
         Returns:
-            Dictionary containing high and low value summaries
+            Dictionary containing high and low value summaries,
+            - high_rank: RankSummary object containing high value information
+                - value: float, the value of the high rank
+                - rank: int, the rank of the high value
+                - duration_grains: int, the number of grains in the duration of the high value
+                - prior_record_value: float, the value of the prior record
+                - prior_record_date: str, the date of the prior record
+                - absolute_delta_from_prior_record: float, the absolute delta from the prior record
+                - relative_delta_from_prior_record: float, the relative delta from the prior record
+            - low_rank: RankSummary object containing low value information
+                - value: float, the value of the low rank
+                - rank: int, the rank of the low value
+                - duration_grains: int, the number of grains in the duration of the low value
+                - prior_record_value: float, the value of the prior record
+                - prior_record_date: str, the date of the prior record
+                - absolute_delta_from_prior_record: float, the absolute delta from the prior record
+                - relative_delta_from_prior_record: float, the relative delta from the prior record
         """
         # Use existing detect_record_high and detect_record_low functions
         high_result = detect_record_high(data_window, "value")
@@ -426,7 +467,12 @@ class HistoricalPerformancePattern(Pattern[HistoricalPerformance]):
             lookback_end: End date of the analysis window
 
         Returns:
-            Seasonality object containing seasonality analysis results or None if insufficient data
+            Seasonality object containing seasonality analysis results,
+            - is_following_expected_pattern: bool, whether the current value is following the expected pattern
+            - expected_change_percent: float, the expected change percent
+            - actual_change_percent: float, the actual change percent
+            - deviation_percent: float, the deviation percent
+            or None if insufficient data
         """
         return detect_seasonality_pattern(data_window, lookback_end, "date", "value")
 
@@ -441,7 +487,11 @@ class HistoricalPerformancePattern(Pattern[HistoricalPerformance]):
             grain: Time grain for analysis (day, week, month)
 
         Returns:
-            List of benchmark comparison objects or empty list if no benchmarks can be calculated
+            List of BenchmarkComparison objects containing benchmark comparison details,
+            - reference_period: str, the reference period
+            - absolute_change: float, the absolute change
+            - change_percent: float, the change percent
+            or empty list if no benchmarks can be calculated
         """
         # For non-daily data, we won't produce benchmarks here
         if grain != Granularity.DAY or data_window.empty:
@@ -449,18 +499,24 @@ class HistoricalPerformancePattern(Pattern[HistoricalPerformance]):
 
         return calculate_benchmark_comparisons(data_window, "date", "value")
 
-    def _detect_trend_exceptions(self, grouped: pd.DataFrame) -> list[TrendException] | list:
+    def _detect_trend_exceptions(self, period_data: pd.DataFrame) -> list[TrendException] | list:
         """
         Detect anomalies (spikes or drops) in the time series.
 
         Args:
-            grouped: DataFrame grouped by the chosen grain
+            period_data: DataFrame containing time series data at the appropriate grain
 
         Returns:
-            List of detected trend exceptions or empty list if no exceptions are detected
+            List of TrendException objects containing trend exception details,
+            - type: str, the type of exception
+            - current_value: float, the current value
+            - normal_range_low: float, the lower bound of the normal range
+            - normal_range_high: float, the upper bound of the normal range
+            - absolute_delta_from_normal_range: float, the absolute delta from the normal range
+            or empty list if no exceptions are detected
         """
         return detect_trend_exceptions(
-            df=grouped, date_col="date", value_col="value", window_size=min(5, len(grouped)), z_threshold=2.0
+            df=period_data, date_col="date", value_col="value", window_size=min(5, len(period_data)), z_threshold=2.0
         )
 
     @classmethod
@@ -469,7 +525,12 @@ class HistoricalPerformancePattern(Pattern[HistoricalPerformance]):
         Get the default configuration for the historical performance pattern.
 
         Returns:
-            PatternConfig with historical performance pattern configuration
+            PatternConfig with historical performance pattern configuration,
+            - pattern_name: str, the name of the pattern
+            - description: str, the description of the pattern
+            - version: str, the version of the pattern
+            - data_sources: list of DataSource objects, the data sources required by the pattern
+            - analysis_window: AnalysisWindowConfig object, the analysis window configuration
         """
         return PatternConfig(
             pattern_name=cls.name,

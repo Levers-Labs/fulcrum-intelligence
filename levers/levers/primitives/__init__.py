@@ -34,6 +34,7 @@ from .time_series import (
     calculate_slope_of_time_series,
     calculate_to_date_growth_rates,
     convert_grain_to_freq,
+    validate_date_sorted,
 )
 
 # Trend Analysis primitives
@@ -76,6 +77,7 @@ _primitive_families = {
         calculate_to_date_growth_rates,
         convert_grain_to_freq,
         calculate_slope_of_time_series,
+        validate_date_sorted,
     ],
     "trend_analysis": [
         analyze_metric_trend,
@@ -165,6 +167,7 @@ __all__ = [
     "calculate_to_date_growth_rates",
     "convert_grain_to_freq",
     "calculate_slope_of_time_series",
+    "validate_date_sorted",
     # Trend Analysis primitives
     "analyze_metric_trend",
     "detect_performance_plateau",

@@ -9,11 +9,14 @@ import pytest
 
 from levers.api import Levers
 from levers.exceptions import PatternError, PrimitiveError
-from levers.models import PatternConfig
-from levers.models.common import AnalysisWindow, BasePattern, Granularity
+from levers.models import (
+    AnalysisWindow,
+    BasePattern,
+    Granularity,
+    PatternConfig,
+)
 from levers.models.patterns import MetricPerformance
-from levers.patterns.base import Pattern
-from levers.patterns.performance_status import PerformanceStatusPattern
+from levers.patterns import Pattern, PerformanceStatusPattern
 
 
 class TestOutputModel(BasePattern):

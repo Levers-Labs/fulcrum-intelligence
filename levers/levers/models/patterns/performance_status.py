@@ -1,22 +1,4 @@
-from enum import Enum
-
-from levers.models.common import BaseModel, BasePattern
-
-
-class SmoothingMethod(str, Enum):
-    """Method for calculating interim targets along a trajectory."""
-
-    LINEAR = "linear"  # Equal changes each period
-    FRONT_LOADED = "front_loaded"  # Larger changes earlier, smaller changes later
-    BACK_LOADED = "back_loaded"  # Smaller changes earlier, larger changes later
-
-
-class MetricGVAStatus(str, Enum):
-    """Status of a metric's performance against target."""
-
-    ON_TRACK = "on_track"  # Metric is within acceptable threshold of target
-    OFF_TRACK = "off_track"  # Metric is outside acceptable threshold of target
-    NO_TARGET = "no_target"  # No valid target exists for comparison
+from levers.models import BaseModel, BasePattern, MetricGVAStatus
 
 
 class StatusChange(BaseModel):

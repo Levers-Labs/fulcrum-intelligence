@@ -14,8 +14,8 @@ from levers.exceptions import (
     TimeRangeError,
     ValidationError,
 )
-from levers.models.common import AnalysisWindow, BasePattern, Granularity
-from levers.patterns.base import Pattern
+from levers.models import AnalysisWindow, BasePattern, Granularity
+from levers.patterns import Pattern
 
 
 # Create a minimal implementation of Pattern for testing

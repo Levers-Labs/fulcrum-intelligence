@@ -23,14 +23,16 @@ from scipy.stats import linregress
 
 from levers.exceptions import ValidationError
 from levers.models import (
+    AverageGrowth,
     AverageGrowthMethod,
     CumulativeGrowthMethod,
     DataFillMethod,
+    Granularity,
     PartialInterval,
+    TimeSeriesSlope,
+    ToDateGrowth,
 )
-from levers.models.common import Granularity
-from levers.models.time_series import AverageGrowth, TimeSeriesSlope, ToDateGrowth
-from levers.primitives.numeric import calculate_percentage_difference
+from levers.primitives import calculate_percentage_difference
 
 logger = logging.getLogger(__name__)
 
@@ -183,7 +185,10 @@ def calculate_average_growth(
         method: "arithmetic" for simple average or "cagr" for compound annual growth rate
 
     Returns:
-        Dictionary with average_growth and other metrics
+        An AverageGrowth object containing average growth details,
+        - average_growth: float, the average growth rate
+        - total_growth: float, the total growth rate
+        - periods: int, the number of periods in the time series
     """
     # Input validation for minimum number of data points
     if len(df) < 2:
@@ -254,7 +259,11 @@ def calculate_to_date_growth_rates(
         partial_interval: Type of partial interval: 'MTD', 'QTD', 'YTD', or 'WTD'
 
     Returns:
-        ToDateGrowth object containing current_value, prior_value, abs_diff, growth_rate
+        ToDateGrowth object containing to-date growth details,
+        - current_value: float, the current period value
+        - prior_value: float, the prior period value
+        - abs_diff: float, the absolute difference between current and prior values
+        - growth_rate: float, the growth rate between current and prior values
     """
     # Input validation
     for df, name in [(current_df, "current_df"), (prior_df, "prior_df")]:

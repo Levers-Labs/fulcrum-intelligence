@@ -1,5 +1,4 @@
-from levers.models.common import BaseModel
-from levers.models.patterns import TrendType
+from levers.models import BaseModel, TrendType
 
 
 class TrendAnalysis(BaseModel):
@@ -36,7 +35,6 @@ class RecordValueBase(BaseModel):
 
     current_value: float
     rank: int
-    # TODO: should we rename this to duration_grains?
     periods_compared: int
     absolute_delta: float
     percentage_delta: float

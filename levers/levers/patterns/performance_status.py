@@ -12,15 +12,14 @@ from datetime import datetime
 import pandas as pd
 
 from levers.exceptions import ValidationError
-from levers.models.common import AnalysisWindow
-from levers.models.patterns.performance_status import (
+from levers.models import AnalysisWindow, MetricGVAStatus
+from levers.models.patterns import (
     HoldSteady,
-    MetricGVAStatus,
     MetricPerformance,
     StatusChange,
     Streak,
 )
-from levers.patterns.base import Pattern
+from levers.patterns import Pattern
 from levers.primitives import (
     calculate_difference,
     calculate_gap_to_target,
@@ -189,7 +188,11 @@ class PerformanceStatusPattern(Pattern[MetricPerformance]):
             current_status: Current status value
 
         Returns:
-            StatusChange object or None if no status change
+            StatusChange object containing status change details,
+            - has_flipped: bool, whether the status has flipped
+            - old_status: str, the previous status
+            - new_status: str, the current status
+            - old_status_duration_grains: int, the duration of the previous status
         """
         try:
             # Ensure we have enough data to detect changes
@@ -248,7 +251,13 @@ class PerformanceStatusPattern(Pattern[MetricPerformance]):
             current_status: Current status value
 
         Returns:
-            Streak object or None if no streak
+            Streak object containing streak details,
+            - length: int, the length of the streak
+            - status: str, the status of the streak
+            - performance_change_percent_over_streak: float, the performance change percent over the streak
+            - absolute_change_over_streak: float, the absolute change over the streak
+            - average_change_percent_per_grain: float, the average change percent per grain
+            - average_change_absolute_per_grain: float, the average change absolute per grain
         """
         if len(data) < 2:
             return None
@@ -308,7 +317,10 @@ class PerformanceStatusPattern(Pattern[MetricPerformance]):
             target: Target value
 
         Returns:
-            HoldSteady object or None if not applicable
+            HoldSteady object containing hold steady details,
+            - is_currently_at_or_above_target: bool, whether the current value is at or above the target
+            - time_to_maintain_grains: int, the number of grains to maintain the current status
+            - current_margin_percent: float, the current margin percent
         """
         # Check if value is at or above target
         is_above_target = value >= target

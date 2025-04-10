@@ -3,10 +3,11 @@ Common models used across patterns.
 """
 
 from datetime import date, datetime
-from enum import Enum
 from typing import Any
 
 from pydantic import BaseModel as PydanticBase, ConfigDict, Field
+
+from levers.models import Granularity
 
 
 class BaseModel(PydanticBase):
@@ -23,25 +24,6 @@ class BaseModel(PydanticBase):
     def to_dict(self) -> dict[str, Any]:
         """Convert the pattern to a dictionary."""
         return self.model_dump(mode="json")
-
-
-class Granularity(str, Enum):
-    """Time grain for analysis"""
-
-    DAY = "day"
-    WEEK = "week"
-    MONTH = "month"
-    QUARTER = "quarter"
-    YEAR = "year"
-
-
-class GrowthTrend(str, Enum):
-    """Classification of growth patterns over time"""
-
-    STABLE = "stable"  # Growth rates show minimal variation
-    ACCELERATING = "accelerating"  # Growth rates are increasing over time
-    DECELERATING = "decelerating"  # Growth rates are decreasing over time
-    VOLATILE = "volatile"  # Growth rates show inconsistent patterns
 
 
 class AnalysisWindow(BaseModel):
