@@ -187,6 +187,7 @@ class TestPerformanceStatusModel:
 
     def test_to_pattern_model(self, performance_status_model):
         """Test conversion to pattern model."""
+
         pattern_model = performance_status_model.to_pattern_model()
 
         # Verify type

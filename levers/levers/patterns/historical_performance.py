@@ -35,10 +35,10 @@ from levers.patterns.base import Pattern
 from levers.primitives.time_series import calculate_average_growth, calculate_pop_growth, convert_grain_to_freq
 from levers.primitives.trend_analysis import (
     analyze_metric_trend,
-    analyze_seasonality,
     calculate_benchmark_comparisons,
     detect_record_high,
     detect_record_low,
+    detect_seasonality_pattern,
     detect_trend_exceptions,
 )
 
@@ -59,7 +59,7 @@ class HistoricalPerformancePattern(Pattern[HistoricalPerformance]):
         "detect_record_low",
         "detect_trend_exceptions",
         "convert_grain_to_freq",
-        "analyze_seasonality",
+        "detect_seasonality_pattern",
         "calculate_benchmark_comparisons",
     ]
     output_model: type[HistoricalPerformance] = HistoricalPerformance
@@ -125,7 +125,7 @@ class HistoricalPerformancePattern(Pattern[HistoricalPerformance]):
             value_rankings = self._detect_record_values(data_window)
 
             # Analyze seasonality using the new primitive
-            seasonality_data = self._analyze_seasonality(data_window, lookback_end)
+            seasonality_pattern = self._detect_seasonality_pattern(data_window, lookback_end)
 
             # Calculate benchmark comparisons using the new primitive
             benchmark_comparisons = self._calculate_benchmark_comparisons(data_window, grain)
@@ -146,7 +146,7 @@ class HistoricalPerformancePattern(Pattern[HistoricalPerformance]):
                 "previous_trend": trend_info["previous_trend"],
                 "high_rank": value_rankings["high_rank"],
                 "low_rank": value_rankings["low_rank"],
-                "seasonality": seasonality_data,
+                "seasonality": seasonality_pattern,
                 "benchmark_comparisons": benchmark_comparisons,
                 "trend_exceptions": trend_exceptions,
             }
@@ -417,18 +417,18 @@ class HistoricalPerformancePattern(Pattern[HistoricalPerformance]):
             "low_rank": low_rank,
         }
 
-    def _analyze_seasonality(self, data_window: pd.DataFrame, lookback_end: pd.Timestamp) -> Seasonality | None:
+    def _detect_seasonality_pattern(self, data_window: pd.DataFrame, lookback_end: pd.Timestamp) -> Seasonality | None:
         """
-        Analyze seasonality by comparing current value to value from one year ago.
+        Detect seasonality pattern by comparing current value to value from one year ago.
 
         Args:
             data_window: DataFrame with date and value columns
             lookback_end: End date of the analysis window
 
         Returns:
-            Dictionary with seasonality analysis results or None if insufficient data
+            Seasonality object containing seasonality analysis results or None if insufficient data
         """
-        return analyze_seasonality(data_window, lookback_end, "date", "value")
+        return detect_seasonality_pattern(data_window, lookback_end, "date", "value")
 
     def _calculate_benchmark_comparisons(
         self, data_window: pd.DataFrame, grain: str

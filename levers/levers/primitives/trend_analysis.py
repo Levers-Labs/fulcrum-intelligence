@@ -829,11 +829,11 @@ def detect_anomalies(
     return dff
 
 
-def analyze_seasonality(
+def detect_seasonality_pattern(
     df: pd.DataFrame, lookback_end: pd.Timestamp, date_col: str = "date", value_col: str = "value"
 ) -> Seasonality | None:
     """
-    Analyze seasonality by comparing current value to value from one year ago.
+    Detect seasonality pattern by comparing current value to value from one year ago.
 
     Family: trend_analysis
     Version: 1.0

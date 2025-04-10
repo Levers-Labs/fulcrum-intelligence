@@ -39,11 +39,11 @@ from .time_series import (
 # Trend Analysis primitives
 from .trend_analysis import (
     analyze_metric_trend,
-    analyze_seasonality,
     calculate_benchmark_comparisons,
     detect_performance_plateau,
     detect_record_high,
     detect_record_low,
+    detect_seasonality_pattern,
     detect_trend_exceptions,
     process_control_analysis,
 )
@@ -84,7 +84,7 @@ _primitive_families = {
         detect_record_low,
         detect_trend_exceptions,
         process_control_analysis,
-        analyze_seasonality,
+        detect_seasonality_pattern,
         calculate_benchmark_comparisons,
     ],
 }
@@ -172,7 +172,7 @@ __all__ = [
     "detect_record_low",
     "detect_trend_exceptions",
     "process_control_analysis",
-    "analyze_seasonality",
+    "detect_seasonality_pattern",
     "calculate_benchmark_comparisons",
     # Utility functions
     "list_primitives_by_family",

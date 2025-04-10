@@ -3,7 +3,12 @@ from enum import Enum
 from typing import Any
 
 import pandas as pd
-from pydantic import BaseModel, Field, model_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    model_validator,
+)
 
 from levers.exceptions import InvalidPatternConfigError
 from levers.models.common import Granularity
@@ -197,8 +202,8 @@ class PatternConfig(BaseModel):
             self.analysis_window.validate_strategy_params(pattern_name=self.pattern_name)
         return self
 
-    class Config:
-        schema_extra = {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "pattern_name": "performance_status",
                 "version": "1.0",
@@ -214,3 +219,4 @@ class PatternConfig(BaseModel):
                 "settings": {"threshold_ratio": 0.05},
             }
         }
+    )
