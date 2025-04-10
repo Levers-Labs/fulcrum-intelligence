@@ -6,7 +6,6 @@ These models define the structure of the pattern output when analyzing
 a metric's historical performance over time.
 """
 
-from datetime import datetime
 from enum import Enum
 
 from pydantic import Field

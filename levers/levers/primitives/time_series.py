@@ -15,11 +15,13 @@ Dependencies:
 - scipy.stats for linear regression
 """
 
+import logging
+
 import numpy as np
 import pandas as pd
 from scipy.stats import linregress
 
-from levers import ValidationError
+from levers.exceptions import ValidationError
 from levers.models import (
     AverageGrowthMethod,
     CumulativeGrowthMethod,
@@ -27,7 +29,10 @@ from levers.models import (
     PartialInterval,
 )
 from levers.models.common import Granularity
+from levers.models.time_series import AverageGrowth, TimeSeriesSlope, ToDateGrowth
 from levers.primitives.numeric import calculate_percentage_difference
+
+logger = logging.getLogger(__name__)
 
 
 def validate_date_sorted(df: pd.DataFrame, date_col: str = "date") -> pd.DataFrame:
@@ -44,13 +49,7 @@ def validate_date_sorted(df: pd.DataFrame, date_col: str = "date") -> pd.DataFra
 
     Returns:
         Date-sorted DataFrame with datetime column
-
-    Raises:
-        ValueError: If date_col doesn't exist in the DataFrame
     """
-    if date_col not in df.columns:
-        raise ValidationError(f"Column '{date_col}' not found in DataFrame")
-
     result = df.copy()
     result[date_col] = pd.to_datetime(result[date_col])
     return result.sort_values(by=date_col)
@@ -114,11 +113,7 @@ def calculate_pop_growth(
     Returns:
         Original DataFrame with added growth rate column
     """
-    # Input validation
-    if date_col not in df.columns:
-        raise ValidationError(f"Column '{date_col}' not found in DataFrame")
-    if value_col not in df.columns:
-        raise ValidationError(f"Column '{value_col}' not found in DataFrame")
+
     if periods <= 0:
         raise ValidationError("periods must be a positive integer")
 
@@ -157,7 +152,7 @@ def calculate_pop_growth(
     # Handle fill method if specified
     if fill_method:
         if fill_method in [DataFillMethod.FORWARD_FILL, DataFillMethod.BACKWARD_FILL]:
-            df_sorted[growth_col_name] = df_sorted[growth_col_name].fillna(method=fill_method)
+            df_sorted[growth_col_name] = df_sorted[growth_col_name].fillna(method=fill_method)  # type: ignore
         elif fill_method == DataFillMethod.INTERPOLATE:
             df_sorted[growth_col_name] = df_sorted[growth_col_name].interpolate()
         else:
@@ -174,7 +169,7 @@ def calculate_average_growth(
     date_col: str = "date",
     value_col: str = "value",
     method: AverageGrowthMethod = AverageGrowthMethod.ARITHMETIC,
-) -> dict[str, float | None]:
+) -> AverageGrowth:
     """
     Calculate average growth rate across a time series.
 
@@ -190,13 +185,10 @@ def calculate_average_growth(
     Returns:
         Dictionary with average_growth and other metrics
     """
-    # Input validation
-    if date_col not in df.columns:
-        raise ValidationError(f"Column '{date_col}' not found in DataFrame")
-    if value_col not in df.columns:
-        raise ValidationError(f"Column '{value_col}' not found in DataFrame")
+    # Input validation for minimum number of data points
     if len(df) < 2:
-        return {"average_growth": None, "total_growth": None, "periods": len(df)}
+        logger.warning("Not enough data points to calculate average growth")
+        return AverageGrowth(average_growth=None, total_growth=None, periods=len(df))
 
     # Ensure data is sorted by date
     df_sorted = validate_date_sorted(df, date_col)
@@ -236,7 +228,7 @@ def calculate_average_growth(
     else:
         raise ValidationError(f"Unknown method: {method}. Use 'arithmetic' or 'cagr'.")
 
-    return {"average_growth": avg_growth, "total_growth": total_growth, "periods": len(df_sorted) - 1}
+    return AverageGrowth(average_growth=avg_growth, total_growth=total_growth, periods=len(df_sorted) - 1)
 
 
 def calculate_to_date_growth_rates(
@@ -246,7 +238,7 @@ def calculate_to_date_growth_rates(
     value_col: str = "value",
     aggregator: str = "sum",
     partial_interval: PartialInterval | None = None,
-) -> dict[str, float]:
+) -> ToDateGrowth:
     """
     Compare partial-to-date periods (e.g., MTD, YTD) between current and prior periods.
 
@@ -262,7 +254,7 @@ def calculate_to_date_growth_rates(
         partial_interval: Type of partial interval: 'MTD', 'QTD', 'YTD', or 'WTD'
 
     Returns:
-        Dictionary containing current_value, prior_value, abs_diff, growth_rate
+        ToDateGrowth object containing current_value, prior_value, abs_diff, growth_rate
     """
     # Input validation
     for df, name in [(current_df, "current_df"), (prior_df, "prior_df")]:
@@ -333,7 +325,12 @@ def calculate_to_date_growth_rates(
     else:
         growth_rate = (abs_diff / prior_val) * 100
 
-    return {"current_value": curr_val, "prior_value": prior_val, "abs_diff": abs_diff, "growth_rate": growth_rate}
+    return ToDateGrowth(
+        current_value=curr_val,
+        prior_value=prior_val,
+        abs_diff=abs_diff,
+        growth_rate=growth_rate,
+    )
 
 
 def calculate_rolling_averages(
@@ -458,7 +455,7 @@ def calculate_cumulative_growth(
 
 def calculate_slope_of_time_series(
     df: pd.DataFrame, date_col: str = "date", value_col: str = "value", normalize: bool = False
-) -> dict[str, float | None]:
+) -> TimeSeriesSlope:
     """
     Fit a linear regression to find the overall trend slope.
 
@@ -472,7 +469,7 @@ def calculate_slope_of_time_series(
         normalize: Whether to normalize the slope as a percentage of the mean value
 
     Returns:
-        Dictionary containing regression results:
+        TimeSeriesSlope object containing regression results:
         - 'slope': Slope coefficient (units per day or percentage per day if normalized)
         - 'intercept': Y-intercept value
         - 'r_value': Correlation coefficient
@@ -483,18 +480,10 @@ def calculate_slope_of_time_series(
         - 'slope_per_month': Slope in units per month (30 days)
         - 'slope_per_year': Slope in units per year (365 days)
 
-    Raises:
-        ValidationError: If input columns are not found or insufficient data for regression
-
     Notes:
         When normalize=True, the slope is expressed as percentage change per day
         relative to the mean value of the series.
     """
-    # Input validation
-    if date_col not in df.columns:
-        raise ValidationError(f"Column '{date_col}' not found in DataFrame")
-    if value_col not in df.columns:
-        raise ValidationError(f"Column '{value_col}' not found in DataFrame")
 
     # Ensure df is sorted by date
     df_sorted = validate_date_sorted(df, date_col)
@@ -506,17 +495,17 @@ def calculate_slope_of_time_series(
     # Get data without NaNs
     mask = ~df_sorted[["time_index", value_col]].isna().any(axis=1)
     if not mask.any() or len(df_sorted[mask]) < 2:
-        return {
-            "slope": None,
-            "intercept": None,
-            "r_value": None,
-            "p_value": None,
-            "std_err": None,
-            "slope_per_day": None,
-            "slope_per_week": None,
-            "slope_per_month": None,
-            "slope_per_year": None,
-        }
+        return TimeSeriesSlope(
+            slope=None,
+            intercept=None,
+            r_value=None,
+            p_value=None,
+            std_err=None,
+            slope_per_day=None,
+            slope_per_week=None,
+            slope_per_month=None,
+            slope_per_year=None,
+        )
 
     # Run linear regression
     x = df_sorted.loc[mask, "time_index"].values
@@ -526,22 +515,22 @@ def calculate_slope_of_time_series(
 
     # Calculate normalized slope if requested
     slope_per_day = result.slope
-    if normalize and np.mean(y) != 0:
-        slope_per_day = (slope_per_day / np.mean(y)) * 100
+    if normalize and np.mean(y) != 0:  # type: ignore
+        slope_per_day = (slope_per_day / np.mean(y)) * 100  # type: ignore
 
     # Calculate different time scales
     slope_per_week = slope_per_day * 7
     slope_per_month = slope_per_day * 30
     slope_per_year = slope_per_day * 365
 
-    return {
-        "slope": result.slope,
-        "intercept": result.intercept,
-        "r_value": result.rvalue,
-        "p_value": result.pvalue,
-        "std_err": result.stderr,
-        "slope_per_day": slope_per_day,
-        "slope_per_week": slope_per_week,
-        "slope_per_month": slope_per_month,
-        "slope_per_year": slope_per_year,
-    }
+    return TimeSeriesSlope(
+        slope=result.slope,
+        intercept=result.intercept,
+        r_value=result.rvalue,
+        p_value=result.pvalue,
+        std_err=result.stderr,
+        slope_per_day=slope_per_day,
+        slope_per_week=slope_per_week,
+        slope_per_month=slope_per_month,
+        slope_per_year=slope_per_year,
+    )

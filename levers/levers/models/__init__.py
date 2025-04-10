@@ -19,10 +19,19 @@ from .pattern_config import (
     WindowStrategy,
 )
 from .time_series import (
+    AverageGrowth,
     AverageGrowthMethod,
     CumulativeGrowthMethod,
     DataFillMethod,
     PartialInterval,
+    TimeSeriesSlope,
+    ToDateGrowth,
+)
+from .trend_analysis import (
+    PerformancePlateau,
+    RecordHigh,
+    RecordLow,
+    TrendAnalysis,
 )
 
 __all__ = [
@@ -41,4 +50,12 @@ __all__ = [
     "DataSourceType",
     "PatternConfig",
     "WindowStrategy",
+    "AverageGrowth",
+    "ToDateGrowth",
+    "TimeSeriesSlope",
+    # Trend analysis models
+    "TrendAnalysis",
+    "PerformancePlateau",
+    "RecordHigh",
+    "RecordLow",
 ]

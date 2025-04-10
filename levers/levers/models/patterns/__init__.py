@@ -6,12 +6,9 @@ This module directly exposes all pattern output models for easy import.
 
 # Historical performance models
 from .historical_performance import (
-    AccelerationRate,
     AnomalyDetectionMethod,
     BenchmarkComparison,
     HistoricalPerformance,
-    PeriodGrowthRate,
-    RecordValue,
     Seasonality,
     TrendException,
     TrendExceptionType,
@@ -39,11 +36,8 @@ __all__ = [
     "HoldSteady",
     "MetricPerformance",
     # Historical performance
-    "AccelerationRate",
     "BenchmarkComparison",
     "HistoricalPerformance",
-    "PeriodGrowthRate",
-    "RecordValue",
     "Seasonality",
     "TrendException",
     "TrendExceptionType",

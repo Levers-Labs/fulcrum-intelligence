@@ -4,7 +4,7 @@ Trend Analysis Primitives
 
 This module provides functions for analyzing trends in time series data:
 - Trend detection and classification
-- Record high/low detection 
+- Record high/low detection
 - Anomaly/exception detection
 - Performance plateau identification
 
@@ -14,21 +14,39 @@ Dependencies:
 - scipy.stats for linear regression
 """
 
-from typing import Any
+import logging
 
 import numpy as np
 import pandas as pd
 from scipy.stats import linregress
 
 from levers.exceptions import InsufficientDataError, ValidationError
-from levers.models.patterns import AnomalyDetectionMethod, TrendExceptionType, TrendType
+
+# TODO: check these import why some files its levers.models.patterns.historical_performance is used
+# should we import from .patterns everywhere?
+from levers.models.patterns import (
+    AnomalyDetectionMethod,
+    BenchmarkComparison,
+    Seasonality,
+    TrendException,
+    TrendExceptionType,
+    TrendType,
+)
+from levers.models.trend_analysis import (
+    PerformancePlateau,
+    RecordHigh,
+    RecordLow,
+    TrendAnalysis,
+)
 from levers.primitives.numeric import calculate_difference, calculate_percentage_difference
 from levers.primitives.time_series import validate_date_sorted
+
+logger = logging.getLogger(__name__)
 
 
 def analyze_metric_trend(
     df: pd.DataFrame, value_col: str = "value", date_col: str = "date", window_size: int = 7
-) -> dict[str, Any]:
+) -> TrendAnalysis | None:
     """
     Analyze the trend direction in a time series.
 
@@ -42,44 +60,23 @@ def analyze_metric_trend(
         window_size: Number of most recent periods to consider for trend
 
     Returns:
-        Dictionary with trend_direction, trend_slope, trend_confidence, recent_direction, etc.
+        Dictionary with trend_type, trend_slope, trend_confidence, recent_trend_type, etc.
     """
-    # Input validation
-    if date_col not in df.columns:
-        raise ValidationError(f"Column '{date_col}' not found in DataFrame", invalid_fields={"date_col": date_col})
-    if value_col not in df.columns:
-        raise ValidationError(f"Column '{value_col}' not found in DataFrame", invalid_fields={"value_col": value_col})
-
     # Ensure data is sorted by date
     df_sorted = validate_date_sorted(df, date_col)
 
     if len(df_sorted) < 2:
-        return {
-            "trend_direction": None,
-            "trend_slope": None,
-            "trend_confidence": None,
-            "normalized_slope": None,
-            "recent_direction": None,
-            "is_accelerating": False,
-            "is_plateaued": False,
-        }
+        logger.warning("Not enough data points to analyze trend")
+        return None
 
     # Full dataset trend analysis
     y = df_sorted[value_col].values
     x = np.arange(len(y))
 
     # Handle missing values
-    mask = ~np.isnan(y)
+    mask = ~np.isnan(y)  # type: ignore
     if sum(mask) < 2:
-        return {
-            "trend_direction": None,
-            "trend_slope": None,
-            "trend_confidence": None,
-            "normalized_slope": None,
-            "recent_direction": None,
-            "is_accelerating": False,
-            "is_plateaued": False,
-        }
+        return None
 
     # Calculate trend using linregress (matching reference exactly)
     slope, intercept, r_value, p_value, std_err = linregress(x[mask], y[mask])
@@ -88,7 +85,7 @@ def analyze_metric_trend(
     # Check for plateau using the dedicated function, same window as trend analysis
     plateau_window = min(window_size, len(df_sorted))
     plateau_result = detect_performance_plateau(df_sorted, value_col=value_col, tolerance=0.01, window=plateau_window)
-    is_plateaued = plateau_result["is_plateaued"]
+    is_plateaued = plateau_result.is_plateaued
 
     # todo: check with abhi if this logic is correct over original
     # Calculate normalized slope as percentage
@@ -100,15 +97,15 @@ def analyze_metric_trend(
 
     # Determine trend direction
     if is_plateaued or abs(norm_slope) < 0.5:  # Less than 0.5% change per period
-        trend_direction = TrendType.STABLE
+        trend_type = TrendType.STABLE
     elif slope > 0:
-        trend_direction = TrendType.UPWARD
+        trend_type = TrendType.UPWARD
     else:
-        trend_direction = TrendType.DOWNWARD
+        trend_type = TrendType.DOWNWARD
 
     # Check for acceleration and recent trend
     is_accelerating = False
-    recent_direction = None
+    recent_trend_type = None
 
     # Get recent window for analysis if enough data points
     if len(df_sorted) >= window_size:
@@ -116,7 +113,7 @@ def analyze_metric_trend(
         recent_y = recent_df[value_col].values
         recent_x = np.arange(len(recent_y))
 
-        mask_recent = ~np.isnan(recent_y)
+        mask_recent = ~np.isnan(recent_y)  # type: ignore
         if sum(mask_recent) >= 2:
             # Calculate recent trend using linregress (matching reference)
             try:
@@ -130,32 +127,31 @@ def analyze_metric_trend(
                     recent_norm_slope = 0 if recent_slope == 0 else (100 if recent_slope > 0 else -100)
 
                 if abs(recent_norm_slope) < 0.5:
-                    recent_direction = TrendType.STABLE
+                    recent_trend_type = TrendType.STABLE
                 elif recent_slope > 0:
-                    recent_direction = TrendType.UPWARD
+                    recent_trend_type = TrendType.UPWARD
                 else:
-                    recent_direction = TrendType.DOWNWARD
+                    recent_trend_type = TrendType.DOWNWARD
 
                 # Check for acceleration
                 is_accelerating = abs(recent_slope) > abs(slope)
-            except:
+            except Exception:
                 # If regression fails, skip recent direction and acceleration
                 is_accelerating = False
-                recent_direction = None
+                recent_trend_type = None
 
-    # Return results
-    return {
-        "trend_direction": TrendType.PLATEAU if is_plateaued else trend_direction,
-        "trend_slope": float(slope),
-        "trend_confidence": float(trend_confidence),
-        "normalized_slope": float(norm_slope),
-        "recent_direction": recent_direction,
-        "is_accelerating": is_accelerating,
-        "is_plateaued": is_plateaued,
-    }
+    return TrendAnalysis(
+        trend_type=trend_type,
+        trend_slope=slope,
+        trend_confidence=trend_confidence,
+        normalized_slope=norm_slope,
+        recent_trend_type=recent_trend_type,
+        is_accelerating=is_accelerating,
+        is_plateaued=is_plateaued,
+    )
 
 
-def detect_record_high(df: pd.DataFrame, value_col: str = "value") -> dict[str, Any]:
+def detect_record_high(df: pd.DataFrame, value_col: str = "value") -> RecordHigh:
     """
     Detect if the latest value is a record high.
 
@@ -167,11 +163,9 @@ def detect_record_high(df: pd.DataFrame, value_col: str = "value") -> dict[str, 
         value_col: Column name containing values
 
     Returns:
-        Dictionary with is_record_high, prior_max, rank, etc.
+        RecordHigh object with is_record_high, prior_max, rank, etc.
     """
-    if value_col not in df.columns:
-        raise ValidationError(f"Column '{value_col}' not found in DataFrame", invalid_fields={"value_col": value_col})
-
+    # TODO: should we raise an error here? or simply return None?
     if len(df) < 2:
         raise InsufficientDataError("Insufficient data to detect record high", data_details={"value_col": value_col})
 
@@ -183,7 +177,7 @@ def detect_record_high(df: pd.DataFrame, value_col: str = "value") -> dict[str, 
 
     # Find the maximum of previous values
     prior_max = previous_values.max()
-    prior_max_idx = previous_values.idxmax()
+    prior_max_idx = int(previous_values.idxmax())
 
     # Calculate rank (1 = highest, 2 = second highest, etc.)
     sorted_values = sorted(df[value_col].unique(), reverse=True)
@@ -192,20 +186,19 @@ def detect_record_high(df: pd.DataFrame, value_col: str = "value") -> dict[str, 
     except ValueError:
         rank = len(sorted_values) + 1  # Should not happen
 
-    # Return results
-    return {
-        "is_record_high": current_value > prior_max,
-        "current_value": current_value,
-        "prior_max": prior_max,
-        "prior_max_index": prior_max_idx,
-        "rank": rank,
-        "periods_compared": len(df),
-        "absolute_delta": calculate_difference(current_value, prior_max),
-        "percentage_delta": calculate_percentage_difference(current_value, prior_max, handle_zero_reference=True),
-    }
+    return RecordHigh(
+        is_record_high=current_value > prior_max,
+        current_value=current_value,
+        prior_max=prior_max,
+        prior_max_index=prior_max_idx,
+        rank=rank,
+        periods_compared=len(df),
+        absolute_delta=calculate_difference(current_value, prior_max),
+        percentage_delta=calculate_percentage_difference(current_value, prior_max, handle_zero_reference=True),
+    )
 
 
-def detect_record_low(df: pd.DataFrame, value_col: str = "value") -> dict[str, Any]:
+def detect_record_low(df: pd.DataFrame, value_col: str = "value") -> RecordLow:
     """
     Detect if the latest value is a record low.
 
@@ -217,11 +210,8 @@ def detect_record_low(df: pd.DataFrame, value_col: str = "value") -> dict[str, A
         value_col: Column name containing values
 
     Returns:
-        Dictionary with is_record_low, prior_min, rank, etc.
+        RecordLow object with is_record_low, prior_min, rank, etc.
     """
-    if value_col not in df.columns:
-        raise ValidationError(f"Column '{value_col}' not found in DataFrame", invalid_fields={"value_col": value_col})
-
     if len(df) < 2:
         raise InsufficientDataError("Insufficient data to detect record low", data_details={"value_col": value_col})
 
@@ -233,7 +223,7 @@ def detect_record_low(df: pd.DataFrame, value_col: str = "value") -> dict[str, A
 
     # Find the minimum of previous values
     prior_min = previous_values.min()
-    prior_min_idx = previous_values.idxmin()
+    prior_min_idx = int(previous_values.idxmin())
 
     # Calculate rank (1 = lowest, 2 = second lowest, etc.)
     sorted_values = sorted(df[value_col].unique())
@@ -242,24 +232,23 @@ def detect_record_low(df: pd.DataFrame, value_col: str = "value") -> dict[str, A
     except ValueError:
         rank = len(sorted_values) + 1  # Should not happen
 
-    # Return results
-    return {
-        "is_record_low": current_value < prior_min,
-        "current_value": current_value,
-        "prior_min": prior_min,
-        "prior_min_index": prior_min_idx,
-        "rank": rank,
-        "periods_compared": len(df),
-        "absolute_delta": calculate_difference(current_value, prior_min),
-        "percentage_delta": calculate_percentage_difference(current_value, prior_min, handle_zero_reference=True),
-    }
+    return RecordLow(
+        is_record_low=current_value < prior_min,
+        current_value=current_value,
+        prior_min=prior_min,
+        prior_min_index=prior_min_idx,
+        rank=rank,
+        periods_compared=len(df),
+        absolute_delta=calculate_difference(current_value, prior_min),
+        percentage_delta=calculate_percentage_difference(current_value, prior_min, handle_zero_reference=True),
+    )
 
 
 # todo: check with abhi if this logic is correct over original
 # logic is quite different from original
 def detect_trend_exceptions(
     df: pd.DataFrame, date_col: str = "date", value_col: str = "value", window_size: int = 5, z_threshold: float = 2.0
-) -> list[dict[str, Any]]:
+) -> list[TrendException] | list:
     """
     Detect spikes and drops in a time series relative to recent values.
 
@@ -274,19 +263,15 @@ def detect_trend_exceptions(
         z_threshold: Number of standard deviations to consider exceptional
 
     Returns:
-        List of dictionaries with exception details
+        List of TrendException objects or empty list if no exceptions are detected
     """
-    # Input validation
-    if date_col not in df.columns:
-        raise ValidationError(f"Column '{date_col}' not found in DataFrame", invalid_fields={"date_col": date_col})
-    if value_col not in df.columns:
-        raise ValidationError(f"Column '{value_col}' not found in DataFrame", invalid_fields={"value_col": value_col})
 
     # Ensure data is sorted by date
     df_sorted = validate_date_sorted(df, date_col)
 
     # Check if we have enough data to calculate z-score
     if len(df_sorted) < window_size + 1:
+        logger.warning("Insufficient data to calculate z-score for trend exceptions")
         return []
 
     # Get the recent window and current value
@@ -299,6 +284,7 @@ def detect_trend_exceptions(
 
     if std_val == 0 or pd.isna(std_val):
         # Cannot calculate z-score with zero std dev
+        logger.warning("Cannot calculate z-score for trend exceptions")
         return []
 
     # Calculate z-score of current value
@@ -311,30 +297,30 @@ def detect_trend_exceptions(
         upper_bound = mean_val + z_threshold * std_val
         delta = current_value - upper_bound
         exceptions.append(
-            {
-                "type": TrendExceptionType.SPIKE,
-                "current_value": current_value,
-                "normal_range_low": mean_val - z_threshold * std_val,
-                "normal_range_high": upper_bound,
-                "absolute_delta_from_normal_range": delta,
-                "magnitude_percent": (delta / upper_bound * 100) if upper_bound != 0 else None,
-                "z_score": z_score,
-            }
+            TrendException(
+                type=TrendExceptionType.SPIKE,
+                current_value=current_value,
+                normal_range_low=mean_val - z_threshold * std_val,
+                normal_range_high=upper_bound,
+                absolute_delta_from_normal_range=delta,
+                magnitude_percent=(delta / upper_bound * 100) if upper_bound != 0 else None,
+                z_score=z_score,
+            )
         )
     elif z_score < -z_threshold:
         # Drop detected
         lower_bound = mean_val - z_threshold * std_val
         delta = lower_bound - current_value
         exceptions.append(
-            {
-                "type": TrendExceptionType.DROP,
-                "current_value": current_value,
-                "normal_range_low": lower_bound,
-                "normal_range_high": mean_val + z_threshold * std_val,
-                "absolute_delta_from_normal_range": -delta,  # Keep consistent with fulcrum implementation
-                "magnitude_percent": (delta / abs(lower_bound) * 100) if lower_bound != 0 else None,
-                "z_score": z_score,
-            }
+            TrendException(
+                type=TrendExceptionType.DROP,
+                current_value=current_value,
+                normal_range_low=lower_bound,
+                normal_range_high=mean_val + z_threshold * std_val,
+                absolute_delta_from_normal_range=-delta,  # Keep consistent with fulcrum implementation
+                magnitude_percent=(delta / abs(lower_bound) * 100) if lower_bound != 0 else None,
+                z_score=z_score,
+            )
         )
 
     return exceptions
@@ -342,7 +328,7 @@ def detect_trend_exceptions(
 
 def detect_performance_plateau(
     df: pd.DataFrame, value_col: str = "value", tolerance: float = 0.01, window: int = 7
-) -> dict[str, Any]:
+) -> PerformancePlateau:
     """
     Detect if a time series has plateaued (minimal changes within a threshold).
 
@@ -356,30 +342,33 @@ def detect_performance_plateau(
         window: Number of periods to analyze for plateau detection
 
     Returns:
-        Dictionary with plateau information
+        PerformancePlateau object with plateau information
     """
-    if value_col not in df.columns:
-        raise ValidationError(f"Column '{value_col}' not found in DataFrame", invalid_fields={"value_col": value_col})
 
     if len(df) < window:
-        return {
-            "is_plateaued": False,
-            "plateau_duration": 0,
-            "stability_score": 0.0,
-            "mean_value": df[value_col].mean() if not df.empty else None,
-        }
+        return PerformancePlateau(
+            is_plateaued=False,
+            plateau_duration=0,
+            stability_score=0.0,
+            mean_value=df[value_col].mean() if not df.empty else None,
+        )
 
     # Get the most recent window of values
     recent_values = df[value_col].iloc[-window:].values
 
     # Calculate mean and standard deviation
-    mean_val = np.mean(recent_values)
+    mean_val = np.mean(recent_values)  # type: ignore
     if mean_val == 0:
         # Can't calculate relative stability with zero mean
-        return {"is_plateaued": False, "plateau_duration": 0, "stability_score": 0.0, "mean_value": mean_val}
+        return PerformancePlateau(
+            is_plateaued=False,
+            plateau_duration=0,
+            stability_score=0.0,
+            mean_value=None,
+        )
 
     # Calculate coefficient of variation
-    std_val = np.std(recent_values)
+    std_val = np.std(recent_values)  # type: ignore
     cv = std_val / abs(mean_val)  # Coefficient of variation
 
     # Determine if plateaued based on CV compared to tolerance
@@ -406,12 +395,12 @@ def detect_performance_plateau(
     # Calculate stability score (1.0 = perfectly stable, 0.0 = highly unstable)
     stability_score = max(0.0, 1.0 - (cv / tolerance)) if tolerance > 0 else 0.0
 
-    return {
-        "is_plateaued": is_plateaued,
-        "plateau_duration": plateau_duration + window if is_plateaued else 0,
-        "stability_score": stability_score,
-        "mean_value": mean_val,
-    }
+    return PerformancePlateau(
+        is_plateaued=is_plateaued,  # type: ignore
+        plateau_duration=plateau_duration + window if is_plateaued else 0,
+        stability_score=float(stability_score),  # type: ignore
+        mean_value=float(mean_val),
+    )
 
 
 def _average_moving_range(values: pd.Series) -> float:
@@ -438,7 +427,7 @@ def _average_moving_range(values: pd.Series) -> float:
 
 def _compute_segment_center_line(
     df: pd.DataFrame, start_idx: int, end_idx: int, half_average_point: int, value_col: str
-) -> tuple[list[float], float]:
+) -> tuple[list[float | None], float]:
     """
     Calculate the center line and slope for a segment of data.
 
@@ -462,7 +451,7 @@ def _compute_segment_center_line(
     n = len(seg)
 
     if n < 2:
-        return ([None] * n, 0.0)
+        return [None] * n, 0.0
 
     # Adjust half point based on available data
     half_pt = min(half_average_point, n // 2)
@@ -480,22 +469,22 @@ def _compute_segment_center_line(
 
     if mid_idx >= n:
         # If segment is too small, use flat center line
-        center_line = [seg.mean()] * n
+        center_line = [seg.mean()] * n  # type: ignore
         slope = 0.0
-        return (center_line, slope)
+        return center_line, slope  # type: ignore
 
     # Set middle point and extend in both directions
-    center_line[mid_idx] = first_avg
+    center_line[mid_idx] = first_avg  # type: ignore
 
     # Forward projection
     for i in range(mid_idx + 1, n):
-        center_line[i] = center_line[i - 1] + slope
+        center_line[i] = center_line[i - 1] + slope  # type: ignore
 
     # Backward projection
     for i in range(mid_idx - 1, -1, -1):
-        center_line[i] = center_line[i + 1] - slope
+        center_line[i] = center_line[i + 1] - slope  # type: ignore
 
-    return (center_line, slope)
+    return center_line, slope  # type: ignore
 
 
 def _detect_spc_signals(
@@ -654,7 +643,7 @@ def process_control_analysis(
     ucl_array = [None] * n_points
     lcl_array = [None] * n_points
     signal_array = [False] * n_points
-    slope_array = [None] * n_points
+    slope_array: list[float | None] = [None] * n_points
 
     # Process data in segments for a more dynamic approach
     start_idx = 0
@@ -675,8 +664,8 @@ def process_control_analysis(
         for i in range(seg_length):
             idx = start_idx + i
             if idx < n_points:
-                central_line_array[idx] = center_line[i]
-                slope_array[idx] = segment_slope
+                central_line_array[idx] = center_line[i]  # type: ignore
+                slope_array[idx] = segment_slope  # type: ignore
 
         # Calculate control limits from moving ranges
         segment_values = dff[value_col].iloc[start_idx:end_idx].reset_index(drop=True)
@@ -686,20 +675,20 @@ def process_control_analysis(
             idx = start_idx + i
             if idx < n_points:
                 cl_val = central_line_array[idx]
-                if cl_val is not None and not np.isnan(cl_val):
-                    ucl_array[idx] = cl_val + avg_range * control_limit_multiplier
-                    lcl_array[idx] = cl_val - avg_range * control_limit_multiplier
+                if cl_val is not None:
+                    ucl_array[idx] = cl_val + avg_range * control_limit_multiplier  # type: ignore
+                    lcl_array[idx] = cl_val - avg_range * control_limit_multiplier  # type: ignore
                 else:
-                    ucl_array[idx] = np.nan
-                    lcl_array[idx] = np.nan
+                    ucl_array[idx] = np.nan  # type: ignore
+                    lcl_array[idx] = np.nan  # type: ignore
 
         # Detect signals
         signals_idx = _detect_spc_signals(
             df_segment=dff.iloc[start_idx:end_idx],
             offset=start_idx,
-            central_line_array=central_line_array,
-            ucl_array=ucl_array,
-            lcl_array=lcl_array,
+            central_line_array=central_line_array,  # type: ignore
+            ucl_array=ucl_array,  # type: ignore
+            lcl_array=lcl_array,  # type: ignore
             value_col=value_col,
             consecutive_run_length=consecutive_run_length,
         )
@@ -729,7 +718,7 @@ def process_control_analysis(
     for i in range(1, len(dff)):
         s_now = slope_array[i]
         s_prev = slope_array[i - 1]
-        if s_now is not None and s_prev is not None and abs(s_prev) > 1e-9:
+        if s_prev is not None and abs(s_prev) > 1e-9 and s_now is not None:
             dff.loc[dff.index[i], "slope_change"] = (s_now - s_prev) / abs(s_prev) * 100.0
 
     return dff
@@ -790,7 +779,7 @@ def detect_anomalies(
     value_col: str = "value",
     window_size: int = 7,
     z_threshold: float = 3.0,
-    method: str = "combined",
+    method: AnomalyDetectionMethod = AnomalyDetectionMethod.COMBINED,
 ) -> pd.DataFrame:
     """
     Detect anomalies in a time series using multiple methods.
@@ -815,7 +804,7 @@ def detect_anomalies(
     if value_col not in df.columns:
         raise ValidationError(f"Column '{value_col}' not found in DataFrame", invalid_fields={"value_col": value_col})
 
-    if method not in ["variance", "spc", "combined"]:
+    if method not in [AnomalyDetectionMethod.VARIANCE, AnomalyDetectionMethod.SPC, AnomalyDetectionMethod.COMBINED]:
         raise ValidationError(
             f"Invalid method: {method}. Must be 'variance', 'spc', or 'combined'", invalid_fields={"method": method}
         )
@@ -838,3 +827,150 @@ def detect_anomalies(
     dff = _apply_anomaly_detection_methods(dff, value_col, z_threshold, method)
 
     return dff
+
+
+def analyze_seasonality(
+    df: pd.DataFrame, lookback_end: pd.Timestamp, date_col: str = "date", value_col: str = "value"
+) -> Seasonality | None:
+    """
+    Analyze seasonality by comparing current value to value from one year ago.
+
+    Family: trend_analysis
+    Version: 1.0
+
+    Args:
+        df: DataFrame containing time series data
+        date_col: Column name containing dates
+        value_col: Column name containing values
+        lookback_end: End date of the analysis window (defaults to last date in df)
+
+    Returns:
+        Seasonality object with seasonality analysis results or None if insufficient data
+    """
+
+    # Ensure data is sorted by date
+    df_sorted = validate_date_sorted(df, date_col)
+
+    if df_sorted.empty:
+        return None
+
+    # Find data from approximately 1 year earlier than lookback_end
+    yoy_date = lookback_end - pd.Timedelta(days=365)
+
+    # Get the last row that is <= yoy_date
+    yoy_df = df_sorted[df_sorted[date_col] <= yoy_date]
+
+    # If we can't find a yoy reference, return None
+    if yoy_df.empty:
+        return None
+
+    yoy_ref_value = yoy_df.iloc[-1][value_col]  # last row
+    current_value = df_sorted.iloc[-1][value_col]  # final row
+
+    try:
+        actual_change_percent = calculate_percentage_difference(
+            current_value, yoy_ref_value, handle_zero_reference=True
+        )
+    except Exception:
+        actual_change_percent = None
+
+    if actual_change_percent is None:
+        return None
+
+    # Define expected change as average YoY across all pairs
+    yoy_changes = []
+    for i in range(len(df_sorted)):
+        this_date = df_sorted.iloc[i][date_col]
+        search_date = this_date - pd.Timedelta(days=365)
+        subset = df_sorted[df_sorted[date_col] <= search_date]
+        if not subset.empty:
+            ref_val = subset.iloc[-1][value_col]
+            cur_val = df_sorted.iloc[i][value_col]
+            try:
+                change = calculate_percentage_difference(cur_val, ref_val, handle_zero_reference=True)
+                if change is not None:
+                    yoy_changes.append(change)
+            except Exception as e:
+                logger.warning(f"Error calculating percentage difference: {e}")
+                pass
+
+    expected_change = 0.0
+    if yoy_changes:
+        expected_change = float(np.mean(yoy_changes))
+
+    deviation_percent = actual_change_percent - expected_change
+    # Using threshold of 2% for determining if following expected pattern
+    is_following = abs(deviation_percent) <= 2.0
+
+    return Seasonality(
+        is_following_expected_pattern=is_following,
+        expected_change_percent=expected_change,
+        actual_change_percent=actual_change_percent,
+        deviation_percent=deviation_percent,
+    )
+
+
+def calculate_benchmark_comparisons(
+    df: pd.DataFrame, date_col: str = "date", value_col: str = "value"
+) -> list[BenchmarkComparison]:
+    """
+    Calculate benchmark comparisons such as week-to-date vs. prior week-to-date.
+
+    Family: trend_analysis
+    Version: 1.0
+
+    Args:
+        df: DataFrame containing time series data
+        date_col: Column name containing dates
+        value_col: Column name containing values
+        grain: Time grain for analysis (day, week, month)
+
+    Returns:
+        List of benchmark comparison dictionaries
+    """
+
+    # Ensure data is sorted by date
+    df_sorted = validate_date_sorted(df, date_col)
+
+    benchmark_comparisons = []
+
+    # Get the last date in the dataset
+    last_date = df_sorted[date_col].max()
+
+    # Monday of current week (day 0 is Monday)
+    current_week_monday = last_date - pd.Timedelta(days=last_date.dayofweek)
+
+    # Date range for current WTD
+    c_start = current_week_monday
+    c_end = last_date
+
+    # Prior WTD - shift by 7 days
+    p_start = c_start - pd.Timedelta(days=7)
+    p_end = c_end - pd.Timedelta(days=7)
+
+    # Gather current WTD data
+    c_mask = (df_sorted[date_col] >= c_start) & (df_sorted[date_col] <= c_end)
+    c_vals = df_sorted.loc[c_mask, value_col]
+    current_sum = c_vals.sum() if not c_vals.empty else 0
+
+    # Gather prior WTD data
+    p_mask = (df_sorted[date_col] >= p_start) & (df_sorted[date_col] <= p_end)
+    p_vals = df_sorted.loc[p_mask, value_col]
+    prior_sum = p_vals.sum() if not p_vals.empty else 0
+
+    abs_change = calculate_difference(current_sum, prior_sum)
+
+    try:
+        change_percent = calculate_percentage_difference(current_sum, prior_sum, handle_zero_reference=True)
+    except Exception:
+        change_percent = None
+
+    benchmark_comparisons.append(
+        BenchmarkComparison(
+            reference_period="WTD",
+            absolute_change=abs_change,
+            change_percent=change_percent,
+        )
+    )
+
+    return benchmark_comparisons

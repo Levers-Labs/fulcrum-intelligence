@@ -3,20 +3,18 @@ Historical Performance Pattern
 
 This module implements the HistoricalPerformancePattern which analyzes a metric's
 historical performance over a lookback window. It computes period-over-period
-growth rates, acceleration, trends, record highs/lows, seasonal patterns, 
+growth rates, acceleration, trends, record highs/lows, seasonal patterns,
 benchmark comparisons, and trend exceptions.
 """
 
 import logging
-from datetime import datetime, timedelta
-from typing import Any
 
-import numpy as np
 import pandas as pd
 
 from levers.exceptions import ValidationError
 from levers.models import (
     AnalysisWindowConfig,
+    AverageGrowthMethod,
     DataSource,
     DataSourceType,
     PatternConfig,
@@ -25,18 +23,20 @@ from levers.models import (
 from levers.models.common import AnalysisWindow, Granularity
 from levers.models.patterns.historical_performance import (
     BenchmarkComparison,
+    GrowthStats,
     HistoricalPerformance,
     PeriodMetrics,
     RankSummary,
     Seasonality,
     TrendException,
-    TrendType,
+    TrendInfo,
 )
 from levers.patterns.base import Pattern
-from levers.primitives.numeric import calculate_difference, calculate_percentage_difference
 from levers.primitives.time_series import calculate_average_growth, calculate_pop_growth, convert_grain_to_freq
 from levers.primitives.trend_analysis import (
     analyze_metric_trend,
+    analyze_seasonality,
+    calculate_benchmark_comparisons,
     detect_record_high,
     detect_record_low,
     detect_trend_exceptions,
@@ -59,6 +59,8 @@ class HistoricalPerformancePattern(Pattern[HistoricalPerformance]):
         "detect_record_low",
         "detect_trend_exceptions",
         "convert_grain_to_freq",
+        "analyze_seasonality",
+        "calculate_benchmark_comparisons",
     ]
     output_model: type[HistoricalPerformance] = HistoricalPerformance
 
@@ -117,15 +119,15 @@ class HistoricalPerformancePattern(Pattern[HistoricalPerformance]):
             growth_stats = self._calculate_growth_statistics(grouped, period_metrics)
 
             # Analyze trends
-            trend_info = self._analyze_trends(grouped, avg_pop_growth=growth_stats["average_pop_growth"])
+            trend_info = self._analyze_trends(grouped, avg_pop_growth=growth_stats.average_pop_growth)
 
             # Detect record values
             value_rankings = self._detect_record_values(data_window)
 
-            # Analyze seasonality
+            # Analyze seasonality using the new primitive
             seasonality_data = self._analyze_seasonality(data_window, lookback_end)
 
-            # Calculate benchmark comparisons
+            # Calculate benchmark comparisons using the new primitive
             benchmark_comparisons = self._calculate_benchmark_comparisons(data_window, grain)
 
             # Detect trend exceptions
@@ -163,7 +165,7 @@ class HistoricalPerformancePattern(Pattern[HistoricalPerformance]):
                 },
             ) from e
 
-    def _group_by_grain(self, data_window: pd.DataFrame, grain: str, num_periods: int) -> pd.DataFrame:
+    def _group_by_grain(self, data_window: pd.DataFrame, grain: Granularity, num_periods: int) -> pd.DataFrame:
         """
         Resample the data by the specified grain and filter to the number of periods.
 
@@ -239,7 +241,7 @@ class HistoricalPerformancePattern(Pattern[HistoricalPerformance]):
         self,
         grouped: pd.DataFrame,
         period_metrics: list[PeriodMetrics],
-    ) -> dict[str, Any]:
+    ) -> GrowthStats:
         """
         Calculate growth statistics including current growth, average growth,
         acceleration, and consecutive periods accelerating/slowing.
@@ -249,14 +251,14 @@ class HistoricalPerformancePattern(Pattern[HistoricalPerformance]):
             period_metrics: List of period metrics including growth and acceleration
 
         Returns:
-            Dictionary containing growth statistics
+            GrowthStats object containing growth statistics
         """
         # Current period-over-period growth
         current_pop_growth = period_metrics[-1].pop_growth_percent if period_metrics else None
 
         # Calculate average growth using our primitive
-        avg_growth_results = calculate_average_growth(grouped, "date", "value", "arithmetic")
-        avg_pop_growth = avg_growth_results.get("average_growth")
+        avg_growth_results = calculate_average_growth(grouped, "date", "value", AverageGrowthMethod.ARITHMETIC)
+        avg_pop_growth = avg_growth_results.average_growth
 
         # Current growth acceleration
         current_growth_acceleration = period_metrics[-1].pop_acceleration_percent if len(period_metrics) > 1 else None
@@ -279,15 +281,15 @@ class HistoricalPerformancePattern(Pattern[HistoricalPerformance]):
             else:
                 break
 
-        return {
-            "current_pop_growth": current_pop_growth,
-            "average_pop_growth": avg_pop_growth,
-            "current_growth_acceleration": current_growth_acceleration,
-            "num_periods_accelerating": num_periods_accelerating,
-            "num_periods_slowing": num_periods_slowing,
-        }
+        return GrowthStats(
+            current_pop_growth=current_pop_growth,
+            average_pop_growth=avg_pop_growth,
+            current_growth_acceleration=current_growth_acceleration,
+            num_periods_accelerating=num_periods_accelerating,
+            num_periods_slowing=num_periods_slowing,
+        )
 
-    def _analyze_trends(self, grouped: pd.DataFrame, avg_pop_growth: float | None) -> dict[str, Any]:
+    def _analyze_trends(self, grouped: pd.DataFrame, avg_pop_growth: float | None) -> dict[str, TrendInfo | None]:
         """
         Analyze metric trends and classify current and previous trends.
 
@@ -296,16 +298,15 @@ class HistoricalPerformancePattern(Pattern[HistoricalPerformance]):
             avg_pop_growth: Average growth rate over the analysis window
 
         Returns:
-            Dictionary containing trend classification information
+            Dictionary containing current and previous trend information
         """
         # Trend classification
         trend_result = analyze_metric_trend(
             df=grouped, value_col="value", date_col="date", window_size=min(5, len(grouped))
         )
-        trend_type = trend_result.get("trend_direction")
         # If no trend, return None
         # No need to analyze previous trend in this case
-        if trend_type is None:
+        if trend_result is None:
             return {
                 "current_trend": None,
                 "previous_trend": None,
@@ -318,16 +319,16 @@ class HistoricalPerformancePattern(Pattern[HistoricalPerformance]):
         previous_trend_info = self._analyze_previous_trend(grouped)
 
         return {
-            "current_trend": {
-                "trend_type": trend_type,
-                "start_date": trend_start_date,
-                "average_pop_growth": avg_pop_growth,
-                "duration_grains": len(grouped),
-            },
+            "current_trend": TrendInfo(
+                trend_type=trend_result.trend_type,
+                start_date=trend_start_date,
+                average_pop_growth=avg_pop_growth,
+                duration_grains=len(grouped),
+            ),
             "previous_trend": previous_trend_info,
         }
 
-    def _analyze_previous_trend(self, grouped: pd.DataFrame) -> dict[str, Any] | None:
+    def _analyze_previous_trend(self, grouped: pd.DataFrame) -> TrendInfo | None:
         """
         Analyze the previous trend by examining all points except the last one.
 
@@ -335,25 +336,31 @@ class HistoricalPerformancePattern(Pattern[HistoricalPerformance]):
             grouped: DataFrame grouped by the chosen grain
 
         Returns:
-            Dictionary containing previous trend information
+            TrendInfo object containing previous trend information
         """
         if len(grouped) < 2:
             return None
         prev_subset = grouped.iloc[:-1].copy()
         prev_trend_res = analyze_metric_trend(prev_subset, "value", "date")
-        previous_trend_type = prev_trend_res.get("trend_type")
+        # If no trend, return None
+        if prev_trend_res is None:
+            return None
+
+        previous_trend_type = prev_trend_res.trend_type
         previous_trend_start_date = prev_subset["date"].iloc[0].strftime("%Y-%m-%d")
 
         # Calculate average growth for previous subset
-        prev_subset_growth_results = calculate_average_growth(prev_subset, "date", "value", "arithmetic")
-        previous_trend_average_pop_growth = prev_subset_growth_results.get("average_growth")
+        prev_subset_growth_results = calculate_average_growth(
+            prev_subset, "date", "value", AverageGrowthMethod.ARITHMETIC
+        )
+        previous_trend_average_pop_growth = prev_subset_growth_results.average_growth
         previous_trend_duration_grains = len(prev_subset)
-        return {
-            "trend_type": previous_trend_type,
-            "start_date": previous_trend_start_date,
-            "average_pop_growth": previous_trend_average_pop_growth,
-            "duration_grains": previous_trend_duration_grains,
-        }
+        return TrendInfo(
+            trend_type=previous_trend_type,
+            start_date=previous_trend_start_date,
+            average_pop_growth=previous_trend_average_pop_growth,
+            duration_grains=previous_trend_duration_grains,
+        )
 
     def _detect_record_values(self, data_window: pd.DataFrame) -> dict[str, RankSummary | None]:
         """
@@ -372,37 +379,37 @@ class HistoricalPerformancePattern(Pattern[HistoricalPerformance]):
         # Create high value summary - always included regardless of record status
         # Extract date of prior record if available
         prior_high_date = None
-        if high_result.get("prior_max_index") is not None:
-            prior_idx = high_result["prior_max_index"]
+        if high_result.prior_max_index is not None:
+            prior_idx = high_result.prior_max_index
             if prior_idx in data_window.index:
-                prior_high_date = data_window.loc[prior_idx, "date"].strftime("%Y-%m-%d")
+                prior_high_date = data_window.loc[prior_idx, "date"].strftime("%Y-%m-%d")  # type: ignore
 
         high_rank = RankSummary(
-            value=high_result["current_value"],
-            rank=high_result["rank"],
-            duration_grains=high_result["periods_compared"],
-            prior_record_value=high_result["prior_max"],
+            value=high_result.current_value,
+            rank=high_result.rank,
+            duration_grains=high_result.periods_compared,
+            prior_record_value=high_result.prior_max,
             prior_record_date=prior_high_date,
-            absolute_delta_from_prior_record=high_result["absolute_delta"],
-            relative_delta_from_prior_record=high_result["percentage_delta"],
+            absolute_delta_from_prior_record=high_result.absolute_delta,
+            relative_delta_from_prior_record=high_result.percentage_delta,
         )
 
         # Create low value summary - always included regardless of record status
         # Extract date of prior record if available
         prior_low_date = None
-        if low_result.get("prior_min_index") is not None:
-            prior_idx = low_result["prior_min_index"]
+        if low_result.prior_min_index is not None:
+            prior_idx = low_result.prior_min_index
             if prior_idx in data_window.index:
-                prior_low_date = data_window.loc[prior_idx, "date"].strftime("%Y-%m-%d")
+                prior_low_date = data_window.loc[prior_idx, "date"].strftime("%Y-%m-%d")  # type: ignore
 
         low_rank = RankSummary(
-            value=low_result["current_value"],
-            rank=low_result["rank"],
-            duration_grains=low_result["periods_compared"],
-            prior_record_value=low_result["prior_min"],
+            value=low_result.current_value,
+            rank=low_result.rank,
+            duration_grains=low_result.periods_compared,
+            prior_record_value=low_result.prior_min,
             prior_record_date=prior_low_date,
-            absolute_delta_from_prior_record=low_result["absolute_delta"],
-            relative_delta_from_prior_record=low_result["percentage_delta"],
+            absolute_delta_from_prior_record=low_result.absolute_delta,
+            relative_delta_from_prior_record=low_result.percentage_delta,
         )
 
         return {
@@ -410,8 +417,7 @@ class HistoricalPerformancePattern(Pattern[HistoricalPerformance]):
             "low_rank": low_rank,
         }
 
-    # TODO: should we have primitives for this? instead of core logic in the pattern?
-    def _analyze_seasonality(self, data_window: pd.DataFrame, lookback_end: pd.Timestamp) -> dict[str, Any] | None:
+    def _analyze_seasonality(self, data_window: pd.DataFrame, lookback_end: pd.Timestamp) -> Seasonality | None:
         """
         Analyze seasonality by comparing current value to value from one year ago.
 
@@ -420,119 +426,30 @@ class HistoricalPerformancePattern(Pattern[HistoricalPerformance]):
             lookback_end: End date of the analysis window
 
         Returns:
-            Seasonality object if seasonality analysis is possible, None otherwise
+            Dictionary with seasonality analysis results or None if insufficient data
         """
-        # Find data from approximately 1 year earlier than lookback_end
-        yoy_date = lookback_end - timedelta(days=365)
+        return analyze_seasonality(data_window, lookback_end, "date", "value")
 
-        # Sort data by date
-        data_window_sorted = data_window.copy().sort_values("date")
-
-        # Get the last row that is <= yoy_date
-        yoy_df = data_window_sorted[data_window_sorted["date"] <= yoy_date]
-
-        # If we can't find a yoy reference, we set empty seasonality results.
-        if yoy_df.empty:
-            logger.warning("No data found for metric_id=%s to calculate seasonality", self.metric_id)
-            return None
-        yoy_ref_value = yoy_df.iloc[-1]["value"]  # last row
-        current_value = data_window_sorted.iloc[-1]["value"]  # final row
-
-        try:
-            actual_change_percent = calculate_percentage_difference(
-                current_value, yoy_ref_value, handle_zero_reference=True
-            )
-        except Exception:
-            actual_change_percent = None
-
-        if actual_change_percent is None:
-            logger.warning("Failed to calculate actual change percent for metric_id=%s", self.metric_id)
-            return None
-
-        # Define expected change as average YoY across all pairs
-        yoy_changes = []
-        for i in range(len(data_window_sorted)):
-            this_date = data_window_sorted.iloc[i]["date"]
-            search_date = this_date - timedelta(days=365)
-            subset = data_window_sorted[data_window_sorted["date"] <= search_date]
-            if not subset.empty:
-                ref_val = subset.iloc[-1]["value"]
-                cur_val = data_window_sorted.iloc[i]["value"]
-                yoy_changes.append(calculate_percentage_difference(cur_val, ref_val, handle_zero_reference=True))
-
-        expected_change = 0.0
-        if yoy_changes:
-            expected_change = float(np.mean(yoy_changes))
-
-        deviation_percent = actual_change_percent - expected_change
-        is_following = abs(deviation_percent) <= 2.0  # +/-2% threshold
-
-        return {
-            "is_following_expected_pattern": is_following,
-            "expected_change_percent": expected_change,
-            "actual_change_percent": actual_change_percent,
-            "deviation_percent": deviation_percent,
-        }
-
-    # TODO: should we have a primitive for this?
-    def _calculate_benchmark_comparisons(self, data_window: pd.DataFrame, grain: str) -> list[BenchmarkComparison]:
+    def _calculate_benchmark_comparisons(
+        self, data_window: pd.DataFrame, grain: str
+    ) -> list[BenchmarkComparison] | list:
         """
         Calculate benchmark comparisons such as week-to-date vs. prior week-to-date.
 
         Args:
             data_window: DataFrame with date and value columns
-            grain: Time grain for analysis
+            grain: Time grain for analysis (day, week, month)
 
         Returns:
-            List of benchmark comparisons
+            List of benchmark comparison objects or empty list if no benchmarks can be calculated
         """
-        benchmark_comparisons = []
-        # For week/month grains or others, we won't produce benchmarks here
-        if grain != Granularity.DAY:
-            return benchmark_comparisons
+        # For non-daily data, we won't produce benchmarks here
+        if grain != Granularity.DAY or data_window.empty:
+            return []
 
-        # For daily data, compare current WTD to prior WTD
-        last_date = data_window["date"].max()
+        return calculate_benchmark_comparisons(data_window, "date", "value")
 
-        # Monday of current week
-        current_week_monday = last_date - pd.Timedelta(days=last_date.dayofweek)
-
-        # Date range for current WTD
-        c_start = current_week_monday
-        c_end = last_date
-
-        # Prior WTD - shift by 7 days
-        p_start = c_start - pd.Timedelta(days=7)
-        p_end = c_end - pd.Timedelta(days=7)
-
-        # Gather current WTD data
-        c_mask = (data_window["date"] >= c_start) & (data_window["date"] <= c_end)
-        c_vals = data_window.loc[c_mask, "value"]
-        # TODO: do we need to always sum?
-        current_sum = c_vals.sum()
-
-        # Gather prior WTD data
-        p_mask = (data_window["date"] >= p_start) & (data_window["date"] <= p_end)
-        p_vals = data_window.loc[p_mask, "value"]
-        prior_sum = p_vals.sum()
-
-        abs_change = calculate_difference(current_sum, prior_sum)
-        try:
-            change_percent = calculate_percentage_difference(current_sum, prior_sum, handle_zero_reference=True)
-        except Exception:
-            change_percent = None
-
-        benchmark_comparisons.append(
-            {
-                "reference_period": "WTD",
-                "absolute_change": abs_change,
-                "change_percent": change_percent,
-            }
-        )
-
-        return benchmark_comparisons
-
-    def _detect_trend_exceptions(self, grouped: pd.DataFrame) -> list[TrendException]:
+    def _detect_trend_exceptions(self, grouped: pd.DataFrame) -> list[TrendException] | list:
         """
         Detect anomalies (spikes or drops) in the time series.
 
@@ -540,14 +457,11 @@ class HistoricalPerformancePattern(Pattern[HistoricalPerformance]):
             grouped: DataFrame grouped by the chosen grain
 
         Returns:
-            List of detected trend exceptions
+            List of detected trend exceptions or empty list if no exceptions are detected
         """
-        # Trend exceptions (spike / drop detection)
-        exception_results = detect_trend_exceptions(
+        return detect_trend_exceptions(
             df=grouped, date_col="date", value_col="value", window_size=min(5, len(grouped)), z_threshold=2.0
         )
-
-        return exception_results
 
     @classmethod
     def get_default_config(cls) -> PatternConfig:
