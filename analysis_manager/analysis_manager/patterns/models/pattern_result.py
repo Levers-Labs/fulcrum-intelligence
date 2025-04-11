@@ -52,9 +52,6 @@ class PatternResult(AnalysisSchemaBaseModel, table=True):
         """
         Convert JSON data to the appropriate Pydantic model using the Levers API.
 
-        Args:
-            result: The pattern result from the database
-
         Returns:
             The pattern result as a Pydantic model
         """
