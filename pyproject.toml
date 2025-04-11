@@ -47,7 +47,12 @@ use_parentheses = true
 force_grid_wrap = 4
 include_trailing_comma = true
 known_first_party = "app,levers,commons,fulcrum_core,analysis_manager,query_manager,story_manager,insights_backend,tasks_manager"
-skip_glob = ["core/fulcrum_core/modules/__init__.py", "commons/commons/db/signals/__init__.py", "analysis_manager/analysis_manager/patterns/models/__init__.py"]
+skip_glob = [
+    "core/fulcrum_core/modules/__init__.py",
+    "commons/commons/db/signals/__init__.py",
+    "analysis_manager/analysis_manager/patterns/models/__init__.py",
+    "levers/levers/models/__init__.py",
+]
 
 [tool.black]
 line-length = 120
@@ -87,20 +92,18 @@ exclude = [
 output-format = "concise"
 line-length = 120
 unsafe-fixes = true
-exclude = [
-    "render.py"
-]
+exclude = ["render.py"]
 
 [tool.ruff.lint]
 ignore-init-module-imports = true
 select = [
-    "E", # https://docs.astral.sh/ruff/rules/#pycodestyle-e-w
-    "F", # https://docs.astral.sh/ruff/rules/#pyflakes-f
-    "UP", # https://docs.astral.sh/ruff/rules/#pyupgrade-up
-    "N", # https://docs.astral.sh/ruff/rules/#pep8-naming-n
-    "S", # https://docs.astral.sh/ruff/rules/#flake8-bandit-s
-    "B", # https://docs.astral.sh/ruff/rules/#flake8-bugbear-b
-    "T20" # https://docs.astral.sh/ruff/rules/#flake8-print-t20
+    "E",   # https://docs.astral.sh/ruff/rules/#pycodestyle-e-w
+    "F",   # https://docs.astral.sh/ruff/rules/#pyflakes-f
+    "UP",  # https://docs.astral.sh/ruff/rules/#pyupgrade-up
+    "N",   # https://docs.astral.sh/ruff/rules/#pep8-naming-n
+    "S",   # https://docs.astral.sh/ruff/rules/#flake8-bandit-s
+    "B",   # https://docs.astral.sh/ruff/rules/#flake8-bugbear-b
+    "T20", # https://docs.astral.sh/ruff/rules/#flake8-print-t20
 ]
 # rules to ignore
 ignore = ["E722", "B024", "S101"]
