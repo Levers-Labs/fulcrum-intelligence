@@ -7,7 +7,7 @@ from datetime import datetime, timedelta
 import pandas as pd
 import pytest
 
-from levers.models.patterns import MetricGVAStatus
+from levers.models import MetricGVAStatus
 
 
 @pytest.fixture

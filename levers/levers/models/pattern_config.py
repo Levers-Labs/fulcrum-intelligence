@@ -1,12 +1,16 @@
 from datetime import date, timedelta
-from enum import Enum
 from typing import Any
 
 import pandas as pd
-from pydantic import BaseModel, Field, model_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    model_validator,
+)
 
 from levers.exceptions import InvalidPatternConfigError
-from levers.models.common import Granularity
+from levers.models import DataSourceType, Granularity, WindowStrategy
 
 GRAIN_META: dict[str, Any] = {
     Granularity.DAY: {"delta": {"days": 1}},
@@ -15,23 +19,6 @@ GRAIN_META: dict[str, Any] = {
     Granularity.QUARTER: {"delta": {"months": 3}},
     Granularity.YEAR: {"delta": {"years": 1}},
 }
-
-
-class DataSourceType(str, Enum):
-    """Types of data sources that patterns can use."""
-
-    METRIC_TIME_SERIES = "metric_time_series"
-    METRIC_WITH_TARGETS = "metric_with_targets"
-    DIMENSIONAL_TIME_SERIES = "dimensional_time_series"
-    MULTI_METRIC = "multi_metric"
-
-
-class WindowStrategy(str, Enum):
-    """Strategies for determining the analysis window."""
-
-    FIXED_TIME = "fixed_time"  # Same time window for all grains
-    GRAIN_SPECIFIC_TIME = "grain_specific_time"  # Different time windows for different grains
-    FIXED_DATAPOINTS = "fixed_datapoints"  # Fixed number of data points
 
 
 class DataSource(BaseModel):
@@ -197,8 +184,8 @@ class PatternConfig(BaseModel):
             self.analysis_window.validate_strategy_params(pattern_name=self.pattern_name)
         return self
 
-    class Config:
-        schema_extra = {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "pattern_name": "performance_status",
                 "version": "1.0",
@@ -214,3 +201,4 @@ class PatternConfig(BaseModel):
                 "settings": {"threshold_ratio": 0.05},
             }
         }
+    )

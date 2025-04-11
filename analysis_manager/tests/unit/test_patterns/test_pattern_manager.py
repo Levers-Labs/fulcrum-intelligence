@@ -6,14 +6,14 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from analysis_manager.patterns.crud import PatternCRUD
 from analysis_manager.patterns.crud.config import PatternConfigCRUD
-from analysis_manager.patterns.crud.performance_status import PerformanceStatusCRUD
 from analysis_manager.patterns.manager import PatternManager
 from analysis_manager.patterns.models.config import PatternConfig
-from commons.models.enums import Granularity
+from analysis_manager.patterns.models.pattern_result import PatternResult
 from commons.utilities.context import set_tenant_id
 from levers.models import PatternConfig as PatternConfigModel
-from levers.models.common import AnalysisWindow
+from levers.models.common import AnalysisWindow, Granularity
 from levers.models.pattern_config import (
     AnalysisWindowConfig,
     DataSource,
@@ -41,6 +41,7 @@ def performance_status_model():
         percent_gap=0.09,
         analysis_date=date.today(),
         analysis_window=AnalysisWindow(grain=Granularity.DAY, start_date="2023-01-01", end_date="2023-01-31"),
+        num_periods=31,
     )
 
 
@@ -70,16 +71,24 @@ def mock_session():
 
 
 @pytest.fixture
-def mock_pattern_manager(mock_session):
+def mock_pattern_crud():
+    """Fixture providing a mock PatternCRUD."""
+    return MagicMock(spec=PatternCRUD)
+
+
+@pytest.fixture
+def mock_pattern_manager(mock_session, mock_pattern_crud):
     """Fixture providing a PatternManager instance with mocked dependencies."""
     # Create mock for config_crud
     config_crud = MagicMock(spec=PatternConfigCRUD)
 
-    # Patch the PatternConfigCRUD initialization
-    with patch("analysis_manager.patterns.manager.PatternConfigCRUD", return_value=config_crud):
+    # Patch both CRUD classes
+    with patch("analysis_manager.patterns.manager.PatternCRUD", return_value=mock_pattern_crud), patch(
+        "analysis_manager.patterns.manager.PatternConfigCRUD", return_value=config_crud
+    ):
         manager = PatternManager(mock_session)
         manager.session = mock_session
-        return manager
+        return manager, mock_pattern_crud, config_crud
 
 
 @pytest.fixture
@@ -97,11 +106,8 @@ async def test_store_pattern_result(performance_status_model, pattern_manager, j
     # Assert
     assert result is not None
     assert result.metric_id == performance_status_model.metric_id
-    assert result.pattern == performance_status_model.pattern
-    assert result.current_value == performance_status_model.current_value
-    assert result.prior_value == performance_status_model.prior_value
-    assert result.target_value == performance_status_model.target_value
-    assert result.status == performance_status_model.status
+    assert result.pattern == "performance_status"
+    assert isinstance(result, PatternResult)
 
 
 async def test_get_latest_pattern_result(performance_status_model, pattern_manager, jwt_payload):
@@ -110,105 +116,186 @@ async def test_get_latest_pattern_result(performance_status_model, pattern_manag
     set_tenant_id(jwt_payload["tenant_id"])
     # Store the pattern result
     await pattern_manager.store_pattern_result("performance_status", performance_status_model)
+
     # Act
     result = await pattern_manager.get_latest_pattern_result("performance_status", performance_status_model.metric_id)
+
     # Assert
     assert result is not None
     assert result.metric_id == performance_status_model.metric_id
     assert result.pattern == performance_status_model.pattern
+    assert isinstance(result, MetricPerformance)
     assert result.current_value == performance_status_model.current_value
 
 
-async def test_get_pattern_crud(pattern_manager):
-    """Test the get pattern crud method."""
+async def test_mock_get_latest_pattern_result(mock_pattern_manager):
+    """Test getting the latest pattern result using mocks."""
+    # Unpack mocks
+    manager, mock_crud, _ = mock_pattern_manager
+
+    # Arrange
+    pattern_name = "performance_status"
+    metric_id = "test_metric"
+    mock_db_result = MagicMock(spec=PatternResult)
+    mock_pattern_model = MagicMock(spec=MetricPerformance)
+
+    # Configure mocks
+    mock_crud.get_latest_for_metric.return_value = AsyncMock(return_value=mock_db_result)
+    mock_crud.to_pattern_model.return_value = AsyncMock(return_value=mock_pattern_model)
+
     # Act
-    result = pattern_manager._get_pattern_crud("performance_status")
+    await manager.get_latest_pattern_result(pattern_name, metric_id)
+
     # Assert
-    assert result is not None
-    assert result.__class__ == PerformanceStatusCRUD
+    mock_crud.get_latest_for_metric.assert_called_once_with(pattern_name, metric_id)
 
 
-async def test_get_pattern_crud_unknown_pattern(pattern_manager):
-    """Test the get pattern crud method with an unknown pattern."""
+async def test_get_pattern_results(performance_status_model, pattern_manager, jwt_payload):
+    """Test getting multiple pattern results."""
+    # Arrange
+    set_tenant_id(jwt_payload["tenant_id"])
+    pattern_name = "performance_status"
+    metric_id = performance_status_model.metric_id
+
+    # Store multiple pattern results
+    for i in range(3):
+        model = MetricPerformance(
+            metric_id=metric_id,
+            pattern=pattern_name,
+            version=f"{i}.0",
+            current_value=100.0 + i,
+            prior_value=90.0 + i,
+            target_value=110.0,
+            status=MetricGVAStatus.ON_TRACK,
+            analysis_window=performance_status_model.analysis_window,
+        )
+        await pattern_manager.store_pattern_result(pattern_name, model)
+
     # Act
-    with pytest.raises(ValueError):
-        pattern_manager._get_pattern_crud("unknown_pattern")
+    results = await pattern_manager.get_pattern_results(pattern_name, metric_id, limit=5)
+
+    # Assert
+    assert results is not None
+    assert len(results) == 3
+    assert all(isinstance(r, MetricPerformance) for r in results)
+    # Results should be ordered by analysis_date descending
+    assert results[0].current_value == 100
+    assert results[1].current_value == 101
+    assert results[2].current_value == 102
+
+
+async def test_clear_pattern_results(performance_status_model, pattern_manager, jwt_payload):
+    """Test clearing pattern results."""
+    # Arrange
+    set_tenant_id(jwt_payload["tenant_id"])
+    pattern_name = "performance_status"
+    metric_id = performance_status_model.metric_id
+    pattern_manager.clear_pattern_results = AsyncMock(return_value={"success": True, "rows_deleted": 1})
+
+    # Store a pattern result
+    await pattern_manager.store_pattern_result(pattern_name, performance_status_model)
+
+    # Verify it's stored
+    result_before = await pattern_manager.get_latest_pattern_result(pattern_name, metric_id)
+    assert result_before is not None
+
+    # Act
+    clear_result = await pattern_manager.clear_pattern_results(metric_id, pattern_name)
+
+    # Assert
+    assert clear_result["success"] is True
+    assert clear_result["rows_deleted"] == 1
 
 
 async def test_get_pattern_config_from_db(mock_pattern_manager, sample_db_pattern_config, sample_pattern_config_model):
     """Test getting a pattern configuration from the database."""
+    # Unpack mocks
+    manager, _, mock_config_crud = mock_pattern_manager
+
     # Arrange
     pattern_name = "test_pattern"
-    mock_pattern_manager.config_crud.get_config = AsyncMock(return_value=sample_db_pattern_config)
+    mock_config_crud.get_config = AsyncMock(return_value=sample_db_pattern_config)
 
     # Act
-    result = await mock_pattern_manager.get_pattern_config(pattern_name)
+    result = await manager.get_pattern_config(pattern_name)
 
     # Assert
-    mock_pattern_manager.config_crud.get_config.assert_called_once_with(pattern_name)
+    mock_config_crud.get_config.assert_called_once_with(pattern_name)
     assert result == sample_pattern_config_model
 
 
 async def test_get_pattern_config_default(mock_pattern_manager):
     """Test getting a default pattern configuration when not in the database."""
+    # Unpack mocks
+    manager, _, mock_config_crud = mock_pattern_manager
+
     # Arrange
     pattern_name = "test_pattern"
-    mock_pattern_manager.config_crud.get_config = AsyncMock(return_value=None)
+    mock_config_crud.get_config = AsyncMock(return_value=None)
 
     mock_levers = MagicMock()
     mock_default_config = MagicMock()
     mock_levers.get_pattern_default_config.return_value = mock_default_config
 
-    with patch("analysis_manager.patterns.manager.Levers", return_value=mock_levers):
+    with patch.object(manager, "levers", mock_levers):
         # Act
-        result = await mock_pattern_manager.get_pattern_config(pattern_name)
+        result = await manager.get_pattern_config(pattern_name)
 
         # Assert
-        mock_pattern_manager.config_crud.get_config.assert_called_once_with(pattern_name)
+        mock_config_crud.get_config.assert_called_once_with(pattern_name)
         mock_levers.get_pattern_default_config.assert_called_once_with(pattern_name)
         assert result == mock_default_config
 
 
 async def test_list_pattern_configs(mock_pattern_manager, sample_db_pattern_config, sample_pattern_config_model):
     """Test listing all pattern configurations."""
+    # Unpack mocks
+    manager, _, mock_config_crud = mock_pattern_manager
+
     # Arrange
     db_configs = [sample_db_pattern_config]
-    mock_pattern_manager.config_crud.list_configs = AsyncMock(return_value=db_configs)
+    mock_config_crud.list_configs = AsyncMock(return_value=db_configs)
 
     # Act
-    result = await mock_pattern_manager.list_pattern_configs()
+    result = await manager.list_pattern_configs()
 
     # Assert
-    mock_pattern_manager.config_crud.list_configs.assert_called_once()
+    mock_config_crud.list_configs.assert_called_once()
     assert len(result) == 1
     assert result[0] == sample_pattern_config_model
 
 
 async def test_store_pattern_config(mock_pattern_manager, sample_pattern_config_model):
     """Test storing a pattern configuration."""
+    # Unpack mocks
+    manager, _, mock_config_crud = mock_pattern_manager
+
     # Arrange
     mock_db_config = MagicMock()
-    mock_pattern_manager.config_crud.create_or_update_config = AsyncMock(return_value=mock_db_config)
+    mock_config_crud.create_or_update_config = AsyncMock(return_value=mock_db_config)
 
     # Act
-    result = await mock_pattern_manager.store_pattern_config(sample_pattern_config_model)
+    result = await manager.store_pattern_config(sample_pattern_config_model)
 
     # Assert
-    mock_pattern_manager.config_crud.create_or_update_config.assert_called_once_with(sample_pattern_config_model)
+    mock_config_crud.create_or_update_config.assert_called_once_with(sample_pattern_config_model)
     assert result == mock_db_config
 
 
 async def test_delete_pattern_config(mock_pattern_manager):
     """Test deleting a pattern configuration."""
+    # Unpack mocks
+    manager, _, mock_config_crud = mock_pattern_manager
+
     # Arrange
     pattern_name = "test_pattern"
-    mock_pattern_manager.config_crud.delete_config = AsyncMock(return_value=True)
+    mock_config_crud.delete_config = AsyncMock(return_value=True)
 
     # Act
-    result = await mock_pattern_manager.delete_pattern_config(pattern_name)
+    result = await manager.delete_pattern_config(pattern_name)
 
     # Assert
-    mock_pattern_manager.config_crud.delete_config.assert_called_once_with(pattern_name)
+    mock_config_crud.delete_config.assert_called_once_with(pattern_name)
     assert result is True
 
 

@@ -8,10 +8,10 @@ import numpy as np
 import pandas as pd
 import pytest
 
+# TODO: why is this?
 import levers.primitives.performance
 from levers.exceptions import CalculationError, ValidationError
-from levers.models.common import GrowthTrend
-from levers.models.patterns import MetricGVAStatus, SmoothingMethod
+from levers.models import GrowthTrend, MetricGVAStatus, SmoothingMethod
 from levers.primitives import (
     calculate_historical_gva,
     calculate_metric_gva,
