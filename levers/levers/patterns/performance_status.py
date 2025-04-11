@@ -41,6 +41,7 @@ class PerformanceStatusPattern(Pattern[MetricPerformance]):
     description = "Analyzes a metric's performance status against its target"
     required_primitives = [
         "calculate_difference",
+        "calculate_gap_to_target",
         "calculate_percentage_difference",
         "classify_metric_status",
         "detect_status_changes",
