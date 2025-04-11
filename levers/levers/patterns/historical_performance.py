@@ -140,7 +140,7 @@ class HistoricalPerformancePattern(Pattern[HistoricalPerformance]):
                 "version": self.version,
                 "metric_id": metric_id,
                 "analysis_window": analysis_window,
-                "num_periods": len(period_data),
+                "num_periods": len(data_window),
                 "period_metrics": period_metrics,
                 "growth_stats": growth_stats,
                 "current_trend": trend_info["current_trend"],
