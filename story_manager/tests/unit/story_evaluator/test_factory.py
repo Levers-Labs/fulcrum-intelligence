@@ -30,11 +30,11 @@ class MockEvaluator(StoryEvaluatorBase[MockPattern]):
         """Evaluate the pattern result and generate stories."""
         return [
             self.prepare_story_model(
+                genre=StoryGenre.PERFORMANCE,
                 story_type=StoryType.ON_TRACK,
                 story_group=StoryGroup.GOAL_VS_ACTUAL,
                 metric_id=pattern_result.metric_id,
                 pattern_result=pattern_result,
-                metric=metric,
                 title="Test Title",
                 detail="Test Detail",
                 grain=Granularity.DAY,
