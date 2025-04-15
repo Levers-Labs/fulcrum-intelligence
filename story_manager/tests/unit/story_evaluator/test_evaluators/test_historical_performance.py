@@ -371,10 +371,10 @@ def test_populate_template_context(evaluator, mock_historical_performance, mock_
     assert context["seasonal_deviation"] == 0.2
     assert context["expected_direction"] == "increase"
     assert context["actual_direction"] == "increase"
-    assert context["prior_period"] == "same period last year"
+    assert context["prior_period"] == "week"
     assert context["prior_change_percent"] == 11.1
     assert context["prior_direction"] == "higher"
-    assert context["older_period"] == "same period last quarter"
+    assert context["older_period"] == "month"
     assert context["older_change_percent"] == 5.3
     assert context["older_direction"] == "higher"
 
