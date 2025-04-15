@@ -126,8 +126,10 @@ STORY_TEMPLATES = {
     },
     StoryType.BENCHMARKS: {
         "title": "Performance Against Historical Benchmarks",
-        "detail": "{{ metric.label }}'s current performance comes in {{ direction_1 }} than {{ ref_period_1 }} by {{ "
-        "change_percent_1|format_percent }}% and {{ direction_2 }} than {{ ref_period_2 }} by {{ "
-        "change_percent_2|format_percent }}%.",
+        "detail": "This day marks the {{ high_rank }}th highest-performing {{ grain_label }} in the past {{ "
+        "high_duration }} {{ grain_label }}s, with the current period's performance of {{ metric.label }} "
+        "at {{ high_value|format_number }} coming in {{ prior_change_percent|format_percent }}% {{ "
+        "prior_direction }} than this time last {{ prior_period }} and {{ older_change_percent }} {{ "
+        "older_direction }} than this time last {{ older_period }}",
     },
 }

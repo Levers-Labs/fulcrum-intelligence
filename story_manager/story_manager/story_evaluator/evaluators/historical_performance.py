@@ -264,17 +264,47 @@ class HistoricalPerformanceEvaluator(StoryEvaluatorBase[HistoricalPerformance]):
 
         # Add benchmark info
         if pattern_result.benchmark_comparisons:
-            benchmark_context = {}
-            for i, benchmark in enumerate(pattern_result.benchmark_comparisons):
-                benchmark_context[f"ref_period_{i+1}"] = benchmark.reference_period
-                benchmark_context[f"change_{i+1}"] = abs(benchmark.absolute_change)
-                benchmark_context[f"change_percent_{i+1}"] = abs(benchmark.change_percent or 0)
-                benchmark_context[f"direction_{i+1}"] = (
-                    "higher" if benchmark.change_percent and benchmark.change_percent > 0 else "lower"
-                )
-            context.update(benchmark_context)
+            # Sort benchmarks by priority (most recent first)
+            sorted_benchmarks = sorted(
+                pattern_result.benchmark_comparisons, key=lambda b: self._get_benchmark_priority(b.reference_period)
+            )
+
+            # Handle the case of at least one benchmark
+            if len(sorted_benchmarks) >= 1:
+                prior = sorted_benchmarks[0]
+                context["prior_period"] = prior.reference_period
+                context["prior_change_percent"] = abs(prior.change_percent or 0)
+                context["prior_direction"] = "higher" if prior.change_percent and prior.change_percent > 0 else "lower"
+
+                # Handle the case of at least two benchmarks
+                if len(sorted_benchmarks) >= 2:
+                    older = sorted_benchmarks[1]
+                    context["older_period"] = older.reference_period
+                    context["older_change_percent"] = abs(older.change_percent or 0)
+                    context["older_direction"] = (
+                        "higher" if older.change_percent and older.change_percent > 0 else "lower"
+                    )
+                else:
+                    # Only one benchmark, provide defaults for the second
+                    context["older_period"] = "previous period"
+                    context["older_change_percent"] = 0
+                    context["older_direction"] = "unchanged from"
 
         return context
+
+    def _get_benchmark_priority(self, reference_period: str) -> int:
+        """Get the priority order for a benchmark reference period."""
+        reference_lower = reference_period.lower()
+        if "year" in reference_lower:
+            return 0
+        elif "quarter" in reference_lower:
+            return 1
+        elif "month" in reference_lower:
+            return 2
+        elif "week" in reference_lower:
+            return 3
+        else:
+            return 4
 
     # Growth Story Methods
     def _create_slowing_growth_story(

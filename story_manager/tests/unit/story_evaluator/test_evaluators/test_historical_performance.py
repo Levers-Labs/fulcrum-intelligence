@@ -343,7 +343,7 @@ async def test_evaluate_benchmarks(mock_historical_performance, mock_metric):
     benchmark_story = next(s for s in stories if s["story_type"] == StoryType.BENCHMARKS)
     assert benchmark_story["genre"] == StoryGenre.TRENDS
     assert "Performance Against Historical Benchmarks" in benchmark_story["title"]
-    assert "current performance comes in" in benchmark_story["detail"]
+    assert "This day marks the" in benchmark_story["detail"]
 
 
 def test_populate_template_context(evaluator, mock_historical_performance, mock_metric):
@@ -371,9 +371,12 @@ def test_populate_template_context(evaluator, mock_historical_performance, mock_
     assert context["seasonal_deviation"] == 0.2
     assert context["expected_direction"] == "increase"
     assert context["actual_direction"] == "increase"
-    assert context["ref_period_1"] == "same period last year"
-    assert context["change_percent_1"] == 11.1
-    assert context["direction_1"] == "higher"
+    assert context["prior_period"] == "same period last year"
+    assert context["prior_change_percent"] == 11.1
+    assert context["prior_direction"] == "higher"
+    assert context["older_period"] == "same period last quarter"
+    assert context["older_change_percent"] == 5.3
+    assert context["older_direction"] == "higher"
 
 
 def test_should_create_growth_story(evaluator, mock_historical_performance):
