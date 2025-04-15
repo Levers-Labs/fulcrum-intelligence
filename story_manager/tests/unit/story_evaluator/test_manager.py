@@ -57,7 +57,6 @@ def mock_stories():
             "variables": {"test_var": "test_value"},
             "metadata": {"pattern": "test_pattern"},
             "pattern_run_id": 1,
-            "grain": Granularity.DAY,
         }
     ]
 
