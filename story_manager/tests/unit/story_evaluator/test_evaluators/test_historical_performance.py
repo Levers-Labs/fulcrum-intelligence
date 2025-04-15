@@ -90,6 +90,7 @@ def mock_historical_performance():
             ),
         ],
         trend_exceptions=[],
+        grain=Granularity.MONTH,
     )
 
 

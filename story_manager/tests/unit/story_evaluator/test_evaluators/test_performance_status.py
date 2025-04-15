@@ -34,6 +34,7 @@ def mock_metric_performance():
         percent_over_performance=10.0,
         percent_gap=-10.0,
         streak=Streak(length=3, status=MetricGVAStatus.ON_TRACK),
+        grain=Granularity.DAY,
     )
 
 

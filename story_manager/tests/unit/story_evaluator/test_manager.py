@@ -20,13 +20,14 @@ class MockPattern(BasePattern):
     pattern_run_id: str = "test_run_id"
     analysis_date: str = "2024-01-01"
     metric_id: str = "test_metric"
+    grain: Granularity = Granularity.DAY
 
 
 @pytest.fixture
 def mock_pattern():
     """Fixture for mock pattern."""
     return MockPattern(
-        analysis_window=AnalysisWindow(grain=Granularity.DAY, start_date="2024-01-01", end_date="2024-01-31")
+        analysis_window=AnalysisWindow(grain=Granularity.DAY, start_date="2024-01-01", end_date="2024-01-31"),
     )
 
 
@@ -56,6 +57,7 @@ def mock_stories():
             "variables": {"test_var": "test_value"},
             "metadata": {"pattern": "test_pattern"},
             "pattern_run_id": 1,
+            "grain": Granularity.DAY,
         }
     ]
 
@@ -83,7 +85,7 @@ async def test_persist_stories(mock_db_session, mock_stories, jwt_payload):
     assert stories[0].detail == "Test Detail"
     assert stories[0].metric_id == "test_metric"
     assert stories[0].pattern_run_id == 1
-
+    assert stories[0].grain == Granularity.DAY
     # Verify database operations
     mock_db_session.add.assert_called_once()
     mock_db_session.commit.assert_called_once()

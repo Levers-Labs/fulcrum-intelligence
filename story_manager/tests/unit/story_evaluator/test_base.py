@@ -5,7 +5,7 @@ Tests for the story evaluator base module.
 import pytest
 
 from commons.models.enums import Granularity
-from levers.models.common import AnalysisWindow, BasePattern
+from levers.models import AnalysisWindow, BasePattern
 from story_manager.core.enums import StoryGenre, StoryGroup, StoryType
 from story_manager.story_evaluator.base import StoryEvaluatorBase
 
@@ -17,6 +17,7 @@ class MockPattern(BasePattern):
     pattern_run_id: str = "test_run_id"
     analysis_date: str = "2024-01-01"
     metric_id: str = "test_metric"
+    grain: Granularity = Granularity.DAY
 
 
 class MockEvaluator(StoryEvaluatorBase[MockPattern]):
@@ -37,7 +38,7 @@ class MockEvaluator(StoryEvaluatorBase[MockPattern]):
                 metric=metric,
                 title="Test Title",
                 detail="Test Detail",
-                grain=Granularity.DAY,
+                grain=pattern_result.grain,
                 test_var="test_value",
             )
         ]
@@ -75,7 +76,7 @@ async def test_prepare_story_model(mock_evaluator, mock_pattern, mock_metric):
         metric=mock_metric,
         title="Test Title",
         detail="Test Detail",
-        grain=Granularity.DAY,
+        grain=mock_pattern.grain,
         test_var="test_value",
     )
 
@@ -83,7 +84,7 @@ async def test_prepare_story_model(mock_evaluator, mock_pattern, mock_metric):
     assert story["genre"] == StoryGenre.PERFORMANCE
     assert story["story_type"] == StoryType.ON_TRACK
     assert story["story_group"] == StoryGroup.GOAL_VS_ACTUAL
-    assert story["grain"] == Granularity.DAY
+    assert story["grain"] == mock_pattern.grain
     assert story["metric_id"] == mock_pattern.metric_id
     assert story["title"] == "Test Title"
     assert story["detail"] == "Test Detail"
