@@ -93,13 +93,13 @@ class HistoricalPerformancePattern(Pattern[HistoricalPerformance]):
             # Pre Process data
             data_window = self.preprocess_data(data, analysis_window)
 
-            # Define lookback_end
-            lookback_end = pd.to_datetime(analysis_window.end_date)
-
             # If empty data, return minimal output
             if data_window.empty:
                 logger.info("Empty data for metric_id=%s. Returning minimal output.", metric_id)
                 return self.handle_empty_data(metric_id, analysis_window)
+
+            # Define lookback_end
+            lookback_end = pd.to_datetime(analysis_window.end_date)
 
             # Create a copy with date as index for resampling
             data_window_indexed = data_window.copy()

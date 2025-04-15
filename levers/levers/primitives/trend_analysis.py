@@ -76,25 +76,19 @@ def analyze_metric_trend(
     if sum(mask) < 2:
         return None
 
-    # Calculate trend using linregress (matching reference exactly)
-    slope, intercept, r_value, p_value, std_err = linregress(x[mask], y[mask])
+    # Calculate trend using linregress
+    slope, _, r_value, _, _ = linregress(x[mask], y[mask])
     trend_confidence = r_value**2  # R-squared
 
-    # Check for plateau using the dedicated function, same window as trend analysis
-    plateau_window = min(window_size, len(df_sorted))
-    plateau_result = detect_performance_plateau(df_sorted, value_col=value_col, tolerance=0.01, window=plateau_window)
-    is_plateaued = plateau_result.is_plateaued
-
-    # TODO: check with abhi if this logic is correct over original
-    # Calculate normalized slope as percentage
+    # Calculate normalized slope
     mean_val = np.mean(y[mask])
     if mean_val != 0:
         norm_slope = (slope / abs(mean_val)) * 100  # as percentage
     else:
         norm_slope = 0 if slope == 0 else (100 if slope > 0 else -100)  # Arbitrary large value
 
-    # Determine trend direction
-    if is_plateaued or abs(norm_slope) < 0.5:  # Less than 0.5% change per period
+    # Determine trend direction using absolute slope threshold
+    if abs(norm_slope) < 0.5:
         trend_type = TrendType.STABLE
     elif slope > 0:
         trend_type = TrendType.UPWARD
@@ -113,11 +107,10 @@ def analyze_metric_trend(
 
         mask_recent = ~np.isnan(recent_y)  # type: ignore
         if sum(mask_recent) >= 2:
-            # Calculate recent trend using linregress (matching reference)
+            # Calculate recent trend using linregress
             try:
-                recent_slope, _, recent_r, _, _ = linregress(recent_x[mask_recent], recent_y[mask_recent])
+                recent_slope, _, _, _, _ = linregress(recent_x[mask_recent], recent_y[mask_recent])
 
-                # Determine recent direction
                 recent_mean = np.mean(recent_y[mask_recent])
                 if recent_mean != 0:
                     recent_norm_slope = (recent_slope / abs(recent_mean)) * 100
@@ -125,6 +118,7 @@ def analyze_metric_trend(
                     recent_norm_slope = 0 if recent_slope == 0 else (100 if recent_slope > 0 else -100)
 
                 if abs(recent_norm_slope) < 0.5:
+                    # Determine recent direction using absolute slope threshold
                     recent_trend_type = TrendType.STABLE
                 elif recent_slope > 0:
                     recent_trend_type = TrendType.UPWARD
@@ -137,6 +131,15 @@ def analyze_metric_trend(
                 # If regression fails, skip recent direction and acceleration
                 is_accelerating = False
                 recent_trend_type = None
+
+    # Check for plateau after determining basic trend
+    plateau_window = min(window_size, len(df_sorted))
+    plateau_result = detect_performance_plateau(df_sorted, value_col=value_col, tolerance=0.01, window=plateau_window)
+    is_plateaued = plateau_result.is_plateaued
+
+    # If it's a plateau, override the trend type
+    if is_plateaued:
+        trend_type = TrendType.PLATEAU
 
     return TrendAnalysis(
         trend_type=trend_type,
@@ -185,18 +188,14 @@ def detect_record_high(df: pd.DataFrame, value_col: str = "value") -> RecordHigh
     prior_max_idx = int(previous_values.idxmax())
 
     # Calculate rank (1 = highest, 2 = second highest, etc.)
-    sorted_values = sorted(df[value_col].unique(), reverse=True)
-    try:
-        rank = sorted_values.index(current_value) + 1
-    except ValueError:
-        rank = len(sorted_values) + 1  # Should not happen
+    rank = df[value_col].rank(method="min", ascending=False).iloc[-1]
 
     return RecordHigh(
         is_record_high=current_value > prior_max,
         current_value=current_value,
         prior_max=prior_max,
         prior_max_index=prior_max_idx,
-        rank=rank,
+        rank=int(rank),
         periods_compared=len(df),
         absolute_delta=calculate_difference(current_value, prior_max),
         percentage_delta=calculate_percentage_difference(current_value, prior_max, handle_zero_reference=True),
@@ -239,18 +238,14 @@ def detect_record_low(df: pd.DataFrame, value_col: str = "value") -> RecordLow:
     prior_min_idx = int(previous_values.idxmin())
 
     # Calculate rank (1 = lowest, 2 = second lowest, etc.)
-    sorted_values = sorted(df[value_col].unique())
-    try:
-        rank = sorted_values.index(current_value) + 1
-    except ValueError:
-        rank = len(sorted_values) + 1  # Should not happen
+    rank = df[value_col].rank(method="min", ascending=True).iloc[-1]
 
     return RecordLow(
         is_record_low=current_value < prior_min,
         current_value=current_value,
         prior_min=prior_min,
         prior_min_index=prior_min_idx,
-        rank=rank,
+        rank=int(rank),
         periods_compared=len(df),
         absolute_delta=calculate_difference(current_value, prior_min),
         percentage_delta=calculate_percentage_difference(current_value, prior_min, handle_zero_reference=True),
@@ -380,13 +375,22 @@ def detect_performance_plateau(
             mean_value=df[value_col].mean() if not df.empty else None,
         )
 
-    # Get the most recent window of values
-    recent_values = df[value_col].iloc[-window:].values
+    # Get the most recent window of values - similar to original
+    sub = df[value_col].tail(window).dropna()
 
-    # Calculate mean and standard deviation
-    mean_val = np.mean(recent_values)  # type: ignore
-    if mean_val == 0:
-        # Can't calculate relative stability with zero mean
+    if len(sub) < window:
+        return PerformancePlateau(
+            is_plateaued=False,
+            plateau_duration=0,
+            stability_score=0.0,
+            mean_value=df[value_col].mean() if not df.empty else None,
+        )
+
+    # Calculate mean for use in relative range and result
+    mean_val = sub.mean()
+
+    # Avoid division by zero - similar to original
+    if abs(mean_val) < 1e-12:
         return PerformancePlateau(
             is_plateaued=False,
             plateau_duration=0,
@@ -394,38 +398,22 @@ def detect_performance_plateau(
             mean_value=None,
         )
 
-    # Calculate coefficient of variation
-    std_val = np.std(recent_values)  # type: ignore
-    cv = std_val / abs(mean_val)  # Coefficient of variation
+    # Calculate relative range - exactly like original implementation
+    relative_range = (sub.max() - sub.min()) / abs(mean_val)
 
-    # Determine if plateaued based on CV compared to tolerance
-    is_plateaued = cv <= tolerance
-
-    # If plateaued, estimate how long it's been stable
-    plateau_duration = 0
-    if is_plateaued:
-        # Count how many periods back the values stay within the tolerance
-        full_values = df[value_col].values
-        if len(full_values) > window:
-            # Start from the last window points and work backward
-            for i in range(len(full_values) - window - 1, -1, -1):
-                test_window = full_values[i : i + window]
-                test_mean = np.mean(test_window)
-                if test_mean == 0:
-                    break
-                test_cv = np.std(test_window) / abs(test_mean)
-                if test_cv <= tolerance:
-                    plateau_duration += 1
-                else:
-                    break
+    # Determine if plateaued based on relative range compared to tolerance
+    is_plateaued = relative_range < tolerance
 
     # Calculate stability score (1.0 = perfectly stable, 0.0 = highly unstable)
-    stability_score = max(0.0, 1.0 - (cv / tolerance)) if tolerance > 0 else 0.0
+    stability_score = max(0.0, 1.0 - (relative_range / tolerance)) if tolerance > 0 else 0.0
+
+    # Basic plateau duration calculation - simplified from original
+    plateau_duration = window if is_plateaued else 0
 
     return PerformancePlateau(
-        is_plateaued=is_plateaued,  # type: ignore
-        plateau_duration=plateau_duration + window if is_plateaued else 0,
-        stability_score=float(stability_score),  # type: ignore
+        is_plateaued=is_plateaued,
+        plateau_duration=plateau_duration,
+        stability_score=float(stability_score),
         mean_value=float(mean_val),
     )
 

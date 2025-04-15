@@ -62,7 +62,7 @@ class TestHistoricalPerformancePattern:
         return pd.DataFrame(
             {
                 "date": pd.date_range(start="2023-01-01", end="2023-01-31", freq="D"),
-                "value": [100 + np.random.normal(0, 0.5) for _ in range(31)],  # Small random variations
+                "value": [100 + np.random.normal(0, 0.05) for _ in range(31)],  # Small random variations
             }
         )
 
@@ -153,7 +153,7 @@ class TestHistoricalPerformancePattern:
 
         # Check for stable or plateau trend
         trend_type = result.current_trend.trend_type if result.current_trend else None
-        assert trend_type in [TrendType.STABLE, None]
+        assert trend_type == TrendType.PLATEAU
 
     def test_analyze_anomalies(self, pattern, sample_data_with_anomaly, analysis_window):
         """Test analyzing a dataset with anomalies."""
