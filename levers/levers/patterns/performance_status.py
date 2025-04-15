@@ -122,6 +122,7 @@ class PerformanceStatusPattern(Pattern[MetricPerformance]):
                 "target_value": target_value,
                 "status": status,
                 "threshold_ratio": threshold_ratio,
+                "grain": analysis_window.grain,
             }
 
             # Add prior value and delta calculations if available

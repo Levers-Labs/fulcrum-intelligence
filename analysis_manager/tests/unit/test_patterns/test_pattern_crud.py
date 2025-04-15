@@ -31,6 +31,7 @@ def pattern_data():
         analysis_date=date.today(),
         analysis_window=AnalysisWindow(grain=Granularity.DAY, start_date="2023-01-01", end_date="2023-01-31"),
         num_periods=31,
+        grain=Granularity.DAY,
     )
 
 
@@ -84,6 +85,7 @@ async def test_get_latest_for_metric(pattern_data, pattern_crud, jwt_payload):
         status=MetricGVAStatus.ON_TRACK,
         analysis_window=pattern_data.analysis_window,
         analysis_date=res.analysis_date + timedelta(days=1),
+        grain=Granularity.DAY,
     )
 
     # Store with current timestamp (will be newer)
@@ -116,6 +118,7 @@ async def test_get_results_for_metric(pattern_data, pattern_crud, jwt_payload):
             target_value=110.0,
             status=MetricGVAStatus.ON_TRACK,
             analysis_window=pattern_data.analysis_window,
+            grain=Granularity.DAY,
         )
         await pattern_crud.store_pattern_result(pattern_name, data)
 
@@ -187,6 +190,7 @@ async def test_clear_data_with_pattern_filter(pattern_data, pattern_crud, jwt_pa
         target_value=110.0,
         status=MetricGVAStatus.ON_TRACK,
         analysis_window=pattern_data.analysis_window,
+        grain=Granularity.DAY,
     )
     await pattern_crud.store_pattern_result("historical_performance", historical_data)
 
@@ -225,6 +229,7 @@ async def test_clear_data_with_date_range(pattern_data, pattern_crud, jwt_payloa
         pattern=pattern_name,
         analysis_date=yesterday.date(),
         run_result=pattern_data.model_dump(mode="json"),
+        grain=Granularity.DAY,
     )
     pattern_crud.session.add(yesterday_result)
 
@@ -235,6 +240,7 @@ async def test_clear_data_with_date_range(pattern_data, pattern_crud, jwt_payloa
         pattern=pattern_name,
         analysis_date=two_days_ago.date(),
         run_result=pattern_data.model_dump(mode="json"),
+        grain=Granularity.DAY,
     )
     pattern_crud.session.add(two_days_ago_result)
 

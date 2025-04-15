@@ -8,6 +8,7 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlmodel import Field
 
 from commons.db.models import BaseTimeStampedTenantModel
+from commons.models.enums import Granularity
 from levers import Levers
 from levers.models import AnalysisWindow
 
@@ -26,6 +27,7 @@ class PatternResult(AnalysisSchemaBaseModel, table=True):
     metric_id: str = Field(index=True)
     pattern: str = Field(index=True)
     version: str = Field(default="1.0", index=True)
+    grain: Granularity = Field(index=True)
     analysis_date: date = Field(default_factory=date.today, index=True)
     analysis_window: AnalysisWindow = Field(default=None, sa_type=JSONB)
     error: dict[str, Any] | None = Field(default=None, sa_type=JSONB, nullable=True)
@@ -36,6 +38,7 @@ class PatternResult(AnalysisSchemaBaseModel, table=True):
         # Composite indexes for common query patterns
         Index("idx_pattern_result_metric_tenant", "metric_id", "tenant_id"),
         Index("idx_pattern_result_metric_tenant_pattern", "metric_id", "tenant_id", "pattern"),
+        Index("idx_pattern_result_metric_tenant_grain", "metric_id", "tenant_id", "grain"),
         # unique constraint
         UniqueConstraint(
             "metric_id",
@@ -43,6 +46,7 @@ class PatternResult(AnalysisSchemaBaseModel, table=True):
             "pattern",
             "version",
             "analysis_date",
+            "grain",
         ),
         # Maintain schema definition from parent class
         {"schema": "analysis_store"},

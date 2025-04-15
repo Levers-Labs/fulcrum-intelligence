@@ -150,6 +150,7 @@ class HistoricalPerformancePattern(Pattern[HistoricalPerformance]):
                 "seasonality": seasonality_pattern,
                 "benchmark_comparisons": benchmark_comparisons,
                 "trend_exceptions": trend_exceptions,
+                "grain": grain,
             }
 
             logger.info("Successfully analyzed historical performance for metric_id=%s", metric_id)

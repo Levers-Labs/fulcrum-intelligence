@@ -495,6 +495,7 @@ class TestHistoricalPerformance:
                     type=TrendExceptionType.SPIKE, current_value=150.0, normal_range_low=100.0, normal_range_high=130.0
                 )
             ],
+            grain=Granularity.DAY,
         )
 
         # Assert
@@ -533,6 +534,7 @@ class TestHistoricalPerformance:
             growth_stats=GrowthStats(),
             high_rank=RankSummary(value=150.0, rank=1, duration_grains=31),
             low_rank=RankSummary(value=100.0, rank=31, duration_grains=31),
+            grain=Granularity.DAY,
         )
 
         # Act

@@ -240,6 +240,7 @@ class TestLeversAPI:
             version="1.0",
             analysis_window=analysis_window,
             metric_id=metric_id,
+            grain=analysis_window.grain,
             result="test_success",
         )
         mock_pattern_instance.analyze.return_value = expected_result
@@ -426,6 +427,7 @@ class TestLeversAPI:
             "current_value": 100,
             "target_value": 120,
             "analysis_window": {"start_date": "2023-01-01", "end_date": "2023-01-10", "grain": "day"},
+            "grain": "day",
         }
 
         # Act

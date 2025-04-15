@@ -46,6 +46,7 @@ class TestPattern(Pattern[TestOutputModel]):
             version=self.version,
             metric_id=metric_id,
             analysis_window=analysis_window,
+            grain=analysis_window.grain,
             result="test_success",
             num_periods=len(processed_data),  # Calculate from data
         )
@@ -77,6 +78,7 @@ class TestPatternBase:
             "analysis_window": AnalysisWindow(start_date="2023-01-01", end_date="2023-01-31", grain=Granularity.DAY),
             "result": "test_success",
             "num_periods": 31,
+            "grain": Granularity.DAY,
         }
 
         # Act
@@ -97,6 +99,7 @@ class TestPatternBase:
             version="1.0",
             metric_id="test_metric",
             analysis_window=AnalysisWindow(start_date="2023-01-01", end_date="2023-01-31", grain=Granularity.DAY),
+            grain=Granularity.DAY,
             result="test_success",
             num_periods=31,
         )
