@@ -6,8 +6,8 @@ import logging
 from typing import Any
 
 from commons.utilities.grain_utils import GRAIN_META
-from levers.models.common import Granularity
-from levers.models.patterns.historical_performance import HistoricalPerformance, TrendExceptionType, TrendType
+from levers.models import Granularity, TrendExceptionType, TrendType
+from levers.models.patterns import HistoricalPerformance
 from story_manager.core.enums import StoryGenre, StoryGroup, StoryType
 from story_manager.story_evaluator import StoryEvaluatorBase, render_story_text
 

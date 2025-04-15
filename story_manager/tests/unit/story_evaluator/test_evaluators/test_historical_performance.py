@@ -4,21 +4,23 @@ Tests for the historical performance evaluator.
 
 import pytest
 
-from commons.models.enums import Granularity
-from levers.models.common import AnalysisWindow
-from levers.models.patterns.historical_performance import (
+from levers.models import (
+    AnalysisWindow,
+    Granularity,
+    TrendExceptionType,
+    TrendType,
+)
+from levers.models.patterns import (
     BenchmarkComparison,
     GrowthStats,
     HistoricalPerformance,
     RankSummary,
     Seasonality,
     TrendException,
-    TrendExceptionType,
     TrendInfo,
-    TrendType,
 )
 from story_manager.core.enums import StoryGenre, StoryGroup, StoryType
-from story_manager.story_evaluator.evaluators.historical_performance import HistoricalPerformanceEvaluator
+from story_manager.story_evaluator.evaluators import HistoricalPerformanceEvaluator
 
 
 @pytest.fixture
