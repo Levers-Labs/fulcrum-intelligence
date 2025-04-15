@@ -115,6 +115,8 @@ async def process_metric_pattern_stories(
     tenant_id = int(tenant_id_str)
     grain_enum = Granularity(grain)
     pattern_run = ast.literal_eval(pattern_run_str)
+    # Extract the run result from pattern_run
+    pattern_run_result = pattern_run["run_result"]
 
     logger.info(
         "Starting story generation for tenant %s, pattern %s, metric %s, grain %s",
@@ -136,7 +138,7 @@ async def process_metric_pattern_stories(
         },
         payload={
             "timestamp": date.today().isoformat(),
-            "pattern_run": pattern_run,
+            "pattern_run": pattern_run_result,
         },
     )
 
@@ -147,7 +149,7 @@ async def process_metric_pattern_stories(
             tenant_id=tenant_id,
             metric_id=metric_id,
             grain=grain_enum,
-            pattern_run=pattern_run,
+            pattern_run=pattern_run_result,
         )
 
         # Create table artifact with stories
