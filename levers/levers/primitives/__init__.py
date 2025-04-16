@@ -29,10 +29,10 @@ from .performance import (
 from .time_series import (
     calculate_average_growth,
     calculate_cumulative_growth,
+    calculate_period_benchmarks,
     calculate_pop_growth,
     calculate_rolling_averages,
     calculate_slope_of_time_series,
-    calculate_to_date_growth_rates,
     convert_grain_to_freq,
     validate_date_sorted,
 )
@@ -40,7 +40,6 @@ from .time_series import (
 # Trend Analysis primitives
 from .trend_analysis import (
     analyze_metric_trend,
-    calculate_benchmark_comparisons,
     detect_performance_plateau,
     detect_record_high,
     detect_record_low,
@@ -74,10 +73,9 @@ _primitive_families = {
         calculate_cumulative_growth,
         calculate_pop_growth,
         calculate_rolling_averages,
-        calculate_to_date_growth_rates,
         convert_grain_to_freq,
-        calculate_slope_of_time_series,
         validate_date_sorted,
+        calculate_period_benchmarks,
     ],
     "trend_analysis": [
         analyze_metric_trend,
@@ -87,7 +85,6 @@ _primitive_families = {
         detect_trend_exceptions,
         process_control_analysis,
         detect_seasonality_pattern,
-        calculate_benchmark_comparisons,
     ],
 }
 
@@ -164,10 +161,10 @@ __all__ = [
     "calculate_cumulative_growth",
     "calculate_pop_growth",
     "calculate_rolling_averages",
-    "calculate_to_date_growth_rates",
     "convert_grain_to_freq",
     "calculate_slope_of_time_series",
     "validate_date_sorted",
+    "calculate_period_benchmarks",
     # Trend Analysis primitives
     "analyze_metric_trend",
     "detect_performance_plateau",
@@ -176,7 +173,6 @@ __all__ = [
     "detect_trend_exceptions",
     "process_control_analysis",
     "detect_seasonality_pattern",
-    "calculate_benchmark_comparisons",
     # Utility functions
     "list_primitives_by_family",
     "get_primitive_metadata",

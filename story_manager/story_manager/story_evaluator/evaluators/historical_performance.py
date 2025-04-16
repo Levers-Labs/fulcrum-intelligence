@@ -47,42 +47,30 @@ class HistoricalPerformanceEvaluator(StoryEvaluatorBase[HistoricalPerformance]):
         grain = pattern_result.analysis_window.grain
 
         # Growth Stories
-        if self._should_create_growth_story(pattern_result):
-            if (
-                pattern_result.growth_stats.current_growth_acceleration
-                and pattern_result.growth_stats.current_growth_acceleration < 0
-            ):
+        if pattern_result.growth_stats is not None and pattern_result.growth_stats.current_growth_acceleration:
+            if pattern_result.growth_stats.current_growth_acceleration < 0:
                 stories.append(self._create_slowing_growth_story(pattern_result, metric_id, metric, grain))
-            elif (
-                pattern_result.growth_stats.current_growth_acceleration
-                and pattern_result.growth_stats.current_growth_acceleration > 0
-            ):
+            elif pattern_result.growth_stats.current_growth_acceleration > 0:
                 stories.append(self._create_accelerating_growth_story(pattern_result, metric_id, metric, grain))
 
         # Trend Stories
         if pattern_result.current_trend:
-            if self._is_stable_trend(pattern_result) and pattern_result.current_trend.trend_type == TrendType.STABLE:
+            trend_type = pattern_result.current_trend.trend_type
+            if self._is_stable_trend(pattern_result) and trend_type == TrendType.STABLE:
                 stories.append(self._create_stable_trend_story(pattern_result, metric_id, metric, grain))
-            elif self._is_new_trend(pattern_result) and pattern_result.current_trend.trend_type == TrendType.UPWARD:
-                stories.append(self._create_new_upward_trend_story(pattern_result, metric_id, metric, grain))
-            elif self._is_new_trend(pattern_result) and pattern_result.current_trend.trend_type == TrendType.DOWNWARD:
-                stories.append(self._create_new_downward_trend_story(pattern_result, metric_id, metric, grain))
-            elif pattern_result.current_trend.trend_type == TrendType.PLATEAU:
+            elif self._is_new_trend(pattern_result):
+                if trend_type == TrendType.UPWARD:
+                    stories.append(self._create_new_upward_trend_story(pattern_result, metric_id, metric, grain))
+                elif trend_type == TrendType.DOWNWARD:
+                    stories.append(self._create_new_downward_trend_story(pattern_result, metric_id, metric, grain))
+            elif trend_type == TrendType.PLATEAU:
                 stories.append(self._create_performance_plateau_story(pattern_result, metric_id, metric, grain))
 
         # Improving/Worsening Performance
-        if self._should_create_performance_change_story(pattern_result):
-            if (
-                pattern_result.current_trend
-                and pattern_result.current_trend.average_pop_growth
-                and pattern_result.current_trend.average_pop_growth > 0
-            ):
+        if pattern_result.current_trend and pattern_result.current_trend.average_pop_growth:
+            if pattern_result.current_trend.average_pop_growth > 0:
                 stories.append(self._create_improving_performance_story(pattern_result, metric_id, metric, grain))
-            elif (
-                pattern_result.current_trend
-                and pattern_result.current_trend.average_pop_growth
-                and pattern_result.current_trend.average_pop_growth < 0
-            ):
+            elif pattern_result.current_trend.average_pop_growth < 0:
                 stories.append(self._create_worsening_performance_story(pattern_result, metric_id, metric, grain))
 
         # Trend Exception Stories (Spikes & Drops)
@@ -93,33 +81,22 @@ class HistoricalPerformanceEvaluator(StoryEvaluatorBase[HistoricalPerformance]):
                 stories.append(self._create_drop_story(pattern_result, trend_exception, metric_id, metric, grain))
 
         # Seasonal Pattern Stories
-        if pattern_result.seasonality:
-            if pattern_result.seasonality.is_following_expected_pattern:
-                stories.append(self._create_seasonal_pattern_match_story(pattern_result, metric_id, metric, grain))
-            else:
-                stories.append(self._create_seasonal_pattern_break_story(pattern_result, metric_id, metric, grain))
+        if pattern_result.seasonality and pattern_result.seasonality.is_following_expected_pattern:
+            stories.append(self._create_seasonal_pattern_match_story(pattern_result, metric_id, metric, grain))
+        else:
+            stories.append(self._create_seasonal_pattern_break_story(pattern_result, metric_id, metric, grain))
 
         # Record Value Stories
-        if self._should_create_record_value_story(pattern_result):
-            if pattern_result.high_rank.rank <= 2:  # Consider top 2 as record high
-                stories.append(self._create_record_high_story(pattern_result, metric_id, metric, grain))
-            if pattern_result.low_rank.rank <= 2:  # Consider bottom 2 as record low
-                stories.append(self._create_record_low_story(pattern_result, metric_id, metric, grain))
+        if pattern_result.high_rank and pattern_result.high_rank.rank <= 2:  # Consider top 2 as record high
+            stories.append(self._create_record_high_story(pattern_result, metric_id, metric, grain))
+        elif pattern_result.low_rank and pattern_result.low_rank.rank <= 2:  # Consider bottom 2 as record low
+            stories.append(self._create_record_low_story(pattern_result, metric_id, metric, grain))
 
         # Benchmark Stories
         if pattern_result.benchmark_comparisons:
             stories.append(self._create_benchmark_story(pattern_result, metric_id, metric, grain))
 
         return stories
-
-    def _should_create_growth_story(self, pattern_result: HistoricalPerformance) -> bool:
-        """Check if we should create a growth story."""
-        return (
-            pattern_result.growth_stats is not None
-            and pattern_result.growth_stats.current_growth_acceleration is not None
-            and abs(pattern_result.growth_stats.current_growth_acceleration)
-            > 5  # 5% threshold for acceleration/deceleration
-        )
 
     def _is_stable_trend(self, pattern_result: HistoricalPerformance) -> bool:
         """Check if the current trend is stable (has been ongoing for a while)."""
@@ -128,25 +105,8 @@ class HistoricalPerformanceEvaluator(StoryEvaluatorBase[HistoricalPerformance]):
     def _is_new_trend(self, pattern_result: HistoricalPerformance) -> bool:
         """Check if there's a new trend (current trend exists and different from previous)."""
         return (
-            pattern_result.current_trend is not None
-            and pattern_result.previous_trend is not None
-            and pattern_result.current_trend.trend_type != pattern_result.previous_trend.trend_type
-        )
-
-    def _should_create_performance_change_story(self, pattern_result: HistoricalPerformance) -> bool:
-        """Check if we should create a performance change story."""
-        return (
-            pattern_result.current_trend is not None
-            and pattern_result.current_trend.average_pop_growth is not None
-            and pattern_result.current_trend.duration_grains >= 2  # At least 2 periods to establish a trend
-        )
-
-    def _should_create_record_value_story(self, pattern_result: HistoricalPerformance) -> bool:
-        """Check if we should create a record value story."""
-        return (
-            pattern_result.high_rank is not None
-            and pattern_result.low_rank is not None
-            and (pattern_result.high_rank.rank <= 2 or pattern_result.low_rank.rank <= 2)  # Top/bottom 2
+            pattern_result.previous_trend is not None
+            and pattern_result.current_trend.trend_type != pattern_result.previous_trend.trend_type  # type: ignore
         )
 
     def _populate_template_context(

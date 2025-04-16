@@ -44,7 +44,6 @@ class BasePattern(BaseModel):
     version: str = "1.0.0"
     metric_id: str
     analysis_window: AnalysisWindow
-    grain: Granularity
     num_periods: int = Field(default=0)
     analysis_date: date = Field(default_factory=date.today)
     evaluation_time: datetime = Field(default_factory=datetime.now)

@@ -27,7 +27,6 @@ def pattern_result_data(jwt_payload):
         pop_change_percent=0.11,
         absolute_gap=10.0,
         percent_gap=0.09,
-        grain=Granularity.DAY,
         analysis_window=AnalysisWindow(grain=Granularity.DAY, start_date="2023-01-01", end_date="2023-01-31"),
     )
 
@@ -90,7 +89,6 @@ async def test_create_and_retrieve_pattern_result(db_session, jwt_payload):
         pop_change_percent=0.11,
         absolute_gap=10.0,
         percent_gap=0.09,
-        grain=Granularity.MONTH,
         analysis_window=AnalysisWindow(grain=Granularity.MONTH, start_date="2023-01-01", end_date="2023-01-31"),
     )
 
@@ -104,7 +102,7 @@ async def test_create_and_retrieve_pattern_result(db_session, jwt_payload):
         version=performance_status.version,
         analysis_date=performance_status.analysis_date,
         analysis_window=run_result["analysis_window"],
-        grain=performance_status.grain,
+        grain=run_result["analysis_window"]["grain"],
         run_result=run_result,
     )
 
@@ -138,3 +136,4 @@ async def test_create_and_retrieve_pattern_result(db_session, jwt_payload):
     assert retrieved.run_result["current_value"] == 100.0
     assert retrieved.run_result["prior_value"] == 90.0
     assert retrieved.run_result["status"] == "on_track"
+    assert retrieved.run_result["analysis_window"]["grain"] == performance_status.analysis_window.grain

@@ -94,7 +94,7 @@ class TestHistoricalPerformancePattern:
         assert "detect_record_high" in pattern.required_primitives
         assert "detect_record_low" in pattern.required_primitives
         assert "detect_seasonality_pattern" in pattern.required_primitives
-        assert "calculate_benchmark_comparisons" in pattern.required_primitives
+        assert "calculate_period_benchmarks" in pattern.required_primitives
 
     def test_analyze_basic(self, pattern, sample_data, analysis_window):
         """Test the basic analyze method."""

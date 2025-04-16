@@ -115,18 +115,21 @@ STORY_TEMPLATES = {
         "actual_direction }} of {{ actual_change|format_percent }}%.",
     },
     StoryType.RECORD_HIGH: {
-        "title": "{{ high_rank }} highest value over the past {{ high_duration }} {{ grain_label }}s",
+        "title": "{{ high_rank|format_ordinal }} highest {{ grain_label }} value over the past {{ high_duration }} {{ "
+        "grain_label }}s",
         "detail": "The {{ grain_label }} value for {{ metric.label }} of {{ high_value|format_number }} is now the {{ "
-        "high_rank }} highest value in {{ high_duration }} {{ grain_label }}s.",
+        "high_rank|format_ordinal }} highest value in {{ high_duration }} {{ grain_label }}s.",
     },
     StoryType.RECORD_LOW: {
-        "title": "{{ low_rank }} lowest value over the past {{ low_duration }} {{ grain_label }}s",
+        "title": "{{ low_rank|format_ordinal }} lowest {{ grain_label }} value over the past {{ low_duration }} {{ "
+        "grain_label }}s",
         "detail": "The {{ grain_label }} value for {{ metric.label }} of {{ low_value|format_number }} is now the {{ "
-        "low_rank }} lowest value in {{ low_duration }} {{ grain_label }}s.",
+        "low_rank|format_ordinal }} lowest value in {{ low_duration }} {{ grain_label }}s.",
     },
     StoryType.BENCHMARKS: {
         "title": "Performance Against Historical Benchmarks",
-        "detail": "This day marks the {{ high_rank }}th highest-performing {{ grain_label }} in the past {{ "
+        "detail": "This day marks the {{ high_rank|format_ordinal }} highest-performing {{ grain_label }} in the past "
+        "{{"
         "high_duration }} {{ grain_label }}s, with the current period's performance of {{ metric.label }} "
         "at {{ high_value|format_number }} coming in {{ prior_change_percent|format_percent }}% {{ "
         "prior_direction }} than this time last {{ prior_period }} and {{ older_change_percent }} {{ "

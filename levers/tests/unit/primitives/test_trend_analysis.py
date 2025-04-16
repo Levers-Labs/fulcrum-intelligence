@@ -10,7 +10,6 @@ from levers.exceptions import InsufficientDataError, ValidationError
 from levers.models import AnomalyDetectionMethod, TrendExceptionType, TrendType
 from levers.primitives import (
     analyze_metric_trend,
-    calculate_benchmark_comparisons,
     detect_performance_plateau,
     detect_record_high,
     detect_record_low,
@@ -996,123 +995,6 @@ class TestDetectSeasonalityPattern:
                 f"detect_seasonality_pattern raised {type(e).__name__} with non-numeric values when it should handle "
                 f"them gracefully: {str(e)}"
             )
-
-
-class TestCalculateBenchmarkComparisons:
-    """Tests for the calculate_benchmark_comparisons function."""
-
-    def test_basic_benchmark_comparison(self):
-        """Test basic benchmark comparison calculation."""
-        # Arrange
-        # Create data for two consecutive weeks
-        current_week = pd.date_range(start="2023-01-09", periods=5, freq="D")  # Monday to Friday
-        previous_week = pd.date_range(start="2023-01-02", periods=5, freq="D")  # Monday to Friday
-
-        df = pd.DataFrame(
-            {
-                "date": pd.concat([pd.Series(previous_week), pd.Series(current_week)]),
-                "value": [100, 110, 120, 130, 140, 150, 160, 170, 180, 190],  # Higher values in current week
-            }
-        )
-
-        # Act
-        result = calculate_benchmark_comparisons(df, date_col="date", value_col="value")
-
-        # Assert
-        assert result is not None
-        assert len(result) > 0
-        assert result[0].reference_period == "WTD"
-        assert result[0].absolute_change > 0  # Current week should be higher
-        assert result[0].change_percent is not None
-        assert result[0].change_percent > 0  # Positive percentage change
-
-    def test_with_flat_values(self):
-        """Test benchmark comparison with flat values."""
-        # Arrange
-        current_week = pd.date_range(start="2023-01-09", periods=5, freq="D")  # Monday to Friday
-        previous_week = pd.date_range(start="2023-01-02", periods=5, freq="D")  # Monday to Friday
-
-        df = pd.DataFrame(
-            {
-                "date": pd.concat([pd.Series(previous_week), pd.Series(current_week)]),
-                "value": [100, 100, 100, 100, 100, 100, 100, 100, 100, 100],  # Same values in both weeks
-            }
-        )
-
-        # Act
-        result = calculate_benchmark_comparisons(df, date_col="date", value_col="value")
-
-        # Assert
-        assert result is not None
-        assert len(result) > 0
-        assert result[0].reference_period == "WTD"
-        assert result[0].absolute_change == 0  # No change
-        assert result[0].change_percent == 0  # No percentage change
-
-    def test_with_missing_data(self):
-        """Test with missing data."""
-        # Arrange
-        current_week = pd.date_range(start="2023-01-09", periods=5, freq="D")  # Monday to Friday
-        previous_week = pd.date_range(start="2023-01-02", periods=5, freq="D")  # Monday to Friday
-
-        df = pd.DataFrame(
-            {
-                "date": pd.concat([pd.Series(previous_week), pd.Series(current_week)]),
-                "value": [100, np.nan, 120, np.nan, 140, 150, np.nan, 170, np.nan, 190],  # Missing values
-            }
-        )
-
-        # Act
-        result = calculate_benchmark_comparisons(df, date_col="date", value_col="value")
-
-        # Assert
-        assert result is not None
-        assert len(result) > 0
-        # The function should handle NaN values when calculating sums
-        assert result[0].reference_period == "WTD"
-        assert result[0].absolute_change is not None
-        assert result[0].change_percent is not None
-
-    def test_with_decreasing_values(self):
-        """Test with decreasing values."""
-        # Arrange
-        current_week = pd.date_range(start="2023-01-09", periods=5, freq="D")  # Monday to Friday
-        previous_week = pd.date_range(start="2023-01-02", periods=5, freq="D")  # Monday to Friday
-
-        df = pd.DataFrame(
-            {
-                "date": pd.concat([pd.Series(previous_week), pd.Series(current_week)]),
-                "value": [190, 180, 170, 160, 150, 140, 130, 120, 110, 100],  # Decreasing values
-            }
-        )
-
-        # Act
-        result = calculate_benchmark_comparisons(df, date_col="date", value_col="value")
-
-        # Assert
-        assert result is not None
-        assert len(result) > 0
-        assert result[0].reference_period == "WTD"
-        assert result[0].absolute_change < 0  # Current week should be lower
-        assert result[0].change_percent is not None
-        assert result[0].change_percent < 0  # Negative percentage change
-
-    def test_invalid_column(self):
-        """Test with invalid column names."""
-        # Arrange
-        df = pd.DataFrame(
-            {
-                "date": pd.date_range(start="2023-01-01", periods=10, freq="D"),
-                "value": [100 + i * 10 for i in range(10)],
-            }
-        )
-
-        # Act & Assert
-        with pytest.raises((ValidationError, KeyError)):
-            calculate_benchmark_comparisons(df, date_col="nonexistent", value_col="value")
-
-        with pytest.raises((ValidationError, KeyError)):
-            calculate_benchmark_comparisons(df, date_col="date", value_col="nonexistent")
 
 
 class TestProcessControlAnalysis:

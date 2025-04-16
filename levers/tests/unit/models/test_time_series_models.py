@@ -5,7 +5,7 @@ Unit tests for time series models.
 import pytest
 from pydantic import ValidationError
 
-from levers.models import AverageGrowth, TimeSeriesSlope, ToDateGrowth
+from levers.models import AverageGrowth, TimeSeriesSlope
 
 
 class TestAverageGrowth:
@@ -53,56 +53,6 @@ class TestAverageGrowth:
         assert result["average_growth"] == 10.5
         assert result["total_growth"] == 50.0
         assert result["periods"] == 5
-
-
-class TestToDateGrowth:
-    """Tests for the ToDateGrowth class."""
-
-    def test_valid_creation(self):
-        """Test creating a valid ToDateGrowth object."""
-        # Arrange & Act
-        growth = ToDateGrowth(current_value=110.0, prior_value=100.0, abs_diff=10.0, growth_rate=10.0)
-
-        # Assert
-        assert growth.current_value == 110.0
-        assert growth.prior_value == 100.0
-        assert growth.abs_diff == 10.0
-        assert growth.growth_rate == 10.0
-
-    def test_optional_fields(self):
-        """Test creating an object with optional fields as None."""
-        # Arrange & Act
-        growth = ToDateGrowth(current_value=110.0, prior_value=100.0, abs_diff=10.0, growth_rate=None)
-
-        # Assert
-        assert growth.current_value == 110.0
-        assert growth.prior_value == 100.0
-        assert growth.abs_diff == 10.0
-        assert growth.growth_rate is None
-
-    def test_required_fields(self):
-        """Test required fields validation."""
-        # Act & Assert
-        with pytest.raises(ValidationError):
-            ToDateGrowth(
-                current_value=110.0,
-                prior_value=100.0,
-                # Missing abs_diff
-            )
-
-    def test_dict_conversion(self):
-        """Test conversion to dictionary."""
-        # Arrange
-        growth = ToDateGrowth(current_value=110.0, prior_value=100.0, abs_diff=10.0, growth_rate=10.0)
-
-        # Act
-        result = growth.to_dict()
-
-        # Assert
-        assert result["current_value"] == 110.0
-        assert result["prior_value"] == 100.0
-        assert result["abs_diff"] == 10.0
-        assert result["growth_rate"] == 10.0
 
 
 class TestTimeSeriesSlope:

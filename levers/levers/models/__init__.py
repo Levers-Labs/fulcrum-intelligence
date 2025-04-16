@@ -21,7 +21,7 @@ from .enums import (
 )
 from .common import AnalysisWindow, BaseModel, BasePattern
 from .pattern_config import AnalysisWindowConfig, DataSource, PatternConfig
-from .time_series import AverageGrowth, TimeSeriesSlope, ToDateGrowth
+from .time_series import AverageGrowth, TimeSeriesSlope
 from .trend_analysis import (
     PerformancePlateau,
     RecordHigh,
@@ -54,7 +54,6 @@ __all__ = [
     "DataSource",
     "PatternConfig",
     "AverageGrowth",
-    "ToDateGrowth",
     "TimeSeriesSlope",
     # Trend analysis models
     "TrendAnalysis",

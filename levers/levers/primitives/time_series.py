@@ -30,9 +30,10 @@ from levers.models import (
     Granularity,
     PartialInterval,
     TimeSeriesSlope,
-    ToDateGrowth,
 )
+from levers.models.patterns import BenchmarkComparison
 from levers.primitives import calculate_percentage_difference
+from levers.primitives.numeric import calculate_difference
 
 logger = logging.getLogger(__name__)
 
@@ -236,112 +237,6 @@ def calculate_average_growth(
     return AverageGrowth(average_growth=avg_growth, total_growth=total_growth, periods=len(df_sorted) - 1)
 
 
-def calculate_to_date_growth_rates(
-    current_df: pd.DataFrame,
-    prior_df: pd.DataFrame,
-    date_col: str = "date",
-    value_col: str = "value",
-    aggregator: str = "sum",
-    partial_interval: PartialInterval | None = None,
-) -> ToDateGrowth:
-    """
-    Compare partial-to-date periods (e.g., MTD, YTD) between current and prior periods.
-
-    Family: time_series
-    Version: 1.0
-
-    Args:
-        current_df: DataFrame containing current period data
-        prior_df: DataFrame containing prior period data
-        date_col: Column name containing dates
-        value_col: Column name containing values
-        aggregator: How to aggregate values: 'sum', 'mean', 'median', 'min', 'max'
-        partial_interval: Type of partial interval: 'MTD', 'QTD', 'YTD', or 'WTD'
-
-    Returns:
-        ToDateGrowth object containing to-date growth details,
-        - current_value: float, the current period value
-        - prior_value: float, the prior period value
-        - abs_diff: float, the absolute difference between current and prior values
-        - growth_rate: float, the growth rate between current and prior values
-    """
-    # Input validation
-    for df, name in [(current_df, "current_df"), (prior_df, "prior_df")]:
-        if date_col not in df.columns:
-            raise ValidationError(f"Column '{date_col}' not found in {name}")
-        if value_col not in df.columns:
-            raise ValidationError(f"Column '{value_col}' not found in {name}")
-
-    # Check aggregator is valid
-    valid_aggregators = {"sum", "mean", "median", "min", "max"}
-    if aggregator not in valid_aggregators:
-        raise ValidationError(f"Invalid aggregator: {aggregator}. Must be one of {valid_aggregators}")
-
-    # Create copies with datetime indices
-    curr = current_df.copy()
-    prior = prior_df.copy()
-    curr[date_col] = pd.to_datetime(curr[date_col])
-    prior[date_col] = pd.to_datetime(prior[date_col])
-
-    # Apply partial interval filtering if specified
-    if partial_interval:
-        # Get latest date from current period
-        latest_date = curr[date_col].max()
-
-        if partial_interval == PartialInterval.MTD:
-            # Month-to-date: Filter both dataframes to same day of month
-            curr = curr[curr[date_col].dt.day <= latest_date.day]
-            prior = prior[prior[date_col].dt.day <= latest_date.day]
-
-        elif partial_interval == PartialInterval.QTD:
-            # Quarter-to-date: Filter to same day within quarter
-            quarter_start = pd.Timestamp(year=latest_date.year, month=((latest_date.month - 1) // 3) * 3 + 1, day=1)
-            days_into_quarter = (latest_date - quarter_start).days
-
-            prior_dates = prior[date_col].unique()
-            if len(prior_dates) > 0:
-                prior_latest = max(prior_dates)
-                prior_quarter_start = pd.Timestamp(
-                    year=prior_latest.year, month=((prior_latest.month - 1) // 3) * 3 + 1, day=1
-                )
-                prior = prior[prior[date_col] <= (prior_quarter_start + pd.Timedelta(days=days_into_quarter))]
-
-        elif partial_interval == PartialInterval.YTD:
-            # Year-to-date: Filter to same day of year
-            curr = curr[curr[date_col].dt.dayofyear <= latest_date.dayofyear]
-            prior = prior[prior[date_col].dt.dayofyear <= latest_date.dayofyear]
-
-        elif partial_interval == PartialInterval.WTD:
-            # Week-to-date: Filter to same day of week
-            curr = curr[curr[date_col].dt.dayofweek <= latest_date.dayofweek]
-            prior = prior[prior[date_col].dt.dayofweek <= latest_date.dayofweek]
-
-        else:
-            raise ValidationError(
-                f"Unsupported partial_interval: {partial_interval}. " "Must be one of 'MTD', 'QTD', 'YTD', or 'WTD'"
-            )
-
-    # Apply aggregation
-    agg_func = getattr(pd.Series, aggregator)
-    curr_val = agg_func(curr[value_col])
-    prior_val = agg_func(prior[value_col])
-
-    # Calculate growth
-    abs_diff = curr_val - prior_val
-
-    if prior_val == 0:
-        growth_rate = None
-    else:
-        growth_rate = (abs_diff / prior_val) * 100
-
-    return ToDateGrowth(
-        current_value=curr_val,
-        prior_value=prior_val,
-        abs_diff=abs_diff,
-        growth_rate=growth_rate,
-    )
-
-
 def calculate_rolling_averages(
     df: pd.DataFrame,
     value_col: str = "value",
@@ -543,3 +438,154 @@ def calculate_slope_of_time_series(
         slope_per_month=slope_per_month,
         slope_per_year=slope_per_year,
     )
+
+
+def calculate_period_benchmarks(
+    df: pd.DataFrame,
+    date_col: str = "date",
+    value_col: str = "value",
+    aggregator: str = "sum",
+    benchmark_periods: list[PartialInterval] | None = None,
+) -> list[BenchmarkComparison]:
+    """
+    Calculate benchmark comparisons between current and prior periods (WTD, MTD, QTD, YTD).
+
+    Family: time_series
+    Version: 1.0
+
+    Args:
+        df: DataFrame containing time series data
+        date_col: Column name containing dates
+        value_col: Column name containing values
+        aggregator: How to aggregate values: 'sum', 'mean', 'median', 'min', 'max'
+        benchmark_periods: List of period types to compare (default: ['WTD'] if grain is daily)
+
+    Returns:
+        List of BenchmarkComparison objects containing benchmark comparison details,
+        - reference_period: str, the reference period
+        - absolute_change: float, the absolute change
+        - change_percent: float, the change percent
+    """
+    # Input validation
+    if date_col not in df.columns:
+        raise ValidationError(f"Column '{date_col}' not found in DataFrame")
+    if value_col not in df.columns:
+        raise ValidationError(f"Column '{value_col}' not found in DataFrame")
+
+    # Check aggregator is valid
+    valid_aggregators = {"sum", "mean", "median", "min", "max"}
+    if aggregator not in valid_aggregators:
+        raise ValidationError(f"Invalid aggregator: {aggregator}. Must be one of {valid_aggregators}")
+
+    # Default benchmark periods if not specified
+    if benchmark_periods is None:
+        benchmark_periods = [PartialInterval.WTD]
+
+    # Ensure data is sorted by date
+    df_sorted = validate_date_sorted(df, date_col)
+
+    if df_sorted.empty:
+        return []
+
+    # Get the last date in the dataset
+    last_date = df_sorted[date_col].max()
+
+    benchmark_comparisons = []
+
+    # Process each benchmark period type
+    for period_type in benchmark_periods:
+        # Skip if insufficient data for calculation
+        if len(df_sorted) < 2:
+            continue
+
+        # Filter current period data based on period type
+        if period_type == PartialInterval.WTD:
+            # Monday of current week (day 0 is Monday)
+            current_week_monday = last_date - pd.Timedelta(days=last_date.dayofweek)
+            c_start = current_week_monday
+            c_end = last_date
+
+            # Prior WTD - shift by 7 days
+            p_start = c_start - pd.Timedelta(days=7)
+            p_end = c_end - pd.Timedelta(days=7)
+
+        elif period_type == PartialInterval.MTD:
+            # Current month-to-date
+            c_start = last_date.replace(day=1)
+            c_end = last_date
+
+            # Prior month
+            if c_start.month == 1:
+                p_start = pd.Timestamp(year=c_start.year - 1, month=12, day=1)
+            else:
+                p_start = pd.Timestamp(year=c_start.year, month=c_start.month - 1, day=1)
+
+            # Same day of month, or last day if prior month is shorter
+            day_of_month = min(
+                last_date.day, (p_start + pd.Timedelta(days=31)).replace(day=1) - pd.Timedelta(days=1)
+            ).day
+            p_end = p_start.replace(day=day_of_month)
+
+        elif period_type == PartialInterval.QTD:
+            # Current quarter-to-date
+            quarter_month = ((last_date.month - 1) // 3) * 3 + 1
+            c_start = pd.Timestamp(year=last_date.year, month=quarter_month, day=1)
+            c_end = last_date
+
+            # Days into quarter
+            days_into_quarter = (last_date - c_start).days
+
+            # Prior quarter
+            if quarter_month == 1:
+                p_start = pd.Timestamp(year=last_date.year - 1, month=10, day=1)
+            else:
+                p_start = pd.Timestamp(year=last_date.year, month=quarter_month - 3, day=1)
+
+            p_end = p_start + pd.Timedelta(days=days_into_quarter)
+
+        elif period_type == PartialInterval.YTD:
+            # Current year-to-date
+            c_start = pd.Timestamp(year=last_date.year, month=1, day=1)
+            c_end = last_date
+
+            # Prior year, same day of year
+            p_start = pd.Timestamp(year=last_date.year - 1, month=1, day=1)
+            day_of_year = min(
+                last_date.dayofyear, 366 if pd.Timestamp(last_date.year - 1, 12, 31).is_leap_year else 365
+            )
+            p_end = p_start + pd.Timedelta(days=day_of_year - 1)
+
+        # Filter dataframes for current and prior periods
+        current_mask = (df_sorted[date_col] >= c_start) & (df_sorted[date_col] <= c_end)
+        prior_mask = (df_sorted[date_col] >= p_start) & (df_sorted[date_col] <= p_end)
+
+        current_df = df_sorted[current_mask]
+        prior_df = df_sorted[prior_mask]
+
+        # Skip if either period has no data
+        if current_df.empty or prior_df.empty:
+            continue
+
+        # Apply aggregation
+        agg_func = getattr(pd.Series, aggregator)
+        current_value = agg_func(current_df[value_col])
+        prior_value = agg_func(prior_df[value_col])
+
+        # Calculate changes
+        absolute_change = calculate_difference(current_value, prior_value)
+
+        try:
+            change_percent = calculate_percentage_difference(current_value, prior_value, handle_zero_reference=True)
+        except Exception:
+            change_percent = None
+
+        # Add to results
+        benchmark_comparisons.append(
+            BenchmarkComparison(
+                reference_period=period_type,
+                absolute_change=absolute_change,
+                change_percent=change_percent,
+            )
+        )
+
+    return benchmark_comparisons

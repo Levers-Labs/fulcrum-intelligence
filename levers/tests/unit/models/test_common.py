@@ -163,7 +163,6 @@ class TestBasePattern:
             version="1.0",
             metric_id="test_metric",
             analysis_window=AnalysisWindow(start_date="2023-01-01", end_date="2023-01-31"),
-            grain=Granularity.DAY,
         )
 
         # Assert
@@ -174,7 +173,6 @@ class TestBasePattern:
         assert pattern.analysis_window.end_date == "2023-01-31"
         assert pattern.analysis_window.grain == Granularity.DAY
         assert pattern.num_periods == 0
-        assert pattern.grain == Granularity.DAY
         assert pattern.error is None
 
     def test_with_error(self):
@@ -187,7 +185,6 @@ class TestBasePattern:
             version="1.0",
             metric_id="test_metric",
             analysis_window=AnalysisWindow(start_date="2023-01-01", end_date="2023-01-31"),
-            grain=Granularity.DAY,
             error=error_data,
         )
 
@@ -207,7 +204,6 @@ class TestBasePattern:
             version="1.0",
             metric_id="test_metric",
             analysis_window=AnalysisWindow(start_date="2023-01-01", end_date="2023-01-31"),
-            grain=Granularity.DAY,
         )
 
         # Assert
@@ -226,7 +222,6 @@ class TestBasePattern:
             version="1.0",
             metric_id="test_metric",
             analysis_window=AnalysisWindow(start_date="2023-01-01", end_date="2023-01-31"),
-            grain=Granularity.DAY,
             analysis_date=custom_date,
             evaluation_time=custom_datetime,
         )
@@ -243,7 +238,6 @@ class TestBasePattern:
             version="1.0",
             metric_id="test_metric",
             analysis_window=AnalysisWindow(start_date="2023-01-01", end_date="2023-01-31"),
-            grain=Granularity.DAY,
             num_periods=10,
         )
 

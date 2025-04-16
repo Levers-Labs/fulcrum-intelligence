@@ -9,15 +9,6 @@ class AverageGrowth(BaseModel):
     periods: int
 
 
-class ToDateGrowth(BaseModel):
-    """Growth from a specific date to the current date."""
-
-    current_value: float
-    prior_value: float
-    abs_diff: float
-    growth_rate: float | None = None
-
-
 class TimeSeriesSlope(BaseModel):
     """Time series slope analysis results."""
 

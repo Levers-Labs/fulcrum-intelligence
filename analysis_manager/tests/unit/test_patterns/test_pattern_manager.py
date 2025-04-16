@@ -42,7 +42,6 @@ def performance_status_model():
         analysis_date=date.today(),
         analysis_window=AnalysisWindow(grain=Granularity.DAY, start_date="2023-01-01", end_date="2023-01-31"),
         num_periods=31,
-        grain=Granularity.DAY,
     )
 
 
@@ -169,7 +168,6 @@ async def test_get_pattern_results(performance_status_model, pattern_manager, jw
             target_value=110.0,
             status=MetricGVAStatus.ON_TRACK,
             analysis_window=performance_status_model.analysis_window,
-            grain=performance_status_model.grain,
         )
         await pattern_manager.store_pattern_result(pattern_name, model)
 

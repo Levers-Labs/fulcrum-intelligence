@@ -30,7 +30,7 @@ from levers.models import (
     TrendExceptionType,
     TrendType,
 )
-from levers.models.patterns import BenchmarkComparison, Seasonality, TrendException
+from levers.models.patterns import Seasonality, TrendException
 from levers.primitives import calculate_difference, calculate_percentage_difference, validate_date_sorted
 
 logger = logging.getLogger(__name__)
@@ -252,8 +252,6 @@ def detect_record_low(df: pd.DataFrame, value_col: str = "value") -> RecordLow:
     )
 
 
-# TODO: check with abhi if this logic is correct over original
-# logic is quite different from original
 def detect_trend_exceptions(
     df: pd.DataFrame, date_col: str = "date", value_col: str = "value", window_size: int = 5, z_threshold: float = 2.0
 ) -> list[TrendException] | list:
@@ -922,72 +920,3 @@ def detect_seasonality_pattern(
         actual_change_percent=actual_change_percent,
         deviation_percent=deviation_percent,
     )
-
-
-def calculate_benchmark_comparisons(
-    df: pd.DataFrame, date_col: str = "date", value_col: str = "value"
-) -> list[BenchmarkComparison]:
-    """
-    Calculate benchmark comparisons such as week-to-date vs. prior week-to-date.
-
-    Family: trend_analysis
-    Version: 1.0
-
-    Args:
-        df: DataFrame containing time series data
-        date_col: Column name containing dates
-        value_col: Column name containing values
-        grain: Time grain for analysis (day, week, month)
-
-    Returns:
-        List of BenchmarkComparison objects containing benchmark comparison details,
-        - reference_period: str, the reference period
-        - absolute_change: float, the absolute change
-        - change_percent: float, the change percent
-    """
-
-    # Ensure data is sorted by date
-    df_sorted = validate_date_sorted(df, date_col)
-
-    benchmark_comparisons = []
-
-    # Get the last date in the dataset
-    last_date = df_sorted[date_col].max()
-
-    # Monday of current week (day 0 is Monday)
-    current_week_monday = last_date - pd.Timedelta(days=last_date.dayofweek)
-
-    # Date range for current WTD
-    c_start = current_week_monday
-    c_end = last_date
-
-    # Prior WTD - shift by 7 days
-    p_start = c_start - pd.Timedelta(days=7)
-    p_end = c_end - pd.Timedelta(days=7)
-
-    # Gather current WTD data
-    c_mask = (df_sorted[date_col] >= c_start) & (df_sorted[date_col] <= c_end)
-    c_vals = df_sorted.loc[c_mask, value_col]
-    current_sum = c_vals.sum() if not c_vals.empty else 0
-
-    # Gather prior WTD data
-    p_mask = (df_sorted[date_col] >= p_start) & (df_sorted[date_col] <= p_end)
-    p_vals = df_sorted.loc[p_mask, value_col]
-    prior_sum = p_vals.sum() if not p_vals.empty else 0
-
-    abs_change = calculate_difference(current_sum, prior_sum)
-
-    try:
-        change_percent = calculate_percentage_difference(current_sum, prior_sum, handle_zero_reference=True)
-    except Exception:
-        change_percent = None
-
-    benchmark_comparisons.append(
-        BenchmarkComparison(
-            reference_period="WTD",
-            absolute_change=abs_change,
-            change_percent=change_percent,
-        )
-    )
-
-    return benchmark_comparisons

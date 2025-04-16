@@ -1,8 +1,8 @@
-"""pattern_models
+"""pattern_results
 
-Revision ID: 5848cde8e7ff
+Revision ID: d307ac9b5a88
 Revises:
-Create Date: 2025-04-10 21:15:15.122381
+Create Date: 2025-04-16 17:33:42.337213
 
 """
 
@@ -14,7 +14,7 @@ from alembic import op
 from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
-revision: str = "5848cde8e7ff"
+revision: str = "d307ac9b5a88"
 down_revision: str | None = None
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
@@ -61,18 +61,26 @@ def upgrade() -> None:
         sa.Column("metric_id", sqlmodel.sql.sqltypes.AutoString(), nullable=False),
         sa.Column("pattern", sqlmodel.sql.sqltypes.AutoString(), nullable=False),
         sa.Column("version", sqlmodel.sql.sqltypes.AutoString(), nullable=False),
+        sa.Column("grain", sa.Enum("DAY", "WEEK", "MONTH", "QUARTER", "YEAR", name="granularity"), nullable=False),
         sa.Column("analysis_date", sa.Date(), nullable=False),
         sa.Column("analysis_window", postgresql.JSONB(astext_type=sa.Text()), nullable=False),
         sa.Column("error", postgresql.JSONB(astext_type=sa.Text()), nullable=True),
         sa.Column("run_result", postgresql.JSONB(astext_type=sa.Text()), nullable=False),
         sa.PrimaryKeyConstraint("id"),
-        sa.UniqueConstraint("metric_id", "tenant_id", "pattern", "version", "analysis_date"),
+        sa.UniqueConstraint("metric_id", "tenant_id", "pattern", "version", "analysis_date", "grain"),
         schema="analysis_store",
     )
     op.create_index(
         "idx_pattern_result_metric_tenant",
         "pattern_results",
         ["metric_id", "tenant_id"],
+        unique=False,
+        schema="analysis_store",
+    )
+    op.create_index(
+        "idx_pattern_result_metric_tenant_grain",
+        "pattern_results",
+        ["metric_id", "tenant_id", "grain"],
         unique=False,
         schema="analysis_store",
     )
@@ -87,6 +95,13 @@ def upgrade() -> None:
         op.f("ix_analysis_store_pattern_results_analysis_date"),
         "pattern_results",
         ["analysis_date"],
+        unique=False,
+        schema="analysis_store",
+    )
+    op.create_index(
+        op.f("ix_analysis_store_pattern_results_grain"),
+        "pattern_results",
+        ["grain"],
         unique=False,
         schema="analysis_store",
     )
@@ -120,13 +135,13 @@ def upgrade() -> None:
     )
     op.execute("ALTER TABLE analysis_store.pattern_configs ENABLE ROW LEVEL SECURITY;")
     op.execute(
-        "CREATE POLICY tenant_isolation_analysis_store_pattern_configs ON analysis_store.pattern_configs "
-        "USING (tenant_id = (SELECT current_setting('app.current_tenant')::int));"
+        "CREATE POLICY tenant_isolation_analysis_store_pattern_configs ON analysis_store.pattern_configs USING ("
+        "tenant_id = (SELECT current_setting('app.current_tenant')::int));"
     )
     op.execute("ALTER TABLE analysis_store.pattern_results ENABLE ROW LEVEL SECURITY;")
     op.execute(
-        "CREATE POLICY tenant_isolation_analysis_store_pattern_results ON analysis_store.pattern_results "
-        "USING (tenant_id = (SELECT current_setting('app.current_tenant')::int));"
+        "CREATE POLICY tenant_isolation_analysis_store_pattern_results ON analysis_store.pattern_results USING ("
+        "tenant_id = (SELECT current_setting('app.current_tenant')::int));"
     )
     # ### end Alembic commands ###
 
@@ -146,9 +161,13 @@ def downgrade() -> None:
         op.f("ix_analysis_store_pattern_results_metric_id"), table_name="pattern_results", schema="analysis_store"
     )
     op.drop_index(
+        op.f("ix_analysis_store_pattern_results_grain"), table_name="pattern_results", schema="analysis_store"
+    )
+    op.drop_index(
         op.f("ix_analysis_store_pattern_results_analysis_date"), table_name="pattern_results", schema="analysis_store"
     )
     op.drop_index("idx_pattern_result_metric_tenant_pattern", table_name="pattern_results", schema="analysis_store")
+    op.drop_index("idx_pattern_result_metric_tenant_grain", table_name="pattern_results", schema="analysis_store")
     op.drop_index("idx_pattern_result_metric_tenant", table_name="pattern_results", schema="analysis_store")
     op.drop_table("pattern_results", schema="analysis_store")
     op.drop_index(

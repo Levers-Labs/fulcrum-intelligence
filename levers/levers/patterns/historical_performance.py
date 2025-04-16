@@ -36,7 +36,7 @@ from levers.patterns import Pattern
 from levers.primitives import (
     analyze_metric_trend,
     calculate_average_growth,
-    calculate_benchmark_comparisons,
+    calculate_period_benchmarks,
     calculate_pop_growth,
     detect_record_high,
     detect_record_low,
@@ -61,7 +61,7 @@ class HistoricalPerformancePattern(Pattern[HistoricalPerformance]):
         "detect_record_low",
         "detect_trend_exceptions",
         "detect_seasonality_pattern",
-        "calculate_benchmark_comparisons",
+        "calculate_period_benchmarks",
     ]
     output_model: type[HistoricalPerformance] = HistoricalPerformance
 
@@ -150,7 +150,6 @@ class HistoricalPerformancePattern(Pattern[HistoricalPerformance]):
                 "seasonality": seasonality_pattern,
                 "benchmark_comparisons": benchmark_comparisons,
                 "trend_exceptions": trend_exceptions,
-                "grain": grain,
             }
 
             logger.info("Successfully analyzed historical performance for metric_id=%s", metric_id)
@@ -498,7 +497,8 @@ class HistoricalPerformancePattern(Pattern[HistoricalPerformance]):
         if grain != Granularity.DAY or data_window.empty:
             return []
 
-        return calculate_benchmark_comparisons(data_window, "date", "value")
+        # Use the new calculate_period_benchmarks function
+        return calculate_period_benchmarks(data_window, "date", "value")
 
     def _detect_trend_exceptions(self, period_data: pd.DataFrame) -> list[TrendException] | list:
         """
