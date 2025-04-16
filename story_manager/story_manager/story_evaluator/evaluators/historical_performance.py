@@ -61,7 +61,7 @@ class HistoricalPerformanceEvaluator(StoryEvaluatorBase[HistoricalPerformance]):
 
         # Trend Stories
         if pattern_result.current_trend:
-            if self._is_stable_trend(pattern_result):
+            if self._is_stable_trend(pattern_result) and pattern_result.current_trend.trend_type == TrendType.STABLE:
                 stories.append(self._create_stable_trend_story(pattern_result, metric_id, metric, grain))
             elif self._is_new_trend(pattern_result) and pattern_result.current_trend.trend_type == TrendType.UPWARD:
                 stories.append(self._create_new_upward_trend_story(pattern_result, metric_id, metric, grain))
@@ -101,9 +101,9 @@ class HistoricalPerformanceEvaluator(StoryEvaluatorBase[HistoricalPerformance]):
 
         # Record Value Stories
         if self._should_create_record_value_story(pattern_result):
-            if pattern_result.high_rank.rank <= 3:  # Consider top 3 as record high
+            if pattern_result.high_rank.rank <= 2:  # Consider top 2 as record high
                 stories.append(self._create_record_high_story(pattern_result, metric_id, metric, grain))
-            if pattern_result.low_rank.rank <= 3:  # Consider bottom 3 as record low
+            if pattern_result.low_rank.rank <= 2:  # Consider bottom 2 as record low
                 stories.append(self._create_record_low_story(pattern_result, metric_id, metric, grain))
 
         # Benchmark Stories
@@ -123,11 +123,7 @@ class HistoricalPerformanceEvaluator(StoryEvaluatorBase[HistoricalPerformance]):
 
     def _is_stable_trend(self, pattern_result: HistoricalPerformance) -> bool:
         """Check if the current trend is stable (has been ongoing for a while)."""
-        return (
-            pattern_result.current_trend is not None
-            and pattern_result.current_trend.duration_grains >= 3  # Arbitrary threshold
-            and pattern_result.previous_trend is None
-        )
+        return pattern_result.current_trend is not None and pattern_result.previous_trend is None
 
     def _is_new_trend(self, pattern_result: HistoricalPerformance) -> bool:
         """Check if there's a new trend (current trend exists and different from previous)."""
@@ -150,7 +146,7 @@ class HistoricalPerformanceEvaluator(StoryEvaluatorBase[HistoricalPerformance]):
         return (
             pattern_result.high_rank is not None
             and pattern_result.low_rank is not None
-            and (pattern_result.high_rank.rank <= 3 or pattern_result.low_rank.rank <= 3)  # Top/bottom 3
+            and (pattern_result.high_rank.rank <= 2 or pattern_result.low_rank.rank <= 2)  # Top/bottom 2
         )
 
     def _populate_template_context(
