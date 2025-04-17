@@ -4,8 +4,10 @@ import pkgutil
 from pathlib import Path
 from typing import Generic, TypeVar
 
+from levers.models import BasePattern
+
 # Import base pattern to check subclasses
-from levers.patterns.base import BasePattern, Pattern
+from levers.patterns import Pattern
 
 T = TypeVar("T", bound=BasePattern)
 

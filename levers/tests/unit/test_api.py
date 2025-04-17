@@ -9,17 +9,21 @@ import pytest
 
 from levers.api import Levers
 from levers.exceptions import PatternError, PrimitiveError
-from levers.models import PatternConfig
-from levers.models.common import AnalysisWindow, BasePattern, Granularity
+from levers.models import (
+    AnalysisWindow,
+    BasePattern,
+    Granularity,
+    PatternConfig,
+)
 from levers.models.patterns import MetricPerformance
-from levers.patterns.base import Pattern
-from levers.patterns.performance_status import PerformanceStatusPattern
+from levers.patterns import Pattern, PerformanceStatusPattern
 
 
 class TestOutputModel(BasePattern):
     """Test output model for API testing."""
 
     result: str
+    num_periods: int = 0  # Add default value
 
 
 class TestLeversAPI:
@@ -45,7 +49,11 @@ class TestLeversAPI:
 
             def analyze(self, metric_id, data, analysis_window, **kwargs):
                 return TestOutputModel(
-                    pattern_name=self.name, version=self.version, metric_id=metric_id, result="test_success"
+                    pattern_name=self.name,
+                    version=self.version,
+                    metric_id=metric_id,
+                    result="test_success",
+                    num_periods=7,
                 )
 
             def get_info(self):
@@ -228,9 +236,11 @@ class TestLeversAPI:
         # Mock analyze method to return a result
         expected_result = TestOutputModel(
             pattern="test_pattern",
+            pattern_name="test_pattern",
             version="1.0",
             analysis_window=analysis_window,
             metric_id=metric_id,
+            grain=analysis_window.grain,
             result="test_success",
         )
         mock_pattern_instance.analyze.return_value = expected_result
@@ -349,3 +359,109 @@ class TestLeversAPI:
         call_args = api.execute_pattern.call_args[1]
         assert call_args["pattern_name"] == "performance_status"
         assert call_args["metric_id"] == metric_id
+
+    @pytest.fixture
+    def levers(self):
+        """Return a Levers instance."""
+        return Levers()
+
+    @pytest.fixture
+    def sample_data(self):
+        """Return sample data for testing."""
+        return pd.DataFrame(
+            {
+                "date": pd.date_range(start="2023-01-01", periods=10, freq="D"),
+                "value": [100 + i for i in range(10)],
+            }
+        )
+
+    def test_initialization(self, levers):
+        """Test API initialization."""
+        # Assert
+        assert levers is not None
+        assert isinstance(levers.patterns, dict)
+        assert len(levers.patterns) > 0
+
+    def test_get_nonexistent_pattern(self, levers):
+        """Test getting a nonexistent pattern."""
+        # Act & Assert
+        with pytest.raises(PatternError):
+            levers.get_pattern("nonexistent_pattern")
+
+    def test_get_nonexistent_primitive(self, levers):
+        """Test getting a nonexistent primitive."""
+        # Act & Assert
+        with pytest.raises(PrimitiveError):
+            levers.get_primitive("nonexistent_primitive")
+
+    def test_execute_nonexistent_pattern(self, levers, sample_data):
+        """Test executing a nonexistent pattern."""
+        # Arrange
+        analysis_window = AnalysisWindow(
+            start_date="2023-01-01",
+            end_date="2023-01-10",
+            grain=Granularity.DAY,
+        )
+
+        # Act & Assert
+        with pytest.raises(PatternError):
+            levers.execute_pattern(
+                "nonexistent_pattern",
+                analysis_window=analysis_window,
+                data=sample_data,
+            )
+
+    def test_get_nonexistent_pattern_config(self, levers):
+        """Test getting default config for nonexistent pattern."""
+        # Act & Assert
+        with pytest.raises(PatternError):
+            levers.get_pattern_default_config("nonexistent_pattern")
+
+    def test_load_pattern_model(self, levers):
+        """Test loading a pattern model from data."""
+        # Arrange
+        pattern_data = {
+            "pattern": "performance_status",
+            "metric_id": "test_metric",
+            "status": "on_track",
+            "current_value": 100,
+            "target_value": 120,
+            "analysis_window": {"start_date": "2023-01-01", "end_date": "2023-01-10", "grain": "day"},
+            "grain": "day",
+        }
+
+        # Act
+        model = Levers.load_pattern_model(pattern_data)
+
+        # Assert
+        assert isinstance(model, MetricPerformance)
+        assert model.metric_id == "test_metric"
+        assert model.status == "on_track"
+        assert model.current_value == 100
+        assert model.target_value == 120
+        assert model.analysis_window.start_date == "2023-01-01"
+        assert model.analysis_window.end_date == "2023-01-10"
+        assert model.analysis_window.grain == "day"
+
+    def test_load_invalid_pattern_model(self, levers):
+        """Test loading an invalid pattern model."""
+        # Arrange
+        pattern_data = {
+            "pattern": "nonexistent_pattern",
+            "metric_id": "test_metric",
+        }
+
+        # Act & Assert
+        with pytest.raises(PatternError):
+            Levers.load_pattern_model(pattern_data)
+
+    def test_load_pattern_model_missing_type(self, levers):
+        """Test loading a pattern model with missing type."""
+        # Arrange
+        pattern_data = {
+            "metric_id": "test_metric",
+        }
+
+        # Act & Assert
+        with pytest.raises(PatternError):
+            Levers.load_pattern_model(pattern_data)

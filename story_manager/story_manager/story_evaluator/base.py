@@ -26,7 +26,6 @@ class StoryEvaluatorBase(Generic[T], ABC):
     """
 
     pattern_name: str
-    genre: StoryGenre
 
     @abstractmethod
     async def evaluate(self, pattern_result: T, metric: dict[str, Any]) -> list[dict[str, Any]]:
@@ -44,6 +43,7 @@ class StoryEvaluatorBase(Generic[T], ABC):
 
     def prepare_story_model(
         self,
+        genre: StoryGenre,
         story_type: StoryType,
         story_group: StoryGroup,
         metric_id: str,
@@ -75,7 +75,7 @@ class StoryEvaluatorBase(Generic[T], ABC):
 
         return {
             "version": 2,
-            "genre": self.genre,
+            "genre": genre,
             "story_type": story_type,
             "story_group": story_group,
             "grain": grain,

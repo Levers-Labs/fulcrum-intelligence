@@ -12,13 +12,15 @@ from levers.exceptions import (
     ValidationError as LeversValidationError,
 )
 from levers.models import (
+    AnalysisWindow,
     AnalysisWindowConfig,
+    BasePattern,
     DataSource,
     DataSourceType,
+    Granularity,
     PatternConfig,
     WindowStrategy,
 )
-from levers.models.common import AnalysisWindow, BasePattern, Granularity
 
 T = TypeVar("T", bound=BasePattern)
 

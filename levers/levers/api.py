@@ -7,10 +7,14 @@ from typing import Any, Generic, TypeVar
 import pandas as pd
 
 from levers.exceptions import LeversError, PatternError, PrimitiveError
-from levers.models import PatternConfig
-from levers.models.common import AnalysisWindow, BasePattern, Granularity
-from levers.models.patterns import MetricPerformance
-from levers.patterns.base import Pattern
+from levers.models import (
+    AnalysisWindow,
+    BasePattern,
+    Granularity,
+    PatternConfig,
+)
+from levers.models.patterns import HistoricalPerformance, MetricPerformance
+from levers.patterns import Pattern
 from levers.primitives import get_primitive_metadata, list_primitives_by_family
 from levers.registry import PatternRegistry, autodiscover_patterns
 
@@ -23,6 +27,7 @@ class Levers(Generic[T]):
     # Map of pattern names to their respective pattern classes
     _pattern_model_registry: dict[str, type[BasePattern]] = {
         "performance_status": MetricPerformance,
+        "historical_performance": HistoricalPerformance,
         # Add other patterns here as they are implemented
     }
 
