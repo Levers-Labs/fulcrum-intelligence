@@ -51,7 +51,7 @@ class Settings(BaseSettings):
     # Slack OAuth
     SLACK_CLIENT_ID: str
     SLACK_CLIENT_SECRET: str
-    SLACK_OAUTH_SCOPES: list[str] = ["chat:write", "chat:write.public", "channels:read", "channels:join"]
+    SLACK_OAUTH_SCOPES: list[str] = ["chat:write", "chat:write.public", "channels:read", "channels:join", "users:read"]
     SLACK_OAUTH_REDIRECT_PATH: str = "api/slack/oauth/callback"
 
     # Prefect

@@ -309,11 +309,21 @@ async def list_channels(
     name: str | None = None,
     cursor: str | None = None,
     limit: int = 100,
+    include_users: bool = False,
 ):
     """
-    List Slack channels with optional name filtering and pagination support.
+    List Slack channels and optionally users with pagination support.
+
+    Parameters:
+    - name: Optional name filter (case-insensitive)
+    - cursor: Pagination cursor from previous response
+    - limit: Number of results per page (default 100)
+    - include_users: Whether to include users in results (default False)
     """
-    return slack_client.list_channels(cursor=cursor, limit=limit, name=name)
+    try:
+        return slack_client.list_channels(cursor=cursor, limit=limit, name=name, include_users=include_users)
+    except SlackApiError as SlackErr:
+        raise HTTPException(status_code=400, detail=f"Failed to fetch channels: {str(SlackErr)}") from SlackErr
 
 
 @slack_router.get(
