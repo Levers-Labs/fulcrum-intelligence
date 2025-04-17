@@ -1,5 +1,5 @@
 from copy import deepcopy
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from unittest.mock import patch
 
 import pytest
@@ -1070,10 +1070,7 @@ async def test_list_notification_executions_with_filters(
     # Test with date range
     response = await async_client.get(
         "/v1/notification/executions",
-        params={
-            "start_date": (datetime.now().replace(hour=0, minute=0)).isoformat(),
-            "end_date": datetime.now().isoformat(),
-        },
+        params={"start_date": date.today(), "end_date": date.today()},  # type: ignore
     )
     assert response.status_code == 200
 

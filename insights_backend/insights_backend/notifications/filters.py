@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import date
 
 from pydantic import BaseModel
 from sqlalchemy import Select, func, or_
@@ -112,5 +112,5 @@ class NotificationExecutionFilter(BaseFilter):
     status: ExecutionStatus | None = FilterField(NotificationExecution.status, operator="eq", default=None)  # type: ignore
     alert_id: int | None = FilterField(NotificationExecution.alert_id, operator="eq", default=None)  # type: ignore
     report_id: int | None = FilterField(NotificationExecution.report_id, operator="eq", default=None)  # type: ignore
-    start_date: datetime | None = FilterField(NotificationExecution.executed_at, operator="ge", default=None)  # type: ignore
-    end_date: datetime | None = FilterField(NotificationExecution.executed_at, operator="le", default=None)  # type: ignore
+    start_date: date | None = FilterField(NotificationExecution.executed_at, operator="ge", default=None)  # type: ignore
+    end_date: date | None = FilterField(NotificationExecution.executed_at, operator="le", default=None)  # type: ignore

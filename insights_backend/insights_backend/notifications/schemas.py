@@ -113,7 +113,7 @@ class NotificationList(BaseModel):
     schedule: ScheduleConfig | None = None
     tags: list[str] | None = None
     last_execution: datetime | None = None
-    recipients_count: int | None
+    recipients: dict[str, list[SlackChannel | EmailRecipient]] | None = None
     is_active: bool
     is_published: bool
 
