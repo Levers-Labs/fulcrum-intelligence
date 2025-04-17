@@ -32,8 +32,7 @@ from levers.models import (
     TimeSeriesSlope,
 )
 from levers.models.patterns import BenchmarkComparison
-from levers.primitives import calculate_percentage_difference
-from levers.primitives.numeric import calculate_difference
+from levers.primitives import calculate_difference, calculate_percentage_difference
 
 logger = logging.getLogger(__name__)
 
