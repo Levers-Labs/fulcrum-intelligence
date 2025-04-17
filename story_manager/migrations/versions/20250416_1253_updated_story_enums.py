@@ -19,28 +19,9 @@ branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
 
-def add_enum_value(enum_type: str, value: str) -> None:
-    # This is a migration that adds enum values which requires string interpolation in DDL
-    # We're only using this with constant strings from the code, not user inputs
-    op.execute(  # noqa: S608
-        f"""
-            DO $$
-            BEGIN
-                IF NOT EXISTS (
-                    SELECT 1 FROM pg_enum
-                    WHERE enumlabel = '{value}' AND enumtypid = '{enum_type}'::regtype
-                ) THEN
-                    ALTER TYPE {enum_type} ADD VALUE '{value}';
-                END IF;
-            END
-            $$;
-    """
-    )
-
-
 def upgrade() -> None:
     # storygenre
-    add_enum_value("story_store.storygenre", "HEADWINDS_TAILWINDS")
+    op.execute("ALTER TYPE story_store.storygenre ADD VALUE IF NOT EXISTS 'HEADWINDS_TAILWINDS'")
 
     # storygroup
     for val in [
@@ -57,7 +38,7 @@ def upgrade() -> None:
         "RISK_VOLATILITY",
         "RISK_CONCENTRATION",
     ]:
-        add_enum_value("story_store.storygroup", val)
+        op.execute(f"ALTER TYPE story_store.storygroup ADD VALUE IF NOT EXISTS '{val}'")
 
     # storytype
     for val in [
@@ -83,7 +64,7 @@ def upgrade() -> None:
         "PACING_OFF_TRACK",
         "SEGMENT_COMPARISONS",
     ]:
-        add_enum_value("story_store.storytype", val)
+        op.execute(f"ALTER TYPE story_store.storytype ADD VALUE IF NOT EXISTS '{val}'")
 
 
 def downgrade() -> None:
