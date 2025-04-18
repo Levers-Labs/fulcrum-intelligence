@@ -3,7 +3,8 @@ from query_manager.core.models import Dimension, Metric
 
 
 class DimensionFilter(BaseFilter[Dimension]):
-    dimension_ids: list[str] | None = FilterField(Dimension, operator="in", default=None)  # type: ignore
+    dimension_ids: list[str] | None = FilterField(Dimension.dimension_id, operator="in", default=None)  # type: ignore
+    dimension_label: str | None = FilterField(Dimension.label, operator="ilike", default=None)  # type: ignore
 
 
 class MetricFilter(BaseFilter[Metric]):

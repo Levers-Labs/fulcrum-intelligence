@@ -775,3 +775,32 @@ async def test_delete_dimension_not_found(async_client: AsyncClient, mocker):
 
     # Verify delete_dimension was called once with correct argument
     mock_delete_dimension.assert_awaited_once_with(dimension_id)
+
+
+@pytest.mark.asyncio
+async def test_list_dimensions_with_filter(async_client: AsyncClient, mocker, dimension):
+    mock_list_dimensions = AsyncMock(return_value=([dimension], 1))
+    mocker.patch.object(QueryClient, "list_dimensions", mock_list_dimensions)
+
+    response = await async_client.get("/v1/dimensions?dimension_label=Plan")
+    assert response.status_code == 200
+    assert response.json() == {
+        "count": 1,
+        "limit": 10,
+        "offset": 0,
+        "pages": 1,
+        "results": [DimensionCompact(**dimension).model_dump(mode="json")],
+    }
+
+
+@pytest.mark.asyncio
+async def test_list_dimensions_with_filter_not_found(async_client: AsyncClient, mocker):
+    response = await async_client.get("/v1/dimensions?dimension_label=test")
+    assert response.status_code == 200
+    assert response.json() == {
+        "count": 0,
+        "limit": 10,
+        "offset": 0,
+        "pages": 0,
+        "results": [],
+    }

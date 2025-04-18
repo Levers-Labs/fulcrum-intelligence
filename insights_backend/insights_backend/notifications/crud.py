@@ -3,7 +3,6 @@ from typing import Any, TypeVar
 
 from sqlalchemy import (
     and_,
-    case,
     column,
     delete,
     distinct,
@@ -55,12 +54,13 @@ class CRUDNotifications:
     def _create_base_query(self, model: type[NotificationModel]) -> select:  # type: ignore
         """
         Creates a base query for either Alert or Report models with all necessary joins and aggregations.
+        Uses JSON aggregation to include recipient data in a single query.
 
         Args:
             model: The model class (Alert or Report)
 
         Returns:
-            SQLAlchemy select query with all required fields
+            SQLAlchemy select query with all required fields including recipients
         """
         # Determine the correct foreign key relationships based on model type
         model_id = model.id
@@ -69,6 +69,19 @@ class CRUDNotifications:
         notification_type = NotificationType.ALERT if model == Alert else NotificationType.REPORT
 
         schedule_field = (Report.schedule if model == Report else literal_column("NULL::jsonb")).label("schedule")  # type: ignore
+
+        # Create a subquery to get recipients by channel for each notification by fetching all recipients in a single
+        # query
+        recipients_subquery = (
+            select(
+                func.jsonb_object_agg(
+                    NotificationChannelConfig.channel_type, NotificationChannelConfig.recipients
+                ).label("recipients")
+            )
+            .where(and_(NotificationChannelConfig.notification_type == notification_type, config_fk == model_id))  # type: ignore
+            .scalar_subquery()
+            .correlate(model)
+        )
 
         return (
             select(
@@ -83,15 +96,7 @@ class CRUDNotifications:
                 schedule_field,
                 func.max(NotificationExecution.executed_at).label("last_execution"),  # type: ignore
                 func.count(distinct(NotificationChannelConfig.id)).label("channel_count"),  # type: ignore
-                func.coalesce(
-                    func.sum(
-                        case(
-                            (NotificationChannelConfig.recipients.is_(None), 0),  # type: ignore
-                            else_=func.jsonb_array_length(NotificationChannelConfig.recipients),
-                        )
-                    ),
-                    0,
-                ).label("recipients_count"),
+                recipients_subquery.label("recipients"),
             )
             .select_from(model)
             .outerjoin(NotificationExecution, execution_fk == model_id)  # type: ignore
@@ -118,8 +123,8 @@ class CRUDNotifications:
         self, params: PaginationParams, filter_params: dict[str, Any] | None = None
     ) -> tuple[list[NotificationList], int]:
         """
-        Get paginated list of notifications with their execution history and recipient counts.
-        Combines data from alerts, reports, notification channels, and executions.
+        Get paginated list of notifications with their execution history and recipient details.
+        Combines data from alerts, reports, notification channels, and executions in a single query.
         """
         # Create base queries for alerts and reports
         alerts = self._create_base_query(Alert)

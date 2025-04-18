@@ -120,12 +120,12 @@ async def test_list_dimensions(mocker, dimensions, query_client):
     mocker.patch.object(client.dimensions_crud, "paginate", mock_paginate)
 
     params = PaginationParams(page=1, size=10)
-    result, count = await client.list_dimensions(params=params)
+    result, count = await client.list_dimensions(params=params, dimension_ids=None, dimension_label=None)
     assert len(result) == 1
     assert result[0] == dimensions
     assert count == 1
 
-    mock_paginate.assert_called_once_with(params, filter_params={})
+    mock_paginate.assert_called_once_with(params, filter_params={"dimension_ids": None, "dimension_label": None})
 
 
 @pytest.mark.asyncio
