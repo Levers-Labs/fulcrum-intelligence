@@ -10,95 +10,46 @@ class SlackClient:
         """Initialize the Slack client with authentication token"""
         self.client = WebClient(token=token)
 
-    def list_channels(
-        self, cursor: str | None = None, limit: int = 100, name: str | None = None, include_users: bool = False
-    ) -> dict[str, Any]:
+    def list_channels(self, cursor: str | None = None, limit: int = 100, name: str | None = None) -> dict[str, Any]:
         """
-        List channels in the workspace with pagination support and name filtering.
-        Optionally includes users formatted as channels when include_users=True.
+        List channels in the workspace with pagination support and name filtering
 
         Args:
             cursor: Optional pagination cursor from previous response
             limit: Number of channels to return per page, default 100
             name: Optional channel name filter, case-insensitive partial match
-            include_users: Whether to include users in the results
 
         Returns:
             Dict[str, Any]: Response containing:
-                - results: List of channel objects containing id, name etc.
+                - channels: List of channel objects containing id, name etc.
                 - next_cursor: Cursor for fetching next page, None if no more pages
         """
-        results = []
-
-        # Get channels
-        response = self.client.conversations_list(
-            cursor=cursor, limit=limit, types=["public_channel", "private_channel", "mpim", "im"]
-        )
+        # Call Slack API to get list of channels with pagination
+        response = self.client.conversations_list(cursor=cursor, limit=limit)
         channels = response["channels"]
 
         # Filter channels by name if name filter is provided
         if name:
-            name_lower = name.lower()
-            channels = [channel for channel in channels if name_lower in channel["name"].lower()]
+            # Convert name to lowercase for case-insensitive comparison
+            name = name.lower()
+            # Keep only channels whose names contain the search term
+            channels = [channel for channel in channels if name in channel["name"].lower()]
 
-        results.extend(channels)
+        # Filter to only list channels i.e. is_channel is True
+        channels = [channel for channel in channels if channel["is_channel"]]
+
+        # Return filtered channels and pagination cursor
         next_cursor = response["response_metadata"].get("next_cursor")
 
-        # Get users if include_users is True
-        if include_users:
-            user_results = self._fetch_users(limit=limit, name=name)
-            results.extend(user_results.get("results", []))
+        # based on the filter, we might not get any channels and
+        # have next_cursor as we have in code filters
+        # in that case, we should rerun function with next_cursor value
+        # if not channels and next_cursor:
+        #     return self.list_channels(cursor=next_cursor, limit=limit, name=name)
 
         return {
-            "results": results,
+            "results": channels,
             "next_cursor": next_cursor if next_cursor else None,
-        }
-
-    def _fetch_users(self, cursor: str | None = None, limit: int = 100, name: str | None = None) -> dict[str, Any]:
-        """
-        Internal method to fetch users from Slack API and format them as channels
-
-        Args:
-            cursor: Optional pagination cursor from previous response
-            limit: Number of users to return per page, default 100
-            name: Optional name filter for users
-
-        Returns:
-            Dict[str, Any]: Response with users formatted as channels
-        """
-        # Call Slack API to get list of users with pagination
-        response = self.client.users_list(cursor=cursor, limit=limit)
-        users = response["members"]
-
-        # Filter by name if provided
-        if name:
-            name_lower = name.lower()
-            users = [
-                user
-                for user in users
-                if (name_lower in user.get("name", "").lower() or name_lower in user.get("real_name", "").lower())
-            ]
-
-        # Format users as channel objects efficiently
-        formatted_users = [
-            {
-                "id": user["id"],
-                "name": user.get("name", ""),
-                "is_channel": False,
-                "is_group": False,
-                "is_dm": True,
-                "is_private": True,
-                "real_name": user.get("real_name", ""),
-                "is_bot": user.get("is_bot", False),
-                "is_user": True,  # Add an explicit flag to identify users
-            }
-            for user in users
-            if not user.get("deleted", False)  # Skip deleted users
-        ]
-
-        return {
-            "results": formatted_users,
-            "next_cursor": None,  # We don't use pagination for users in the combined endpoint
         }
 
     def post_message(
