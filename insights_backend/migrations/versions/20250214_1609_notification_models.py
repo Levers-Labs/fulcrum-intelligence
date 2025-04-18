@@ -140,22 +140,23 @@ def upgrade() -> None:
     op.execute("ALTER TABLE insights_store.notificationexecution ENABLE ROW LEVEL SECURITY;")
     op.execute(
         "CREATE POLICY tenant_isolation_insights_store_notificationexecution ON insights_store.notificationexecution "
-        "USING (tenant_id = current_setting('app.current_tenant')::int);"
+        "USING (tenant_id = (SELECT current_setting('app.current_tenant')::int));"
     )
     op.execute("ALTER TABLE insights_store.notificationchannelconfig ENABLE ROW LEVEL SECURITY;")
     op.execute(
         "CREATE POLICY tenant_isolation_insights_store_notificationchannelconfig ON "
-        "insights_store.notificationchannelconfig USING (tenant_id = current_setting('app.current_tenant')::int);"
+        "insights_store.notificationchannelconfig USING (tenant_id = (SELECT current_setting("
+        "'app.current_tenant')::int));"
     )
     op.execute("ALTER TABLE insights_store.report ENABLE ROW LEVEL SECURITY;")
     op.execute(
-        "CREATE POLICY tenant_isolation_insights_store_report ON insights_store.report USING (tenant_id = "
-        "current_setting('app.current_tenant')::int);"
+        "CREATE POLICY tenant_isolation_insights_store_report ON insights_store.report USING "
+        "(tenant_id = (SELECT current_setting('app.current_tenant')::int));"
     )
     op.execute("ALTER TABLE insights_store.alert ENABLE ROW LEVEL SECURITY;")
     op.execute(
-        "CREATE POLICY tenant_isolation_insights_store_alert ON insights_store.alert USING (tenant_id = "
-        "current_setting('app.current_tenant')::int);"
+        "CREATE POLICY tenant_isolation_insights_store_alert ON insights_store.alert USING "
+        "(tenant_id = (SELECT current_setting('app.current_tenant')::int));"
     )
     # ### end Alembic commands ###
 
