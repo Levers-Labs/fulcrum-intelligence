@@ -64,11 +64,14 @@ class QueryClient:
             raise MetricNotFoundError(metric_id) from e
         return instance
 
-    async def list_dimensions(self, *, params: PaginationParams) -> tuple[list[Dimension], int]:
+    async def list_dimensions(
+        self, *, params: PaginationParams, dimension_ids: list[str] | None = None, dimension_label: str | None = None
+    ) -> tuple[list[Dimension], int]:
         """
         Fetches a list of all dimensions with their associated metrics, optionally in a paginated manner.
         """
-        results, count = await self.dimensions_crud.paginate(params, filter_params=dict())
+        filter_params = dict(dimension_ids=dimension_ids, dimension_label=dimension_label)
+        results, count = await self.dimensions_crud.paginate(params, filter_params=filter_params)
         return results, count
 
     async def get_dimension_details(self, dimension_id: str) -> Dimension | None:

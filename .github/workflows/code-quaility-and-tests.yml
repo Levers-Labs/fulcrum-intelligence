@@ -38,6 +38,12 @@ jobs:
           poetry export -f requirements.txt --output requirements.txt --without-hashes -C commons
           pip install -U -r requirements.txt
 
+      - name: Install Levers Dependencies
+        run: |
+          echo "Installing levers dependencies"
+          poetry export -f requirements.txt --output requirements.txt --without-hashes -C levers
+          pip install -U -r requirements.txt
+
       - name: Install Insights Backend Dependencies
         run: |
           echo "Installing insights_backend dependencies"
@@ -82,6 +88,11 @@ jobs:
         run: |
           export PYTHONPATH=`pwd`
           make test app=commons
+
+      - name: Run Unit Tests and Coverage @ Levers
+        run: |
+          export PYTHONPATH=`pwd`
+          make test app=levers
 
       - name: Run Unit Tests and Coverage @ Core
         run: |

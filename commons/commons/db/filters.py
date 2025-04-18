@@ -1,5 +1,6 @@
 import logging
 from collections.abc import Callable
+from datetime import date, datetime, time
 from typing import Any, Generic, TypeVar
 
 from pydantic import BaseModel
@@ -54,6 +55,12 @@ class FilterField(FieldInfo):
         def filter_fn(query: Select, value: Any) -> Select:
             if value is None:
                 return query
+
+            if isinstance(value, date):
+                if self.operator == "ge":
+                    value = datetime.combine(value, time.min)
+                elif self.operator == "le":
+                    value = datetime.combine(value, time.max)
 
             if self.operator == "eq":
                 return query.where(self.field == value)

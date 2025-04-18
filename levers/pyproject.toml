@@ -1,0 +1,21 @@
+[tool.poetry]
+name = "levers"
+version = "1.0.0"
+description = "Levers is a collection of analytics primitives and patterns for metric analysis. Part of the Fulcrum Intelligence framework."
+authors = ["Levers Labs <support@leverslabs.com>"]
+readme = "README.md"
+packages = [{include = "levers"}]
+
+[tool.poetry.dependencies]
+python = ">=3.10,<3.12"
+pydantic = { extras = ["email"], version = "^2.7.4" }
+pandas = "^2.2.1"
+numpy = "^1.24.3"
+
+[build-system]
+requires = ["poetry-core>=1.0.0,<2.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.pytest.ini_options]
+addopts = "--cov=levers"
+filterwarnings = "ignore::DeprecationWarning"

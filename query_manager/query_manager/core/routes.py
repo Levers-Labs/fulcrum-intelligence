@@ -152,11 +152,18 @@ async def update_metric(
 async def list_dimensions(
     client: QueryClientDep,
     params: Annotated[PaginationParams, Depends(PaginationParams)],
+    dimension_ids: Annotated[
+        list[str],
+        Query(description="List of dimension ids"),
+    ] = None,  # type: ignore
+    dimension_label: str | None = None,
 ):
     """
     Retrieve a list of dimensions.
     """
-    results, count = await client.list_dimensions(params=params)
+    results, count = await client.list_dimensions(
+        params=params, dimension_ids=dimension_ids, dimension_label=dimension_label
+    )
     return Page[Dimension].create(items=results, total_count=count, params=params)
 
 

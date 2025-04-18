@@ -37,7 +37,7 @@ def test_basic_filters(base_query):
     assert "WHERE" in sql
     assert "story.metric_id IN ('metric1', 'metric2')" in sql
     assert "story.story_date >= '2023-01-01 00:00:00'" in sql
-    assert "story.story_date <= '2023-01-31 00:00:00'" in sql
+    assert "story.story_date <= '2023-01-31 23:59:59.999999'" in sql
     assert "story.genre IN ('TRENDS')" in sql
     assert "story.story_type IN ('STABLE_TREND')" in sql
     assert "story.story_group IN ('TREND_CHANGES')" in sql

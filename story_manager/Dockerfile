@@ -27,6 +27,7 @@ RUN pip install --no-cache-dir --upgrade pip "poetry<2.0.0"
 
 ## Copy the local package dependencies
 COPY ./commons ./commons
+COPY ./levers ./levers
 COPY ./core ./core
 
 ## Copy the poetry files and export the dependencies
