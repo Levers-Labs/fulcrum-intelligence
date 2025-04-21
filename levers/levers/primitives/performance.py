@@ -15,8 +15,7 @@ import numpy as np
 import pandas as pd
 
 from levers.exceptions import CalculationError, ValidationError
-from levers.models.common import GrowthTrend
-from levers.models.patterns import MetricGVAStatus, SmoothingMethod
+from levers.models import GrowthTrend, MetricGVAStatus, SmoothingMethod
 from levers.primitives import calculate_difference, calculate_gap_to_target
 
 

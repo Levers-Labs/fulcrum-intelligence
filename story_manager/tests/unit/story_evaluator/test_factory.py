@@ -18,6 +18,7 @@ class MockPattern(BasePattern):
     pattern_run_id: str = "test_run_id"
     analysis_date: str = "2024-01-01"
     metric_id: str = "test_metric"
+    grain: Granularity = Granularity.DAY
 
 
 class MockEvaluator(StoryEvaluatorBase[MockPattern]):
@@ -30,14 +31,14 @@ class MockEvaluator(StoryEvaluatorBase[MockPattern]):
         """Evaluate the pattern result and generate stories."""
         return [
             self.prepare_story_model(
+                genre=StoryGenre.PERFORMANCE,
                 story_type=StoryType.ON_TRACK,
                 story_group=StoryGroup.GOAL_VS_ACTUAL,
                 metric_id=pattern_result.metric_id,
                 pattern_result=pattern_result,
-                metric=metric,
                 title="Test Title",
                 detail="Test Detail",
-                grain=Granularity.DAY,
+                grain=pattern_result.grain,
                 test_var="test_value",
             )
         ]
@@ -110,3 +111,4 @@ async def test_evaluator_run(mock_pattern, mock_metric, mock_evaluator):
 
     assert len(stories) == 1
     assert stories[0]["title"] == "Test Title"
+    assert stories[0]["grain"] == mock_pattern.grain

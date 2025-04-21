@@ -27,7 +27,6 @@ class PerformanceStatusEvaluator(StoryEvaluatorBase[MetricPerformance]):
     """
 
     pattern_name = "performance_status"
-    genre = StoryGenre.PERFORMANCE
 
     async def evaluate(self, pattern_result: MetricPerformance, metric: dict[str, Any]) -> list[dict[str, Any]]:
         """
@@ -157,6 +156,7 @@ class PerformanceStatusEvaluator(StoryEvaluatorBase[MetricPerformance]):
 
         # Prepare the story model
         return self.prepare_story_model(
+            genre=StoryGenre.PERFORMANCE,
             story_type=StoryType.ON_TRACK,
             story_group=story_group,
             metric_id=metric_id,
@@ -194,6 +194,7 @@ class PerformanceStatusEvaluator(StoryEvaluatorBase[MetricPerformance]):
 
         # Prepare the story model
         return self.prepare_story_model(
+            genre=StoryGenre.PERFORMANCE,
             story_type=StoryType.OFF_TRACK,
             story_group=story_group,
             metric_id=metric_id,
@@ -231,6 +232,7 @@ class PerformanceStatusEvaluator(StoryEvaluatorBase[MetricPerformance]):
 
         # Prepare the story model
         return self.prepare_story_model(
+            genre=StoryGenre.PERFORMANCE,
             story_type=StoryType.IMPROVING_STATUS,
             story_group=story_group,
             metric_id=metric_id,
@@ -268,6 +270,7 @@ class PerformanceStatusEvaluator(StoryEvaluatorBase[MetricPerformance]):
 
         # Prepare the story model
         return self.prepare_story_model(
+            genre=StoryGenre.PERFORMANCE,
             story_type=StoryType.WORSENING_STATUS,
             story_group=story_group,
             metric_id=metric_id,
@@ -305,6 +308,7 @@ class PerformanceStatusEvaluator(StoryEvaluatorBase[MetricPerformance]):
 
         # Prepare the story model
         return self.prepare_story_model(
+            genre=StoryGenre.PERFORMANCE,
             story_type=StoryType.HOLD_STEADY,
             story_group=story_group,
             metric_id=metric_id,

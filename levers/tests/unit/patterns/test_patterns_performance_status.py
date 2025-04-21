@@ -5,15 +5,14 @@ Unit tests for the PerformanceStatusPattern.
 import pandas as pd
 import pytest
 
-from levers.models.common import AnalysisWindow, Granularity
+from levers.models import AnalysisWindow, Granularity, MetricGVAStatus
 from levers.models.patterns import (
     HoldSteady,
-    MetricGVAStatus,
     MetricPerformance,
     StatusChange,
     Streak,
 )
-from levers.patterns.performance_status import PerformanceStatusPattern
+from levers.patterns import PerformanceStatusPattern
 
 
 class TestPerformanceStatusPattern:

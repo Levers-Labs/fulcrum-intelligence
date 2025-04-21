@@ -40,6 +40,33 @@ def format_percent(value: float | None, precision: int = 1) -> str:
     return f"{value:.{precision}f}"
 
 
+def format_ordinal(value: int | None) -> str:
+    """
+    Format an integer as an ordinal number with superscript suffix.
+
+    Args:
+        value: Integer to format
+
+    Returns:
+        Formatted ordinal string with superscript (e.g., 1ˢᵗ, 2ⁿᵈ, 3ʳᵈ, 4ᵗʰ)
+    """
+    if value is None:
+        return "N/A"
+
+    # Define superscript characters for suffixes
+    superscript_chars = {"th": "ᵗʰ", "st": "ˢᵗ", "nd": "ⁿᵈ", "rd": "ʳᵈ"}
+
+    if 10 <= value % 100 <= 20:
+        suffix = "th"
+    else:
+        suffix = {1: "st", 2: "nd", 3: "rd"}.get(value % 10, "th")
+
+    # Convert suffix to superscript
+    superscript_suffix = "".join(superscript_chars.get(c, c) for c in suffix)
+
+    return f"{value}{superscript_suffix}"
+
+
 def get_template_env() -> Environment:
     """
     Get Jinja2 environment with custom filters.
@@ -50,6 +77,7 @@ def get_template_env() -> Environment:
     env = Environment(autoescape=False, trim_blocks=True, lstrip_blocks=True)  # noqa
     env.filters["format_number"] = format_number
     env.filters["format_percent"] = format_percent
+    env.filters["format_ordinal"] = format_ordinal
     env.filters["abs"] = abs
     return env
 

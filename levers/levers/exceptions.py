@@ -33,6 +33,12 @@ class DataError(LeversError):
         self.data_details = data_details or {}
 
 
+class InsufficientDataError(DataError):
+    """Exception raised when there is insufficient data"""
+
+    pass
+
+
 class MissingDataError(DataError):
     """Exception raised when required data is missing"""
 

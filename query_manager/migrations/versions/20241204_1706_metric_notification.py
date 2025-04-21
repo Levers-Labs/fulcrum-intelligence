@@ -48,7 +48,7 @@ def upgrade() -> None:
     op.execute("ALTER TABLE query_store.metricnotifications ENABLE ROW LEVEL SECURITY;")
     op.execute(
         "CREATE POLICY tenant_isolation_query_store_metricnotifications ON query_store.metricnotifications USING ("
-        "tenant_id = current_setting('app.current_tenant')::int);"
+        "tenant_id = (SELECT current_setting('app.current_tenant')::int));"
     )
     # ### end Alembic commands ###
 
