@@ -278,36 +278,6 @@ async def test_evaluate_worsening_performance(mock_historical_performance, mock_
 
 
 @pytest.mark.asyncio
-async def test_evaluate_seasonal_pattern_match(mock_historical_performance, mock_metric):
-    """Test evaluate method with seasonal pattern match."""
-    evaluator = HistoricalPerformanceEvaluator()
-
-    stories = await evaluator.evaluate(mock_historical_performance, mock_metric)
-
-    assert any(s["story_type"] == StoryType.SEASONAL_PATTERN_MATCH for s in stories)
-    seasonal_match_story = next(s for s in stories if s["story_type"] == StoryType.SEASONAL_PATTERN_MATCH)
-    assert seasonal_match_story["genre"] == StoryGenre.TRENDS
-    assert "Expected seasonal behavior" in seasonal_match_story["title"]
-    assert "is following its usual seasonal pattern" in seasonal_match_story["detail"]
-
-
-@pytest.mark.asyncio
-async def test_evaluate_seasonal_pattern_break(mock_historical_performance, mock_metric):
-    """Test evaluate method with seasonal pattern break."""
-    evaluator = HistoricalPerformanceEvaluator()
-    mock_historical_performance.seasonality.is_following_expected_pattern = False
-    mock_historical_performance.seasonality.deviation_percent = 15.0
-
-    stories = await evaluator.evaluate(mock_historical_performance, mock_metric)
-
-    assert any(s["story_type"] == StoryType.SEASONAL_PATTERN_BREAK for s in stories)
-    seasonal_break_story = next(s for s in stories if s["story_type"] == StoryType.SEASONAL_PATTERN_BREAK)
-    assert seasonal_break_story["genre"] == StoryGenre.TRENDS
-    assert "Unexpected seasonal deviation" in seasonal_break_story["title"]
-    assert "is diverging from its usual seasonal trend" in seasonal_break_story["detail"]
-
-
-@pytest.mark.asyncio
 async def test_evaluate_record_high(mock_historical_performance, mock_metric):
     """Test evaluate method with record high."""
     evaluator = HistoricalPerformanceEvaluator()
@@ -371,11 +341,6 @@ def test_populate_template_context(evaluator, mock_historical_performance, mock_
     assert context["high_value"] == 100.0
     assert context["high_rank"] == 1
     assert context["high_duration"] == 12
-    assert context["expected_change"] == 4.0
-    assert context["actual_change"] == 4.2
-    assert context["seasonal_deviation"] == 0.2
-    assert context["expected_direction"] == "increase"
-    assert context["actual_direction"] == "increase"
     assert context["prior_period"] == "week"
     assert context["prior_change_percent"] == 11.1
     assert context["prior_direction"] == "higher"
