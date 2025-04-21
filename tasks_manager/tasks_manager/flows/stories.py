@@ -55,6 +55,9 @@ async def generate_stories(story_date: date | None = None, groups: list[StoryGro
 @flow(
     name="update-demo-stories",
     description="Update demo stories dates for demo tenant based on granularity",
+    retries=2,
+    retry_delay_seconds=15,
+    timeout_seconds=1800,  # 30 minutes
 )
 async def update_demo_stories(tenant_identifier: str):
     """
