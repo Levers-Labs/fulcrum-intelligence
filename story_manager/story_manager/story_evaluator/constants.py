@@ -101,6 +101,19 @@ STORY_TEMPLATES = {
         "detail": "Over the past {{ trend_duration }} {{ grain_label }}s, {{ metric.label }} has been declining {{ "
         "trend_avg_growth|format_percent }}% {{ pop }} and has fallen since {{ trend_start_date }}.",
     },
+    StoryType.SEASONAL_PATTERN_MATCH: {
+        "title": "Expected seasonal behavior",
+        "detail": "{{ metric.label }} is following its usual seasonal pattern, aligning within {{ "
+        "seasonal_deviation|format_percent }}% of historical norms for this {{ grain_label }}. No "
+        "unexpected variation is evident.",
+    },
+    StoryType.SEASONAL_PATTERN_BREAK: {
+        "title": "Unexpected seasonal deviation",
+        "detail": "{{ metric.label }} is diverging from its usual seasonal trend by {{ "
+        "seasonal_deviation|format_percent }}%. Historically, we'd expect a seasonal {{ expected_direction "
+        "}} of {{ expected_change|format_percent }}% this period, but we're currently seeing a seasonal {{ "
+        "actual_direction }} of {{ actual_change|format_percent }}%.",
+    },
     StoryType.RECORD_HIGH: {
         "title": "{{ high_rank|format_ordinal }} highest {{ grain_label }} value over the past {{ high_duration }} {{ "
         "grain_label }}s",

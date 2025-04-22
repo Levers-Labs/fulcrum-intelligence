@@ -101,6 +101,19 @@ def test_story_templates():
     assert "trend_duration" in worsening_performance["detail"]
     assert "trend_avg_growth" in worsening_performance["detail"]
 
+    # Test seasonality templates
+    seasonal_pattern_match = STORY_TEMPLATES[StoryType.SEASONAL_PATTERN_MATCH]
+    assert "Expected seasonal behavior" in seasonal_pattern_match["title"]
+    assert "is following its usual seasonal pattern" in seasonal_pattern_match["detail"]
+    assert "seasonal_deviation" in seasonal_pattern_match["detail"]
+
+    seasonal_pattern_break = STORY_TEMPLATES[StoryType.SEASONAL_PATTERN_BREAK]
+    assert "Unexpected seasonal deviation" in seasonal_pattern_break["title"]
+    assert "is diverging from its usual seasonal trend" in seasonal_pattern_break["detail"]
+    assert "seasonal_deviation" in seasonal_pattern_break["detail"]
+    assert "expected_direction" in seasonal_pattern_break["detail"]
+    assert "actual_direction" in seasonal_pattern_break["detail"]
+
     # Test record value templates
     record_high = STORY_TEMPLATES[StoryType.RECORD_HIGH]
     assert "highest" in record_high["title"]

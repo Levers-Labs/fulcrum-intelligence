@@ -33,6 +33,9 @@ class StoryType(str, Enum):
     # Trend Genre - Long Range Stories
     IMPROVING_PERFORMANCE = "IMPROVING_PERFORMANCE"
     WORSENING_PERFORMANCE = "WORSENING_PERFORMANCE"
+    # Trend Genre - Seasonal Patterns Stories
+    SEASONAL_PATTERN_MATCH = "SEASONAL_PATTERN_MATCH"
+    SEASONAL_PATTERN_BREAK = "SEASONAL_PATTERN_BREAK"
     # Trend Genre - Benchmark Comparisons Stories
     BENCHMARKS = "BENCHMARKS"
     # Trend Genre - Segment Changes Stories
@@ -111,6 +114,7 @@ class StoryGroup(str, Enum):
 
     REQUIRED_PERFORMANCE = "REQUIRED_PERFORMANCE"
     SIGNIFICANT_SEGMENTS = "SIGNIFICANT_SEGMENTS"
+    SEASONAL_PATTERNS = "SEASONAL_PATTERNS"
 
     COMPONENT_DRIFT = "COMPONENT_DRIFT"
 
