@@ -1312,7 +1312,7 @@ description = "Core Engine for fulcrum intelligence"
 optional = false
 python-versions = ">=3.10,<3.12"
 files = []
-develop = true
+develop = false
 
 [package.dependencies]
 anyio = ">=3.5.0,<5.0.0"
@@ -1909,6 +1909,24 @@ langsmith-pyo3 = ["langsmith-pyo3 (>=0.1.0rc2,<0.2.0)"]
 openai-agents = ["openai-agents (>=0.0.3,<0.0.4)"]
 otel = ["opentelemetry-api (>=1.30.0,<2.0.0)", "opentelemetry-exporter-otlp-proto-http (>=1.30.0,<2.0.0)", "opentelemetry-sdk (>=1.30.0,<2.0.0)"]
 pytest = ["pytest (>=7.0.0)", "rich (>=13.9.4,<14.0.0)"]
+
+[[package]]
+name = "levers"
+version = "1.0.0"
+description = "Levers is a collection of analytics primitives and patterns for metric analysis. Part of the Fulcrum Intelligence framework."
+optional = false
+python-versions = ">=3.10,<3.12"
+files = []
+develop = false
+
+[package.dependencies]
+numpy = "^1.24.3"
+pandas = "^2.2.1"
+pydantic = {version = "^2.7.4", extras = ["email"]}
+
+[package.source]
+type = "directory"
+url = "../levers"
 
 [[package]]
 name = "mako"
@@ -4441,4 +4459,4 @@ cffi = ["cffi (>=1.11)"]
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.10,<3.12"
-content-hash = "df33b710f967d8557b875dda7e07f9d9ac0d977d67bc20271cd238455ec7ba10"
+content-hash = "aa175b07c2e61a570ce9f150ad98a0bfdc167941a88a2e689ea475ab62b8c1aa"

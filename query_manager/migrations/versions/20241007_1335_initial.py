@@ -140,12 +140,12 @@ def upgrade() -> None:
     op.execute("ALTER TABLE query_store.dimension ENABLE ROW LEVEL SECURITY;")
     op.execute(
         "CREATE POLICY tenant_isolation_query_store_dimension ON query_store.dimension "
-        "USING (tenant_id = current_setting('app.current_tenant')::int);"
+        "USING (tenant_id = (SELECT current_setting('app.current_tenant')::int));"
     )
     op.execute("ALTER TABLE query_store.metric ENABLE ROW LEVEL SECURITY;")
     op.execute(
         "CREATE POLICY tenant_isolation_query_store_metric ON query_store.metric USING"
-        " (tenant_id = current_setting('app.current_tenant')::int);"
+        " (tenant_id = (SELECT current_setting('app.current_tenant')::int));"
     )
     # ### end Alembic commands ###
 

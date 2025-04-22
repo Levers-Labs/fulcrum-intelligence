@@ -469,6 +469,23 @@ class CRUDMetricTarget(CRUDSemantic[MetricTarget, TargetCreate, TargetUpdate, Ta
         """Get unique constraint fields for the model."""
         return ["metric_id", "grain", "target_date", "tenant_id"]
 
+    async def get_targets(
+        self,
+        metric_id: str,
+        grain: Granularity,
+        start_date: date | None = None,
+        end_date: date | None = None,
+    ) -> list[MetricTarget]:
+        """Get targets for a metric, grain, and optional date range."""
+        query = self.get_select_query()
+        query = query.where(and_(self.model.metric_id == metric_id, self.model.grain == grain))  # type: ignore
+        if start_date:
+            query = query.where(self.model.target_date >= start_date)  # type: ignore
+        if end_date:
+            query = query.where(self.model.target_date <= end_date)  # type: ignore
+        result = await self.session.execute(query)
+        return cast(list[MetricTarget], list(result.scalars().all()))
+
     async def delete_targets(
         self,
         metric_id: str,
@@ -577,6 +594,16 @@ class SemanticManager:
         self.metric_sync_status = CRUDMetricSyncStatus(MetricSyncStatus, session)
         self.metric_target = CRUDMetricTarget(MetricTarget, session)
 
+    async def get_targets(
+        self,
+        metric_id: str,
+        grain: Granularity,
+        start_date: date | None = None,
+        end_date: date | None = None,
+    ) -> list[MetricTarget]:
+        """Get targets for a metric, grain, and optional date range."""
+        return await self.metric_target.get_targets(metric_id, grain, start_date=start_date, end_date=end_date)
+
     async def bulk_upsert_time_series(
         self, values: list[dict[str, Any]], batch_size: int | None = None
     ) -> dict[str, Any]:
@@ -632,6 +659,31 @@ class SemanticManager:
             start_date=start_date,
             end_date=end_date,
         )
+
+    async def get_metric_time_series_with_targets(
+        self,
+        metric_id: str,
+        grain: Granularity,
+        start_date: date | None = None,
+        end_date: date | None = None,
+    ) -> list[dict[str, Any]]:
+        """
+        Get time series data for a metric, grain, and optional date range.
+        """
+        time_series = await self.get_metric_time_series(metric_id, grain, start_date, end_date)
+        targets = await self.get_targets(metric_id, grain, start_date, end_date)
+
+        # targets map against the date
+        targets_data = {target.target_date: target.target_value for target in targets}
+
+        # Merge with left join to preserve all time series data, filling missing targets with None
+        data = []
+        for time_series_row in time_series:
+            row = dict(date=time_series_row.date, value=time_series_row.value)
+            row["target"] = targets_data.get(time_series_row.date)
+            data.append(row)
+
+        return data
 
     async def get_multi_metric_time_series(
         self,
