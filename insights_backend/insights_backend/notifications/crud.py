@@ -69,6 +69,7 @@ class CRUDNotifications:
         notification_type = NotificationType.ALERT if model == Alert else NotificationType.REPORT
 
         schedule_field = (Report.schedule if model == Report else literal_column("NULL::jsonb")).label("schedule")  # type: ignore
+        trigger_field = (Alert.trigger if model == Alert else literal_column("NULL::jsonb")).label("trigger")  # type: ignore
 
         # Create a subquery to get recipients by channel for each notification by fetching all recipients in a single
         # query
@@ -88,12 +89,14 @@ class CRUDNotifications:
                 model.id,
                 model.name,
                 model.type,
+                model.description,
                 model.grain,
                 model.summary,
                 model.tags,
                 model.is_active,
                 model.is_published,
                 schedule_field,
+                trigger_field,
                 func.max(NotificationExecution.executed_at).label("last_execution"),  # type: ignore
                 func.count(distinct(NotificationChannelConfig.id)).label("channel_count"),  # type: ignore
                 recipients_subquery.label("recipients"),
@@ -116,6 +119,7 @@ class CRUDNotifications:
                 model.tags,
                 model.is_active,
                 schedule_field,
+                trigger_field,
             )
         )
 

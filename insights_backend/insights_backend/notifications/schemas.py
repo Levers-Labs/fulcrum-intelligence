@@ -108,9 +108,11 @@ class NotificationList(BaseModel):
     id: int
     name: str
     type: NotificationType
+    description: str | None = None
     grain: Granularity
     summary: str
     schedule: ScheduleConfig | None = None
+    trigger: AlertTrigger | None = None
     tags: list[str] | None = None
     last_execution: datetime | None = None
     recipients: dict[str, list[SlackChannel | EmailRecipient]] | None = None
