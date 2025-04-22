@@ -93,7 +93,7 @@ class HistoricalPerformanceEvaluator(StoryEvaluatorBase[HistoricalPerformance]):
             stories.append(self._create_record_low_story(pattern_result, metric_id, metric, grain))
 
         # Benchmark Stories
-        if pattern_result.benchmark_comparisons:
+        if pattern_result.benchmark_comparison and pattern_result.high_rank:
             stories.append(self._create_benchmark_story(pattern_result, metric_id, metric, grain))
 
         return stories
@@ -219,30 +219,32 @@ class HistoricalPerformanceEvaluator(StoryEvaluatorBase[HistoricalPerformance]):
             )
 
         # Add benchmark info
-        if pattern_result.benchmark_comparisons:
-            # No need to sort by priority since reference period is always "WTD"
+        if pattern_result.benchmark_comparison:
+            # Map reference periods to more readable names for stories
+            period_display_names = {"WTD": "week", "MTD": "month", "QTD": "quarter", "YTD": "year"}
 
-            # Handle the case of at least one benchmark
-            if len(pattern_result.benchmark_comparisons) >= 1:
-                prior = pattern_result.benchmark_comparisons[0]
-                # Map WTD to a more descriptive term
-                context["prior_period"] = "week"
-                context["prior_change_percent"] = abs(prior.change_percent or 0)
-                context["prior_direction"] = "higher" if prior.change_percent and prior.change_percent > 0 else "lower"
+            # Get the benchmark data
+            benchmark = pattern_result.benchmark_comparison
 
-                # Handle the case of at least two benchmarks (though currently there's only one)
-                if len(pattern_result.benchmark_comparisons) >= 2:
-                    older = pattern_result.benchmark_comparisons[1]
-                    context["older_period"] = "month"
-                    context["older_change_percent"] = abs(older.change_percent or 0)
-                    context["older_direction"] = (
-                        "higher" if older.change_percent and older.change_percent > 0 else "lower"
-                    )
-                else:
-                    # Only one benchmark, provide defaults for the second
-                    context["older_period"] = "month"
-                    context["older_change_percent"] = 0
-                    context["older_direction"] = "unchanged from"
+            # Use high_rank for the template's rank information
+            # Template uses: high_rank, high_duration, high_value
+
+            # Directly use high_rank data for ranking information
+            # The template expects to use high_rank and high_duration
+            # from the record values section
+
+            # Add benchmark comparison info
+            context["prior_period"] = period_display_names.get(benchmark.reference_period, benchmark.reference_period)
+            context["prior_change_percent"] = abs(benchmark.change_percent or 0)
+            context["prior_direction"] = (
+                "higher" if benchmark.change_percent and benchmark.change_percent > 0 else "lower"
+            )
+
+            # For the second comparison period, we don't have data since we're only storing one benchmark
+            # Set default values for the template to avoid errors
+            context["older_period"] = "month" if context["prior_period"] == "week" else "quarter"
+            context["older_change_percent"] = 0
+            context["older_direction"] = "unchanged from"
 
         return context
 
@@ -600,17 +602,21 @@ class HistoricalPerformanceEvaluator(StoryEvaluatorBase[HistoricalPerformance]):
         story_group = StoryGroup.BENCHMARK_COMPARISONS
         context = self._populate_template_context(pattern_result, metric, grain)
 
-        title = render_story_text(StoryType.BENCHMARKS, "title", context)
-        detail = render_story_text(StoryType.BENCHMARKS, "detail", context)
+        # Only generate story if we have both benchmark comparison and high rank data
+        if pattern_result.benchmark_comparison and pattern_result.high_rank:
+            title = render_story_text(StoryType.BENCHMARKS, "title", context)
+            detail = render_story_text(StoryType.BENCHMARKS, "detail", context)
 
-        return self.prepare_story_model(
-            genre=StoryGenre.TRENDS,
-            story_type=StoryType.BENCHMARKS,
-            story_group=story_group,
-            metric_id=metric_id,
-            pattern_result=pattern_result,
-            title=title,
-            detail=detail,
-            grain=grain,  # type: ignore
-            **context,
-        )
+            return self.prepare_story_model(
+                genre=StoryGenre.TRENDS,
+                story_type=StoryType.BENCHMARKS,
+                story_group=story_group,
+                metric_id=metric_id,
+                pattern_result=pattern_result,
+                title=title,
+                detail=detail,
+                grain=grain,  # type: ignore
+                **context,
+            )
+        # If missing required data, return an empty dict to avoid generating the story
+        return {}

@@ -19,6 +19,7 @@ from levers.models import (
     DataSource,
     DataSourceType,
     Granularity,
+    PartialInterval,
     PatternConfig,
     WindowStrategy,
 )
@@ -129,7 +130,7 @@ class HistoricalPerformancePattern(Pattern[HistoricalPerformance]):
             seasonality_pattern = self._detect_seasonality_pattern(data_window, lookback_end)
 
             # Calculate benchmark comparisons using the new primitive
-            benchmark_comparisons = self._calculate_benchmark_comparisons(data_window, grain)
+            benchmark_comparison = self._calculate_benchmark_comparisons(data_window, grain)
 
             # Detect trend exceptions
             trend_exceptions = self._detect_trend_exceptions(period_data)
@@ -148,7 +149,7 @@ class HistoricalPerformancePattern(Pattern[HistoricalPerformance]):
                 "high_rank": value_rankings["high_rank"],
                 "low_rank": value_rankings["low_rank"],
                 "seasonality": seasonality_pattern,
-                "benchmark_comparisons": benchmark_comparisons,
+                "benchmark_comparison": benchmark_comparison,
                 "trend_exceptions": trend_exceptions,
             }
 
@@ -476,29 +477,40 @@ class HistoricalPerformancePattern(Pattern[HistoricalPerformance]):
         """
         return detect_seasonality_pattern(data_window, lookback_end, "date", "value")
 
-    def _calculate_benchmark_comparisons(
-        self, data_window: pd.DataFrame, grain: str
-    ) -> list[BenchmarkComparison] | list:
+    def _calculate_benchmark_comparisons(self, data_window: pd.DataFrame, grain: str) -> BenchmarkComparison | None:
         """
-        Calculate benchmark comparisons such as week-to-date vs. prior week-to-date.
+        Calculate benchmark comparison such as week-to-date vs. prior week-to-date.
 
         Args:
             data_window: DataFrame with date and value columns
             grain: Time grain for analysis (day, week, month)
 
         Returns:
-            List of BenchmarkComparison objects containing benchmark comparison details,
+            BenchmarkComparison object containing benchmark comparison details,
             - reference_period: str, the reference period
             - absolute_change: float, the absolute change
             - change_percent: float, the change percent
-            or empty list if no benchmarks can be calculated
+            or None if no benchmarks can be calculated
         """
-        # For non-daily data, we won't produce benchmarks here
-        if grain != Granularity.DAY or data_window.empty:
-            return []
+        # Don't process empty data
+        if data_window.empty:
+            return None
 
-        # Use the new calculate_period_benchmarks function
-        return calculate_period_benchmarks(data_window, "date", "value")
+        # Determine appropriate benchmark period based on grain
+        if grain == Granularity.DAY:
+            benchmark_period = PartialInterval.WTD  # week-to-date for daily data
+        elif grain == Granularity.WEEK:
+            benchmark_period = PartialInterval.MTD  # month-to-date for weekly data
+        elif grain == Granularity.MONTH:
+            benchmark_period = PartialInterval.QTD  # quarter-to-date for monthly data
+        else:
+            # For other grains, default to YTD
+            benchmark_period = PartialInterval.YTD
+
+        # Use the calculate_period_benchmarks function to get a single benchmark
+        return calculate_period_benchmarks(
+            data_window, benchmark_period=benchmark_period, date_col="date", value_col="value"
+        )
 
     def _detect_trend_exceptions(self, period_data: pd.DataFrame) -> list[TrendException] | list:
         """

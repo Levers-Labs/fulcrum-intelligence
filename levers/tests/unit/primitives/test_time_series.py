@@ -298,14 +298,14 @@ class TestCalculateToDateGrowthRates:
         # Using the default WTD period which should work correctly
         results = calculate_period_benchmarks(
             df,
+            benchmark_period=PartialInterval.WTD,
             date_col="date",
             value_col="value",
         )
 
         # Assert
         assert results is not None
-        assert len(results) > 0
-        assert isinstance(results[0], BenchmarkComparison)
+        assert isinstance(results, BenchmarkComparison)
 
     def test_different_aggregator(self):
         """Test with different aggregation methods."""
@@ -319,11 +319,13 @@ class TestCalculateToDateGrowthRates:
         df["date"] = pd.to_datetime(df["date"])
 
         # Act
-        results_avg = calculate_period_benchmarks(df, date_col="date", value_col="value", aggregator="mean")
+        results_avg = calculate_period_benchmarks(
+            df, benchmark_period=PartialInterval.WTD, date_col="date", value_col="value", aggregator="mean"
+        )
 
         # Assert
         assert results_avg is not None
-        assert all(isinstance(r, BenchmarkComparison) for r in results_avg)
+        assert isinstance(results_avg, BenchmarkComparison)
 
     def test_mtd_interval(self):
         """Test with WTD interval as MTD has issues."""
@@ -338,13 +340,12 @@ class TestCalculateToDateGrowthRates:
 
         # Act
         results = calculate_period_benchmarks(
-            df, date_col="date", value_col="value", benchmark_periods=[PartialInterval.WTD]  # Use WTD instead of MTD
+            df, benchmark_period=PartialInterval.WTD, date_col="date", value_col="value"  # Use WTD instead of MTD
         )
 
         # Assert
         assert results is not None
-        assert len(results) > 0
-        assert results[0].reference_period == "WTD"  # The field is reference_period, not period
+        assert isinstance(results, BenchmarkComparison)
 
     def test_invalid_aggregator(self):
         """Test with invalid aggregator."""
@@ -355,7 +356,13 @@ class TestCalculateToDateGrowthRates:
 
         # Act & Assert
         with pytest.raises(ValidationError):
-            calculate_period_benchmarks(df, date_col="date", value_col="value", aggregator="invalid_aggregator")
+            calculate_period_benchmarks(
+                df,
+                benchmark_period=PartialInterval.WTD,
+                date_col="date",
+                value_col="value",
+                aggregator="invalid_aggregator",
+            )
 
     def test_invalid_columns(self):
         """Test with invalid column names."""
@@ -366,10 +373,14 @@ class TestCalculateToDateGrowthRates:
 
         # Act & Assert
         with pytest.raises((ValidationError, KeyError)):
-            calculate_period_benchmarks(df, date_col="non_existent", value_col="value")
+            calculate_period_benchmarks(
+                df, benchmark_period=PartialInterval.WTD, date_col="non_existent", value_col="value"
+            )
 
         with pytest.raises((ValidationError, KeyError)):
-            calculate_period_benchmarks(df, date_col="date", value_col="non_existent")
+            calculate_period_benchmarks(
+                df, benchmark_period=PartialInterval.WTD, date_col="date", value_col="non_existent"
+            )
 
 
 class TestCalculateRollingAverages:

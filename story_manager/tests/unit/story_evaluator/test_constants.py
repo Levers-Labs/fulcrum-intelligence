@@ -130,7 +130,7 @@ def test_story_templates():
     # Test benchmark template
     benchmarks = STORY_TEMPLATES[StoryType.BENCHMARKS]
     assert "Performance Against Historical Benchmarks" in benchmarks["title"]
-    assert "This day marks the" in benchmarks["detail"]
+    assert "marks the" in benchmarks["detail"]
     assert "highest-performing" in benchmarks["detail"]
     assert "current period's performance" in benchmarks["detail"]
     assert "high_rank" in benchmarks["detail"]
