@@ -74,11 +74,15 @@ class HistoricalPerformanceEvaluator(StoryEvaluatorBase[HistoricalPerformance]):
                 stories.append(self._create_worsening_performance_story(pattern_result, metric_id, metric, grain))
 
         # Trend Exception Stories (Spikes & Drops)
-        for trend_exception in pattern_result.trend_exceptions:
-            if trend_exception.type == TrendExceptionType.SPIKE:
-                stories.append(self._create_spike_story(pattern_result, trend_exception, metric_id, metric, grain))
-            elif trend_exception.type == TrendExceptionType.DROP:
-                stories.append(self._create_drop_story(pattern_result, trend_exception, metric_id, metric, grain))
+        if pattern_result.trend_exception:
+            if pattern_result.trend_exception.type == TrendExceptionType.SPIKE:
+                stories.append(
+                    self._create_spike_story(pattern_result, pattern_result.trend_exception, metric_id, metric, grain)
+                )
+            elif pattern_result.trend_exception.type == TrendExceptionType.DROP:
+                stories.append(
+                    self._create_drop_story(pattern_result, pattern_result.trend_exception, metric_id, metric, grain)
+                )
 
         # Seasonal Pattern Stories
         if pattern_result.seasonality and pattern_result.seasonality.is_following_expected_pattern:

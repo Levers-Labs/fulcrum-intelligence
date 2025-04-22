@@ -490,11 +490,9 @@ class TestHistoricalPerformance:
             benchmark_comparisons=[
                 BenchmarkComparison(reference_period="WTD", absolute_change=10.0, change_percent=5.0)
             ],
-            trend_exceptions=[
-                TrendException(
-                    type=TrendExceptionType.SPIKE, current_value=150.0, normal_range_low=100.0, normal_range_high=130.0
-                )
-            ],
+            trend_exception=TrendException(
+                type=TrendExceptionType.SPIKE, current_value=150.0, normal_range_low=100.0, normal_range_high=130.0
+            ),
             grain=Granularity.DAY,
         )
 
@@ -509,7 +507,7 @@ class TestHistoricalPerformance:
         assert performance.high_rank.value == 150.0
         assert performance.low_rank.value == 100.0
         assert len(performance.benchmark_comparisons) == 1
-        assert len(performance.trend_exceptions) == 1
+        assert performance.trend_exception is not None
 
     def test_required_fields(self):
         """Test required fields validation."""

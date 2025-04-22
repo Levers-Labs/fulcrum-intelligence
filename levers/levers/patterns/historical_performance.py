@@ -131,8 +131,8 @@ class HistoricalPerformancePattern(Pattern[HistoricalPerformance]):
             # Calculate benchmark comparisons using the new primitive
             benchmark_comparisons = self._calculate_benchmark_comparisons(data_window, grain)
 
-            # Detect trend exceptions
-            trend_exceptions = self._detect_trend_exceptions(period_data)
+            # Detect trend exception
+            trend_exception = self._detect_trend_exceptions(period_data)
 
             # Construct result object
             result = {
@@ -149,7 +149,7 @@ class HistoricalPerformancePattern(Pattern[HistoricalPerformance]):
                 "low_rank": value_rankings["low_rank"],
                 "seasonality": seasonality_pattern,
                 "benchmark_comparisons": benchmark_comparisons,
-                "trend_exceptions": trend_exceptions,
+                "trend_exception": trend_exception,
             }
 
             logger.info("Successfully analyzed historical performance for metric_id=%s", metric_id)
@@ -500,7 +500,7 @@ class HistoricalPerformancePattern(Pattern[HistoricalPerformance]):
         # Use the new calculate_period_benchmarks function
         return calculate_period_benchmarks(data_window, "date", "value")
 
-    def _detect_trend_exceptions(self, period_data: pd.DataFrame) -> list[TrendException] | list:
+    def _detect_trend_exceptions(self, period_data: pd.DataFrame) -> TrendException | None:
         """
         Detect anomalies (spikes or drops) in the time series.
 
@@ -508,13 +508,13 @@ class HistoricalPerformancePattern(Pattern[HistoricalPerformance]):
             period_data: DataFrame containing time series data at the appropriate grain
 
         Returns:
-            List of TrendException objects containing trend exception details,
+            TrendException object containing trend exception details,
             - type: str, the type of exception
             - current_value: float, the current value
             - normal_range_low: float, the lower bound of the normal range
             - normal_range_high: float, the upper bound of the normal range
             - absolute_delta_from_normal_range: float, the absolute delta from the normal range
-            or empty list if no exceptions are detected
+            or None if no exceptions are detected
         """
         return detect_trend_exceptions(
             df=period_data, date_col="date", value_col="value", window_size=min(5, len(period_data)), z_threshold=2.0
