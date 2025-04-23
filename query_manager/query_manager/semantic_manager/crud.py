@@ -60,8 +60,8 @@ class CRUDSemantic(CRUDBase[ModelType, CreateSchemaType, UpdateSchemaType, Filte
         """Get unique constraint fields for the model."""
         unique_fields = ["metric_id", "tenant_id"]
 
-        if hasattr(self.model, "date") and hasattr(self.model, "grain"):
-            unique_fields.extend(["date", "grain"])
+        if hasattr(self.model, "target_date") and hasattr(self.model, "grain"):
+            unique_fields.extend(["target_date", "grain"])
 
         if hasattr(self.model, "dimension_name") and hasattr(self.model, "dimension_slice"):
             unique_fields.extend(["dimension_name", "dimension_slice"])
@@ -551,7 +551,7 @@ class CRUDMetricTarget(CRUDSemantic[MetricTarget, TargetCreate, TargetUpdate, Ta
 
         # Get target information
         targets_query = (
-            select(self.model.metric_id, self.model.grain, func.max(self.model.target_date).label("through_date"))  # type: ignore
+            select(self.model.metric_id, self.model.grain, func.max(self.model.target_date).label("target_end_date"))  # type: ignore
             .where(self.model.tenant_id == tenant_id)
             .group_by(self.model.metric_id, self.model.grain)
         )
@@ -566,7 +566,7 @@ class CRUDMetricTarget(CRUDSemantic[MetricTarget, TargetCreate, TargetUpdate, Ta
                 "metric_id": row.metric_id,
                 "label": row.label,
                 "aim": row.aim,
-                "periods": {grain: TargetStatus(has_targets=False, through_date=None) for grain in Granularity},
+                "periods": {grain: TargetStatus(target_set=False, target_end_date=None) for grain in Granularity},
             }
             for row in metrics_result.mappings()
         }
@@ -575,7 +575,7 @@ class CRUDMetricTarget(CRUDSemantic[MetricTarget, TargetCreate, TargetUpdate, Ta
         for row in targets_result.mappings():
             if row.metric_id in metrics and row.grain:
                 metrics[row.metric_id]["periods"][row.grain] = TargetStatus(
-                    has_targets=True, through_date=row.through_date
+                    target_set=True, target_end_date=row.target_end_date
                 )
 
         # Convert to list of MetricTargetOverview objects

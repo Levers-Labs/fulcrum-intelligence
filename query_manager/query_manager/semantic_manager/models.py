@@ -50,6 +50,14 @@ class SyncEvent(TypedDict):
     updated_at: str
 
 
+class TargetCalculationType(str, Enum):
+    """Type of target"""
+
+    VALUE = "VALUE"
+    GROWTH = "GROWTH"
+    POP_GROWTH = "POP_GROWTH"
+
+
 class MetricSyncStatus(BaseTimeStampedTenantModel, table=True):  # type: ignore
     """
     Stores metadata about metric data synchronization.
@@ -182,6 +190,8 @@ class MetricTarget(BaseTimeStampedTenantModel, table=True):  # type: ignore
     target_lower_bound: float | None = None
     yellow_buffer: float | None = None
     red_buffer: float | None = None
+    # TODO: add target type?
+    # target_type: TargetType
 
     # Define table arguments including schema, indexes, and constraints
     __table_args__ = (
