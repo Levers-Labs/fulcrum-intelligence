@@ -647,28 +647,28 @@ async def test_get_metrics_targets_overview(
     revenue = next(m for m in results if m["metric_id"] == "revenue")
     assert revenue["label"] == "Revenue"
     assert revenue["aim"] == "Maximize"
-    assert revenue["periods"]["day"]["has_targets"] is True
-    assert revenue["periods"]["day"]["through_date"] == "2025-06-30"
-    assert revenue["periods"]["week"]["has_targets"] is True
-    assert revenue["periods"]["week"]["through_date"] == "2025-05-31"
-    assert revenue["periods"]["month"]["has_targets"] is False
-    assert revenue["periods"]["month"]["through_date"] is None
+    assert revenue["periods"]["day"]["target_set"] is True
+    assert revenue["periods"]["day"]["target_end_date"] == "2025-06-30"
+    assert revenue["periods"]["week"]["target_set"] is True
+    assert revenue["periods"]["week"]["target_end_date"] == "2025-05-31"
+    assert revenue["periods"]["month"]["target_set"] is False
+    assert revenue["periods"]["month"]["target_end_date"] is None
 
     # Check cost metric
     cost = next(m for m in results if m["metric_id"] == "cost")
     assert cost["label"] == "Cost"
     assert cost["aim"] == "Minimize"
-    assert cost["periods"]["day"]["has_targets"] is True
-    assert cost["periods"]["day"]["through_date"] == "2025-04-30"
-    assert cost["periods"]["week"]["has_targets"] is False
-    assert cost["periods"]["month"]["has_targets"] is False
+    assert cost["periods"]["day"]["target_set"] is True
+    assert cost["periods"]["day"]["target_end_date"] == "2025-04-30"
+    assert cost["periods"]["week"]["target_set"] is False
+    assert cost["periods"]["month"]["target_set"] is False
 
     # Check satisfaction metric (no targets)
     satisfaction = next(m for m in results if m["metric_id"] == "satisfaction")
     assert satisfaction["label"] == "Customer Satisfaction"
     assert satisfaction["aim"] == "Balance"
-    assert all(not period["has_targets"] for period in satisfaction["periods"].values())
-    assert all(period["through_date"] is None for period in satisfaction["periods"].values())
+    assert all(not period["target_set"] for period in satisfaction["periods"].values())
+    assert all(period["target_end_date"] is None for period in satisfaction["periods"].values())
 
 
 async def test_get_metrics_targets_overview_empty(
@@ -681,3 +681,157 @@ async def test_get_metrics_targets_overview_empty(
 
     assert data["count"] == 0
     assert data["results"] == []
+
+
+@pytest.mark.asyncio
+async def test_calculate_target_values(app: FastAPI, async_client: AsyncClient, jwt_payload: dict, mocker):
+    """Test the target calculation endpoint."""
+    # Mock the GrainPeriodCalculator to return specific dates
+    mocker.patch(
+        "query_manager.semantic_manager.utils.target_calculator.GrainPeriodCalculator.get_dates_for_range",
+        return_value=[date(2024, 1, 1), date(2024, 1, 2), date(2024, 1, 3)],
+    )
+
+    # Prepare the request payload
+    payload = {
+        "current_value": 100.0,
+        "start_date": "2024-01-01",
+        "end_date": "2024-01-03",
+        "grain": "day",
+        "calculation_type": "VALUE",
+        "target_value": 190.0,
+    }
+
+    # Send the request to the correct endpoint with JWT
+    response = await async_client.post("/v2/semantic/metrics/targets/calculate", json=payload)
+
+    # Assert response status and structure
+    assert response.status_code == 200
+    data = response.json()
+    assert isinstance(data, list)
+    assert len(data) == 3
+
+    # Validate first data point
+    assert data[0]["date"] == "2024-01-01"
+    assert data[0]["value"] == 130.0  # 100 + (190-100)/3
+    assert data[0]["growth_percentage"] == 30.0
+
+    # Validate second data point
+    assert data[1]["date"] == "2024-01-02"
+    assert data[1]["value"] == 160.0
+    assert data[1]["growth_percentage"] == 60.0
+
+    # Validate third data point
+    assert data[2]["date"] == "2024-01-03"
+    assert data[2]["value"] == 190.0
+    assert data[2]["growth_percentage"] == 90.0
+
+
+@pytest.mark.asyncio
+async def test_calculate_target_values_growth(app: FastAPI, async_client: AsyncClient, jwt_payload: dict, mocker):
+    """Test the target calculation endpoint with growth calculation type."""
+    # Mock the GrainPeriodCalculator
+    mocker.patch(
+        "query_manager.semantic_manager.utils.target_calculator.GrainPeriodCalculator.get_dates_for_range",
+        return_value=[date(2024, 1, 1), date(2024, 1, 2)],
+    )
+
+    # Prepare the request payload
+    payload = {
+        "current_value": 100.0,
+        "start_date": "2024-01-01",
+        "end_date": "2024-01-02",
+        "grain": "day",
+        "calculation_type": "GROWTH",
+        "growth_percentage": 20.0,
+    }
+
+    # Send the request to the correct endpoint with JWT
+    response = await async_client.post("/v2/semantic/metrics/targets/calculate", json=payload)
+
+    # Assert response status and structure
+    assert response.status_code == 200
+    data = response.json()
+    assert isinstance(data, list)
+    assert len(data) == 2
+
+    # Validate results - using the actual implementation values
+    assert data[0]["date"] == "2024-01-01"
+    assert data[0]["value"] == 100.0  # No growth at start point
+    assert data[0]["growth_percentage"] == 0.0
+
+    assert data[1]["date"] == "2024-01-02"
+    assert data[1]["value"] == 120.0
+    assert data[1]["growth_percentage"] == 20.0
+    assert data[1]["pop_growth_percentage"] == 20.0
+
+
+@pytest.mark.asyncio
+async def test_calculate_target_values_pop_growth(app: FastAPI, async_client: AsyncClient, jwt_payload: dict, mocker):
+    """Test the target calculation endpoint with period-on-period growth calculation."""
+    # Mock the GrainPeriodCalculator
+    mocker.patch(
+        "query_manager.semantic_manager.utils.target_calculator.GrainPeriodCalculator.get_dates_for_range",
+        return_value=[date(2024, 1, 1), date(2024, 1, 2)],
+    )
+
+    # Prepare the request payload
+    payload = {
+        "current_value": 100.0,
+        "start_date": "2024-01-01",
+        "end_date": "2024-01-02",
+        "grain": "day",
+        "calculation_type": "POP_GROWTH",
+        "pop_growth_percentage": 10.0,
+    }
+
+    # Send the request to the correct endpoint with JWT
+    response = await async_client.post("/v2/semantic/metrics/targets/calculate", json=payload)
+
+    # Assert response status and structure
+    assert response.status_code == 200
+    data = response.json()
+    assert isinstance(data, list)
+    assert len(data) == 2
+
+    # Validate first data point
+    assert data[0]["date"] == "2024-01-01"
+    assert data[0]["value"] == 110.0  # 100 * 1.1
+    assert data[0]["growth_percentage"] == 10.0
+    assert data[0]["pop_growth_percentage"] == 10.0
+
+    # Validate second data point
+    assert data[1]["date"] == "2024-01-02"
+    assert data[1]["value"] == 121.0  # 110 * 1.1
+    assert data[1]["growth_percentage"] == 21.0
+    assert data[1]["pop_growth_percentage"] == 10.0
+
+
+@pytest.mark.asyncio
+async def test_calculate_target_values_invalid_params(app: FastAPI, async_client: AsyncClient, jwt_payload: dict):
+    """Test the target calculation endpoint with invalid parameters."""
+    # Missing required parameter based on calculation type
+    payload = {
+        "current_value": 100.0,
+        "start_date": "2024-01-01",
+        "end_date": "2024-01-03",
+        "grain": "DAY",
+        "calculation_type": "value",
+        # Missing target_value
+    }
+
+    response = await async_client.post("/v2/semantic/metrics/targets/calculate", json=payload)
+    assert response.status_code == 422  # Validation error
+
+    # Invalid date range
+    payload = {
+        "current_value": 100.0,
+        "start_date": "2024-01-03",  # Start date after end date
+        "end_date": "2024-01-01",
+        "grain": "DAY",
+        "calculation_type": "value",
+        "target_value": 150.0,
+    }
+
+    response = await async_client.post("/v2/semantic/metrics/targets/calculate", json=payload)
+    assert response.status_code == 422  # Validation error

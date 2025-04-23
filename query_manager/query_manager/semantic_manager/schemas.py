@@ -3,7 +3,6 @@ Pydantic schemas for semantic manager API requests and responses.
 """
 
 from datetime import date
-from typing import Literal
 
 from pydantic import ConfigDict, field_validator, model_validator
 

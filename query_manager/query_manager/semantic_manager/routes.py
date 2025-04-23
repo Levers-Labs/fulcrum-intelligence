@@ -5,8 +5,8 @@ This module provides FastAPI routes for the semantic manager module.
 """
 
 import logging
-from datetime import date, timedelta
-from typing import Annotated, Literal
+from datetime import date
+from typing import Annotated
 
 from fastapi import (
     APIRouter,
@@ -23,7 +23,7 @@ from commons.utilities.pagination import Page, PaginationParams
 from query_manager.core.dependencies import oauth2_auth
 from query_manager.semantic_manager.dependencies import SemanticManagerDep
 from query_manager.semantic_manager.filters import TargetFilter
-from query_manager.semantic_manager.schemas import (  # TargetCalculationEntry,
+from query_manager.semantic_manager.schemas import (
     MetricDimensionalTimeSeriesResponse,
     MetricTargetOverview,
     MetricTimeSeriesResponse,
@@ -33,7 +33,7 @@ from query_manager.semantic_manager.schemas import (  # TargetCalculationEntry,
     TargetCalculationResponse,
     TargetResponse,
 )
-from query_manager.semantic_manager.utils import add_growth_percentages, calculate_targets
+from query_manager.semantic_manager.utils.target_calculator import TargetCalculator
 
 router = APIRouter(prefix="/semantic")
 logger = logging.getLogger(__name__)
@@ -210,7 +210,7 @@ async def get_targets(
     )
 
     # Convert to TargetResponse with growth percentages added
-    target_responses = add_growth_percentages(db_results)
+    target_responses = TargetCalculator.add_growth_stats_to_targets(db_results)
 
     return Page.create(items=target_responses, total_count=count, params=params)
 
@@ -323,4 +323,4 @@ async def calculate_target_values(
     """
 
     # Calculate targets using the utility function
-    return calculate_targets(**calculation_request.model_dump(exclude_unset=True))
+    return TargetCalculator.calculate_targets(**calculation_request.model_dump(exclude_unset=True))
