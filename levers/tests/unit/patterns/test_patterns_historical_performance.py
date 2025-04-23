@@ -70,7 +70,7 @@ class TestHistoricalPerformancePattern:
     def sample_data_with_anomaly(self):
         """Return sample data with an anomaly."""
         values = [100 + i for i in range(31)]
-        values[15] = 200  # Add a spike
+        values[-1] = 1000  # Add a spike
         return pd.DataFrame(
             {
                 "date": pd.date_range(start="2023-01-01", end="2023-01-31", freq="D"),
@@ -165,11 +165,9 @@ class TestHistoricalPerformancePattern:
 
         # Assert
         assert result is not None
-        assert len(result.trend_exceptions) >= 0  # May or may not have exceptions depending on implementation
-        if len(result.trend_exceptions) > 0:
-            # Check if at least one exception is a spike (since we added one)
-            has_spike = any(exception.type == TrendExceptionType.SPIKE for exception in result.trend_exceptions)
-            assert has_spike
+        # Check if at least one exception is a spike (since we added one)
+        assert result.trend_exception is not None
+        assert result.trend_exception.type == TrendExceptionType.SPIKE
 
     def test_analyze_insufficient_data(self, pattern, analysis_window):
         """Test analyzing with insufficient data."""

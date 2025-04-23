@@ -254,7 +254,7 @@ def detect_record_low(df: pd.DataFrame, value_col: str = "value") -> RecordLow:
 
 def detect_trend_exceptions(
     df: pd.DataFrame, date_col: str = "date", value_col: str = "value", window_size: int = 5, z_threshold: float = 2.0
-) -> list[TrendException] | list:
+) -> TrendException | None:
     """
     Detect spikes and drops in a time series relative to recent values.
 
@@ -269,13 +269,14 @@ def detect_trend_exceptions(
         z_threshold: Number of standard deviations to consider exceptional
 
     Returns:
-        Empty list or List of TrendException objects containing exception details,
+        TrendException object containing exception details,
         - type: str, the type of exception
         - current_value: float, the current value
         - normal_range_low: float, the lower bound of the normal range
         - normal_range_high: float, the upper bound of the normal range
         - absolute_delta_from_normal_range: float, the absolute difference between current and normal range
         - magnitude_percent: float, the percentage difference between current and normal range
+        or None if no exceptions are detected
     """
 
     # Ensure data is sorted by date
@@ -284,7 +285,7 @@ def detect_trend_exceptions(
     # Check if we have enough data
     if len(df_sorted) < window_size + 1:
         logger.warning("Insufficient data for trend exceptions detection")
-        return []
+        return None
 
     # Get the recent window for analysis
     recent_subset = df_sorted[value_col].iloc[-window_size - 1 : -1]
@@ -296,7 +297,7 @@ def detect_trend_exceptions(
     # Cannot calculate bounds with invalid std dev
     if std_val is None or pd.isna(std_val) or std_val == 0:
         logger.warning("Cannot calculate bounds for trend exceptions (invalid std dev)")
-        return []
+        return None
 
     # Calculate upper and lower bounds based on threshold
     upper_bound = mean_val + z_threshold * std_val
@@ -305,41 +306,34 @@ def detect_trend_exceptions(
     # Get the current value (last value in the dataframe)
     last_val = df_sorted[value_col].iloc[-1]
 
-    exceptions = []
-
     # Check if the current value is outside the bounds
     if last_val > upper_bound:
         # Spike detected
         delta_from_range = last_val - upper_bound
         magnitude_percent = (delta_from_range / upper_bound * 100.0) if upper_bound != 0 else None
 
-        exceptions.append(
-            TrendException(
-                type=TrendExceptionType.SPIKE,
-                current_value=last_val,
-                normal_range_low=lower_bound,
-                normal_range_high=upper_bound,
-                absolute_delta_from_normal_range=delta_from_range,
-                magnitude_percent=magnitude_percent,
-            )
+        return TrendException(
+            type=TrendExceptionType.SPIKE,
+            current_value=last_val,
+            normal_range_low=lower_bound,
+            normal_range_high=upper_bound,
+            absolute_delta_from_normal_range=delta_from_range,
+            magnitude_percent=magnitude_percent,
         )
     elif last_val < lower_bound:
         # Drop detected
         delta_from_range = lower_bound - last_val
         magnitude_percent = (delta_from_range / abs(lower_bound) * 100.0) if lower_bound != 0 else None
 
-        exceptions.append(
-            TrendException(
-                type=TrendExceptionType.DROP,
-                current_value=last_val,
-                normal_range_low=lower_bound,
-                normal_range_high=upper_bound,
-                absolute_delta_from_normal_range=-delta_from_range,  # Negative value for drops
-                magnitude_percent=magnitude_percent,
-            )
+        return TrendException(
+            type=TrendExceptionType.DROP,
+            current_value=last_val,
+            normal_range_low=lower_bound,
+            normal_range_high=upper_bound,
+            absolute_delta_from_normal_range=-delta_from_range,  # Negative value for drops
+            magnitude_percent=magnitude_percent,
         )
-
-    return exceptions
+    return None
 
 
 def detect_performance_plateau(

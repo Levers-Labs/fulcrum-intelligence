@@ -89,7 +89,7 @@ def mock_historical_performance():
                 change_percent=5.3,
             ),
         ],
-        trend_exceptions=[],
+        trend_exceptions=None,
         grain=Granularity.MONTH,
     )
 
@@ -204,16 +204,14 @@ async def test_evaluate_performance_plateau(mock_historical_performance, mock_me
 async def test_evaluate_spike(mock_historical_performance, mock_metric):
     """Test evaluate method with spike."""
     evaluator = HistoricalPerformanceEvaluator()
-    mock_historical_performance.trend_exceptions = [
-        TrendException(
-            type=TrendExceptionType.SPIKE,
-            current_value=120.0,
-            normal_range_low=90.0,
-            normal_range_high=110.0,
-            absolute_delta_from_normal_range=10.0,
-            magnitude_percent=9.09,
-        )
-    ]
+    mock_historical_performance.trend_exception = TrendException(
+        type=TrendExceptionType.SPIKE,
+        current_value=120.0,
+        normal_range_low=90.0,
+        normal_range_high=110.0,
+        absolute_delta_from_normal_range=10.0,
+        magnitude_percent=9.09,
+    )
 
     stories = await evaluator.evaluate(mock_historical_performance, mock_metric)
 
@@ -228,16 +226,14 @@ async def test_evaluate_spike(mock_historical_performance, mock_metric):
 async def test_evaluate_drop(mock_historical_performance, mock_metric):
     """Test evaluate method with drop."""
     evaluator = HistoricalPerformanceEvaluator()
-    mock_historical_performance.trend_exceptions = [
-        TrendException(
-            type=TrendExceptionType.DROP,
-            current_value=80.0,
-            normal_range_low=90.0,
-            normal_range_high=110.0,
-            absolute_delta_from_normal_range=10.0,
-            magnitude_percent=11.11,
-        )
-    ]
+    mock_historical_performance.trend_exception = TrendException(
+        type=TrendExceptionType.DROP,
+        current_value=80.0,
+        normal_range_low=90.0,
+        normal_range_high=110.0,
+        absolute_delta_from_normal_range=10.0,
+        magnitude_percent=11.11,
+    )
 
     stories = await evaluator.evaluate(mock_historical_performance, mock_metric)
 

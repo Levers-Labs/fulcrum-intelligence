@@ -109,4 +109,4 @@ class HistoricalPerformance(BasePattern):
     benchmark_comparisons: list[BenchmarkComparison] = Field(default_factory=list)
 
     # Trend exceptions (spike/drop)
-    trend_exceptions: list[TrendException] = []
+    trend_exception: TrendException | None = None
