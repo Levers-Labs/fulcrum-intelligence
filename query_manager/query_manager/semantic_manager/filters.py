@@ -10,8 +10,8 @@ class TargetFilter(BaseFilter):
     """Filter for targets."""
 
     metric_ids: list[str] | None = FilterField(field=MetricTarget.metric_id, operator="in")  # type: ignore
-    metric_label: str | None = FilterField(
-        field=Metric.label,
+    metric_label: str | None = FilterField(  # type: ignore
+        field=Metric.label,  # type: ignore
         operator="ilike",
         join_model=Metric,
         join_condition=MetricTarget.metric_id == Metric.metric_id,
