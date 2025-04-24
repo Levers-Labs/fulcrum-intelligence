@@ -546,11 +546,9 @@ class TestDetectTrendExceptions:
         )
 
         # Assert
-        assert len(result) >= 1
-        spike = next((ex for ex in result if ex.type == TrendExceptionType.SPIKE), None)
-        assert spike is not None
-        assert spike.current_value == spike_value  # Last value is a spike
-        assert spike.normal_range_high < spike_value  # Upper bound should be less than spike
+        assert result is not None
+        assert result.current_value == spike_value  # Last value is a spike
+        assert result.normal_range_high < spike_value  # Upper bound should be less than spike
 
     def test_drop_detection(self):
         """Test detection of a drop in the data."""
@@ -572,38 +570,9 @@ class TestDetectTrendExceptions:
         )
 
         # Assert
-        assert len(result) >= 1
-        drop = next((ex for ex in result if ex.type == TrendExceptionType.DROP), None)
-        assert drop is not None
-        assert drop.current_value == drop_value  # Last value is a drop
-        assert drop.normal_range_low > drop_value  # Lower bound should be higher than drop
-
-    def test_multiple_exceptions(self):
-        """Test detection of multiple exceptions."""
-        # Arrange
-        # We can't actually have multiple exceptions in one run since the function only examines the last value
-        # Instead, let's test a spike that's very extreme
-        window_data = [100, 110, 120, 130, 140]  # Similar values for window
-        extreme_spike = 1000  # Very extreme spike
-
-        df = pd.DataFrame(
-            {
-                "date": pd.date_range(start="2023-01-01", periods=len(window_data) + 1, freq="D"),
-                "value": window_data + [extreme_spike],
-            }
-        )
-
-        # Act
-        result = detect_trend_exceptions(
-            df, date_col="date", value_col="value", window_size=len(window_data), z_threshold=2.0
-        )
-
-        # Assert
-        assert len(result) >= 1
-        spike = next((ex for ex in result if ex.type == TrendExceptionType.SPIKE), None)
-        assert spike is not None
-        assert spike.current_value == extreme_spike
-        assert spike.magnitude_percent > 100  # Should be a very large percentage
+        assert result is not None
+        assert result.current_value == drop_value  # Last value is a drop
+        assert result.normal_range_low > drop_value  # Lower bound should be higher than drop
 
     def test_insufficient_data(self):
         """Test with insufficient data."""
@@ -614,7 +583,7 @@ class TestDetectTrendExceptions:
         result = detect_trend_exceptions(df, date_col="date", value_col="value")
 
         # Assert
-        assert len(result) == 0
+        assert result is None
 
     def test_missing_values(self):
         """Test with missing values."""
@@ -636,8 +605,8 @@ class TestDetectTrendExceptions:
         )
 
         # Assert
-        assert len(result) >= 1
-        assert result[0].current_value == spike_value  # Last value
+        assert result is not None
+        assert result.current_value == spike_value  # Last value
 
     def test_all_null_values(self):
         """Test with all null values."""
@@ -653,7 +622,7 @@ class TestDetectTrendExceptions:
         result = detect_trend_exceptions(df, date_col="date", value_col="value")
 
         # Assert
-        assert len(result) == 0
+        assert result is None
 
     def test_non_numeric_values(self):
         """Test with non-numeric values."""
@@ -668,8 +637,8 @@ class TestDetectTrendExceptions:
         # Act & Assert
         # The implementation doesn't actually validate types
         result = detect_trend_exceptions(df, date_col="date", value_col="value")
-        # Just check that it returns an empty list instead of raising errors
-        assert isinstance(result, list)
+        # Just check that it returns None instead of raising errors
+        assert result is None
 
     def test_with_non_default_window(self):
         """Test with a non-default window size."""
@@ -694,9 +663,9 @@ class TestDetectTrendExceptions:
         )
 
         # Assert
-        assert len(result) > 0
-        assert result[0].type == TrendExceptionType.SPIKE
-        assert result[0].current_value == spike_value
+        assert result is not None
+        assert result.type == TrendExceptionType.SPIKE
+        assert result.current_value == spike_value
 
     def test_with_custom_z_threshold(self):
         """Test with a custom z-threshold."""
@@ -722,11 +691,10 @@ class TestDetectTrendExceptions:
         )
 
         # Assert
-        assert len(result_high) == 0  # High threshold shouldn't detect anything
-        assert len(result_low) > 0  # Low threshold should detect the spike
-        if len(result_low) > 0:
-            assert result_low[0].type == TrendExceptionType.SPIKE
-            assert result_low[0].current_value == small_spike
+        assert result_high is None  # High threshold shouldn't detect anything
+        assert result_low is not None  # Low threshold should detect the spike
+        assert result_low.type == TrendExceptionType.SPIKE
+        assert result_low.current_value == small_spike
 
     def test_with_identical_values(self):
         """Test with identical values in the window."""
@@ -747,9 +715,8 @@ class TestDetectTrendExceptions:
         result = detect_trend_exceptions(df, date_col="date", value_col="value", window_size=len(window_data))
 
         # Assert
-        assert len(result) > 0
-        assert result[0].type == TrendExceptionType.SPIKE
-        assert result[0].current_value == spike_value
+        assert result.type == TrendExceptionType.SPIKE
+        assert result.current_value == spike_value
 
 
 class TestDetectPerformancePlateau:

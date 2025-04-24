@@ -23,7 +23,6 @@ class HistoricalPerformanceEvaluator(StoryEvaluatorBase[HistoricalPerformance]):
     - Trend Stories: STABLE_TREND, NEW_UPWARD_TREND, NEW_DOWNWARD_TREND, PERFORMANCE_PLATEAU
     - Trend Exceptions: SPIKE, DROP
     - Performance Change: IMPROVING_PERFORMANCE, WORSENING_PERFORMANCE
-    - Seasonal Patterns: SEASONAL_PATTERN_MATCH, SEASONAL_PATTERN_BREAK
     - Record Values: RECORD_HIGH, RECORD_LOW
     - Benchmark Comparisons: BENCHMARKS
     """
@@ -74,17 +73,15 @@ class HistoricalPerformanceEvaluator(StoryEvaluatorBase[HistoricalPerformance]):
                 stories.append(self._create_worsening_performance_story(pattern_result, metric_id, metric, grain))
 
         # Trend Exception Stories (Spikes & Drops)
-        for trend_exception in pattern_result.trend_exceptions:
-            if trend_exception.type == TrendExceptionType.SPIKE:
-                stories.append(self._create_spike_story(pattern_result, trend_exception, metric_id, metric, grain))
-            elif trend_exception.type == TrendExceptionType.DROP:
-                stories.append(self._create_drop_story(pattern_result, trend_exception, metric_id, metric, grain))
-
-        # Seasonal Pattern Stories
-        if pattern_result.seasonality and pattern_result.seasonality.is_following_expected_pattern:
-            stories.append(self._create_seasonal_pattern_match_story(pattern_result, metric_id, metric, grain))
-        else:
-            stories.append(self._create_seasonal_pattern_break_story(pattern_result, metric_id, metric, grain))
+        if pattern_result.trend_exception:
+            if pattern_result.trend_exception.type == TrendExceptionType.SPIKE:
+                stories.append(
+                    self._create_spike_story(pattern_result, pattern_result.trend_exception, metric_id, metric, grain)
+                )
+            elif pattern_result.trend_exception.type == TrendExceptionType.DROP:
+                stories.append(
+                    self._create_drop_story(pattern_result, pattern_result.trend_exception, metric_id, metric, grain)
+                )
 
         # Record Value Stories
         if pattern_result.high_rank and pattern_result.high_rank.rank <= 2:  # Consider top 2 as record high
@@ -192,29 +189,6 @@ class HistoricalPerformanceEvaluator(StoryEvaluatorBase[HistoricalPerformance]):
                     "low_prior_date": pattern_result.low_rank.prior_record_date,
                     "low_delta": abs(pattern_result.low_rank.absolute_delta_from_prior_record or 0),
                     "low_delta_percent": abs(pattern_result.low_rank.relative_delta_from_prior_record or 0),
-                }
-            )
-
-        # Add seasonality info
-        if pattern_result.seasonality:
-            context.update(
-                {
-                    "is_seasonal_match": pattern_result.seasonality.is_following_expected_pattern,
-                    "expected_change": abs(pattern_result.seasonality.expected_change_percent or 0),
-                    "actual_change": abs(pattern_result.seasonality.actual_change_percent or 0),
-                    "seasonal_deviation": abs(pattern_result.seasonality.deviation_percent or 0),
-                    "expected_direction": (
-                        "increase"
-                        if pattern_result.seasonality.expected_change_percent
-                        and pattern_result.seasonality.expected_change_percent > 0
-                        else "decrease"
-                    ),
-                    "actual_direction": (
-                        "increase"
-                        if pattern_result.seasonality.actual_change_percent
-                        and pattern_result.seasonality.actual_change_percent > 0
-                        else "decrease"
-                    ),
                 }
             )
 
@@ -495,51 +469,6 @@ class HistoricalPerformanceEvaluator(StoryEvaluatorBase[HistoricalPerformance]):
         return self.prepare_story_model(
             genre=StoryGenre.TRENDS,
             story_type=StoryType.WORSENING_PERFORMANCE,
-            story_group=story_group,
-            metric_id=metric_id,
-            pattern_result=pattern_result,
-            title=title,
-            detail=detail,
-            grain=grain,  # type: ignore
-            **context,
-        )
-
-    # Seasonal Pattern Methods
-    def _create_seasonal_pattern_match_story(
-        self, pattern_result: HistoricalPerformance, metric_id: str, metric: dict, grain: Granularity
-    ) -> dict[str, Any]:
-        """Create a SEASONAL_PATTERN_MATCH story."""
-        story_group = StoryGroup.SEASONAL_PATTERNS
-        context = self._populate_template_context(pattern_result, metric, grain)
-
-        title = render_story_text(StoryType.SEASONAL_PATTERN_MATCH, "title", context)
-        detail = render_story_text(StoryType.SEASONAL_PATTERN_MATCH, "detail", context)
-
-        return self.prepare_story_model(
-            genre=StoryGenre.TRENDS,
-            story_type=StoryType.SEASONAL_PATTERN_MATCH,
-            story_group=story_group,
-            metric_id=metric_id,
-            pattern_result=pattern_result,
-            title=title,
-            detail=detail,
-            grain=grain,  # type: ignore
-            **context,
-        )
-
-    def _create_seasonal_pattern_break_story(
-        self, pattern_result: HistoricalPerformance, metric_id: str, metric: dict, grain: Granularity
-    ) -> dict[str, Any]:
-        """Create a SEASONAL_PATTERN_BREAK story."""
-        story_group = StoryGroup.SEASONAL_PATTERNS
-        context = self._populate_template_context(pattern_result, metric, grain)
-
-        title = render_story_text(StoryType.SEASONAL_PATTERN_BREAK, "title", context)
-        detail = render_story_text(StoryType.SEASONAL_PATTERN_BREAK, "detail", context)
-
-        return self.prepare_story_model(
-            genre=StoryGenre.TRENDS,
-            story_type=StoryType.SEASONAL_PATTERN_BREAK,
             story_group=story_group,
             metric_id=metric_id,
             pattern_result=pattern_result,
