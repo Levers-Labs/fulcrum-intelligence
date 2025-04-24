@@ -29,11 +29,8 @@ from query_manager.semantic_manager.schemas import (
     MetricTimeSeriesResponse,
     TargetBulkUpsertRequest,
     TargetBulkUpsertResponse,
-    TargetCalculationRequest,
-    TargetCalculationResponse,
     TargetResponse,
 )
-from query_manager.semantic_manager.utils.target_calculator import TargetCalculator
 
 router = APIRouter(prefix="/semantic")
 logger = logging.getLogger(__name__)
@@ -153,16 +150,13 @@ async def get_metric_dimensional_time_series(
 async def get_targets_overview(
     params: Annotated[PaginationParams, Depends(PaginationParams)],
     semantic_manager: SemanticManagerDep,
-    # metric_label: str | None = None,
 ) -> Page[MetricTargetOverview]:
     """
     Get targets for metrics with optional filtering.
 
     - **metric_id**: Optional metric ID to filter by
     """
-    # targets_filter = TargetFilter(metric_label=metric_label)
-    results, count = await semantic_manager.metric_target.get_metrics_targets_list()
-    # filter_params=targets_filter.model_dump(exclude_unset=True))
+    results, count = await semantic_manager.metric_target.get_metrics_targets_stats()
     return Page.create(items=results, total_count=count, params=params)
 
 
@@ -205,14 +199,11 @@ async def get_targets(
     )
 
     # Get database results
-    db_results, count = await semantic_manager.metric_target.paginate(
+    results, count = await semantic_manager.metric_target.paginate(
         filter_params=targets_filter.model_dump(exclude_unset=True), params=params
     )
 
-    # Convert to TargetResponse with growth percentages added
-    target_responses = TargetCalculator.add_growth_stats_to_targets(db_results)
-
-    return Page.create(items=target_responses, total_count=count, params=params)
+    return Page.create(items=results, total_count=count, params=params)
 
 
 @router.get(
@@ -295,32 +286,3 @@ async def delete_targets(
     logger.info(
         "Deleted %d targets for metric %s with grain %s and date %s", deleted_count, metric_id, grain, target_date
     )
-
-
-@router.post(
-    "/metrics/targets/calculate",
-    response_model=list[TargetCalculationResponse],
-    summary="Calculate target values using different methods",
-    dependencies=[Security(oauth2_auth().verify, scopes=[QUERY_MANAGER_ALL])],
-    tags=["targets"],
-)
-async def calculate_target_values(
-    calculation_request: TargetCalculationRequest,
-) -> list[TargetCalculationResponse]:
-    """
-    Calculate target values between dates using different calculation methods.
-
-    - **current_value**: Current value on which calculations are based
-    - **start_date**: Start date for the target period
-    - **end_date**: End date for the target period
-    - **grain**: Time granularity to use (DAILY, WEEKLY, MONTHLY, etc.)
-    - **calculation_type**: Method used for calculation (value, growth, pop_growth)
-    - **target_value**: Target value used for 'value' calculation type
-    - **growth_percentage**: Growth percentage used for 'growth' calculation type
-    - **pop_growth_percentage**: Period on period growth percentage for 'pop_growth' calculation type
-
-    Returns calculated targets for each date with values for target value, growth %, and PoP growth %.
-    """
-
-    # Calculate targets using the utility function
-    return TargetCalculator.calculate_targets(**calculation_request.model_dump(exclude_unset=True))

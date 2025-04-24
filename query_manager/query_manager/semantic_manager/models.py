@@ -190,8 +190,6 @@ class MetricTarget(BaseTimeStampedTenantModel, table=True):  # type: ignore
     target_lower_bound: float | None = None
     yellow_buffer: float | None = None
     red_buffer: float | None = None
-    # TODO: add target type?
-    # target_type: TargetType
 
     # Define table arguments including schema, indexes, and constraints
     __table_args__ = (

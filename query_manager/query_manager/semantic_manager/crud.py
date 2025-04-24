@@ -2,6 +2,7 @@
 CRUD operations for semantic data.
 """
 
+import asyncio
 import logging
 from collections.abc import AsyncGenerator
 from datetime import date, datetime
@@ -536,50 +537,47 @@ class CRUDMetricTarget(CRUDSemantic[MetricTarget, TargetCreate, TargetUpdate, Ta
         await self.session.commit()
         return stats
 
-    async def get_metrics_targets_list(self) -> tuple[list[MetricTargetOverview], int]:
+    async def get_metrics_targets_stats(self) -> tuple[list[MetricTargetOverview], int]:
         """Get list of all metrics with their target status."""
         tenant_id = get_tenant_id()
         if tenant_id is None:
             raise ValueError("Tenant ID is required")
 
-        # Get all metrics first (we need this to show metrics even without targets)
-        metrics_query = (
-            select(Metric.metric_id, Metric.label, Metric.aim)  # type: ignore
-            .where(Metric.tenant_id == tenant_id)
-            .order_by(Metric.label)
-        )
-
-        # Get target information
+        # Get all metrics with targets in parallel
+        metrics_query = select(Metric).where(Metric.tenant_id == tenant_id).order_by(Metric.label)
         targets_query = (
-            select(self.model.metric_id, self.model.grain, func.max(self.model.target_date).label("target_end_date"))  # type: ignore
+            select(self.model.metric_id, self.model.grain, func.max(self.model.target_date).label("target_till_date"))
             .where(self.model.tenant_id == tenant_id)
             .group_by(self.model.metric_id, self.model.grain)
         )
 
-        # Execute queries
-        metrics_result = await self.session.execute(metrics_query)
-        targets_result = await self.session.execute(targets_query)
+        metrics_result, targets_result = await asyncio.gather(
+            self.session.execute(metrics_query), self.session.execute(targets_query)
+        )
 
-        # Process metrics
-        metrics = {
-            row.metric_id: {
-                "metric_id": row.metric_id,
-                "label": row.label,
-                "aim": row.aim,
-                "periods": {grain: TargetStatus(target_set=False, target_end_date=None) for grain in Granularity},
-            }
-            for row in metrics_result.mappings()
+        # Build target info lookup
+        target_info = {
+            (row.metric_id, row.grain): TargetStatus(
+                grain=row.grain, target_set=True, target_till_date=row.target_till_date
+            )
+            for row in targets_result.mappings()
         }
 
-        # Update with target information
-        for row in targets_result.mappings():
-            if row.metric_id in metrics and row.grain:
-                metrics[row.metric_id]["periods"][row.grain] = TargetStatus(
-                    target_set=True, target_end_date=row.target_end_date
-                )
-
-        # Convert to list of MetricTargetOverview objects
-        overviews = [MetricTargetOverview(**metric_data) for metric_data in metrics.values()]
+        # Create overview objects using Pydantic models
+        overviews = [
+            MetricTargetOverview(
+                metric_id=metric.metric_id,
+                label=metric.label,
+                aim=metric.aim,
+                periods=[
+                    target_info.get(
+                        (metric.metric_id, grain), TargetStatus(grain=grain, target_set=False, target_till_date=None)
+                    )
+                    for grain in Granularity
+                ],
+            )
+            for metric in metrics_result.scalars()
+        ]
 
         return overviews, len(overviews)
 
