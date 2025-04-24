@@ -128,10 +128,10 @@ STORY_TEMPLATES = {
     },
     StoryType.BENCHMARKS: {
         "title": "Performance Against Historical Benchmarks",
-        "detail": "This {{ grain_label }} marks the {{ high_rank|format_ordinal }} highest-performing {{ grain_label }}"
-        "in the past {{high_duration }} {{ grain_label }}s, with the current period's performance of {{ metric.label }}"
-        "at {{ high_value|format_number }} coming in {{ prior_change_percent|format_percent }}% {{ "
-        "prior_direction }} than this time last {{ prior_period }} and {{ older_change_percent }} {{ "
+        "detail": "This {{ grain_label }} marks the {{ high_rank|format_ordinal }} highest-performing {{ grain_label "
+        "}} in the past {{high_duration }} {{ grain_label }}s, with the current period's performance of {{ "
+        "metric.label }} at {{ high_value|format_number }} coming in {{ prior_change_percent|format_percent "
+        "}}% {{ prior_direction }} than this time last {{ prior_period }} and {{ older_change_percent }} {{ "
         "older_direction }} than this time last {{ older_period }}",
     },
 }
