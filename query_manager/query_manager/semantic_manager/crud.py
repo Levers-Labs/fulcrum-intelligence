@@ -544,9 +544,9 @@ class CRUDMetricTarget(CRUDSemantic[MetricTarget, TargetCreate, TargetUpdate, Ta
             raise ValueError("Tenant ID is required")
 
         # Get all metrics with targets in parallel
-        metrics_query = select(Metric).where(Metric.tenant_id == tenant_id).order_by(Metric.label)
+        metrics_query = select(Metric).where(Metric.tenant_id == tenant_id).order_by(Metric.label)  # type: ignore
         targets_query = (
-            select(self.model.metric_id, self.model.grain, func.max(self.model.target_date).label("target_till_date"))
+            select(self.model.metric_id, self.model.grain, func.max(self.model.target_date).label("target_till_date"))  # type: ignore
             .where(self.model.tenant_id == tenant_id)
             .group_by(self.model.metric_id, self.model.grain)
         )
