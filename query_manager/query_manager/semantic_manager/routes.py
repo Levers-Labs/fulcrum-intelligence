@@ -25,7 +25,7 @@ from query_manager.semantic_manager.dependencies import SemanticManagerDep
 from query_manager.semantic_manager.filters import TargetFilter
 from query_manager.semantic_manager.schemas import (
     MetricDimensionalTimeSeriesResponse,
-    MetricTargetOverview,
+    MetricTargetStats,
     MetricTimeSeriesResponse,
     TargetBulkUpsertRequest,
     TargetBulkUpsertResponse,
@@ -141,18 +141,18 @@ async def get_metric_dimensional_time_series(
 
 
 @router.get(
-    "/metrics/targets/overview",
-    response_model=Page[MetricTargetOverview],
+    "/metrics/targets/stats",
+    response_model=Page[MetricTargetStats],
     summary="List all metrics with their target status",
     dependencies=[Security(oauth2_auth().verify, scopes=[QUERY_MANAGER_ALL])],
     tags=["targets"],
 )
-async def get_targets_overview(
+async def get_targets_stats(
     params: Annotated[PaginationParams, Depends(PaginationParams)],
     semantic_manager: SemanticManagerDep,
-) -> Page[MetricTargetOverview]:
+) -> Page[MetricTargetStats]:
     """
-    Get targets for metrics with optional filtering.
+    Get targets stats for metrics with optional filtering.
 
     - **metric_id**: Optional metric ID to filter by
     """

@@ -93,8 +93,8 @@ class TargetStatus(BaseModel):
     target_till_date: date | None
 
 
-class MetricTargetOverview(BaseModel):
-    """Complete target overview for a metric"""
+class MetricTargetStats(BaseModel):
+    """Stats for a metric's targets"""
 
     metric_id: str
     label: str

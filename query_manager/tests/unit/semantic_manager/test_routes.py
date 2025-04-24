@@ -574,7 +574,7 @@ async def test_get_target_not_found(
 
 @pytest_asyncio.fixture
 async def sample_metrics_with_targets(db_session: AsyncSession, jwt_payload: dict) -> dict:
-    """Create sample metrics and their targets for testing the overview."""
+    """Create sample metrics and their targets for testing the stats."""
     set_tenant_id(jwt_payload["tenant_id"])
 
     # Create metrics with different aims
@@ -627,11 +627,11 @@ async def sample_metrics_with_targets(db_session: AsyncSession, jwt_payload: dic
     return {"metrics": metrics, "targets": targets}
 
 
-async def test_get_metrics_targets_overview(
+async def test_get_metrics_targets_stats(
     app: FastAPI, async_client: AsyncClient, jwt_payload: dict, sample_metrics_with_targets: dict
 ):
-    """Test getting the metrics targets overview."""
-    response = await async_client.get("/v2/semantic/metrics/targets/overview")
+    """Test getting the metrics targets stats."""
+    response = await async_client.get("/v2/semantic/metrics/targets/stats")
     assert response.status_code == 200
     data = response.json()
 
@@ -677,11 +677,11 @@ async def test_get_metrics_targets_overview(
     assert all(period["target_till_date"] is None for period in satisfaction["periods"])
 
 
-async def test_get_metrics_targets_overview_empty(
+async def test_get_metrics_targets_stats_empty(
     app: FastAPI, async_client: AsyncClient, jwt_payload: dict, db_session: AsyncSession
 ):
-    """Test getting the metrics targets overview when no metrics exist."""
-    response = await async_client.get("/v2/semantic/metrics/targets/overview")
+    """Test getting the metrics targets stats when no metrics exist."""
+    response = await async_client.get("/v2/semantic/metrics/targets/stats")
     assert response.status_code == 200
     data = response.json()
 

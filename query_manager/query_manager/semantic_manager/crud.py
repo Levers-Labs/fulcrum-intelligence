@@ -38,7 +38,7 @@ from query_manager.semantic_manager.models import (
     SyncType,
 )
 from query_manager.semantic_manager.schemas import (
-    MetricTargetOverview,
+    MetricTargetStats,
     TargetCreate,
     TargetStatus,
     TargetUpdate,
@@ -537,7 +537,7 @@ class CRUDMetricTarget(CRUDSemantic[MetricTarget, TargetCreate, TargetUpdate, Ta
         await self.session.commit()
         return stats
 
-    async def get_metrics_targets_stats(self) -> tuple[list[MetricTargetOverview], int]:
+    async def get_metrics_targets_stats(self) -> tuple[list[MetricTargetStats], int]:
         """Get list of all metrics with their target status."""
         tenant_id = get_tenant_id()
         if tenant_id is None:
@@ -563,9 +563,9 @@ class CRUDMetricTarget(CRUDSemantic[MetricTarget, TargetCreate, TargetUpdate, Ta
             for row in targets_result.mappings()
         }
 
-        # Create overview objects using Pydantic models
-        overviews = [
-            MetricTargetOverview(
+        # Create stats objects using Pydantic models
+        stats = [
+            MetricTargetStats(
                 metric_id=metric.metric_id,
                 label=metric.label,
                 aim=metric.aim,
@@ -579,7 +579,7 @@ class CRUDMetricTarget(CRUDSemantic[MetricTarget, TargetCreate, TargetUpdate, Ta
             for metric in metrics_result.scalars()
         ]
 
-        return overviews, len(overviews)
+        return stats, len(stats)
 
 
 class SemanticManager:
