@@ -537,18 +537,20 @@ class CRUDMetricTarget(CRUDSemantic[MetricTarget, TargetCreate, TargetUpdate, Ta
         await self.session.commit()
         return stats
 
-    async def get_metrics_targets_stats(self) -> tuple[list[MetricTargetStats], int]:
+    async def get_metrics_targets_stats(self, metric_label: str | None = None) -> tuple[list[MetricTargetStats], int]:
         """Get list of all metrics with their target status."""
-        tenant_id = get_tenant_id()
-        if tenant_id is None:
-            raise ValueError("Tenant ID is required")
 
         # Get all metrics with targets in parallel
-        metrics_query = select(Metric).where(Metric.tenant_id == tenant_id).order_by(Metric.label)  # type: ignore
-        targets_query = (
-            select(self.model.metric_id, self.model.grain, func.max(self.model.target_date).label("target_till_date"))  # type: ignore
-            .where(self.model.tenant_id == tenant_id)
-            .group_by(self.model.metric_id, self.model.grain)
+        metrics_query = select(Metric).order_by(Metric.label)  # type: ignore
+
+        # Apply direct filters on Metric without relying on join logic
+        if metric_label:
+            metrics_query = metrics_query.where(Metric.label.ilike(f"%{metric_label}%"))  # type: ignore
+
+        targets_query = select(
+            self.model.metric_id, self.model.grain, func.max(self.model.target_date).label("target_till_date")
+        ).group_by(  # type: ignore
+            self.model.metric_id, self.model.grain
         )
 
         metrics_result, targets_result = await asyncio.gather(

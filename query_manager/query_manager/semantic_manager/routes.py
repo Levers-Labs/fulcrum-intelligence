@@ -150,13 +150,15 @@ async def get_metric_dimensional_time_series(
 async def get_targets_stats(
     params: Annotated[PaginationParams, Depends(PaginationParams)],
     semantic_manager: SemanticManagerDep,
+    metric_label: str | None = None,
 ) -> Page[MetricTargetStats]:
     """
     Get targets stats for metrics with optional filtering.
 
-    - **metric_id**: Optional metric ID to filter by
+    - **metric_label**: Optional metric label to filter by
     """
-    results, count = await semantic_manager.metric_target.get_metrics_targets_stats()
+
+    results, count = await semantic_manager.metric_target.get_metrics_targets_stats(metric_label=metric_label)
     return Page.create(items=results, total_count=count, params=params)
 
 
@@ -175,13 +177,13 @@ async def get_targets(
     target_date: date | None = None,
     start_date: date | None = None,
     end_date: date | None = None,
-    metric_label: str | None = None,
 ) -> Page[TargetResponse]:
     """
     Get targets for metrics with optional filtering.
 
     - **metric_ids**: Optional list of metric IDs to filter by
     - **grain**: Optional time granularity to filter by (DAILY, WEEKLY, MONTHLY, etc.)
+    - **target_date**: Optional target date to filter by
     - **start_date**: Optional start date (inclusive)
     - **end_date**: Optional end date (inclusive)
 
@@ -195,7 +197,6 @@ async def get_targets(
         target_date=target_date,
         target_date_ge=start_date,
         target_date_le=end_date,
-        metric_label=metric_label,
     )
 
     # Get database results

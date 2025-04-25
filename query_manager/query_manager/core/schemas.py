@@ -79,7 +79,6 @@ class MetricValuesResponse(BaseModel):
 class Target(BaseModel):
     metric_id: str
     grain: Granularity
-    # aim: MetricAim
     target_date: datetime.date
     target_value: float
     target_upper_bound: float | None = None

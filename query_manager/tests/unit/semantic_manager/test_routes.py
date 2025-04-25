@@ -687,3 +687,34 @@ async def test_get_metrics_targets_stats_empty(
 
     assert data["count"] == 0
     assert data["results"] == []
+
+
+async def test_get_metrics_targets_stats_with_filter(
+    app: FastAPI, async_client: AsyncClient, jwt_payload: dict, sample_metrics_with_targets: dict
+):
+    """Test getting the metrics targets stats with a filter."""
+    response = await async_client.get("/v2/semantic/metrics/targets/stats?metric_label=Revenue")
+    assert response.status_code == 200
+    data = response.json()
+
+    # Check pagination
+    assert "count" in data
+    assert "results" in data
+    results = data["results"]
+
+    # Should return all metrics
+    assert len(results) == 1
+
+    # Check revenue metric
+    revenue = next(m for m in results if m["metric_id"] == "revenue")
+    assert revenue["label"] == "Revenue"
+    assert revenue["aim"] == "Maximize"
+    assert revenue["periods"][0]["grain"] == "day"
+    assert revenue["periods"][0]["target_set"] is True
+    assert revenue["periods"][0]["target_till_date"] == "2025-06-30"
+    assert revenue["periods"][1]["grain"] == "week"
+    assert revenue["periods"][1]["target_set"] is True
+    assert revenue["periods"][1]["target_till_date"] == "2025-05-31"
+    assert revenue["periods"][2]["grain"] == "month"
+    assert revenue["periods"][2]["target_set"] is False
+    assert revenue["periods"][2]["target_till_date"] is None

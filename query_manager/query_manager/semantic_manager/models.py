@@ -50,14 +50,6 @@ class SyncEvent(TypedDict):
     updated_at: str
 
 
-class TargetCalculationType(str, Enum):
-    """Type of target"""
-
-    VALUE = "VALUE"
-    GROWTH = "GROWTH"
-    POP_GROWTH = "POP_GROWTH"
-
-
 class MetricSyncStatus(BaseTimeStampedTenantModel, table=True):  # type: ignore
     """
     Stores metadata about metric data synchronization.
