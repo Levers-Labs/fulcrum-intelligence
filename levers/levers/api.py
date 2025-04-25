@@ -13,7 +13,7 @@ from levers.models import (
     Granularity,
     PatternConfig,
 )
-from levers.models.patterns import HistoricalPerformance, MetricPerformance
+from levers.models.patterns import DimensionAnalysis, HistoricalPerformance, MetricPerformance
 from levers.patterns import Pattern
 from levers.primitives import get_primitive_metadata, list_primitives_by_family
 from levers.registry import PatternRegistry, autodiscover_patterns
@@ -28,6 +28,7 @@ class Levers(Generic[T]):
     _pattern_model_registry: dict[str, type[BasePattern]] = {
         "performance_status": MetricPerformance,
         "historical_performance": HistoricalPerformance,
+        "dimension_analysis": DimensionAnalysis,
         # Add other patterns here as they are implemented
     }
 
@@ -261,6 +262,46 @@ class Levers(Generic[T]):
             data=data,
             analysis_window=analysis_window,
             threshold_ratio=threshold_ratio,
+        )
+
+    def analyze_dimension(
+        self,
+        metric_id: str,
+        dimension_name: str,
+        ledger_df: pd.DataFrame,
+        grain: Granularity = Granularity.DAY,
+        analysis_date: str | None = None,
+    ) -> DimensionAnalysis:
+        """
+        Analyze metrics across dimension slices, comparing current vs. prior periods.
+
+        Args:
+            metric_id: ID of the metric to analyze
+            dimension_name: Name of the dimension to analyze (e.g., "region", "product")
+            ledger_df: DataFrame with columns: metric_id, date, dimension, slice_value, metric_value
+            grain: Time grain for analysis
+            analysis_date: Date to analyze (defaults to latest date in data)
+
+        Returns:
+            Dimension analysis results
+        """
+        # Create an analysis window if analysis_date is provided
+        analysis_window = None
+        if analysis_date:
+            end_date = analysis_date
+            # For simplicity, just use the same date for start and end
+            # The pattern will determine the actual period range based on grain
+            analysis_window = AnalysisWindow(start_date=end_date, end_date=end_date, grain=grain)
+
+        # Execute the pattern
+        return self.execute_pattern(
+            pattern_name="dimension_analysis",
+            metric_id=metric_id,
+            dimension_name=dimension_name,
+            ledger_df=ledger_df,
+            grain=grain,
+            analysis_date=analysis_date,
+            analysis_window=analysis_window,
         )
 
     # Pattern configuration methods

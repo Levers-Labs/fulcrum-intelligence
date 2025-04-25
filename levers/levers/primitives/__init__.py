@@ -4,10 +4,28 @@
 # Numeric primitives
 from levers.exceptions import PrimitiveError
 
+# Dimensional Analysis primitives
+from .dimensional_analysis import (
+    analyze_composition_changes,
+    analyze_dimension_impact,
+    build_slices_list,
+    calculate_concentration_index,
+    calculate_slice_metrics,
+    compare_dimension_slices_over_time,
+    compute_historical_slice_rankings,
+    compute_slice_shares,
+    compute_top_bottom_slices,
+    difference_from_average,
+    highlight_slice_comparisons,
+    identify_largest_smallest_by_share,
+    identify_strongest_weakest_changes,
+    rank_metric_slices,
+)
 from .numeric import (
     calculate_difference,
     calculate_gap_to_target,
     calculate_percentage_difference,
+    calculate_relative_change,
     round_to_precision,
     safe_divide,
 )
@@ -23,6 +41,14 @@ from .performance import (
     detect_status_changes,
     monitor_threshold_proximity,
     track_status_durations,
+)
+
+# Period Grains primitives
+from .period_grains import (
+    get_date_range_from_window,
+    get_period_range_for_grain,
+    get_prev_period_start_date,
+    get_prior_period_range,
 )
 
 # Time Series primitives
@@ -53,6 +79,7 @@ _primitive_families = {
     "numeric": [
         calculate_difference,
         calculate_percentage_difference,
+        calculate_relative_change,
         safe_divide,
         round_to_precision,
         calculate_gap_to_target,
@@ -67,6 +94,12 @@ _primitive_families = {
         calculate_required_growth,
         classify_growth_trend,
         calculate_moving_target,
+    ],
+    "period_grains": [
+        get_period_range_for_grain,
+        get_prior_period_range,
+        get_prev_period_start_date,
+        get_date_range_from_window,
     ],
     "time_series": [
         calculate_average_growth,
@@ -85,6 +118,26 @@ _primitive_families = {
         detect_trend_exceptions,
         process_control_analysis,
         detect_seasonality_pattern,
+    ],
+    "dimensional_analysis": [
+        # Slice Metrics & Shares
+        calculate_slice_metrics,
+        compute_slice_shares,
+        rank_metric_slices,
+        # Composition & Impact Analysis
+        analyze_composition_changes,
+        analyze_dimension_impact,
+        calculate_concentration_index,
+        # Time Comparison
+        compare_dimension_slices_over_time,
+        # Comparative Analysis
+        difference_from_average,
+        compute_top_bottom_slices,
+        identify_largest_smallest_by_share,
+        identify_strongest_weakest_changes,
+        highlight_slice_comparisons,
+        compute_historical_slice_rankings,
+        build_slices_list,
     ],
 }
 
@@ -143,6 +196,7 @@ __all__ = [
     # Numeric primitives
     "calculate_difference",
     "calculate_percentage_difference",
+    "calculate_relative_change",
     "safe_divide",
     "round_to_precision",
     "calculate_gap_to_target",
@@ -156,6 +210,11 @@ __all__ = [
     "calculate_required_growth",
     "classify_growth_trend",
     "calculate_moving_target",
+    # Period Grains primitives
+    "get_period_range_for_grain",
+    "get_prior_period_range",
+    "get_prev_period_start_date",
+    "get_date_range_from_window",
     # Time Series primitives
     "calculate_average_growth",
     "calculate_cumulative_growth",
@@ -173,6 +232,21 @@ __all__ = [
     "detect_trend_exceptions",
     "process_control_analysis",
     "detect_seasonality_pattern",
+    # Dimensional Analysis primitives
+    "calculate_slice_metrics",
+    "compute_slice_shares",
+    "rank_metric_slices",
+    "analyze_composition_changes",
+    "analyze_dimension_impact",
+    "calculate_concentration_index",
+    "compare_dimension_slices_over_time",
+    "difference_from_average",
+    "compute_top_bottom_slices",
+    "identify_largest_smallest_by_share",
+    "identify_strongest_weakest_changes",
+    "highlight_slice_comparisons",
+    "compute_historical_slice_rankings",
+    "build_slices_list",
     # Utility functions
     "list_primitives_by_family",
     "get_primitive_metadata",
