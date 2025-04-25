@@ -195,30 +195,25 @@ class HistoricalPerformanceEvaluator(StoryEvaluatorBase[HistoricalPerformance]):
         # Add benchmark info
         if pattern_result.benchmark_comparison:
             # Map reference periods to more readable names for stories
-            period_display_names = {"WTD": "week", "MTD": "month", "QTD": "quarter", "YTD": "year"}
+            period_display_names = {
+                "WTD": "Week to Date",
+                "MTD": "Month to Date",
+                "QTD": "Quarter to Date",
+                "YTD": "Year to Date",
+            }
+            reference_period_mapping = {"WTD": "week", "MTD": "month", "QTD": "quarter", "YTD": "year"}
 
             # Get the benchmark data
             benchmark = pattern_result.benchmark_comparison
 
-            # Use high_rank for the template's rank information
-            # Template uses: high_rank, high_duration, high_value
-
-            # Directly use high_rank data for ranking information
-            # The template expects to use high_rank and high_duration
-            # from the record values section
-
-            # Add benchmark comparison info
-            context["prior_period"] = period_display_names.get(benchmark.reference_period, benchmark.reference_period)
-            context["prior_change_percent"] = abs(benchmark.change_percent or 0)
-            context["prior_direction"] = (
+            # Add benchmark comparison info with direct mapping to template variables
+            context["partial_interval_label"] = period_display_names.get(benchmark.reference_period)
+            context["partial_interval"] = benchmark.reference_period
+            context["change_percent"] = abs(benchmark.change_percent or 0)
+            context["comparison_direction"] = (
                 "higher" if benchmark.change_percent and benchmark.change_percent > 0 else "lower"
             )
-
-            # For the second comparison period, we don't have data since we're only storing one benchmark
-            # Set default values for the template to avoid errors
-            context["older_period"] = "month" if context["prior_period"] == "week" else "quarter"
-            context["older_change_percent"] = 0
-            context["older_direction"] = "unchanged from"
+            context["reference_period"] = reference_period_mapping.get(benchmark.reference_period)
 
         return context
 

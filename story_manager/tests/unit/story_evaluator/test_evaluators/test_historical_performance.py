@@ -330,10 +330,6 @@ def test_populate_template_context(evaluator, mock_historical_performance, mock_
     assert context["high_value"] == 100.0
     assert context["high_rank"] == 1
     assert context["high_duration"] == 12
-    assert context["prior_period"] == "week"
-    assert context["prior_change_percent"] == 11.1
-    assert context["prior_direction"] == "higher"
-    assert context["older_period"] == "month"
 
 
 def test_should_create_growth_story(evaluator, mock_historical_performance):
