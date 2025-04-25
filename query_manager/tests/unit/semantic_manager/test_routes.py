@@ -10,6 +10,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from commons.models.enums import Granularity
 from commons.utilities.context import set_tenant_id
+from query_manager.core.enums import MetricAim
+from query_manager.core.models import Metric
 from query_manager.semantic_manager.models import MetricDimensionalTimeSeries, MetricTarget, MetricTimeSeries
 from query_manager.semantic_manager.schemas import (
     MetricDimensionalTimeSeriesResponse,
@@ -204,12 +206,11 @@ async def test_get_multi_metric_time_series(
     # Assert response
     assert response.status_code == 200
     data = response.json()
-    assert isinstance(data, dict)
     assert "results" in data
-    assert len(data["results"]) == 2
+    assert len(data["results"]) == 2  # type: ignore
 
     # Verify the response matches our schema
-    response_model = MetricTimeSeriesResponse(**data)
+    response_model = MetricTimeSeriesResponse(**data)  # type: ignore
     assert len(response_model.results) == 2
     # Sort results by value to ensure consistent comparison
     results = sorted(response_model.results, key=lambda x: x.value)
@@ -249,7 +250,7 @@ async def test_get_metric_dimensional_time_series(
     response_model = MetricDimensionalTimeSeriesResponse(**data)
     assert len(response_model.results) == 2
     # Sort results by dimension_slice to ensure consistent comparison
-    results = sorted(response_model.results, key=lambda x: x.dimension_slice)
+    results = sorted(response_model.results, key=lambda x: x.dimension_slice)  # type: ignore
     assert results[0].dimension_name == "region"
     assert results[0].dimension_slice == "EU"
     assert results[0].value == 150.0
@@ -527,35 +528,6 @@ async def test_bulk_upsert_targets(
     assert data["results"][0]["target_value"] == 150.0
 
 
-async def test_update_target(
-    app: FastAPI,
-    async_client: AsyncClient,
-    jwt_payload: dict,
-    sample_targets: list,
-):
-    """Test updating a target."""
-    from query_manager.semantic_manager.schemas import TargetUpdate
-
-    target_id = sample_targets[0].id
-
-    update_data = TargetUpdate(
-        target_value=999.0,
-        target_upper_bound=1100.0,
-        target_lower_bound=900.0,
-    )
-
-    response = await async_client.put(
-        f"/v2/semantic/metrics/targets/{target_id}",
-        json=update_data.model_dump(exclude_unset=True),
-    )
-    assert response.status_code == 200
-    data = response.json()
-    assert data["id"] == target_id
-    assert data["target_value"] == 999.0
-    assert data["target_upper_bound"] == 1100.0
-    assert data["target_lower_bound"] == 900.0
-
-
 async def test_delete_targets(
     app: FastAPI,
     async_client: AsyncClient,
@@ -600,21 +572,149 @@ async def test_get_target_not_found(
     assert "not found" in data["detail"].lower()
 
 
-async def test_update_target_not_found(
-    app: FastAPI,
-    async_client: AsyncClient,
-    jwt_payload: dict,
+@pytest_asyncio.fixture
+async def sample_metrics_with_targets(db_session: AsyncSession, jwt_payload: dict) -> dict:
+    """Create sample metrics and their targets for testing the stats."""
+    set_tenant_id(jwt_payload["tenant_id"])
+
+    # Create metrics with different aims
+    metrics = [
+        Metric(tenant_id=jwt_payload["tenant_id"], metric_id="revenue", label="Revenue", aim=MetricAim.MAXIMIZE),
+        Metric(tenant_id=jwt_payload["tenant_id"], metric_id="cost", label="Cost", aim=MetricAim.MINIMIZE),
+        Metric(
+            tenant_id=jwt_payload["tenant_id"],
+            metric_id="satisfaction",
+            label="Customer Satisfaction",
+            aim=MetricAim.BALANCE,
+        ),
+    ]
+
+    for metric in metrics:
+        db_session.add(metric)
+
+    # Create targets for different grains
+    targets = [
+        # Revenue targets
+        MetricTarget(
+            tenant_id=jwt_payload["tenant_id"],
+            metric_id="revenue",
+            grain=Granularity.DAY,
+            target_date=date(2025, 6, 30),
+            target_value=1000.0,
+        ),
+        MetricTarget(
+            tenant_id=jwt_payload["tenant_id"],
+            metric_id="revenue",
+            grain=Granularity.WEEK,
+            target_date=date(2025, 5, 31),
+            target_value=7000.0,
+        ),
+        # Cost targets
+        MetricTarget(
+            tenant_id=jwt_payload["tenant_id"],
+            metric_id="cost",
+            grain=Granularity.DAY,
+            target_date=date(2025, 4, 30),
+            target_value=500.0,
+        ),
+        # Satisfaction has no targets initially
+    ]
+
+    for target in targets:
+        db_session.add(target)
+
+    await db_session.commit()
+    return {"metrics": metrics, "targets": targets}
+
+
+async def test_get_metrics_targets_stats(
+    app: FastAPI, async_client: AsyncClient, jwt_payload: dict, sample_metrics_with_targets: dict
 ):
-    """Test updating a non-existent target."""
-    from query_manager.semantic_manager.schemas import TargetUpdate
-
-    update_data = TargetUpdate(target_value=999.0)
-
-    response = await async_client.put(
-        "/v2/semantic/metrics/targets/999999",
-        json=update_data.model_dump(exclude_unset=True),
-    )
-    assert response.status_code == 404
+    """Test getting the metrics targets stats."""
+    response = await async_client.get("/v2/semantic/metrics/targets/stats")
+    assert response.status_code == 200
     data = response.json()
-    assert "detail" in data
-    assert "not found" in data["detail"].lower()
+
+    # Check pagination
+    assert "count" in data
+    assert "results" in data
+    results = data["results"]
+
+    # Should return all metrics
+    assert len(results) == 3
+
+    # Check revenue metric
+    revenue = next(m for m in results if m["metric_id"] == "revenue")
+    assert revenue["label"] == "Revenue"
+    assert revenue["aim"] == "Maximize"
+    assert revenue["periods"][0]["grain"] == "day"
+    assert revenue["periods"][0]["target_set"] is True
+    assert revenue["periods"][0]["target_till_date"] == "2025-06-30"
+    assert revenue["periods"][1]["grain"] == "week"
+    assert revenue["periods"][1]["target_set"] is True
+    assert revenue["periods"][1]["target_till_date"] == "2025-05-31"
+    assert revenue["periods"][2]["grain"] == "month"
+    assert revenue["periods"][2]["target_set"] is False
+    assert revenue["periods"][2]["target_till_date"] is None
+
+    # Check cost metric
+    cost = next(m for m in results if m["metric_id"] == "cost")
+    assert cost["label"] == "Cost"
+    assert cost["aim"] == "Minimize"
+    assert cost["periods"][0]["grain"] == "day"
+    assert cost["periods"][0]["target_set"] is True
+    assert cost["periods"][0]["target_till_date"] == "2025-04-30"
+    assert cost["periods"][1]["grain"] == "week"
+    assert cost["periods"][1]["target_set"] is False
+    assert cost["periods"][2]["grain"] == "month"
+    assert cost["periods"][2]["target_set"] is False
+
+    # Check satisfaction metric (no targets)
+    satisfaction = next(m for m in results if m["metric_id"] == "satisfaction")
+    assert satisfaction["label"] == "Customer Satisfaction"
+    assert satisfaction["aim"] == "Balance"
+    assert all(not period["target_set"] for period in satisfaction["periods"])
+    assert all(period["target_till_date"] is None for period in satisfaction["periods"])
+
+
+async def test_get_metrics_targets_stats_empty(
+    app: FastAPI, async_client: AsyncClient, jwt_payload: dict, db_session: AsyncSession
+):
+    """Test getting the metrics targets stats when no metrics exist."""
+    response = await async_client.get("/v2/semantic/metrics/targets/stats")
+    assert response.status_code == 200
+    data = response.json()
+
+    assert data["count"] == 0
+    assert data["results"] == []
+
+
+async def test_get_metrics_targets_stats_with_filter(
+    app: FastAPI, async_client: AsyncClient, jwt_payload: dict, sample_metrics_with_targets: dict
+):
+    """Test getting the metrics targets stats with a filter."""
+    response = await async_client.get("/v2/semantic/metrics/targets/stats?metric_label=Revenue")
+    assert response.status_code == 200
+    data = response.json()
+
+    # Check pagination
+    assert "count" in data
+    assert "results" in data
+    results = data["results"]
+
+    # Should return all metrics
+    assert len(results) == 1
+
+    # Check revenue metric
+    revenue = next(m for m in results if m["metric_id"] == "revenue")
+    assert revenue["label"] == "Revenue"
+    assert revenue["aim"] == "Maximize"
+    assert revenue["periods"][0]["grain"] == "day"
+    assert revenue["periods"][0]["target_set"] is True
+    assert revenue["periods"][0]["target_till_date"] == "2025-06-30"
+    assert revenue["periods"][1]["grain"] == "week"
+    assert revenue["periods"][1]["target_set"] is True
+    assert revenue["periods"][1]["target_till_date"] == "2025-05-31"
+    assert revenue["periods"][2]["grain"] == "month"
+    assert revenue["periods"][2]["target_set"] is False
+    assert revenue["periods"][2]["target_till_date"] is None

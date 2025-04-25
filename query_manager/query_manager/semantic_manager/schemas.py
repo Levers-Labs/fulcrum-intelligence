@@ -8,6 +8,7 @@ from pydantic import ConfigDict
 
 from commons.models import BaseModel
 from commons.models.enums import Granularity
+from query_manager.core.enums import MetricAim
 from query_manager.semantic_manager.models import MetricDimensionalTimeSeries, MetricTimeSeries
 
 
@@ -80,5 +81,24 @@ class TargetBulkUpsertResponse(BaseModel):
     processed: int
     failed: int
     total: int
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class TargetStatus(BaseModel):
+    """Status of targets"""
+
+    grain: Granularity
+    target_set: bool
+    target_till_date: date | None
+
+
+class MetricTargetStats(BaseModel):
+    """Stats for a metric's targets"""
+
+    metric_id: str
+    label: str
+    aim: MetricAim | None = None
+    periods: list[TargetStatus]
 
     model_config = ConfigDict(from_attributes=True)

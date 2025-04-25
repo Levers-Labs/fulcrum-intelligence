@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from commons.models import BaseModel
 from commons.models.enums import Granularity
-from query_manager.core.enums import Complexity, TargetAim
+from query_manager.core.enums import Complexity
 from query_manager.core.models import (
     Dimension,
     DimensionBase,
@@ -79,7 +79,6 @@ class MetricValuesResponse(BaseModel):
 class Target(BaseModel):
     metric_id: str
     grain: Granularity
-    aim: TargetAim
     target_date: datetime.date
     target_value: float
     target_upper_bound: float | None = None

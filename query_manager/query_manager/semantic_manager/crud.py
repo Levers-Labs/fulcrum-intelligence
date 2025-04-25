@@ -2,6 +2,7 @@
 CRUD operations for semantic data.
 """
 
+import asyncio
 import logging
 from collections.abc import AsyncGenerator
 from datetime import date, datetime
@@ -25,6 +26,7 @@ from commons.db.filters import BaseFilter
 from commons.db.models import BaseTimeStampedTenantModel
 from commons.models.enums import Granularity
 from commons.utilities.context import get_tenant_id
+from query_manager.core.models import Metric
 from query_manager.semantic_manager.filters import TargetFilter
 from query_manager.semantic_manager.models import (
     MetricDimensionalTimeSeries,
@@ -35,7 +37,12 @@ from query_manager.semantic_manager.models import (
     SyncStatus,
     SyncType,
 )
-from query_manager.semantic_manager.schemas import TargetCreate, TargetUpdate
+from query_manager.semantic_manager.schemas import (
+    MetricTargetStats,
+    TargetCreate,
+    TargetStatus,
+    TargetUpdate,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -54,8 +61,8 @@ class CRUDSemantic(CRUDBase[ModelType, CreateSchemaType, UpdateSchemaType, Filte
         """Get unique constraint fields for the model."""
         unique_fields = ["metric_id", "tenant_id"]
 
-        if hasattr(self.model, "date") and hasattr(self.model, "grain"):
-            unique_fields.extend(["date", "grain"])
+        if hasattr(self.model, "target_date") and hasattr(self.model, "grain"):
+            unique_fields.extend(["target_date", "grain"])
 
         if hasattr(self.model, "dimension_name") and hasattr(self.model, "dimension_slice"):
             unique_fields.extend(["dimension_name", "dimension_slice"])
@@ -529,6 +536,52 @@ class CRUDMetricTarget(CRUDSemantic[MetricTarget, TargetCreate, TargetUpdate, Ta
         # Commit the transaction
         await self.session.commit()
         return stats
+
+    async def get_metrics_targets_stats(self, metric_label: str | None = None) -> tuple[list[MetricTargetStats], int]:
+        """Get list of all metrics with their target status."""
+
+        # Get all metrics with targets in parallel
+        metrics_query = select(Metric).order_by(Metric.label)  # type: ignore
+
+        # Apply direct filters on Metric without relying on join logic
+        if metric_label:
+            metrics_query = metrics_query.where(Metric.label.ilike(f"%{metric_label}%"))  # type: ignore
+
+        targets_query = select(
+            self.model.metric_id, self.model.grain, func.max(self.model.target_date).label("target_till_date")
+        ).group_by(  # type: ignore
+            self.model.metric_id, self.model.grain
+        )
+
+        metrics_result, targets_result = await asyncio.gather(
+            self.session.execute(metrics_query), self.session.execute(targets_query)
+        )
+
+        # Build target info lookup
+        target_info = {
+            (row.metric_id, row.grain): TargetStatus(
+                grain=row.grain, target_set=True, target_till_date=row.target_till_date
+            )
+            for row in targets_result.mappings()
+        }
+
+        # Create stats objects using Pydantic models
+        stats = [
+            MetricTargetStats(
+                metric_id=metric.metric_id,
+                label=metric.label,
+                aim=metric.aim,
+                periods=[
+                    target_info.get(
+                        (metric.metric_id, grain), TargetStatus(grain=grain, target_set=False, target_till_date=None)
+                    )
+                    for grain in Granularity
+                ],
+            )
+            for metric in metrics_result.scalars()
+        ]
+
+        return stats, len(stats)
 
 
 class SemanticManager:

@@ -17,7 +17,8 @@ def valid_yaml_content():
         unit_of_measure: quantity
         unit: n
         expression: "{newInqs} + {newMqls} + 1"
-        aggregation: sum
+        aggregation: sum,
+        aim: Maximize
     """
 
 
@@ -44,6 +45,7 @@ async def test_build_metric_structure(mock_cube_data):
         "unit_of_measure": "quantity",
         "unit": "n",
         "aggregation": "sum",
+        "aim": "Maximize",
     }
     measure = "cube1.revenue"
     measure_details = {"grain_aggregation": "sum"}
@@ -80,6 +82,7 @@ async def test_build_metric_structure_with_expression():
         "unit_of_measure": "quantity",
         "unit": "n",
         "aggregation": "sum",
+        "aim": "Maximize",
     }
     measure = "cube1.revenue"
     measure_details = {"grain_aggregation": "sum"}

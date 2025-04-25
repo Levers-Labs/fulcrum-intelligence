@@ -71,6 +71,7 @@ async def upsert_data(session: AsyncSession, dimensions_file_path: str, metrics_
             "aggregations": metric_data.get("aggregations") or [],
             "owned_by_team": metric_data.get("owned_by_team") or [],
             "meta_data": metric_data["metadata"],
+            "aim": metric_data.get("aim", None),
         }
         stmt = insert(Metric).values(metric_id=metric_data["id"], tenant_id=tenant_id, **defaults)
         stmt = stmt.on_conflict_do_update(index_elements=["metric_id", "tenant_id"], set_=defaults)
