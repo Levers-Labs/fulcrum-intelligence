@@ -527,20 +527,17 @@ class HistoricalPerformanceEvaluator(StoryEvaluatorBase[HistoricalPerformance]):
         context = self._populate_template_context(pattern_result, metric, grain)
 
         # Only generate story if we have both benchmark comparison and high rank data
-        if pattern_result.benchmark_comparison and pattern_result.high_rank:
-            title = render_story_text(StoryType.BENCHMARKS, "title", context)
-            detail = render_story_text(StoryType.BENCHMARKS, "detail", context)
+        title = render_story_text(StoryType.BENCHMARKS, "title", context)
+        detail = render_story_text(StoryType.BENCHMARKS, "detail", context)
 
-            return self.prepare_story_model(
-                genre=StoryGenre.TRENDS,
-                story_type=StoryType.BENCHMARKS,
-                story_group=story_group,
-                metric_id=metric_id,
-                pattern_result=pattern_result,
-                title=title,
-                detail=detail,
-                grain=grain,  # type: ignore
-                **context,
-            )
-        # If missing required data, return an empty dict to avoid generating the story
-        return {}
+        return self.prepare_story_model(
+            genre=StoryGenre.TRENDS,
+            story_type=StoryType.BENCHMARKS,
+            story_group=story_group,
+            metric_id=metric_id,
+            pattern_result=pattern_result,
+            title=title,
+            detail=detail,
+            grain=grain,  # type: ignore
+            **context,
+        )
