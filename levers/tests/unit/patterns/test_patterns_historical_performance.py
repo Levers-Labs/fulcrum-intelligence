@@ -293,12 +293,10 @@ class TestHistoricalPerformancePattern:
 
         # Assert
         assert result is not None
-        assert len(result.benchmark_comparisons) >= 0
-        if len(result.benchmark_comparisons) > 0:
-            # Check the structure of benchmark comparisons
-            assert hasattr(result.benchmark_comparisons[0], "reference_period")
-            assert hasattr(result.benchmark_comparisons[0], "absolute_change")
-            assert hasattr(result.benchmark_comparisons[0], "change_percent")
+        assert result.benchmark_comparison is not None
+        assert hasattr(result.benchmark_comparison, "reference_period")
+        assert hasattr(result.benchmark_comparison, "absolute_change")
+        assert hasattr(result.benchmark_comparison, "change_percent")
 
     def test_detect_trend_exceptions(self, pattern):
         """Test the trend exceptions detection functionality."""

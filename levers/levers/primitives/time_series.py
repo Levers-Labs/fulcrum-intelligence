@@ -441,11 +441,11 @@ def calculate_slope_of_time_series(
 
 def calculate_period_benchmarks(
     df: pd.DataFrame,
+    benchmark_period: PartialInterval,
     date_col: str = "date",
     value_col: str = "value",
     aggregator: str = "sum",
-    benchmark_periods: list[PartialInterval] | None = None,
-) -> list[BenchmarkComparison]:
+) -> BenchmarkComparison | None:
     """
     Calculate benchmark comparisons between current and prior periods (WTD, MTD, QTD, YTD).
 
@@ -454,137 +454,109 @@ def calculate_period_benchmarks(
 
     Args:
         df: DataFrame containing time series data
+        benchmark_period: The period type to compare (default: PartialInterval.WTD)
         date_col: Column name containing dates
         value_col: Column name containing values
         aggregator: How to aggregate values: 'sum', 'mean', 'median', 'min', 'max'
-        benchmark_periods: List of period types to compare (default: ['WTD'] if grain is daily)
 
     Returns:
-        List of BenchmarkComparison objects containing benchmark comparison details,
+        BenchmarkComparison object containing benchmark comparison details,
         - reference_period: str, the reference period
         - absolute_change: float, the absolute change
         - change_percent: float, the change percent
+        or None if there is no data to compare
     """
-    # Input validation
-    if date_col not in df.columns:
-        raise ValidationError(f"Column '{date_col}' not found in DataFrame")
-    if value_col not in df.columns:
-        raise ValidationError(f"Column '{value_col}' not found in DataFrame")
 
     # Check aggregator is valid
     valid_aggregators = {"sum", "mean", "median", "min", "max"}
     if aggregator not in valid_aggregators:
         raise ValidationError(f"Invalid aggregator: {aggregator}. Must be one of {valid_aggregators}")
 
-    # Default benchmark periods if not specified
-    if benchmark_periods is None:
-        benchmark_periods = [PartialInterval.WTD]
-
     # Ensure data is sorted by date
     df_sorted = validate_date_sorted(df, date_col)
-
-    if df_sorted.empty:
-        return []
 
     # Get the last date in the dataset
     last_date = df_sorted[date_col].max()
 
-    benchmark_comparisons = []
+    # Filter current period data based on period type
+    if benchmark_period == PartialInterval.WTD:
+        # Monday of current week (day 0 is Monday)
+        current_week_monday = last_date - pd.Timedelta(days=last_date.dayofweek)
+        c_start = current_week_monday
+        c_end = last_date
 
-    # Process each benchmark period type
-    for period_type in benchmark_periods:
-        # Skip if insufficient data for calculation
-        if len(df_sorted) < 2:
-            continue
+        # Prior WTD - shift by 7 days
+        p_start = c_start - pd.Timedelta(days=7)
+        p_end = c_end - pd.Timedelta(days=7)
 
-        # Filter current period data based on period type
-        if period_type == PartialInterval.WTD:
-            # Monday of current week (day 0 is Monday)
-            current_week_monday = last_date - pd.Timedelta(days=last_date.dayofweek)
-            c_start = current_week_monday
-            c_end = last_date
+    elif benchmark_period == PartialInterval.MTD:
+        # Current month-to-date
+        c_start = last_date.replace(day=1)
+        c_end = last_date
 
-            # Prior WTD - shift by 7 days
-            p_start = c_start - pd.Timedelta(days=7)
-            p_end = c_end - pd.Timedelta(days=7)
+        # Prior month
+        if c_start.month == 1:
+            p_start = pd.Timestamp(year=c_start.year - 1, month=12, day=1)
+        else:
+            p_start = pd.Timestamp(year=c_start.year, month=c_start.month - 1, day=1)
 
-        elif period_type == PartialInterval.MTD:
-            # Current month-to-date
-            c_start = last_date.replace(day=1)
-            c_end = last_date
+        # Same day of month, or last day if prior month is shorter
+        day_of_month = min(last_date.day, (p_start + pd.Timedelta(days=31)).replace(day=1) - pd.Timedelta(days=1)).day
+        p_end = p_start.replace(day=day_of_month)
 
-            # Prior month
-            if c_start.month == 1:
-                p_start = pd.Timestamp(year=c_start.year - 1, month=12, day=1)
-            else:
-                p_start = pd.Timestamp(year=c_start.year, month=c_start.month - 1, day=1)
+    elif benchmark_period == PartialInterval.QTD:
+        # Current quarter-to-date
+        quarter_month = ((last_date.month - 1) // 3) * 3 + 1
+        c_start = pd.Timestamp(year=last_date.year, month=quarter_month, day=1)
+        c_end = last_date
 
-            # Same day of month, or last day if prior month is shorter
-            day_of_month = min(
-                last_date.day, (p_start + pd.Timedelta(days=31)).replace(day=1) - pd.Timedelta(days=1)
-            ).day
-            p_end = p_start.replace(day=day_of_month)
+        # Days into quarter
+        days_into_quarter = (last_date - c_start).days
 
-        elif period_type == PartialInterval.QTD:
-            # Current quarter-to-date
-            quarter_month = ((last_date.month - 1) // 3) * 3 + 1
-            c_start = pd.Timestamp(year=last_date.year, month=quarter_month, day=1)
-            c_end = last_date
+        # Prior quarter
+        if quarter_month == 1:
+            p_start = pd.Timestamp(year=last_date.year - 1, month=10, day=1)
+        else:
+            p_start = pd.Timestamp(year=last_date.year, month=quarter_month - 3, day=1)
 
-            # Days into quarter
-            days_into_quarter = (last_date - c_start).days
+        p_end = p_start + pd.Timedelta(days=days_into_quarter)
 
-            # Prior quarter
-            if quarter_month == 1:
-                p_start = pd.Timestamp(year=last_date.year - 1, month=10, day=1)
-            else:
-                p_start = pd.Timestamp(year=last_date.year, month=quarter_month - 3, day=1)
+    elif benchmark_period == PartialInterval.YTD:
+        # Current year-to-date
+        c_start = pd.Timestamp(year=last_date.year, month=1, day=1)
+        c_end = last_date
 
-            p_end = p_start + pd.Timedelta(days=days_into_quarter)
+        # Prior year, same day of year
+        p_start = pd.Timestamp(year=last_date.year - 1, month=1, day=1)
+        day_of_year = min(last_date.dayofyear, 366 if pd.Timestamp(last_date.year - 1, 12, 31).is_leap_year else 365)
+        p_end = p_start + pd.Timedelta(days=day_of_year - 1)
 
-        elif period_type == PartialInterval.YTD:
-            # Current year-to-date
-            c_start = pd.Timestamp(year=last_date.year, month=1, day=1)
-            c_end = last_date
+    # Filter dataframes for current and prior periods
+    current_mask = (df_sorted[date_col] >= c_start) & (df_sorted[date_col] <= c_end)
+    prior_mask = (df_sorted[date_col] >= p_start) & (df_sorted[date_col] <= p_end)
 
-            # Prior year, same day of year
-            p_start = pd.Timestamp(year=last_date.year - 1, month=1, day=1)
-            day_of_year = min(
-                last_date.dayofyear, 366 if pd.Timestamp(last_date.year - 1, 12, 31).is_leap_year else 365
-            )
-            p_end = p_start + pd.Timedelta(days=day_of_year - 1)
+    current_df = df_sorted[current_mask]
+    prior_df = df_sorted[prior_mask]
 
-        # Filter dataframes for current and prior periods
-        current_mask = (df_sorted[date_col] >= c_start) & (df_sorted[date_col] <= c_end)
-        prior_mask = (df_sorted[date_col] >= p_start) & (df_sorted[date_col] <= p_end)
+    # Skip if either period has no data
+    if current_df.empty or prior_df.empty:
+        return None
 
-        current_df = df_sorted[current_mask]
-        prior_df = df_sorted[prior_mask]
+    # Apply aggregation
+    agg_func = getattr(pd.Series, aggregator)
+    current_value = agg_func(current_df[value_col])
+    prior_value = agg_func(prior_df[value_col])
 
-        # Skip if either period has no data
-        if current_df.empty or prior_df.empty:
-            continue
+    # Calculate changes
+    absolute_change = calculate_difference(current_value, prior_value)
 
-        # Apply aggregation
-        agg_func = getattr(pd.Series, aggregator)
-        current_value = agg_func(current_df[value_col])
-        prior_value = agg_func(prior_df[value_col])
+    try:
+        change_percent = calculate_percentage_difference(current_value, prior_value, handle_zero_reference=True)
+    except Exception:
+        change_percent = None
 
-        # Calculate changes
-        absolute_change = calculate_difference(current_value, prior_value)
-
-        try:
-            change_percent = calculate_percentage_difference(current_value, prior_value, handle_zero_reference=True)
-        except Exception:
-            change_percent = None
-
-        # Add to results
-        benchmark_comparisons.append(
-            BenchmarkComparison(
-                reference_period=period_type,
-                absolute_change=absolute_change,
-                change_percent=change_percent,
-            )
-        )
-
-    return benchmark_comparisons
+    return BenchmarkComparison(
+        reference_period=benchmark_period,
+        absolute_change=absolute_change,
+        change_percent=change_percent,
+    )

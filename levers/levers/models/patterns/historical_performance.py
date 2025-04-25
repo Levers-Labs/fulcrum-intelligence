@@ -6,8 +6,6 @@ These models define the structure of the pattern output when analyzing
 a metric's historical performance over time.
 """
 
-from pydantic import Field
-
 from levers.models import (
     BaseModel,
     BasePattern,
@@ -106,7 +104,7 @@ class HistoricalPerformance(BasePattern):
     seasonality: Seasonality | None = None
 
     # Benchmark comparisons
-    benchmark_comparisons: list[BenchmarkComparison] = Field(default_factory=list)
+    benchmark_comparison: BenchmarkComparison | None = None
 
     # Trend exceptions (spike/drop)
     trend_exception: TrendException | None = None

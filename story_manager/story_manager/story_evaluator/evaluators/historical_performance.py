@@ -90,7 +90,7 @@ class HistoricalPerformanceEvaluator(StoryEvaluatorBase[HistoricalPerformance]):
             stories.append(self._create_record_low_story(pattern_result, metric_id, metric, grain))
 
         # Benchmark Stories
-        if pattern_result.benchmark_comparisons:
+        if pattern_result.benchmark_comparison and pattern_result.high_rank:
             stories.append(self._create_benchmark_story(pattern_result, metric_id, metric, grain))
 
         return stories
@@ -193,30 +193,27 @@ class HistoricalPerformanceEvaluator(StoryEvaluatorBase[HistoricalPerformance]):
             )
 
         # Add benchmark info
-        if pattern_result.benchmark_comparisons:
-            # No need to sort by priority since reference period is always "WTD"
+        if pattern_result.benchmark_comparison:
+            # Map reference periods to more readable names for stories
+            period_display_names = {
+                "WTD": "Week to Date",
+                "MTD": "Month to Date",
+                "QTD": "Quarter to Date",
+                "YTD": "Year to Date",
+            }
+            reference_period_mapping = {"WTD": "week", "MTD": "month", "QTD": "quarter", "YTD": "year"}
 
-            # Handle the case of at least one benchmark
-            if len(pattern_result.benchmark_comparisons) >= 1:
-                prior = pattern_result.benchmark_comparisons[0]
-                # Map WTD to a more descriptive term
-                context["prior_period"] = "week"
-                context["prior_change_percent"] = abs(prior.change_percent or 0)
-                context["prior_direction"] = "higher" if prior.change_percent and prior.change_percent > 0 else "lower"
+            # Get the benchmark data
+            benchmark = pattern_result.benchmark_comparison
 
-                # Handle the case of at least two benchmarks (though currently there's only one)
-                if len(pattern_result.benchmark_comparisons) >= 2:
-                    older = pattern_result.benchmark_comparisons[1]
-                    context["older_period"] = "month"
-                    context["older_change_percent"] = abs(older.change_percent or 0)
-                    context["older_direction"] = (
-                        "higher" if older.change_percent and older.change_percent > 0 else "lower"
-                    )
-                else:
-                    # Only one benchmark, provide defaults for the second
-                    context["older_period"] = "month"
-                    context["older_change_percent"] = 0
-                    context["older_direction"] = "unchanged from"
+            # Add benchmark comparison info with direct mapping to template variables
+            context["partial_interval_label"] = period_display_names.get(benchmark.reference_period)
+            context["partial_interval"] = benchmark.reference_period
+            context["change_percent"] = abs(benchmark.change_percent or 0)
+            context["comparison_direction"] = (
+                "higher" if benchmark.change_percent and benchmark.change_percent > 0 else "lower"
+            )
+            context["reference_period"] = reference_period_mapping.get(benchmark.reference_period)
 
         return context
 
@@ -529,6 +526,7 @@ class HistoricalPerformanceEvaluator(StoryEvaluatorBase[HistoricalPerformance]):
         story_group = StoryGroup.BENCHMARK_COMPARISONS
         context = self._populate_template_context(pattern_result, metric, grain)
 
+        # Only generate story if we have both benchmark comparison and high rank data
         title = render_story_text(StoryType.BENCHMARKS, "title", context)
         detail = render_story_text(StoryType.BENCHMARKS, "detail", context)
 
