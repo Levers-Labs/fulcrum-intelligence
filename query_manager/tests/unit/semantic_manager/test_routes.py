@@ -650,12 +650,15 @@ async def test_get_metrics_targets_stats(
     assert revenue["periods"][0]["grain"] == "day"
     assert revenue["periods"][0]["target_set"] is True
     assert revenue["periods"][0]["target_till_date"] == "2025-06-30"
+    assert revenue["periods"][0]["target_value"] == 1000.0
     assert revenue["periods"][1]["grain"] == "week"
     assert revenue["periods"][1]["target_set"] is True
     assert revenue["periods"][1]["target_till_date"] == "2025-05-31"
+    assert revenue["periods"][1]["target_value"] == 7000.0
     assert revenue["periods"][2]["grain"] == "month"
     assert revenue["periods"][2]["target_set"] is False
     assert revenue["periods"][2]["target_till_date"] is None
+    assert revenue["periods"][2]["target_value"] == 0.0
 
     # Check cost metric
     cost = next(m for m in results if m["metric_id"] == "cost")
@@ -668,13 +671,14 @@ async def test_get_metrics_targets_stats(
     assert cost["periods"][1]["target_set"] is False
     assert cost["periods"][2]["grain"] == "month"
     assert cost["periods"][2]["target_set"] is False
-
+    assert cost["periods"][2]["target_value"] == 0.0
     # Check satisfaction metric (no targets)
     satisfaction = next(m for m in results if m["metric_id"] == "satisfaction")
     assert satisfaction["label"] == "Customer Satisfaction"
     assert satisfaction["aim"] == "Balance"
     assert all(not period["target_set"] for period in satisfaction["periods"])
     assert all(period["target_till_date"] is None for period in satisfaction["periods"])
+    assert satisfaction["periods"][2]["target_value"] == 0.0
 
 
 async def test_get_metrics_targets_stats_empty(
@@ -712,9 +716,12 @@ async def test_get_metrics_targets_stats_with_filter(
     assert revenue["periods"][0]["grain"] == "day"
     assert revenue["periods"][0]["target_set"] is True
     assert revenue["periods"][0]["target_till_date"] == "2025-06-30"
+    assert revenue["periods"][0]["target_value"] == 1000.0
     assert revenue["periods"][1]["grain"] == "week"
     assert revenue["periods"][1]["target_set"] is True
     assert revenue["periods"][1]["target_till_date"] == "2025-05-31"
+    assert revenue["periods"][1]["target_value"] == 7000.0
     assert revenue["periods"][2]["grain"] == "month"
     assert revenue["periods"][2]["target_set"] is False
     assert revenue["periods"][2]["target_till_date"] is None
+    assert revenue["periods"][2]["target_value"] == 0.0

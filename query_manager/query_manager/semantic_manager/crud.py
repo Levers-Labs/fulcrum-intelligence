@@ -547,11 +547,25 @@ class CRUDMetricTarget(CRUDSemantic[MetricTarget, TargetCreate, TargetUpdate, Ta
         if metric_label:
             metrics_query = metrics_query.where(Metric.label.ilike(f"%{metric_label}%"))  # type: ignore
 
+        # Do a simple subquery
+        latest_targets = select(
+            self.model.metric_id,
+            self.model.grain,
+            self.model.target_date,
+            self.model.target_value,
+            # Use row_number to rank rows within each partition
+            func.row_number()
+            .over(partition_by=[self.model.metric_id, self.model.grain], order_by=self.model.target_date.desc())
+            .label("row_num"),
+        ).subquery()
+
+        # Only select rows where row_num is 1 (the latest for each metric/grain)
         targets_query = select(
-            self.model.metric_id, self.model.grain, func.max(self.model.target_date).label("target_till_date")
-        ).group_by(  # type: ignore
-            self.model.metric_id, self.model.grain
-        )
+            latest_targets.c.metric_id,
+            latest_targets.c.grain,
+            latest_targets.c.target_date.label("target_till_date"),
+            latest_targets.c.target_value,
+        ).where(latest_targets.c.row_num == 1)
 
         metrics_result, targets_result = await asyncio.gather(
             self.session.execute(metrics_query), self.session.execute(targets_query)
@@ -560,7 +574,7 @@ class CRUDMetricTarget(CRUDSemantic[MetricTarget, TargetCreate, TargetUpdate, Ta
         # Build target info lookup
         target_info = {
             (row.metric_id, row.grain): TargetStatus(
-                grain=row.grain, target_set=True, target_till_date=row.target_till_date
+                grain=row.grain, target_set=True, target_till_date=row.target_till_date, target_value=row.target_value
             )
             for row in targets_result.mappings()
         }
