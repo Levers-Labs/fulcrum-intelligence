@@ -269,8 +269,8 @@ class Levers(Generic[T]):
         metric_id: str,
         dimension_name: str,
         ledger_df: pd.DataFrame,
+        analysis_date: str,
         grain: Granularity = Granularity.DAY,
-        analysis_date: str | None = None,
     ) -> DimensionAnalysis:
         """
         Analyze metrics across dimension slices, comparing current vs. prior periods.
@@ -286,12 +286,10 @@ class Levers(Generic[T]):
             Dimension analysis results
         """
         # Create an analysis window if analysis_date is provided
-        analysis_window = None
-        if analysis_date:
-            end_date = analysis_date
-            # For simplicity, just use the same date for start and end
-            # The pattern will determine the actual period range based on grain
-            analysis_window = AnalysisWindow(start_date=end_date, end_date=end_date, grain=grain)
+        end_date = analysis_date
+        # For simplicity, just use the same date for start and end
+        # The pattern will determine the actual period range based on grain
+        analysis_window = AnalysisWindow(start_date=end_date, end_date=end_date, grain=grain)
 
         # Execute the pattern
         return self.execute_pattern(
