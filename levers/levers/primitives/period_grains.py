@@ -13,7 +13,7 @@ Dependencies:
 """
 
 from datetime import date, datetime
-from typing import Any, Union
+from typing import Any
 
 import pandas as pd
 
@@ -160,7 +160,7 @@ def get_prior_period_range(
 
 
 def get_prev_period_start_date(
-    grain: Granularity, period_count: int, latest_start_date: Union[date, datetime, pd.Timestamp]
+    grain: Granularity, period_count: int, latest_start_date: date | datetime | pd.Timestamp
 ) -> date:
     """
     Calculate the start date of a period that is a specified number of periods before the latest start date.
@@ -212,7 +212,7 @@ def get_prev_period_start_date(
 
 
 def get_date_range_from_window(
-    window_days: int, end_date: Union[date, datetime, pd.Timestamp, str, None] = None, include_today: bool = False
+    window_days: int, end_date: date | datetime | pd.Timestamp | str | None = None, include_today: bool = False
 ) -> tuple[date, date]:
     """
     Calculate a date range based on a window size in days.
@@ -253,3 +253,25 @@ def get_date_range_from_window(
     start = end - pd.Timedelta(days=window_days - 1)  # -1 because the window includes the end date
 
     return start, end
+
+
+def get_period_length_for_grain(grain: Granularity) -> int:
+    """
+    Get the appropriate period length in days for a given grain.
+
+    Args:
+        grain: The time grain
+
+    Returns:
+        Number of days in the period
+    """
+    if grain == Granularity.DAY:
+        return 1
+    elif grain == Granularity.WEEK:
+        return 7
+    elif grain == Granularity.MONTH:
+        return 30
+    elif grain == Granularity.QUARTER:
+        return 90
+    elif grain == Granularity.YEAR:
+        return 365

@@ -14,8 +14,6 @@ Dependencies:
   - numpy as np
 """
 
-from typing import Any
-
 import numpy as np
 import pandas as pd
 
@@ -25,12 +23,13 @@ from levers.models import (
     HistoricalPeriodRanking,
     HistoricalSliceRankings,
     SliceComparison,
+    SlicePerformance,
     SliceRanking,
     SliceShare,
     SliceStrength,
     TopSlice,
 )
-from levers.primitives import calculate_absolute_difference, calculate_relative_change, safe_divide
+from levers.primitives import calculate_difference, calculate_relative_change, safe_divide
 
 # =============================================================================
 # Slice Metrics & Shares
@@ -41,7 +40,7 @@ def calculate_slice_metrics(
     df: pd.DataFrame,
     slice_col: str,
     value_col: str,
-    agg_func: str | callable = "sum",
+    agg_func: str = "sum",
     top_n: int | None = None,
     other_label: str = "Other",
     dropna_slices: bool = True,
@@ -87,25 +86,18 @@ def calculate_slice_metrics(
         dff = dff.dropna(subset=[slice_col])
 
     # Group by slice column and aggregate values
-    if isinstance(agg_func, str):
-        valid_agg_funcs = {"sum", "mean", "min", "max", "count", "median"}
-        if agg_func.lower() not in valid_agg_funcs:
-            raise ValidationError(
-                f"agg_func '{agg_func}' not recognized",
-                {"agg_func": agg_func, "valid_agg_funcs": list(valid_agg_funcs)},
-            )
+    valid_agg_funcs = {"sum", "mean", "min", "max", "count", "median"}
+    if agg_func.lower() not in valid_agg_funcs:
+        raise ValidationError(
+            f"agg_func '{agg_func}' not recognized",
+            {"agg_func": agg_func, "valid_agg_funcs": list(valid_agg_funcs)},
+        )
 
-        grouped = dff.groupby(slice_col)[value_col]
-        try:
-            result = grouped.agg(agg_func.lower()).reset_index(name="aggregated_value")
-        except Exception as e:
-            raise CalculationError(f"Error applying aggregation function '{agg_func}'", {"error": str(e)}) from e
-    else:
-        # Custom aggregation function
-        try:
-            result = dff.groupby(slice_col)[value_col].apply(agg_func).reset_index(name="aggregated_value")
-        except Exception as e:
-            raise CalculationError("Error applying custom aggregation function", {"error": str(e)}) from e
+    grouped = dff.groupby(slice_col)[value_col]
+    try:
+        result = grouped.agg(agg_func.lower()).reset_index(name="aggregated_value")
+    except Exception as e:
+        raise CalculationError(f"Error applying aggregation function '{agg_func}'", {"error": str(e)}) from e
 
     # Sort by aggregated value (descending)
     result.sort_values("aggregated_value", ascending=False, inplace=True, ignore_index=True)
@@ -148,16 +140,13 @@ def compute_slice_shares(
         ValidationError: If specified columns are not found in the DataFrame
     """
     # Input validation
-    if slice_col not in agg_df.columns:
-        raise ValidationError(
-            f"slice_col '{slice_col}' not found in DataFrame",
-            {"slice_col": slice_col, "available_columns": list(agg_df.columns)},
-        )
-    if val_col not in agg_df.columns:
-        raise ValidationError(
-            f"val_col '{val_col}' not found in DataFrame",
-            {"val_col": val_col, "available_columns": list(agg_df.columns)},
-        )
+    required_cols = [slice_col, val_col]
+    for col in required_cols:
+        if col not in agg_df.columns:
+            raise ValidationError(
+                f"Required column '{col}' not found in DataFrame",
+                {"column": col, "available_columns": list(agg_df.columns)},
+            )
 
     # Create a copy of the DataFrame
     dff = agg_df.copy()
@@ -169,7 +158,7 @@ def compute_slice_shares(
     if total == 0:
         dff[share_col_name] = 0.0
     else:
-        dff[share_col_name] = safe_divide(dff[val_col], total, as_percentage=True)
+        dff[share_col_name] = safe_divide(float(dff[val_col]), total, as_percentage=True)
 
     return dff
 
@@ -218,7 +207,7 @@ def rank_metric_slices(
 
 
 def analyze_composition_changes(
-    df_t0: pd.DataFrame, df_t1: pd.DataFrame, slice_col: str, val_col: str = "aggregated_value"
+    df_prior: pd.DataFrame, df_current: pd.DataFrame, slice_col: str, val_col: str = "aggregated_value"
 ) -> pd.DataFrame:
     """
     Compare values and percentage shares between two time periods (T0 and T1).
@@ -227,8 +216,8 @@ def analyze_composition_changes(
     Version: 1.0
 
     Args:
-        df_t0: Aggregated data for time T0 (earlier period)
-        df_t1: Aggregated data for time T1 (later period)
+        df_prior: Aggregated data for time prior (earlier period)
+        df_current: Aggregated data for time current (later period)
         slice_col: Column representing the slice/dimension
         val_col: Column with the aggregated metric values
 
@@ -241,32 +230,25 @@ def analyze_composition_changes(
     Notes:
         The output contains:
         - slice_col: Dimension slice
-        - {val_col}_t0: Value in period T0
-        - {val_col}_t1: Value in period T1
-        - share_pct_t0: Share percentage in T0
-        - share_pct_t1: Share percentage in T1
-        - abs_diff: Absolute difference (T1 - T0)
-        - share_diff: Share difference (share_pct_t1 - share_pct_t0)
+        - {val_col}_prior: Value in period prior
+        - {val_col}_current: Value in period current
+        - share_pct_prior: Share percentage in prior
+        - share_pct_current: Share percentage in current
+        - abs_diff: Absolute difference (current - prior)
+        - share_diff: Share difference (share_pct_current - share_pct_prior)
     """
     # Input validation
-    if slice_col not in df_t0.columns or slice_col not in df_t1.columns:
-        raise ValidationError(
-            f"slice_col '{slice_col}' not found in one or both DataFrames",
-            invalid_fields={
-                "slice_col": slice_col,
-                "t0_columns": list(df_t0.columns),
-                "t1_columns": list(df_t1.columns),
-            },
-        )
-    if val_col not in df_t0.columns or val_col not in df_t1.columns:
-        raise ValidationError(
-            f"val_col '{val_col}' not found in one or both DataFrames",
-            invalid_fields={
-                "val_col": val_col,
-                "t0_columns": list(df_t0.columns),
-                "t1_columns": list(df_t1.columns),
-            },
-        )
+    required_cols = [slice_col, val_col]
+    for col in required_cols:
+        if col not in df_prior.columns or col not in df_current.columns:
+            raise ValidationError(
+                f"Required column '{col}' not found in one or both DataFrames",
+                invalid_fields={
+                    "slice_col": slice_col,
+                    "prior_columns": list(df_prior.columns),
+                    "current_columns": list(df_current.columns),
+                },
+            )
 
     # Ensure share percentages exist in both dataframes
     def ensure_share(df_in: pd.DataFrame) -> pd.DataFrame:
@@ -274,21 +256,21 @@ def analyze_composition_changes(
             return compute_slice_shares(df_in, slice_col, val_col=val_col)
         return df_in
 
-    t0 = ensure_share(df_t0.copy())
-    t1 = ensure_share(df_t1.copy())
+    prior = ensure_share(df_prior.copy())
+    current = ensure_share(df_current.copy())
 
-    # Merge T0 and T1 data
+    # Merge prior and current data
     merged = pd.merge(
-        t0[[slice_col, val_col, "share_pct"]],
-        t1[[slice_col, val_col, "share_pct"]],
+        prior[[slice_col, val_col, "share_pct"]],
+        current[[slice_col, val_col, "share_pct"]],
         on=slice_col,
         how="outer",
-        suffixes=("_t0", "_t1"),
+        suffixes=("_prior", "_current"),
     ).fillna(0)
 
     # Calculate differences
-    merged["abs_diff"] = merged[f"{val_col}_t1"] - merged[f"{val_col}_t0"]
-    merged["share_diff"] = merged["share_pct_t1"] - merged["share_pct_t0"]
+    merged["abs_diff"] = merged[f"{val_col}_current"] - merged[f"{val_col}_prior"]
+    merged["share_diff"] = merged["share_pct_current"] - merged["share_pct_prior"]
 
     # Sort by absolute difference (descending)
     merged.sort_values("abs_diff", ascending=False, inplace=True, ignore_index=True)
@@ -297,7 +279,7 @@ def analyze_composition_changes(
 
 
 def analyze_dimension_impact(
-    df_t0: pd.DataFrame, df_t1: pd.DataFrame, dimension_col: str, value_col: str
+    df_prior: pd.DataFrame, df_current: pd.DataFrame, dimension_col: str, value_col: str
 ) -> pd.DataFrame:
     """
     Analyze how each dimension slice contributed to the overall metric change.
@@ -306,8 +288,8 @@ def analyze_dimension_impact(
     Version: 1.0
 
     Args:
-        df_t0: DataFrame for the comparison period (T0)
-        df_t1: DataFrame for the evaluation period (T1)
+        df_prior: DataFrame for the comparison period (T0)
+        df_current: DataFrame for the evaluation period (T1)
         dimension_col: Column representing the dimension slice
         value_col: Column with metric values
 
@@ -320,46 +302,49 @@ def analyze_dimension_impact(
     Notes:
         The output contains:
         - dimension_col: The dimension slice
-        - {value_col}_t0: Value in period T0
-        - {value_col}_t1: Value in period T1
-        - delta: Absolute change (T1 - T0)
+        - {value_col}_prior: Value in period prior
+        - {value_col}_current: Value in period current
+        - delta: Absolute change (current - prior)
         - share_of_total_delta: Percentage contribution to overall change
     """
     # Input validation
-    if dimension_col not in df_t0.columns or dimension_col not in df_t1.columns:
+    if dimension_col not in df_prior.columns or dimension_col not in df_current.columns:
         raise ValidationError(
             f"dimension_col '{dimension_col}' not found in one or both DataFrames",
             invalid_fields={
                 "dimension_col": dimension_col,
-                "t0_columns": list(df_t0.columns),
-                "t1_columns": list(df_t1.columns),
+                "prior_columns": list(df_prior.columns),
+                "current_columns": list(df_current.columns),
             },
         )
-    if value_col not in df_t0.columns or value_col not in df_t1.columns:
+    if value_col not in df_prior.columns or value_col not in df_current.columns:
         raise ValidationError(
             f"value_col '{value_col}' not found in one or both DataFrames",
             invalid_fields={
                 "value_col": value_col,
-                "t0_columns": list(df_t0.columns),
-                "t1_columns": list(df_t1.columns),
+                "prior_columns": list(df_prior.columns),
+                "current_columns": list(df_current.columns),
             },
         )
 
     # Prepare DataFrames
-    t0 = df_t0.copy()
-    t1 = df_t1.copy()
+    prior = df_prior.copy()
+    current = df_current.copy()
 
     # Rename columns for clarity
-    t0.rename(columns={value_col: f"{value_col}_t0"}, inplace=True)
-    t1.rename(columns={value_col: f"{value_col}_t1"}, inplace=True)
+    prior.rename(columns={value_col: f"{value_col}_prior"}, inplace=True)
+    current.rename(columns={value_col: f"{value_col}_current"}, inplace=True)
 
-    # Merge T0 and T1 data
+    # Merge prior and current data
     merged = pd.merge(
-        t0[[dimension_col, f"{value_col}_t0"]], t1[[dimension_col, f"{value_col}_t1"]], on=dimension_col, how="outer"
+        prior[[dimension_col, f"{value_col}_prior"]],
+        current[[dimension_col, f"{value_col}_current"]],
+        on=dimension_col,
+        how="outer",
     ).fillna(0)
 
     # Calculate delta and share of total delta
-    merged["delta"] = merged[f"{value_col}_t1"] - merged[f"{value_col}_t0"]
+    merged["delta"] = merged[f"{value_col}_current"] - merged[f"{value_col}_prior"]
     total_delta = merged["delta"].sum()
 
     # Calculate each slice's contribution to total delta
@@ -410,8 +395,6 @@ def calculate_concentration_index(
     if df.empty or df[val_col].sum() <= 0:
         return 0.0
 
-    method = method.upper()
-
     if method not in [ConcentrationMethod.HHI, ConcentrationMethod.GINI]:
         raise ValidationError(
             f"Unknown concentration method: {method}",
@@ -457,13 +440,14 @@ def calculate_concentration_index(
 # =============================================================================
 
 
+# TODO: check for type of prior_start_date and current_start_date
 def compare_dimension_slices_over_time(
     df: pd.DataFrame,
     slice_col: str,
     date_col: str = "date",
     value_col: str = "value",
-    t0: str | pd.Timestamp | None = None,
-    t1: str | pd.Timestamp | None = None,
+    prior_start_date: str | pd.Timestamp | None = None,
+    current_start_date: str | pd.Timestamp | None = None,
     agg: str = "sum",
 ) -> pd.DataFrame:
     """
@@ -477,12 +461,12 @@ def compare_dimension_slices_over_time(
         slice_col: Column representing the dimension slice
         date_col: Column containing date values
         value_col: Column with metric values
-        t0: First time point (defaults to the earliest date)
-        t1: Second time point (defaults to the latest date)
+        prior_start_date: First time point (defaults to the earliest date)
+        current_start_date: Second time point (defaults to the latest date)
         agg: Aggregation function to apply ('sum', 'mean', 'count', etc.)
 
     Returns:
-        DataFrame comparing values at T0 and T1
+        DataFrame comparing values at prior_start_date and current_start_date
 
     Raises:
         ValidationError: If required columns are not found in DataFrame or agg is invalid
@@ -490,46 +474,33 @@ def compare_dimension_slices_over_time(
     Notes:
         The output contains:
         - slice_col: Dimension slice
-        - val_t0: Value at time T0
-        - val_t1: Value at time T1
-        - abs_diff: Absolute difference (T1 - T0)
+        - val_prior: Value at prior_start_date
+        - val_current: Value at current_start_date
+        - abs_diff: Absolute difference (current_start_date - prior_start_date)
         - pct_diff: Percentage difference
     """
-    # Input validation
-    if slice_col not in df.columns:
-        raise ValidationError(
-            f"slice_col '{slice_col}' not found in DataFrame",
-            invalid_fields={"slice_col": slice_col, "available_columns": list(df.columns)},
-        )
-    if date_col not in df.columns:
-        raise ValidationError(
-            f"date_col '{date_col}' not found in DataFrame",
-            invalid_fields={"date_col": date_col, "available_columns": list(df.columns)},
-        )
-    if value_col not in df.columns:
-        raise ValidationError(
-            f"value_col '{value_col}' not found in DataFrame",
-            invalid_fields={"value_col": value_col, "available_columns": list(df.columns)},
-        )
+    required_cols = [slice_col, date_col, value_col]
+    for col in required_cols:
+        if col not in df.columns:
+            raise ValidationError(
+                f"Required column '{col}' not found in DataFrame",
+                {"column": col, "available_columns": list(df.columns)},
+            )
 
     # Create a copy and convert date column to datetime
     dff = df.copy()
     dff[date_col] = pd.to_datetime(dff[date_col])
 
-    # Determine t0 and t1 if not provided
-    if t0 is None:
-        t0 = dff[date_col].min()
-    else:
-        t0 = pd.to_datetime(t0)
+    # Determine prior_start_date and current_start_date if not provided
+    prior_start_date = prior_start_date or dff[date_col].min()
+    current_start_date = current_start_date or dff[date_col].max()
 
-    if t1 is None:
-        t1 = dff[date_col].max()
-    else:
-        t1 = pd.to_datetime(t1)
+    prior_start_date = pd.to_datetime(prior_start_date)
+    current_start_date = pd.to_datetime(current_start_date)
 
-    # Filter data for T0 and T1
-    df_t0 = dff[dff[date_col] == t0]
-    df_t1 = dff[dff[date_col] == t1]
+    # Filter data for prior_start_date and current_start_date
+    df_prior = dff[dff[date_col] == prior_start_date]
+    df_current = dff[dff[date_col] == current_start_date]
 
     # Validate aggregation method
     valid_agg_funcs = {"sum", "mean", "min", "max", "count", "median"}
@@ -539,17 +510,19 @@ def compare_dimension_slices_over_time(
             invalid_fields={"agg": agg, "valid_agg_funcs": list(valid_agg_funcs)},
         )
 
-    # Aggregate by slice for T0 and T1
-    g_t0 = df_t0.groupby(slice_col)[value_col].agg(agg).reset_index().rename(columns={value_col: "val_t0"})
-    g_t1 = df_t1.groupby(slice_col)[value_col].agg(agg).reset_index().rename(columns={value_col: "val_t1"})
+    # Aggregate by slice for prior_start_date and current_start_date
+    agg_prior = df_prior.groupby(slice_col)[value_col].agg(agg).reset_index().rename(columns={value_col: "val_prior"})
+    agg_current = (
+        df_current.groupby(slice_col)[value_col].agg(agg).reset_index().rename(columns={value_col: "val_current"})
+    )
 
-    # Merge T0 and T1 data
-    merged = pd.merge(g_t0, g_t1, on=slice_col, how="outer").fillna(0)
+    # Merge prior_start_date and current_start_date data
+    merged = pd.merge(agg_prior, agg_current, on=slice_col, how="outer").fillna(0)
 
     # Calculate differences
-    merged["abs_diff"] = merged["val_t1"] - merged["val_t0"]
-    merged["pct_diff"] = merged.apply(
-        lambda row: calculate_relative_change(row["val_t1"], row["val_t0"], default_value=None) * 100.0, axis=1
+    merged["abs_diff"] = merged["val_current"] - merged["val_prior"]
+    merged["pct_diff"] = merged.apply(  # type: ignore
+        lambda row: calculate_relative_change(row["val_current"], row["val_prior"], default_value=None) * 100.0, axis=1  # type: ignore
     )
 
     # Sort by absolute difference (descending)
@@ -606,8 +579,8 @@ def difference_from_average(df: pd.DataFrame, value_col: str) -> pd.DataFrame:
         if n_slices > 1:
             sum_others = total - row_val
             avg_others = sum_others / (n_slices - 1)
-            abs_diff = calculate_absolute_difference(row_val, avg_others)
-            pct_diff = calculate_relative_change(row_val, avg_others) * 100.0
+            abs_diff = calculate_difference(row_val, avg_others)  # type: ignore
+            pct_diff = calculate_relative_change(row_val, avg_others) * 100.0  # type: ignore
 
             result_df.at[result_df.index[i], "avg_other_slices_value"] = avg_others
             result_df.at[result_df.index[i], "absolute_diff_from_avg"] = abs_diff
@@ -642,17 +615,14 @@ def compute_top_bottom_slices(
     Raises:
         ValidationError: If value_col not found in DataFrame
     """
-    if value_col not in df.columns:
-        raise ValidationError(
-            f"value_col '{value_col}' not found in DataFrame",
-            invalid_fields={"value_col": value_col, "available_columns": list(df.columns)},
-        )
-
-    if dim_col not in df.columns:
-        raise ValidationError(
-            f"dim_col '{dim_col}' not found in DataFrame",
-            invalid_fields={"dim_col": dim_col, "available_columns": list(df.columns)},
-        )
+    # Input validation
+    required_cols = [dim_col, value_col]
+    for col in required_cols:
+        if col not in df.columns:
+            raise ValidationError(
+                f"Required column '{col}' not found in DataFrame",
+                {"column": col, "available_columns": list(df.columns)},
+            )
 
     # Sort for top/bottom
     sorted_df = df.sort_values(by=value_col, ascending=False)
@@ -766,7 +736,7 @@ def identify_largest_smallest_by_share(
 
 
 def identify_strongest_weakest_changes(
-    df: pd.DataFrame, slice_col: str, current_val_col: str = "val_t1", prior_val_col: str = "val_t0"
+    df: pd.DataFrame, slice_col: str, current_val_col: str = "val_current", prior_val_col: str = "val_prior"
 ) -> tuple[SliceStrength | None, SliceStrength | None]:
     """
     Identify new strongest and weakest slices compared to prior period.
@@ -786,11 +756,13 @@ def identify_strongest_weakest_changes(
     Raises:
         ValidationError: If required columns are not found
     """
-    # Validation
-    for col in [slice_col, current_val_col, prior_val_col]:
+    # Input validation
+    required_cols = [slice_col, current_val_col, prior_val_col]
+    for col in required_cols:
         if col not in df.columns:
             raise ValidationError(
-                f"Column '{col}' not found in DataFrame", {"column": col, "available_columns": list(df.columns)}
+                f"Required column '{col}' not found in DataFrame",
+                {"column": col, "available_columns": list(df.columns)},
             )
 
     # Handle empty dataframe
@@ -822,8 +794,8 @@ def identify_strongest_weakest_changes(
             prior_value=float(curr_strongest_row[prior_val_col]),
             absolute_delta=float(curr_strongest_row[current_val_col] - curr_strongest_row[prior_val_col]),
             relative_delta_percent=float(
-                calculate_relative_change(curr_strongest_row[current_val_col], curr_strongest_row[prior_val_col])
-                * 100.0
+                calculate_relative_change(curr_strongest_row[current_val_col], curr_strongest_row[prior_val_col])  # type: ignore
+                * 100.0  # type: ignore
             ),
         )
 
@@ -842,7 +814,7 @@ def identify_strongest_weakest_changes(
             prior_value=float(curr_weakest_row[prior_val_col]),
             absolute_delta=float(curr_weakest_row[current_val_col] - curr_weakest_row[prior_val_col]),
             relative_delta_percent=float(
-                calculate_relative_change(curr_weakest_row[current_val_col], curr_weakest_row[prior_val_col]) * 100.0
+                calculate_relative_change(curr_weakest_row[current_val_col], curr_weakest_row[prior_val_col]) * 100.0  # type: ignore
             ),
         )
 
@@ -850,7 +822,11 @@ def identify_strongest_weakest_changes(
 
 
 def highlight_slice_comparisons(
-    df: pd.DataFrame, slice_col: str, current_val_col: str = "val_t1", prior_val_col: str = "val_t0", top_n: int = 2
+    df: pd.DataFrame,
+    slice_col: str,
+    current_val_col: str = "val_current",
+    prior_val_col: str = "val_prior",
+    top_n: int = 2,
 ) -> list[SliceComparison]:
     """
     Compare top slices and calculate performance gaps.
@@ -871,11 +847,13 @@ def highlight_slice_comparisons(
     Raises:
         ValidationError: If required columns are not found
     """
-    # Validation
-    for col in [slice_col, current_val_col, prior_val_col]:
+    # Input validation
+    required_cols = [slice_col, current_val_col, prior_val_col]
+    for col in required_cols:
         if col not in df.columns:
             raise ValidationError(
-                f"Column '{col}' not found in DataFrame", {"column": col, "available_columns": list(df.columns)}
+                f"Required column '{col}' not found in DataFrame",
+                {"column": col, "available_columns": list(df.columns)},
             )
 
     # Handle case with insufficient slices
@@ -1020,17 +998,17 @@ def compute_historical_slice_rankings(
     return HistoricalSliceRankings(periods_analyzed=len(period_rankings), period_rankings=period_rankings)
 
 
-def build_slices_list(
+def build_slices_performance_list(
     df: pd.DataFrame,
     slice_col: str,
-    current_val_col: str = "val_t1",
-    prior_val_col: str = "val_t0",
+    current_val_col: str = "val_current",
+    prior_val_col: str = "val_prior",
     abs_diff_col: str = "abs_diff",
     pct_diff_col: str = "pct_diff",
     include_shares: bool = True,
     include_ranks: bool = True,
     include_avg_comparison: bool = True,
-) -> list[dict[str, Any]]:
+) -> list[SlicePerformance]:
     """
     Convert dataframe rows into a structured slices list for reporting.
 
@@ -1049,12 +1027,12 @@ def build_slices_list(
         include_avg_comparison: Whether to include average comparison if present
 
     Returns:
-        List of slice dictionaries with structured analytics data
+        List of SlicePerformanceMetrics objects
 
     Raises:
         ValidationError: If required columns are not found
     """
-    # Validate required columns
+    # Input validation
     required_cols = [slice_col, current_val_col, prior_val_col]
     for col in required_cols:
         if col not in df.columns:
@@ -1063,55 +1041,54 @@ def build_slices_list(
                 {"column": col, "available_columns": list(df.columns)},
             )
 
-    # Create result list
     slices_list = []
 
     # Process each row
     for _, row in df.iterrows():
-        slice_dict = {
-            "slice_value": row[slice_col],
-            "current_value": row[current_val_col],
-            "prior_value": row[prior_val_col],
-        }
+        slice_dict = SlicePerformance(
+            slice_value=row[slice_col],
+            current_value=row[current_val_col],
+            prior_value=row[prior_val_col],
+        )
 
         # Add differences if available
         if abs_diff_col in df.columns:
-            slice_dict["absolute_change"] = row[abs_diff_col]
+            slice_dict.absolute_change = row[abs_diff_col]
         else:
-            slice_dict["absolute_change"] = calculate_absolute_difference(row[current_val_col], row[prior_val_col])
+            slice_dict.absolute_change = calculate_difference(row[current_val_col], row[prior_val_col])
 
         if pct_diff_col in df.columns:
-            slice_dict["relative_change_percent"] = row[pct_diff_col]
+            slice_dict.relative_change_percent = row[pct_diff_col]
         else:
-            slice_dict["relative_change_percent"] = (
-                calculate_relative_change(row[current_val_col], row[prior_val_col]) * 100.0
+            slice_dict.relative_change_percent = (
+                calculate_relative_change(row[current_val_col], row[prior_val_col]) * 100.0  # type: ignore
             )
 
         # Add shares if requested and available
         if include_shares:
-            if "share_pct_t1" in df.columns:
-                slice_dict["current_share_of_volume_percent"] = row["share_pct_t1"]
-            if "share_pct_t0" in df.columns:
-                slice_dict["prior_share_of_volume_percent"] = row["share_pct_t0"]
+            if "share_pct_current" in df.columns:
+                slice_dict.current_share_of_volume_percent = row["share_pct_current"]
+            if "share_pct_prior" in df.columns:
+                slice_dict.prior_share_of_volume_percent = row["share_pct_prior"]
             if "share_diff" in df.columns:
-                slice_dict["share_of_volume_change_percent"] = row["share_diff"]
+                slice_dict.share_of_volume_change_percent = row["share_diff"]
 
         # Add marginal impact if available
-        slice_dict["absolute_marginal_impact"] = slice_dict["absolute_change"]
+        slice_dict.absolute_marginal_impact = slice_dict.absolute_change
 
         # Add average comparison if requested and available
         if include_avg_comparison:
             avg_cols = ["avg_other_slices_value", "absolute_diff_from_avg", "absolute_diff_percent_from_avg"]
             for col in avg_cols:
                 if col in df.columns:
-                    slice_dict[col] = row[col]
+                    slice_dict[col] = row[col]  # type: ignore
 
         # Add ranks if requested and available
         if include_ranks:
             if "rank_performance" in df.columns:
-                slice_dict["rank_by_performance"] = row["rank_performance"]
+                slice_dict.rank_by_performance = row["rank_performance"]
             if "rank_share" in df.columns:
-                slice_dict["rank_by_share"] = row["rank_share"]
+                slice_dict.rank_by_share = row["rank_share"]
 
         slices_list.append(slice_dict)
 
@@ -1144,11 +1121,11 @@ def compute_slice_vs_avg_others(df: pd.DataFrame, value_col: str) -> pd.DataFram
 
         if others_mask.any():
             avg_others = result_df.loc[others_mask, value_col].mean()
-            abs_diff = calculate_absolute_difference(row[value_col], avg_others)
-            pct_diff = calculate_relative_change(row[value_col], avg_others) * 100.0
+            abs_diff = calculate_difference(row[value_col], avg_others)  # type: ignore
+            pct_diff = calculate_relative_change(row[value_col], avg_others) * 100.0  # type: ignore
 
-            result_df.at[idx, "avg_other_slices_value"] = avg_others
-            result_df.at[idx, "absolute_diff_from_avg"] = abs_diff
-            result_df.at[idx, "absolute_diff_percent_from_avg"] = pct_diff
+            result_df.at[idx, "avg_other_slices_value"] = avg_others  # type: ignore
+            result_df.at[idx, "absolute_diff_from_avg"] = abs_diff  # type: ignore
+            result_df.at[idx, "absolute_diff_percent_from_avg"] = pct_diff  # type: ignore
 
     return result_df

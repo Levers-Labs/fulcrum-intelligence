@@ -8,7 +8,7 @@ from levers.exceptions import PrimitiveError
 from .dimensional_analysis import (
     analyze_composition_changes,
     analyze_dimension_impact,
-    build_slices_list,
+    build_slices_performance_list,
     calculate_concentration_index,
     calculate_slice_metrics,
     compare_dimension_slices_over_time,
@@ -46,6 +46,7 @@ from .performance import (
 # Period Grains primitives
 from .period_grains import (
     get_date_range_from_window,
+    get_period_length_for_grain,
     get_period_range_for_grain,
     get_prev_period_start_date,
     get_prior_period_range,
@@ -100,6 +101,7 @@ _primitive_families = {
         get_prior_period_range,
         get_prev_period_start_date,
         get_date_range_from_window,
+        get_period_length_for_grain,
     ],
     "time_series": [
         calculate_average_growth,
@@ -137,7 +139,7 @@ _primitive_families = {
         identify_strongest_weakest_changes,
         highlight_slice_comparisons,
         compute_historical_slice_rankings,
-        build_slices_list,
+        build_slices_performance_list,
     ],
 }
 
@@ -246,7 +248,7 @@ __all__ = [
     "identify_strongest_weakest_changes",
     "highlight_slice_comparisons",
     "compute_historical_slice_rankings",
-    "build_slices_list",
+    "build_slices_performance_list",
     # Utility functions
     "list_primitives_by_family",
     "get_primitive_metadata",
