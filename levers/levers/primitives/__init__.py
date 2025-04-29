@@ -4,23 +4,6 @@
 # Numeric primitives
 from levers.exceptions import PrimitiveError
 
-# Dimensional Analysis primitives
-from .dimensional_analysis import (
-    analyze_composition_changes,
-    analyze_dimension_impact,
-    build_slices_performance_list,
-    calculate_concentration_index,
-    calculate_slice_metrics,
-    compare_dimension_slices_over_time,
-    compute_historical_slice_rankings,
-    compute_slice_shares,
-    compute_top_bottom_slices,
-    difference_from_average,
-    highlight_slice_comparisons,
-    identify_largest_smallest_by_share,
-    identify_strongest_weakest_changes,
-    rank_metric_slices,
-)
 from .numeric import (
     calculate_difference,
     calculate_gap_to_target,
@@ -73,6 +56,24 @@ from .trend_analysis import (
     detect_seasonality_pattern,
     detect_trend_exceptions,
     process_control_analysis,
+)
+
+# Dimensional Analysis primitives
+from .dimensional_analysis import (
+    analyze_composition_changes,
+    analyze_dimension_impact,
+    build_slices_performance_list,
+    calculate_concentration_index,
+    calculate_slice_metrics,
+    compare_dimension_slices_over_time,
+    compute_historical_slice_rankings,
+    compute_slice_shares,
+    compute_top_bottom_slices,
+    difference_from_average,
+    highlight_slice_comparisons,
+    identify_largest_smallest_by_share,
+    identify_strongest_weakest_changes,
+    rank_metric_slices,
 )
 
 # Create a dictionary of primitives organized by family
