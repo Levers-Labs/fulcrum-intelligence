@@ -210,12 +210,13 @@ class Pattern(ABC, Generic[T]):
         Args:
             metric_id: The metric ID
             analysis_window: AnalysisWindow object
+            **kwargs: Additional parameters to include in the output (e.g., dimension_name)
 
         Returns:
             Empty output with an error message
         """
         result = {
-            "pattern_name": self.name,
+            "pattern": self.name,
             "version": self.version,
             "metric_id": metric_id,
             "analysis_window": analysis_window,

@@ -37,38 +37,51 @@ GRAIN_META: dict[str, Any] = {
 
 
 def get_period_range_for_grain(
-    analysis_date: str | pd.Timestamp, grain: Granularity
+    analysis_date: str | pd.Timestamp, grain: Granularity | str
 ) -> tuple[pd.Timestamp, pd.Timestamp]:
     """
-    Convert an analysis_date plus a grain into (start_date, end_date).
+    Get the period range (start,end) based on a date and grain.
 
     Family: period_grains
     Version: 1.0
 
     Args:
-        analysis_date: The focal date for analysis
-        grain: Time grain - one of DAY, WEEK, or MONTH
+        analysis_date: Date to analyze
+        grain: Time grain - one of DAY, WEEK, MONTH, QUARTER, or YEAR
 
     Returns:
-        Tuple of (start_date, end_date) for the specified grain
+        Tuple of (start_date, end_date) as pandas Timestamps
 
     Raises:
-        ValidationError: If grain is not supported
+        ValidationError: If analysis_date cannot be converted to a date or grain is invalid
 
     Notes:
-        - For grain=DAY, returns (analysis_date, analysis_date)
-        - For grain=WEEK, uses Monday-Sunday
-        - For grain=MONTH, uses the full calendar month
+        - For grain=DAY, returns a single day
+        - For grain=WEEK, returns Monday-Sunday containing the analysis_date
+        - For grain=MONTH, returns the full month containing the analysis_date
+        - For grain=QUARTER, returns the full quarter containing the analysis_date
+        - For grain=YEAR, returns the full year containing the analysis_date
     """
     try:
-        dt = pd.to_datetime(analysis_date)
+        dt = pd.to_datetime(analysis_date) if isinstance(analysis_date, str) else analysis_date
     except (TypeError, ValueError) as exc:
         raise ValidationError(
             f"Invalid analysis_date: {analysis_date}. Must be convertible to datetime.",
             invalid_fields={"analysis_date": analysis_date},
         ) from exc
 
-    if grain not in Granularity:
+    # Convert string grain to Granularity enum if needed
+    if isinstance(grain, str):
+        try:
+            grain = Granularity(grain)
+        except ValueError as exc:
+            raise ValidationError(
+                f"Unsupported grain '{grain}'",
+                invalid_fields={"grain": grain, "valid_grains": list(Granularity)},
+            ) from exc
+
+    # Validate the grain is a valid Granularity enum
+    if grain not in list(Granularity):
         raise ValidationError(
             f"Unsupported grain '{grain}'",
             invalid_fields={"grain": grain, "valid_grains": list(Granularity)},
@@ -101,7 +114,7 @@ def get_period_range_for_grain(
 
 
 def get_prior_period_range(
-    start_date: pd.Timestamp, end_date: pd.Timestamp, grain: Granularity
+    start_date: pd.Timestamp, end_date: pd.Timestamp, grain: Granularity | str
 ) -> tuple[pd.Timestamp, pd.Timestamp]:
     """
     Given current period start/end, return the immediately prior period.
@@ -132,6 +145,16 @@ def get_prior_period_range(
             "start_date and end_date must be pandas Timestamps",
             invalid_fields={"start_date": start_date, "end_date": end_date},
         )
+
+    # Convert string grain to Granularity enum if needed
+    if isinstance(grain, str):
+        try:
+            grain = Granularity(grain)
+        except ValueError as exc:
+            raise ValidationError(
+                f"Unsupported grain '{grain}'",
+                invalid_fields={"grain": grain, "valid_grains": list(Granularity)},
+            ) from exc
 
     valid_grains = {Granularity.DAY, Granularity.WEEK, Granularity.MONTH, Granularity.QUARTER, Granularity.YEAR}
     if grain not in valid_grains:
@@ -255,7 +278,7 @@ def get_date_range_from_window(
     return start, end
 
 
-def get_period_length_for_grain(grain: Granularity) -> int:
+def get_period_length_for_grain(grain: Granularity | str) -> int:
     """
     Get the appropriate period length in days for a given grain.
 
@@ -263,8 +286,21 @@ def get_period_length_for_grain(grain: Granularity) -> int:
         grain: The time grain
 
     Returns:
-        Number of days in the period
+        The length of the period in days
+
+    Raises:
+        ValidationError: If grain is not supported
     """
+    # Convert string grain to Granularity enum if needed
+    if isinstance(grain, str):
+        try:
+            grain = Granularity(grain)
+        except ValueError as exc:
+            raise ValidationError(
+                f"Unsupported grain '{grain}'",
+                invalid_fields={"grain": grain, "valid_grains": list(Granularity)},
+            ) from exc
+
     if grain == Granularity.DAY:
         return 1
     elif grain == Granularity.WEEK:
@@ -275,3 +311,8 @@ def get_period_length_for_grain(grain: Granularity) -> int:
         return 90
     elif grain == Granularity.YEAR:
         return 365
+    else:
+        raise ValidationError(
+            f"Unsupported grain '{grain}'",
+            invalid_fields={"grain": grain, "valid_grains": list(Granularity)},
+        )

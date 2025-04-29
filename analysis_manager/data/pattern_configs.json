@@ -43,5 +43,29 @@
     "settings": {
     },
     "meta": {}
+  },
+  {
+    "pattern_name": "dimension_analysis",
+    "version": "1.0.0",
+    "description": "Analyzes metrics across dimensions to identify top/bottom slices and changes over time",
+    "data_sources": [
+      {
+        "source_type": "dimensional_time_series",
+        "is_required": true,
+        "data_key": "ledger_df"
+      }
+    ],
+    "analysis_window": {
+      "strategy": "fixed_time",
+      "days": 180,
+      "min_days": 30,
+      "max_days": 365,
+      "include_today": false
+    },
+    "settings": {
+      "dimension_name": "dimension",
+      "num_periods": 8
+    },
+    "meta": {}
   }
 ]

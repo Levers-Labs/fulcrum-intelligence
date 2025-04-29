@@ -14,7 +14,7 @@ import logging
 
 import pandas as pd
 
-from levers.exceptions import PatternError
+from levers.exceptions import PatternError, TimeRangeError
 from levers.models import (
     AnalysisWindow,
     AnalysisWindowConfig,
@@ -107,6 +107,7 @@ class DimensionAnalysisPattern(Pattern[DimensionAnalysis]):
         try:
             grain = analysis_window.grain
             dimension_name = kwargs.get("dimension_name", "dimension")
+
             # Validate input data
             required_columns = ["metric_id", "date", "dimension", "slice_value", "metric_value"]
             self.validate_data(data, required_columns)
@@ -114,10 +115,15 @@ class DimensionAnalysisPattern(Pattern[DimensionAnalysis]):
             # Process the analysis date from the analysis window
             analysis_date = pd.to_datetime(analysis_window.end_date)
 
-            # Pre Process data
-            ledger_df = self.preprocess_data(data, analysis_window)
+            # Pre Process data - Note: This might raise TimeRangeError if no data in date range
+            try:
+                ledger_df = self.preprocess_data(data, analysis_window)
+            except TimeRangeError:
+                # Handle the case where there's no data in the time range
+                logger.info("No data found in the specified date range. Returning minimal output.")
+                return self.handle_empty_data(metric_id, analysis_window)
 
-            # If empty data, return minimal output
+            # If empty data or metric not present, return minimal output
             if ledger_df.empty or metric_id not in ledger_df["metric_id"].unique():
                 logger.info("Empty data for metric_id=%s. Returning minimal output.", metric_id)
                 return self.handle_empty_data(metric_id, analysis_window)
@@ -130,6 +136,11 @@ class DimensionAnalysisPattern(Pattern[DimensionAnalysis]):
             filtered_df = ledger_df[
                 (ledger_df["metric_id"] == metric_id) & (ledger_df["dimension"] == dimension_name)
             ].copy()
+
+            # If no data for the specified dimension, return minimal output
+            if filtered_df.empty:
+                logger.info("No data found for dimension=%s. Returning minimal output.", dimension_name)
+                return self.handle_empty_data(metric_id, analysis_window)
 
             # Preprocess data to ensure dates are parsed correctly
             filtered_df["date"] = pd.to_datetime(filtered_df["date"])
@@ -148,8 +159,9 @@ class DimensionAnalysisPattern(Pattern[DimensionAnalysis]):
             # 4) Compute share percentages for prior and current
             prior_df, current_df, merged = self._compute_slice_shares(compare_df)
 
-            # 5) Calculate comparison to average
-            merged = merged.rename(columns={"slice_value": "slice_col"})
+            # 5) Calculate comparison to average - make sure slice_value column exists
+            if "slice_value" in merged.columns:
+                merged = merged.rename(columns={"slice_value": "slice_col"})
             merged = difference_from_average(merged, value_col="val_current")
 
             # 6) Build the slices performance metrics list for reporting
@@ -162,7 +174,9 @@ class DimensionAnalysisPattern(Pattern[DimensionAnalysis]):
                 include_avg_comparison=True,
             )
 
-            # 7) Compute top and bottom slices
+            # 7) Compute top and bottom slices - ensure slice_col exists as dimension column
+            if "slice_value" not in merged.columns and "slice_col" in merged.columns:
+                merged["slice_value"] = merged["slice_col"]
             top_slices, bottom_slices = compute_top_bottom_slices(
                 merged, dim_col="slice_value", value_col="val_current", top_n=3
             )
@@ -197,7 +211,7 @@ class DimensionAnalysisPattern(Pattern[DimensionAnalysis]):
                 "version": self.version,
                 "metric_id": metric_id,
                 "analysis_window": analysis_window,
-                "num_periods": len(ledger_df),
+                "num_periods": len(filtered_df),
                 "dimension_name": dimension_name,
                 "slices": slices_list,
                 "top_slices": top_slices,
@@ -218,7 +232,7 @@ class DimensionAnalysisPattern(Pattern[DimensionAnalysis]):
             raise PatternError(
                 f"Error executing dimension analysis: {str(e)}",
                 self.name,
-                {"metric_id": metric_id, "dimension": dimension_name},
+                {"metric_id": metric_id, "dimension": kwargs.get("dimension_name", "dimension")},
             ) from e
 
     def _compute_slice_shares(self, compare_df: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:

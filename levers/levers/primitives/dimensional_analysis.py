@@ -158,7 +158,8 @@ def compute_slice_shares(
     if total == 0:
         dff[share_col_name] = 0.0
     else:
-        dff[share_col_name] = safe_divide(float(dff[val_col]), total, as_percentage=True)
+        # Convert each value to float and then calculate share percentage
+        dff[share_col_name] = dff[val_col].astype(float).apply(lambda x: safe_divide(x, total, as_percentage=True))
 
     return dff
 
@@ -422,6 +423,10 @@ def calculate_concentration_index(
         if n <= 1:
             return 0.0
 
+        # If all values are equal, Gini coefficient is 0
+        if np.all(sorted_vals == sorted_vals[0]):
+            return 0.0
+
         # Cumulative proportion of the population (x-axis)
         cum_people = np.arange(1, n + 1) / n
 
@@ -502,6 +507,13 @@ def compare_dimension_slices_over_time(
     df_prior = dff[dff[date_col] == prior_start_date]
     df_current = dff[dff[date_col] == current_start_date]
 
+    # Check if any of the filtered dataframes is empty
+    if df_prior.empty or df_current.empty:
+        raise ValidationError(
+            "No data found for the specified dates",
+            {"prior_start_date": prior_start_date, "current_start_date": current_start_date},
+        )
+
     # Validate aggregation method
     valid_agg_funcs = {"sum", "mean", "min", "max", "count", "median"}
     if agg not in valid_agg_funcs:
@@ -521,8 +533,15 @@ def compare_dimension_slices_over_time(
 
     # Calculate differences
     merged["abs_diff"] = merged["val_current"] - merged["val_prior"]
+
+    # Calculate percentage difference individually for each row to handle None values properly
     merged["pct_diff"] = merged.apply(  # type: ignore
-        lambda row: calculate_relative_change(row["val_current"], row["val_prior"], default_value=None) * 100.0, axis=1  # type: ignore
+        lambda row: (
+            calculate_relative_change(row["val_current"], row["val_prior"], default_value=0) * 100.0  # type: ignore
+            if row["val_prior"] != 0
+            else 0
+        ),
+        axis=1,
     )
 
     # Sort by absolute difference (descending)
