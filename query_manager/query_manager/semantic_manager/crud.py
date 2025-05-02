@@ -565,7 +565,7 @@ class CRUDMetricTarget(CRUDSemantic[MetricTarget, TargetCreate, TargetUpdate, Ta
             self.model.target_value,
             # Use row_number to rank rows within each partition
             func.row_number()
-            .over(partition_by=[self.model.metric_id, self.model.grain], order_by=self.model.target_date.desc())
+            .over(partition_by=[self.model.metric_id, self.model.grain], order_by=self.model.target_date.desc())  # type: ignore
             .label("row_num"),
         ).subquery()
 
@@ -605,7 +605,7 @@ class CRUDMetricTarget(CRUDSemantic[MetricTarget, TargetCreate, TargetUpdate, Ta
             for metric in metrics_result.scalars()
         ]
 
-        return stats, count
+        return stats, count or 0
 
 
 class SemanticManager:
