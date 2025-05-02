@@ -82,3 +82,4 @@ jobs:
           service: ${{ inputs.APP_NAME }}-${{ inputs.SERVICE_NAME }}
           cluster: ${{ inputs.ECS_CLUSTER }}
           wait-for-service-stability: true
+          wait-for-service-stability-timeout-minutes: 5
