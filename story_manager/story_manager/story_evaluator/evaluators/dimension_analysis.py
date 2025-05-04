@@ -351,7 +351,7 @@ class DimensionAnalysisEvaluator(StoryEvaluatorBase[DimensionAnalysis]):
 
         # Calculate change percentage
         change_percent = 0
-        if strongest.prior_value != 0:
+        if strongest.prior_value != 0:  # type: ignore
             change_percent = abs((strongest.current_value - strongest.prior_value) / strongest.prior_value * 100)  # type: ignore
 
         # Find average value across all segments
