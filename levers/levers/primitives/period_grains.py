@@ -36,9 +36,7 @@ GRAIN_META: dict[str, Any] = {
 }
 
 
-def get_period_range_for_grain(
-    analysis_date: str | pd.Timestamp, grain: Granularity | str
-) -> tuple[pd.Timestamp, pd.Timestamp]:
+def get_period_range_for_grain(analysis_date: date, grain: Granularity) -> tuple[pd.Timestamp, pd.Timestamp]:
     """
     Get the period range (start,end) based on a date and grain.
 
@@ -63,7 +61,7 @@ def get_period_range_for_grain(
         - For grain=YEAR, returns the full year containing the analysis_date
     """
     try:
-        dt = pd.to_datetime(analysis_date) if isinstance(analysis_date, str) else analysis_date
+        dt = pd.to_datetime(analysis_date)
     except (TypeError, ValueError) as exc:
         raise ValidationError(
             f"Invalid analysis_date: {analysis_date}. Must be convertible to datetime.",
@@ -79,13 +77,6 @@ def get_period_range_for_grain(
                 f"Unsupported grain '{grain}'",
                 invalid_fields={"grain": grain, "valid_grains": list(Granularity)},
             ) from exc
-
-    # Validate the grain is a valid Granularity enum
-    if grain not in list(Granularity):
-        raise ValidationError(
-            f"Unsupported grain '{grain}'",
-            invalid_fields={"grain": grain, "valid_grains": list(Granularity)},
-        )
 
     if grain == Granularity.DAY:
         start = dt.normalize()
@@ -109,6 +100,11 @@ def get_period_range_for_grain(
     elif grain == Granularity.YEAR:
         start = dt.replace(day=1, month=1).normalize()
         end = dt.replace(day=31, month=12).normalize()
+    else:
+        raise ValidationError(
+            f"Unsupported grain '{grain}'",
+            invalid_fields={"grain": grain, "valid_grains": list(Granularity)},
+        )
 
     return start, end
 

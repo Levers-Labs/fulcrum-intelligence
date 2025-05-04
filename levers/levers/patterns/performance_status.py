@@ -3,7 +3,7 @@ Performance Status Pattern
 
 This module implements the PerformanceStatusPattern which analyzes whether a metric
 is on/off track versus its target. It classifies the current status, tracks status
-changes, and provides details about any gap or overperformance.
+changes, and provides details about any gap or over performance.
 """
 
 import logging

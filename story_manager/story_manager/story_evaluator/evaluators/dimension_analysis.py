@@ -141,7 +141,7 @@ class DimensionAnalysisEvaluator(StoryEvaluatorBase[DimensionAnalysis]):
             for slice_perf in pattern_result.slices:
                 if slice_perf.slice_value == segment:
                     if slice_perf.current_share_of_volume_percent:
-                        total_share_percent += slice_perf.current_share_of_volume_percent
+                        total_share_percent += slice_perf.current_share_of_volume_percent  # type: ignore
                     break
 
         # Find longest streak
@@ -220,17 +220,17 @@ class DimensionAnalysisEvaluator(StoryEvaluatorBase[DimensionAnalysis]):
             for slice_perf in pattern_result.slices:
                 if slice_perf.slice_value == segment:
                     if slice_perf.current_share_of_volume_percent:
-                        total_share_percent += slice_perf.current_share_of_volume_percent
+                        total_share_percent += slice_perf.current_share_of_volume_percent  # type: ignore
                     break
 
-        # Find longest streak of underperformance
+        # Find longest streak of under performance
         streak_length = 0
         for segment in bottom_segment_names:
             for slice_perf in pattern_result.slices:
                 if slice_perf.slice_value == segment:
                     if slice_perf.consecutive_above_avg_streak and slice_perf.consecutive_above_avg_streak < 0:
-                        # If negative streak means consecutive underperformance
-                        below_avg_streak = abs(slice_perf.consecutive_above_avg_streak)
+                        # If negative streak means consecutive under performance
+                        below_avg_streak = abs(slice_perf.consecutive_above_avg_streak)  # type: ignore
                         if below_avg_streak > streak_length:
                             streak_length = below_avg_streak
                     break
@@ -346,34 +346,34 @@ class DimensionAnalysisEvaluator(StoryEvaluatorBase[DimensionAnalysis]):
 
         # Determine trend direction for previous segment
         trend_direction = "up"
-        if strongest.current_value < strongest.prior_value:
+        if strongest.current_value < strongest.prior_value:  # type: ignore
             trend_direction = "down"
 
         # Calculate change percentage
         change_percent = 0
         if strongest.prior_value != 0:
-            change_percent = abs((strongest.current_value - strongest.prior_value) / strongest.prior_value * 100)
+            change_percent = abs((strongest.current_value - strongest.prior_value) / strongest.prior_value * 100)  # type: ignore
 
         # Find average value across all segments
         avg_value = 0
         for slice_perf in pattern_result.slices:
-            avg_value += slice_perf.current_value
+            avg_value += slice_perf.current_value  # type: ignore
         if len(pattern_result.slices) > 0:
             avg_value /= float(len(pattern_result.slices))  # type: ignore
 
         # Calculate difference from average
         diff_from_avg_percent = 0
         if avg_value != 0:
-            diff_from_avg_percent = (strongest.current_value - avg_value) / avg_value * 100
+            diff_from_avg_percent = (strongest.current_value - avg_value) / avg_value * 100  # type: ignore
 
         # Prepare context for template rendering
         context = self._populate_template_context(pattern_result, metric, grain)
         context.update(
             {
-                "segment_name": strongest.slice_value,
-                "current_value": strongest.current_value,
-                "previous_segment": strongest.previous_slice_value,
-                "previous_value": strongest.prior_value,
+                "segment_name": strongest.slice_value,  # type: ignore
+                "current_value": strongest.current_value,  # type: ignore
+                "previous_segment": strongest.previous_slice_value,  # type: ignore
+                "previous_value": strongest.prior_value,  # type: ignore
                 "trend_direction": trend_direction,
                 "change_percent": change_percent,
                 "avg_value": avg_value,
@@ -421,40 +421,38 @@ class DimensionAnalysisEvaluator(StoryEvaluatorBase[DimensionAnalysis]):
 
         # Determine trend direction for previous segment
         trend_direction = "up"
-        if weakest.current_value < weakest.prior_value:
+        if weakest.current_value < weakest.prior_value:  # type: ignore
             trend_direction = "down"
 
         # Calculate change percentage
         change_percent = 0
-        if weakest.prior_value != 0:
-            change_percent = abs((weakest.current_value - weakest.prior_value) / weakest.prior_value * 100)
+        if weakest.prior_value != 0:  # type: ignore
+            change_percent = abs((weakest.current_value - weakest.prior_value) / weakest.prior_value * 100)  # type: ignore
 
         # Find average value across all segments
         avg_value = 0
         for slice_perf in pattern_result.slices:
-            avg_value += slice_perf.current_value
+            avg_value += slice_perf.current_value  # type: ignore
         if len(pattern_result.slices) > 0:
             avg_value /= float(len(pattern_result.slices))  # type: ignore
 
         # Calculate difference from average (negative for weakest)
         diff_from_avg_percent = 0
         if avg_value != 0:
-            diff_from_avg_percent = (weakest.current_value - avg_value) / avg_value * 100
+            diff_from_avg_percent = (weakest.current_value - avg_value) / avg_value * 100  # type: ignore
 
         # Prepare context for template rendering
         context = self._populate_template_context(pattern_result, metric, grain)
         context.update(
             {
-                "segment_name": weakest.slice_value,
-                "current_value": weakest.current_value,
-                "previous_segment": weakest.previous_slice_value,
-                "previous_value": weakest.prior_value,
+                "segment_name": weakest.slice_value,  # type: ignore
+                "current_value": weakest.current_value,  # type: ignore
+                "previous_segment": weakest.previous_slice_value,  # type: ignore
+                "previous_value": weakest.prior_value,  # type: ignore
                 "trend_direction": trend_direction,
                 "change_percent": change_percent,
                 "avg_value": avg_value,
-                "diff_from_avg_percent": abs(
-                    diff_from_avg_percent
-                ),  # Using absolute value here, template uses "lower than"
+                "diff_from_avg_percent": abs(diff_from_avg_percent),
             }
         )
 
@@ -497,7 +495,7 @@ class DimensionAnalysisEvaluator(StoryEvaluatorBase[DimensionAnalysis]):
         largest = pattern_result.largest_slice
 
         # Find current and prior share percentages
-        current_share_percent = largest.current_share_of_volume_percent or 0
+        current_share_percent = largest.current_share_of_volume_percent or 0  # type: ignore
         prior_share_percent = 0
 
         # Find previous segment's current share percent
@@ -505,25 +503,25 @@ class DimensionAnalysisEvaluator(StoryEvaluatorBase[DimensionAnalysis]):
 
         # Find slice performance data for this segment to get prior share
         for slice_perf in pattern_result.slices:
-            if slice_perf.slice_value == largest.slice_value:
-                prior_share_percent = slice_perf.prior_share_of_volume_percent or 0
+            if slice_perf.slice_value == largest.slice_value:  # type: ignore
+                prior_share_percent = slice_perf.prior_share_of_volume_percent or 0  # type: ignore
                 break
 
         # Find previous segment's share
-        if largest.previous_slice_value:
+        if largest.previous_slice_value:  # type: ignore
             for slice_perf in pattern_result.slices:
-                if slice_perf.slice_value == largest.previous_slice_value:
-                    previous_share_percent = slice_perf.current_share_of_volume_percent or 0
+                if slice_perf.slice_value == largest.previous_slice_value:  # type: ignore
+                    previous_share_percent = slice_perf.current_share_of_volume_percent or 0  # type: ignore
                     break
 
         # Prepare context for template rendering
         context = self._populate_template_context(pattern_result, metric, grain)
         context.update(
             {
-                "segment_name": largest.slice_value,
+                "segment_name": largest.slice_value,  # type: ignore
                 "current_share_percent": current_share_percent,
                 "prior_share_percent": prior_share_percent,
-                "previous_segment": largest.previous_slice_value,
+                "previous_segment": largest.previous_slice_value,  # type: ignore
                 "previous_share_percent": previous_share_percent,
             }
         )
@@ -567,7 +565,7 @@ class DimensionAnalysisEvaluator(StoryEvaluatorBase[DimensionAnalysis]):
         smallest = pattern_result.smallest_slice
 
         # Find current and prior share percentages
-        current_share_percent = smallest.current_share_of_volume_percent or 0
+        current_share_percent = smallest.current_share_of_volume_percent or 0  # type: ignore
         prior_share_percent = 0
 
         # Find previous segment's current share percent and prior share percent
@@ -576,26 +574,26 @@ class DimensionAnalysisEvaluator(StoryEvaluatorBase[DimensionAnalysis]):
 
         # Find slice performance data for this segment to get prior share
         for slice_perf in pattern_result.slices:
-            if slice_perf.slice_value == smallest.slice_value:
-                prior_share_percent = slice_perf.prior_share_of_volume_percent or 0
+            if slice_perf.slice_value == smallest.slice_value:  # type: ignore
+                prior_share_percent = slice_perf.prior_share_of_volume_percent or 0  # type: ignore
                 break
 
         # Find previous segment's shares
-        if smallest.previous_slice_value:
+        if smallest.previous_slice_value:  # type: ignore
             for slice_perf in pattern_result.slices:
-                if slice_perf.slice_value == smallest.previous_slice_value:
-                    previous_share_percent = slice_perf.current_share_of_volume_percent or 0
-                    previous_prior_share_percent = slice_perf.prior_share_of_volume_percent or 0
+                if slice_perf.slice_value == smallest.previous_slice_value:  # type: ignore
+                    previous_share_percent = slice_perf.current_share_of_volume_percent or 0  # type: ignore
+                    previous_prior_share_percent = slice_perf.prior_share_of_volume_percent or 0  # type: ignore
                     break
 
         # Prepare context for template rendering
         context = self._populate_template_context(pattern_result, metric, grain)
         context.update(
             {
-                "segment_name": smallest.slice_value,
+                "segment_name": smallest.slice_value,  # type: ignore
                 "current_share_percent": current_share_percent,
                 "prior_share_percent": prior_share_percent,
-                "previous_segment": smallest.previous_slice_value,
+                "previous_segment": smallest.previous_slice_value,  # type: ignore
                 "previous_share_percent": previous_share_percent,
                 "previous_prior_share_percent": previous_prior_share_percent,
             }

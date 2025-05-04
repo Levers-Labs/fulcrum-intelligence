@@ -23,10 +23,10 @@ class DimensionAnalysis(BasePattern):
 
     pattern: str = "dimension_analysis"
 
-    dimension_name: str
-    slices: list[SlicePerformance]
-    top_slices: list[SliceRanking]
-    bottom_slices: list[SliceRanking]
+    dimension_name: str = ""
+    slices: list[SlicePerformance] = []
+    top_slices: list[SliceRanking] = []
+    bottom_slices: list[SliceRanking] = []
 
     largest_slice: SliceShare | None = None
     smallest_slice: SliceShare | None = None
@@ -34,6 +34,6 @@ class DimensionAnalysis(BasePattern):
     new_strongest_slice: SliceStrength | None = None
     new_weakest_slice: SliceStrength | None = None
 
-    comparison_highlights: list[SliceComparison]
+    comparison_highlights: list[SliceComparison] = []
 
     historical_slice_rankings: HistoricalSliceRankings | None = None

@@ -85,7 +85,7 @@ class Pattern(ABC, Generic[T]):
         return []
 
     @abstractmethod
-    def analyze(self, metric_id: str, data: pd.DataFrame, analysis_window: AnalysisWindow, **kwargs) -> T:
+    def analyze(self, metric_id: str, data: pd.DataFrame, analysis_window: AnalysisWindow | None = None, **kwargs) -> T:
         """
         Execute the analysis pattern and return a standardized output.
 

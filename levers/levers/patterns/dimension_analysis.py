@@ -11,15 +11,17 @@ Dependencies:
 """
 
 import logging
+from datetime import date
 
 import pandas as pd
 
-from levers.exceptions import PatternError, TimeRangeError
+from levers.exceptions import InsufficientDataError, PatternError
 from levers.models import (
     AnalysisWindow,
     AnalysisWindowConfig,
     DataSource,
     DataSourceType,
+    Granularity,
     PatternConfig,
     WindowStrategy,
 )
@@ -80,13 +82,15 @@ class DimensionAnalysisPattern(Pattern[DimensionAnalysis]):
             ),
         )
 
-    def analyze(
+    def analyze(  # type: ignore
         self,
         metric_id: str,
         data: pd.DataFrame,
-        analysis_window: AnalysisWindow,
+        analysis_date: date,
+        dimension_name: str,
+        analysis_window: AnalysisWindow | None = None,
+        grain: Granularity = Granularity.DAY,
         num_periods: int = 8,
-        **kwargs,
     ) -> DimensionAnalysis:
         """
         Perform dimension analysis for a metric across slices of a dimension.
@@ -105,27 +109,31 @@ class DimensionAnalysisPattern(Pattern[DimensionAnalysis]):
             PatternError: For pattern execution errors
         """
         try:
-            grain = analysis_window.grain
-            dimension_name = kwargs.get("dimension_name", "dimension")
-
             # Validate input data
             required_columns = ["metric_id", "date", "dimension", "slice_value", "metric_value"]
             self.validate_data(data, required_columns)
 
-            # Process the analysis date from the analysis window
-            analysis_date = pd.to_datetime(analysis_window.end_date)
+            if len(data) < num_periods:
+                logger.info("Empty data for metric_id=%s")
+                raise InsufficientDataError("Insufficient data to perform Dimensional Analysis")
 
-            # Pre Process data - Note: This might raise TimeRangeError if no data in date range
-            try:
-                ledger_df = self.preprocess_data(data, analysis_window)
-            except TimeRangeError:
-                # Handle the case where there's no data in the time range
-                logger.info("No data found in the specified date range. Returning minimal output.")
-                return self.handle_empty_data(metric_id, analysis_window)
+            # Create Analysis Window
+            analysis_window = self.create_analysis_window(data, grain)
+
+            # Pre Process data
+            ledger_df = self.preprocess_data(data, analysis_window)
 
             # If empty data or metric not present, return minimal output
-            if ledger_df.empty or metric_id not in ledger_df["metric_id"].unique():
-                logger.info("Empty data for metric_id=%s. Returning minimal output.", metric_id)
+            if ledger_df.empty:
+                # or metric_id not in ledger_df["metric_id"].unique() or ledger_df['dimension'] != dimension_name
+                logger.info(
+                    "Empty data for metric_id=%s, dimension=%s Returning minimal output.", metric_id, dimension_name
+                )
+                return self.handle_empty_data(metric_id, analysis_window)
+
+            if (metric_id not in ledger_df["metric_id"].unique()) or (
+                not (ledger_df["dimension"] == dimension_name).any()
+            ):
                 return self.handle_empty_data(metric_id, analysis_window)
 
             # 1) Determine current and prior period ranges based on grain
@@ -147,7 +155,7 @@ class DimensionAnalysisPattern(Pattern[DimensionAnalysis]):
 
             # 3) Compare slices across time periods
             compare_df = compare_dimension_slices_over_time(
-                df=filtered_df,
+                df=filtered_df,  # type: ignore
                 slice_col="slice_value",
                 date_col="date",
                 value_col="metric_value",
@@ -182,8 +190,8 @@ class DimensionAnalysisPattern(Pattern[DimensionAnalysis]):
             )
 
             # 8) Identify largest and smallest by share
-            current_share = current_df.rename(columns={"slice_value": "slice_col"})
-            prior_share = prior_df.rename(columns={"slice_value": "slice_col"})
+            current_share = current_df.rename(columns={"slice_value": "slice_col", "share_pct_current": "share_pct"})
+            prior_share = prior_df.rename(columns={"slice_value": "slice_col", "share_pct_prior": "share_pct"})
             largest_slice, smallest_slice = identify_largest_smallest_by_share(current_share, prior_share, "slice_col")
 
             # 9) Identify new strongest/weakest slices
@@ -232,7 +240,7 @@ class DimensionAnalysisPattern(Pattern[DimensionAnalysis]):
             raise PatternError(
                 f"Error executing dimension analysis: {str(e)}",
                 self.name,
-                {"metric_id": metric_id, "dimension": kwargs.get("dimension_name", "dimension")},
+                {"metric_id": metric_id, "dimension": dimension_name},
             ) from e
 
     def _compute_slice_shares(self, compare_df: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:

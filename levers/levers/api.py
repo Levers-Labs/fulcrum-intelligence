@@ -280,7 +280,8 @@ class Levers(Generic[T]):
             metric_id: ID of the metric to analyze
             dimension_name: Name of the dimension to analyze (e.g., "region", "product")
             data: DataFrame with columns: metric_id, date, dimension, slice_value, metric_value
-            analysis_window: Analysis window specifying the time range and grain
+            analysis_date: Analysis date for performing dimension analysis
+            grain: Granularity
 
         Returns:
             Dimension analysis results
@@ -294,6 +295,8 @@ class Levers(Generic[T]):
             metric_id=metric_id,
             dimension_name=dimension_name,
             data=data,
+            analysis_date=analysis_date,
+            grain=grain,
             analysis_window=analysis_window,
         )
 

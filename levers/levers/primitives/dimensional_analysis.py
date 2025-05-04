@@ -1096,11 +1096,11 @@ def build_slices_performance_list(
         slice_dict.absolute_marginal_impact = slice_dict.absolute_change
 
         # Add average comparison if requested and available
-        if include_avg_comparison:
-            avg_cols = ["avg_other_slices_value", "absolute_diff_from_avg", "absolute_diff_percent_from_avg"]
-            for col in avg_cols:
-                if col in df.columns:
-                    slice_dict[col] = row[col]  # type: ignore
+        # if include_avg_comparison:
+        #     avg_cols = ["avg_other_slices_value", "absolute_diff_from_avg", "absolute_diff_percent_from_avg"]
+        #     for col in avg_cols:
+        #         if col in df.columns:
+        #             slice_dict[col] = row[col]  # type: ignore
 
         # Add ranks if requested and available
         if include_ranks:

@@ -2,6 +2,8 @@
 Unit tests for the DimensionAnalysisPattern class.
 """
 
+import datetime
+
 import pandas as pd
 import pytest
 
@@ -103,170 +105,153 @@ class TestDimensionAnalysisPattern:
         assert config.data_sources[0].data_key == "ledger_df"
         assert config.analysis_window.days == 180
 
-    # def test_analyze_basic_functionality(self, pattern, sample_data, analysis_window, mocker):
-    #     """Test the basic analyze functionality with sample data."""
-    #     # Arrange
-    #     metric_id = "revenue"
-    #     dimension_name = "region"
+    def test_analyze_basic_functionality(self, pattern, sample_data, analysis_window, mocker):
+        """Test the basic analyze functionality with sample data."""
+        # Arrange
+        metric_id = "revenue"
+        dimension_name = "region"
 
-    #     # Patch some of the used primitives to ensure they're called
-    #     mocker.patch(
-    #         "levers.patterns.dimension_analysis.compare_dimension_slices_over_time",
-    #         return_value=pd.DataFrame({
-    #             "slice_value": ["North America", "Europe", "APAC", "LATAM"],
-    #             "val_current": [1500, 1200, 900, 500],
-    #             "val_prior": [1400, 1100, 800, 450],
-    #             "abs_diff": [100, 100, 100, 50],
-    #             "pct_diff": [7.14, 9.09, 12.5, 11.11]
-    #         })
-    #     )
+        # Patch some of the used primitives to ensure they're called
+        mocker.patch(
+            "levers.patterns.dimension_analysis.compare_dimension_slices_over_time",
+            return_value=pd.DataFrame(
+                {
+                    "slice_value": ["North America", "Europe", "APAC", "LATAM"],
+                    "val_current": [1500, 1200, 900, 500],
+                    "val_prior": [1400, 1100, 800, 450],
+                    "abs_diff": [100, 100, 100, 50],
+                    "pct_diff": [7.14, 9.09, 12.5, 11.11],
+                }
+            ),
+        )
 
-    #     # Let the _compute_slice_shares method pass through to implementation
-    #     # but spy on it to verify it was called
-    #     compute_shares_spy = mocker.spy(pattern, "_compute_slice_shares")
+        # Let the _compute_slice_shares method pass through to implementation
+        # but spy on it to verify it was called
+        compute_shares_spy = mocker.spy(pattern, "_compute_slice_shares")
 
-    #     # Mock a few of the more complex primitives
-    #     mocker.patch(
-    #         "levers.patterns.dimension_analysis.difference_from_average",
-    #         return_value=pd.DataFrame({
-    #             "slice_col": ["North America", "Europe", "APAC", "LATAM"],
-    #             "val_current": [1500, 1200, 900, 500],
-    #             "val_prior": [1400, 1100, 800, 450],
-    #             "avg_other_slices_value": [866.67, 966.67, 1066.67, 1200],
-    #             "absolute_diff_from_avg": [633.33, 233.33, -166.67, -700],
-    #             "absolute_diff_percent_from_avg": [73.08, 24.14, -15.63, -58.33]
-    #         })
-    #     )
+        # Mock a few of the more complex primitives
+        mocker.patch(
+            "levers.patterns.dimension_analysis.difference_from_average",
+            return_value=pd.DataFrame(
+                {
+                    "slice_col": ["North America", "Europe", "APAC", "LATAM"],
+                    "val_current": [1500, 1200, 900, 500],
+                    "val_prior": [1400, 1100, 800, 450],
+                    "avg_other_slices_value": [866.67, 966.67, 1066.67, 1200],
+                    "absolute_diff_from_avg": [633.33, 233.33, -166.67, -700],
+                    "absolute_diff_percent_from_avg": [73.08, 24.14, -15.63, -58.33],
+                }
+            ),
+        )
 
-    #     mocker.patch(
-    #         "levers.patterns.dimension_analysis.build_slices_performance_list",
-    #         return_value=[{
-    #             "slice_value": "North America",
-    #             "current_value": 1500,
-    #             "prior_value": 1400,
-    #             "absolute_change": 100,
-    #             "relative_change_percent": 7.14
-    #         }]
-    #     )
+        mocker.patch(
+            "levers.patterns.dimension_analysis.build_slices_performance_list",
+            return_value=[
+                {
+                    "slice_value": "North America",
+                    "current_value": 1500,
+                    "prior_value": 1400,
+                    "absolute_change": 100,
+                    "relative_change_percent": 7.14,
+                }
+            ],
+        )
 
-    #     mocker.patch(
-    #         "levers.patterns.dimension_analysis.compute_top_bottom_slices",
-    #         return_value=(
-    #             [{
-    #                 "dimension": "region",
-    #                 "slice_value": "North America",
-    #                 "metric_value": 1500,
-    #                 "rank": 1
-    #             }],
-    #             [{
-    #                 "dimension": "region",
-    #                 "slice_value": "LATAM",
-    #                 "metric_value": 500,
-    #                 "rank": 4
-    #             }]
-    #         )
-    #     )
+        mocker.patch(
+            "levers.patterns.dimension_analysis.compute_top_bottom_slices",
+            return_value=(
+                [{"dimension": "region", "slice_value": "North America", "metric_value": 1500, "rank": 1}],
+                [{"dimension": "region", "slice_value": "LATAM", "metric_value": 500, "rank": 4}],
+            ),
+        )
 
-    #     mocker.patch(
-    #         "levers.patterns.dimension_analysis.compute_historical_slice_rankings",
-    #         return_value={
-    #             "periods_analyzed": 2,
-    #             "period_rankings": [
-    #                 {
-    #                     "start_date": "2023-02-15",
-    #                     "end_date": "2023-02-21",
-    #                     "top_slices_by_performance": [
-    #                         {"dimension": "region", "slice_value": "North America", "metric_value": 1500}
-    #                     ]
-    #                 }
-    #             ]
-    #         }
-    #     )
+        mocker.patch(
+            "levers.patterns.dimension_analysis.compute_historical_slice_rankings",
+            return_value={
+                "periods_analyzed": 2,
+                "period_rankings": [
+                    {
+                        "start_date": "2023-02-15",
+                        "end_date": "2023-02-21",
+                        "top_slices_by_performance": [
+                            {"dimension": "region", "slice_value": "North America", "metric_value": 1500}
+                        ],
+                    }
+                ],
+            },
+        )
 
-    #     # Act
-    #     result = pattern.analyze(
-    #         metric_id=metric_id,
-    #         data=sample_data,
-    #         analysis_window=analysis_window,
-    #         dimension_name=dimension_name
-    #     )
+        # Act
+        result = pattern.analyze(
+            metric_id=metric_id,
+            data=sample_data,
+            analysis_date=datetime.date(2023, 2, 28),
+            dimension_name=dimension_name,
+        )
 
-    #     # Assert
-    #     assert result is not None
-    #     assert result.pattern == "dimension_analysis"
-    #     assert result.metric_id == metric_id
-    #     assert result.dimension_name == dimension_name
-    #     assert result.slices is not None
-    #     assert result.top_slices is not None
-    #     assert result.bottom_slices is not None
-    #     assert compute_shares_spy.called  # Verify our method was called
+        # Assert
+        assert result is not None
+        assert result.pattern == "dimension_analysis"
+        assert result.metric_id == metric_id
+        assert result.dimension_name == dimension_name
+        assert result.slices is not None
+        assert result.top_slices is not None
+        assert result.bottom_slices is not None
+        assert compute_shares_spy.called  # Verify our method was called
 
-    # def test_analyze_with_empty_data(self, pattern, analysis_window):
-    #     """Test the analyze method with empty data."""
-    #     # Arrange
-    #     empty_data = pd.DataFrame(columns=["date", "dimension", "slice_value", "metric_value", "metric_id"])
-    #     metric_id = "revenue"
+    def test_analyze_with_empty_data(self, pattern, analysis_window):
+        """Test the analyze method with empty data."""
+        # Arrange
+        empty_data = pd.DataFrame()
+        metric_id = "revenue"
 
-    #     # Act
-    #     result = pattern.analyze(metric_id=metric_id, data=empty_data, analysis_window=analysis_window)
+        with pytest.raises(PatternError):
+            pattern.analyze(
+                metric_id=metric_id, data=empty_data, analysis_date=datetime.date(2023, 1, 1), dimension_name="test"
+            )
 
-    #     # Assert
-    #     assert result is not None
-    #     assert result.pattern == "dimension_analysis"
-    #     assert result.metric_id == metric_id
-    #     assert len(result.slices) == 0
-    #     assert len(result.top_slices) == 0
-    #     assert len(result.bottom_slices) == 0
-    #     assert result.largest_slice is None
-    #     assert result.smallest_slice is None
+    def test_analyze_with_missing_dimensions(self, pattern, sample_data, analysis_window):
+        """Test analyze with a metric that doesn't have the requested dimension."""
+        # Arrange
+        metric_id = "revenue"
+        dimension_name = "nonexistent_dimension"  # This dimension doesn't exist in the data
 
-    # def test_analyze_with_missing_dimensions(self, pattern, sample_data, analysis_window):
-    #     """Test analyze with a metric that doesn't have the requested dimension."""
-    #     # Arrange
-    #     metric_id = "revenue"
-    #     dimension_name = "nonexistent_dimension"  # This dimension doesn't exist in the data
+        # Act
+        result = pattern.analyze(
+            metric_id=metric_id,
+            data=sample_data,
+            analysis_date=datetime.date(2023, 1, 1),
+            dimension_name=dimension_name,
+        )
 
-    #     # Act
-    #     result = pattern.analyze(
-    #         metric_id=metric_id,
-    #         data=sample_data,
-    #         analysis_window=analysis_window,
-    #         dimension_name=dimension_name
-    #     )
+        # Assert
+        assert result is not None
+        assert result.pattern == "dimension_analysis"
+        assert result.metric_id == metric_id
+        assert len(result.slices) == 0
+        assert len(result.top_slices) == 0
+        assert len(result.bottom_slices) == 0
 
-    #     # Assert
-    #     assert result is not None
-    #     assert result.pattern == "dimension_analysis"
-    #     assert result.metric_id == metric_id
-    #     assert result.dimension_name == dimension_name
-    #     assert len(result.slices) == 0
-    #     assert len(result.top_slices) == 0
-    #     assert len(result.bottom_slices) == 0
+    def test_analyze_with_different_grain(self, pattern, sample_data):
+        """Test analyze with a different grain (weekly)."""
+        # Arrange
+        metric_id = "revenue"
+        dimension_name = "region"
 
-    # def test_analyze_with_different_grain(self, pattern, sample_data):
-    #     """Test analyze with a different grain (weekly)."""
-    #     # Arrange
-    #     metric_id = "revenue"
-    #     dimension_name = "region"
-    #     analysis_window = AnalysisWindow(
-    #         start_date="2023-02-01",
-    #         end_date="2023-02-28",
-    #         grain=Granularity.WEEK
-    #     )
+        # Act
+        result = pattern.analyze(
+            metric_id=metric_id,
+            data=sample_data,
+            analysis_date=datetime.date(2023, 2, 1),
+            dimension_name=dimension_name,
+            grain=Granularity.WEEK,
+        )
 
-    #     # Act
-    #     result = pattern.analyze(
-    #         metric_id=metric_id,
-    #         data=sample_data,
-    #         analysis_window=analysis_window,
-    #         dimension_name=dimension_name
-    #     )
-
-    #     # Assert
-    #     assert result is not None
-    #     assert result.pattern == "dimension_analysis"
-    #     assert result.metric_id == metric_id
-    #     assert result.analysis_window.grain == Granularity.WEEK
+        # Assert
+        assert result is not None
+        assert result.pattern == "dimension_analysis"
+        assert result.metric_id == metric_id
+        assert result.analysis_window.grain == Granularity.WEEK
 
     def test_analyze_with_invalid_data(self, pattern, analysis_window):
         """Test analyze with invalid data (missing required columns)."""
@@ -283,7 +268,9 @@ class TestDimensionAnalysisPattern:
 
         # Act & Assert
         with pytest.raises(PatternError):
-            pattern.analyze(metric_id=metric_id, data=invalid_data, analysis_window=analysis_window)
+            pattern.analyze(
+                metric_id=metric_id, data=invalid_data, analysis_date=datetime.date(2023, 1, 1), dimension_name="region"
+            )
 
     # def test_analyze_with_nonexistent_metric(self, pattern, sample_data, analysis_window):
     #     """Test analyze with a metric ID that doesn't exist in the data."""
