@@ -52,7 +52,7 @@
       {
         "source_type": "dimensional_time_series",
         "is_required": true,
-        "data_key": "ledger_df"
+        "data_key": "data"
       }
     ],
     "analysis_window": {
