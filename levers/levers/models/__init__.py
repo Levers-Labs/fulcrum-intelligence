@@ -39,7 +39,6 @@ from .dimensional_analysis import (
     SliceComparison,
     TopSlice,
     HistoricalPeriodRanking,
-    HistoricalSliceRankings,
 )
 
 
@@ -84,5 +83,4 @@ __all__ = [
     "SliceComparison",
     "TopSlice",
     "HistoricalPeriodRanking",
-    "HistoricalSliceRankings",
 ]

@@ -9,7 +9,6 @@ from levers.models import (
     AnalysisWindow,
     Granularity,
     HistoricalPeriodRanking,
-    HistoricalSliceRankings,
     SliceComparison,
     SlicePerformance,
     SliceRanking,
@@ -211,31 +210,27 @@ class TestHistoricalRankingsModels:
     def test_historical_slice_rankings_model(self):
         """Test the HistoricalSliceRankings model."""
         # Arrange & Act
-        model = HistoricalSliceRankings(
-            periods_analyzed=2,
-            period_rankings=[
-                HistoricalPeriodRanking(
-                    start_date="2023-01-01",
-                    end_date="2023-01-07",
-                    top_slices_by_performance=[
-                        TopSlice(dimension="region", slice_value="North America", metric_value=1500.0)
-                    ],
-                ),
-                HistoricalPeriodRanking(
-                    start_date="2023-01-08",
-                    end_date="2023-01-14",
-                    top_slices_by_performance=[TopSlice(dimension="region", slice_value="Europe", metric_value=1600.0)],
-                ),
-            ],
-        )
+        model = [
+            HistoricalPeriodRanking(
+                start_date="2023-01-01",
+                end_date="2023-01-07",
+                top_slices_by_performance=[
+                    TopSlice(dimension="region", slice_value="North America", metric_value=1500.0)
+                ],
+            ),
+            HistoricalPeriodRanking(
+                start_date="2023-01-08",
+                end_date="2023-01-14",
+                top_slices_by_performance=[TopSlice(dimension="region", slice_value="Europe", metric_value=1600.0)],
+            ),
+        ]
 
         # Assert
-        assert model.periods_analyzed == 2
-        assert len(model.period_rankings) == 2
-        assert model.period_rankings[0].start_date == "2023-01-01"
-        assert model.period_rankings[1].end_date == "2023-01-14"
-        assert model.period_rankings[0].top_slices_by_performance[0].slice_value == "North America"
-        assert model.period_rankings[1].top_slices_by_performance[0].slice_value == "Europe"
+        assert len(model) == 2
+        assert model[0].start_date == "2023-01-01"
+        assert model[1].end_date == "2023-01-14"
+        assert model[0].top_slices_by_performance[0].slice_value == "North America"
+        assert model[1].top_slices_by_performance[0].slice_value == "Europe"
 
 
 class TestDimensionAnalysisModel:
@@ -290,10 +285,10 @@ class TestDimensionAnalysisModel:
         assert len(sample_dimension_analysis.bottom_slices) == 1
         assert sample_dimension_analysis.largest_slice is None
         assert sample_dimension_analysis.smallest_slice is None
-        assert sample_dimension_analysis.new_strongest_slice is None
-        assert sample_dimension_analysis.new_weakest_slice is None
+        assert sample_dimension_analysis.strongest_slice is None
+        assert sample_dimension_analysis.weakest_slice is None
         assert len(sample_dimension_analysis.comparison_highlights) == 1
-        assert sample_dimension_analysis.historical_slice_rankings is None
+        assert len(sample_dimension_analysis.historical_slice_rankings) == 0
 
     def test_dimension_analysis_model_with_optional_fields(self, sample_dimension_analysis):
         """Test the DimensionAnalysis model with optional fields."""
@@ -312,7 +307,7 @@ class TestDimensionAnalysisModel:
             previous_share_percent=12.0,
         )
 
-        sample_dimension_analysis.new_strongest_slice = SliceStrength(
+        sample_dimension_analysis.strongest_slice = SliceStrength(
             slice_value="North America",
             previous_slice_value="Europe",
             current_value=1500.0,
@@ -321,7 +316,7 @@ class TestDimensionAnalysisModel:
             relative_delta_percent=7.14,
         )
 
-        sample_dimension_analysis.new_weakest_slice = SliceStrength(
+        sample_dimension_analysis.weakest_slice = SliceStrength(
             slice_value="LATAM",
             previous_slice_value="LATAM",
             current_value=500.0,
@@ -330,26 +325,23 @@ class TestDimensionAnalysisModel:
             relative_delta_percent=11.11,
         )
 
-        sample_dimension_analysis.historical_slice_rankings = HistoricalSliceRankings(
-            periods_analyzed=1,
-            period_rankings=[
-                HistoricalPeriodRanking(
-                    start_date="2023-01-01",
-                    end_date="2023-01-07",
-                    top_slices_by_performance=[
-                        TopSlice(dimension="region", slice_value="North America", metric_value=1500.0)
-                    ],
-                )
-            ],
-        )
+        sample_dimension_analysis.historical_slice_rankings = [
+            HistoricalPeriodRanking(
+                start_date="2023-01-01",
+                end_date="2023-01-07",
+                top_slices_by_performance=[
+                    TopSlice(dimension="region", slice_value="North America", metric_value=1500.0)
+                ],
+            )
+        ]
 
         # Assert
         assert sample_dimension_analysis.largest_slice.slice_value == "North America"
         assert sample_dimension_analysis.smallest_slice.slice_value == "LATAM"
-        assert sample_dimension_analysis.new_strongest_slice.slice_value == "North America"
-        assert sample_dimension_analysis.new_weakest_slice.slice_value == "LATAM"
-        assert sample_dimension_analysis.historical_slice_rankings.periods_analyzed == 1
-        assert len(sample_dimension_analysis.historical_slice_rankings.period_rankings) == 1
+        assert sample_dimension_analysis.strongest_slice.slice_value == "North America"
+        assert sample_dimension_analysis.weakest_slice.slice_value == "LATAM"
+        assert sample_dimension_analysis.historical_slice_rankings
+        assert len(sample_dimension_analysis.historical_slice_rankings) == 1
 
     def test_dimension_analysis_validation(self):
         """Test validation in the DimensionAnalysis model."""

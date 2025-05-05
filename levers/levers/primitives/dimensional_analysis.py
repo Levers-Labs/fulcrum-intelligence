@@ -21,7 +21,6 @@ from levers.exceptions import CalculationError, ValidationError
 from levers.models import (
     ConcentrationMethod,
     HistoricalPeriodRanking,
-    HistoricalSliceRankings,
     SliceComparison,
     SlicePerformance,
     SliceRanking,
@@ -934,7 +933,7 @@ def compute_historical_slice_rankings(
     num_periods: int = 8,
     period_length_days: int = 7,
     top_n: int = 5,
-) -> HistoricalSliceRankings | None:
+) -> list[HistoricalPeriodRanking]:
     """
     Analyze top slice rankings over multiple periods.
 
@@ -969,7 +968,7 @@ def compute_historical_slice_rankings(
 
     # Handle empty dataframe
     if dff.empty:
-        return None
+        return []
 
     # Get latest date
     end_of_latest = dff[date_col].max()
@@ -1014,7 +1013,7 @@ def compute_historical_slice_rankings(
     # Reverse to get chronological order
     period_rankings.reverse()
 
-    return HistoricalSliceRankings(periods_analyzed=len(period_rankings), period_rankings=period_rankings)
+    return period_rankings
 
 
 def build_slices_performance_list(

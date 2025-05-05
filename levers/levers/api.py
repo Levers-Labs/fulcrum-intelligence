@@ -2,6 +2,7 @@
 Main API for the Levers package.
 """
 
+from datetime import date, datetime
 from typing import Any, Generic, TypeVar
 
 import pandas as pd
@@ -269,7 +270,9 @@ class Levers(Generic[T]):
         self,
         metric_id: str,
         data: pd.DataFrame,
-        analysis_date: str,
+        start_date: str,
+        end_date: str,
+        analysis_date: str | None,
         dimension_name: str,
         grain: Granularity = Granularity.DAY,
     ) -> DimensionAnalysis:
@@ -287,7 +290,8 @@ class Levers(Generic[T]):
             Dimension analysis results
         """
         # Create an analysis window using the analysis date
-        analysis_window = AnalysisWindow(start_date=analysis_date, end_date=analysis_date, grain=grain)
+        analysis_window = AnalysisWindow(start_date=start_date, end_date=end_date, grain=grain)
+        analysis_date = datetime.strptime(analysis_date, "%Y-%m-%d")  # type: ignore
 
         # Execute the pattern
         return self.execute_pattern(
@@ -295,7 +299,7 @@ class Levers(Generic[T]):
             metric_id=metric_id,
             dimension_name=dimension_name,
             data=data,
-            analysis_date=analysis_date,
+            analysis_date=analysis_date or date.today(),
             grain=grain,
             analysis_window=analysis_window,
         )

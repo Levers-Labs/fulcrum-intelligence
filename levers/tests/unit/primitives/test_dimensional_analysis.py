@@ -468,11 +468,10 @@ class TestComputeHistoricalSliceRankings:
 
         # Assert
         assert result is not None
-        assert result.periods_analyzed > 0
-        assert len(result.period_rankings) > 0
+        assert len(result) > 0
 
         # First period should have rankings
-        first_period = result.period_rankings[0]
+        first_period = result[0]
         assert len(first_period.top_slices_by_performance) <= 2  # Up to 2 slices per period
 
     def test_with_empty_data(self):
@@ -484,7 +483,7 @@ class TestComputeHistoricalSliceRankings:
         result = compute_historical_slice_rankings(empty_df, "slice_value", "date", "value", num_periods=2)
 
         # Assert
-        assert result is None
+        assert len(result) == 0
 
 
 class TestBuildSlicesPerformanceList:

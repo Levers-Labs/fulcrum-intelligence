@@ -227,7 +227,7 @@ def mock_comparison_highlights():
 
 
 @pytest.fixture
-def mock_new_strongest_slice():
+def mock_strongest_slice():
     """Fixture for mock new strongest slice."""
     return SliceStrength(
         slice_value="North America",
@@ -240,7 +240,7 @@ def mock_new_strongest_slice():
 
 
 @pytest.fixture
-def mock_new_weakest_slice():
+def mock_weakest_slice():
     """Fixture for mock new weakest slice."""
     return SliceStrength(
         slice_value="Antarctica",
@@ -280,8 +280,8 @@ def mock_dimension_analysis(
     mock_bottom_slices,
     mock_slice_performances,
     mock_comparison_highlights,
-    mock_new_strongest_slice,
-    mock_new_weakest_slice,
+    mock_strongest_slice,
+    mock_weakest_slice,
     mock_largest_slice,
     mock_smallest_slice,
 ):
@@ -297,8 +297,8 @@ def mock_dimension_analysis(
         top_slices=mock_top_slices,
         bottom_slices=mock_bottom_slices,
         comparison_highlights=mock_comparison_highlights,
-        new_strongest_slice=mock_new_strongest_slice,
-        new_weakest_slice=mock_new_weakest_slice,
+        strongest_slice=mock_strongest_slice,
+        weakest_slice=mock_weakest_slice,
         largest_slice=mock_largest_slice,
         smallest_slice=mock_smallest_slice,
     )
@@ -343,8 +343,8 @@ async def test_evaluate_top_segments_only(
     """Test with only top segments data."""
     mock_dimension_analysis.bottom_slices = []
     mock_dimension_analysis.comparison_highlights = []
-    mock_dimension_analysis.new_strongest_slice = None
-    mock_dimension_analysis.new_weakest_slice = None
+    mock_dimension_analysis.strongest_slice = None
+    mock_dimension_analysis.weakest_slice = None
     mock_dimension_analysis.largest_slice = None
     mock_dimension_analysis.smallest_slice = None
 
@@ -362,8 +362,8 @@ async def test_evaluate_empty_slices(mock_dimension_analysis, mock_metric):
     mock_dimension_analysis.top_slices = []
     mock_dimension_analysis.bottom_slices = []
     mock_dimension_analysis.comparison_highlights = []
-    mock_dimension_analysis.new_strongest_slice = None
-    mock_dimension_analysis.new_weakest_slice = None
+    mock_dimension_analysis.strongest_slice = None
+    mock_dimension_analysis.weakest_slice = None
     mock_dimension_analysis.largest_slice = None
     mock_dimension_analysis.smallest_slice = None
 

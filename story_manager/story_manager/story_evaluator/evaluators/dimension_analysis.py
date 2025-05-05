@@ -64,11 +64,11 @@ class DimensionAnalysisEvaluator(StoryEvaluatorBase[DimensionAnalysis]):
             )
 
         # Check for new strongest segment
-        if pattern_result.new_strongest_slice:
+        if pattern_result.strongest_slice:
             stories.append(self._create_new_strongest_segment_story(pattern_result, metric_id, metric, grain))
 
         # Check for new weakest segment
-        if pattern_result.new_weakest_slice:
+        if pattern_result.weakest_slice:
             stories.append(self._create_new_weakest_segment_story(pattern_result, metric_id, metric, grain))
 
         # Check for largest slice by share
@@ -342,7 +342,7 @@ class DimensionAnalysisEvaluator(StoryEvaluatorBase[DimensionAnalysis]):
         story_group = StoryGroup.SEGMENT_CHANGES
 
         # Get new strongest segment info
-        strongest = pattern_result.new_strongest_slice
+        strongest = pattern_result.strongest_slice
 
         # Determine trend direction for previous segment
         trend_direction = "up"
@@ -417,7 +417,7 @@ class DimensionAnalysisEvaluator(StoryEvaluatorBase[DimensionAnalysis]):
         story_group = StoryGroup.SEGMENT_CHANGES
 
         # Get new weakest segment info
-        weakest = pattern_result.new_weakest_slice
+        weakest = pattern_result.weakest_slice
 
         # Determine trend direction for previous segment
         trend_direction = "up"

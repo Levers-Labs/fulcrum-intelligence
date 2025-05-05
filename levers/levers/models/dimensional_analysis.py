@@ -2,10 +2,10 @@
 Models for dimensional analysis outputs.
 """
 
-from levers.models.common import BaseModel as LeversBaseModel
+from levers.models.common import BaseModel
 
 
-class BaseSlice(LeversBaseModel):
+class BaseSlice(BaseModel):
     """Base model for representing dimension slice data"""
 
     slice_value: str
@@ -65,7 +65,7 @@ class SliceStrength(BaseSlice):
     relative_delta_percent: float | None = None
 
 
-class SliceComparison(LeversBaseModel):
+class SliceComparison(BaseModel):
     """Model for comparing two slices"""
 
     slice_a: str
@@ -82,16 +82,9 @@ class TopSlice(SliceMetric):
     """Model for representing a top-performing slice in a period"""
 
 
-class HistoricalPeriodRanking(LeversBaseModel):
+class HistoricalPeriodRanking(BaseModel):
     """Model for historical period rankings"""
 
     start_date: str
     end_date: str
     top_slices_by_performance: list[TopSlice]
-
-
-class HistoricalSliceRankings(LeversBaseModel):
-    """Model for historical slice rankings across periods"""
-
-    periods_analyzed: int
-    period_rankings: list[HistoricalPeriodRanking]

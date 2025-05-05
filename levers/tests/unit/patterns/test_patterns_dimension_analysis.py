@@ -167,18 +167,15 @@ class TestDimensionAnalysisPattern:
 
         mocker.patch(
             "levers.patterns.dimension_analysis.compute_historical_slice_rankings",
-            return_value={
-                "periods_analyzed": 2,
-                "period_rankings": [
-                    {
-                        "start_date": "2023-02-15",
-                        "end_date": "2023-02-21",
-                        "top_slices_by_performance": [
-                            {"dimension": "region", "slice_value": "North America", "metric_value": 1500}
-                        ],
-                    }
-                ],
-            },
+            return_value=[
+                {
+                    "start_date": "2023-02-15",
+                    "end_date": "2023-02-21",
+                    "top_slices_by_performance": [
+                        {"dimension": "region", "slice_value": "North America", "metric_value": 1500}
+                    ],
+                }
+            ],
         )
 
         # Act
@@ -187,6 +184,7 @@ class TestDimensionAnalysisPattern:
             data=sample_data,
             analysis_date=datetime.date(2023, 2, 28),
             dimension_name=dimension_name,
+            analysis_window=analysis_window,
         )
 
         # Assert
@@ -207,7 +205,11 @@ class TestDimensionAnalysisPattern:
 
         with pytest.raises(PatternError):
             pattern.analyze(
-                metric_id=metric_id, data=empty_data, analysis_date=datetime.date(2023, 1, 1), dimension_name="test"
+                metric_id=metric_id,
+                data=empty_data,
+                analysis_date=datetime.date(2023, 1, 1),
+                dimension_name="test",
+                analysis_window=analysis_window,
             )
 
     def test_analyze_with_missing_dimensions(self, pattern, sample_data, analysis_window):
@@ -222,6 +224,7 @@ class TestDimensionAnalysisPattern:
             data=sample_data,
             analysis_date=datetime.date(2023, 1, 1),
             dimension_name=dimension_name,
+            analysis_window=analysis_window,
         )
 
         # Assert
@@ -237,6 +240,7 @@ class TestDimensionAnalysisPattern:
         # Arrange
         metric_id = "revenue"
         dimension_name = "region"
+        analysis_window = AnalysisWindow(start_date="2023-01-01", end_date="2023-02-28", grain=Granularity.WEEK)
 
         # Act
         result = pattern.analyze(
@@ -245,6 +249,7 @@ class TestDimensionAnalysisPattern:
             analysis_date=datetime.date(2023, 2, 1),
             dimension_name=dimension_name,
             grain=Granularity.WEEK,
+            analysis_window=analysis_window,
         )
 
         # Assert
@@ -269,7 +274,11 @@ class TestDimensionAnalysisPattern:
         # Act & Assert
         with pytest.raises(PatternError):
             pattern.analyze(
-                metric_id=metric_id, data=invalid_data, analysis_date=datetime.date(2023, 1, 1), dimension_name="region"
+                metric_id=metric_id,
+                data=invalid_data,
+                analysis_date=datetime.date(2023, 1, 1),
+                dimension_name="region",
+                analysis_window=analysis_window,
             )
 
     # def test_analyze_with_nonexistent_metric(self, pattern, sample_data, analysis_window):
@@ -350,10 +359,10 @@ class TestDimensionAnalysisPattern:
             "bottom_slices": [{"dimension": "region", "slice_value": "LATAM", "metric_value": 500, "rank": 4}],
             "largest_slice": None,
             "smallest_slice": None,
-            "new_strongest_slice": None,
-            "new_weakest_slice": None,
+            "strongest_slice": None,
+            "weakest_slice": None,
             "comparison_highlights": [],
-            "historical_slice_rankings": None,
+            "historical_slice_rankings": [],
         }
 
         # Act

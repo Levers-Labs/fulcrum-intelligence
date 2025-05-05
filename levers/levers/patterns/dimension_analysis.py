@@ -86,9 +86,9 @@ class DimensionAnalysisPattern(Pattern[DimensionAnalysis]):
         self,
         metric_id: str,
         data: pd.DataFrame,
-        analysis_date: date,
+        analysis_window: AnalysisWindow,
         dimension_name: str,
-        analysis_window: AnalysisWindow | None = None,
+        analysis_date: date | None = None,
         grain: Granularity = Granularity.DAY,
         num_periods: int = 8,
     ) -> DimensionAnalysis:
@@ -109,31 +109,28 @@ class DimensionAnalysisPattern(Pattern[DimensionAnalysis]):
             PatternError: For pattern execution errors
         """
         try:
+            analysis_date = analysis_date or date.today()
             # Validate input data
             required_columns = ["metric_id", "date", "dimension", "slice_value", "metric_value"]
             self.validate_data(data, required_columns)
 
             if len(data) < num_periods:
-                logger.info("Empty data for metric_id=%s")
+                logger.info("Insufficient data for metric_id=%s")
                 raise InsufficientDataError("Insufficient data to perform Dimensional Analysis")
-
-            # Create Analysis Window
-            analysis_window = self.create_analysis_window(data, grain)
 
             # Pre Process data
             ledger_df = self.preprocess_data(data, analysis_window)
 
             # If empty data or metric not present, return minimal output
-            if ledger_df.empty:
+            if (
+                ledger_df.empty
+                or (metric_id not in ledger_df["metric_id"].unique())
+                or (not (ledger_df["dimension"] == dimension_name).any())
+            ):
                 # or metric_id not in ledger_df["metric_id"].unique() or ledger_df['dimension'] != dimension_name
                 logger.info(
                     "Empty data for metric_id=%s, dimension=%s Returning minimal output.", metric_id, dimension_name
                 )
-                return self.handle_empty_data(metric_id, analysis_window)
-
-            if (metric_id not in ledger_df["metric_id"].unique()) or (
-                not (ledger_df["dimension"] == dimension_name).any()
-            ):
                 return self.handle_empty_data(metric_id, analysis_window)
 
             # 1) Determine current and prior period ranges based on grain
@@ -149,9 +146,6 @@ class DimensionAnalysisPattern(Pattern[DimensionAnalysis]):
             if filtered_df.empty:
                 logger.info("No data found for dimension=%s. Returning minimal output.", dimension_name)
                 return self.handle_empty_data(metric_id, analysis_window)
-
-            # Preprocess data to ensure dates are parsed correctly
-            filtered_df["date"] = pd.to_datetime(filtered_df["date"])
 
             # 3) Compare slices across time periods
             compare_df = compare_dimension_slices_over_time(
@@ -195,7 +189,7 @@ class DimensionAnalysisPattern(Pattern[DimensionAnalysis]):
             largest_slice, smallest_slice = identify_largest_smallest_by_share(current_share, prior_share, "slice_col")
 
             # 9) Identify new strongest/weakest slices
-            new_strongest, new_weakest = identify_strongest_weakest_changes(
+            strongest, weakest = identify_strongest_weakest_changes(
                 merged, "slice_col", current_val_col="val_current", prior_val_col="val_prior"
             )
 
@@ -220,14 +214,15 @@ class DimensionAnalysisPattern(Pattern[DimensionAnalysis]):
                 "metric_id": metric_id,
                 "analysis_window": analysis_window,
                 "num_periods": len(filtered_df),
+                "analysis_date": analysis_date,
                 "dimension_name": dimension_name,
                 "slices": slices_list,
                 "top_slices": top_slices,
                 "bottom_slices": bottom_slices,
                 "largest_slice": largest_slice,
                 "smallest_slice": smallest_slice,
-                "new_strongest_slice": new_strongest,
-                "new_weakest_slice": new_weakest,
+                "strongest_slice": strongest,
+                "weakest_slice": weakest,
                 "comparison_highlights": comparison_highlights,
                 "historical_slice_rankings": historical_rankings,
             }

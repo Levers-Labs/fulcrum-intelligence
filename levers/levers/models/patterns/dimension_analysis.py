@@ -4,7 +4,7 @@ Models for dimension analysis pattern.
 
 from levers.models import (
     BasePattern,
-    HistoricalSliceRankings,
+    HistoricalPeriodRanking,
     SliceComparison,
     SlicePerformance,
     SliceRanking,
@@ -31,9 +31,9 @@ class DimensionAnalysis(BasePattern):
     largest_slice: SliceShare | None = None
     smallest_slice: SliceShare | None = None
 
-    new_strongest_slice: SliceStrength | None = None
-    new_weakest_slice: SliceStrength | None = None
+    strongest_slice: SliceStrength | None = None
+    weakest_slice: SliceStrength | None = None
 
     comparison_highlights: list[SliceComparison] = []
 
-    historical_slice_rankings: HistoricalSliceRankings | None = None
+    historical_slice_rankings: list[HistoricalPeriodRanking] = []
