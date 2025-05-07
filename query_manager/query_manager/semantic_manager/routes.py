@@ -158,8 +158,10 @@ async def get_targets_stats(
     - **metric_label**: Optional metric label to filter by
     """
 
-    results, count = await semantic_manager.metric_target.get_metrics_targets_stats(metric_label=metric_label)
-    return Page.create(items=results, total_count=count, params=params)
+    results, count = await semantic_manager.metric_target.get_metrics_targets_stats(
+        metric_label=metric_label, params=params
+    )
+    return Page[MetricTargetStats].create(items=results, total_count=count, params=params)
 
 
 @router.get(

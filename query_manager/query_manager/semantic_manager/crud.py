@@ -26,6 +26,7 @@ from commons.db.filters import BaseFilter
 from commons.db.models import BaseTimeStampedTenantModel
 from commons.models.enums import Granularity
 from commons.utilities.context import get_tenant_id
+from commons.utilities.pagination import PaginationParams
 from query_manager.core.models import Metric
 from query_manager.semantic_manager.filters import TargetFilter
 from query_manager.semantic_manager.models import (
@@ -537,7 +538,9 @@ class CRUDMetricTarget(CRUDSemantic[MetricTarget, TargetCreate, TargetUpdate, Ta
         await self.session.commit()
         return stats
 
-    async def get_metrics_targets_stats(self, metric_label: str | None = None) -> tuple[list[MetricTargetStats], int]:
+    async def get_metrics_targets_stats(
+        self, params: PaginationParams, metric_label: str | None = None
+    ) -> tuple[list[MetricTargetStats], int]:
         """Get list of all metrics with their target status."""
 
         # Get all metrics with targets in parallel
@@ -547,20 +550,41 @@ class CRUDMetricTarget(CRUDSemantic[MetricTarget, TargetCreate, TargetUpdate, Ta
         if metric_label:
             metrics_query = metrics_query.where(Metric.label.ilike(f"%{metric_label}%"))  # type: ignore
 
+        # get total count
+        count_query = select(func.count()).select_from(metrics_query)  # type: ignore
+        count = await self.session.scalar(count_query)
+
+        # Apply pagination
+        paginated_metrics_query = metrics_query.offset(params.offset).limit(params.limit)
+
+        # Do a simple subquery
+        latest_targets = select(
+            self.model.metric_id,
+            self.model.grain,
+            self.model.target_date,
+            self.model.target_value,
+            # Use row_number to rank rows within each partition
+            func.row_number()
+            .over(partition_by=[self.model.metric_id, self.model.grain], order_by=self.model.target_date.desc())  # type: ignore
+            .label("row_num"),
+        ).subquery()
+
+        # Only select rows where row_num is 1 (the latest for each metric/grain)
         targets_query = select(
-            self.model.metric_id, self.model.grain, func.max(self.model.target_date).label("target_till_date")
-        ).group_by(  # type: ignore
-            self.model.metric_id, self.model.grain
-        )
+            latest_targets.c.metric_id,
+            latest_targets.c.grain,
+            latest_targets.c.target_date.label("target_till_date"),
+            latest_targets.c.target_value,
+        ).where(latest_targets.c.row_num == 1)
 
         metrics_result, targets_result = await asyncio.gather(
-            self.session.execute(metrics_query), self.session.execute(targets_query)
+            self.session.execute(paginated_metrics_query), self.session.execute(targets_query)
         )
 
         # Build target info lookup
         target_info = {
             (row.metric_id, row.grain): TargetStatus(
-                grain=row.grain, target_set=True, target_till_date=row.target_till_date
+                grain=row.grain, target_set=True, target_till_date=row.target_till_date, target_value=row.target_value
             )
             for row in targets_result.mappings()
         }
@@ -581,7 +605,7 @@ class CRUDMetricTarget(CRUDSemantic[MetricTarget, TargetCreate, TargetUpdate, Ta
             for metric in metrics_result.scalars()
         ]
 
-        return stats, len(stats)
+        return stats, count or 0
 
 
 class SemanticManager:

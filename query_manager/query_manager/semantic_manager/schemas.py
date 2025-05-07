@@ -91,6 +91,7 @@ class TargetStatus(BaseModel):
     grain: Granularity
     target_set: bool
     target_till_date: date | None
+    target_value: float = 0.0
 
 
 class MetricTargetStats(BaseModel):
