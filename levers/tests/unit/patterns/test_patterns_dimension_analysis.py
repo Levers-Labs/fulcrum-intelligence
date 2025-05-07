@@ -134,7 +134,7 @@ class TestDimensionAnalysisPattern:
             "levers.patterns.dimension_analysis.difference_from_average",
             return_value=pd.DataFrame(
                 {
-                    "slice_col": ["North America", "Europe", "APAC", "LATAM"],
+                    "slice_value": ["North America", "Europe", "APAC", "LATAM"],
                     "val_current": [1500, 1200, 900, 500],
                     "val_prior": [1400, 1100, 800, 450],
                     "avg_other_slices_value": [866.67, 966.67, 1066.67, 1200],

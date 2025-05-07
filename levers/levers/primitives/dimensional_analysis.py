@@ -1018,7 +1018,7 @@ def compute_historical_slice_rankings(
 
 def build_slices_performance_list(
     df: pd.DataFrame,
-    slice_col: str,
+    slice_col: str = "slice_value",
     current_val_col: str = "val_current",
     prior_val_col: str = "val_prior",
     abs_diff_col: str = "abs_diff",

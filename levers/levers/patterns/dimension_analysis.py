@@ -161,40 +161,38 @@ class DimensionAnalysisPattern(Pattern[DimensionAnalysis]):
             # 4) Compute share percentages for prior and current
             prior_df, current_df, merged = self._compute_slice_shares(compare_df)
 
-            # 5) Calculate comparison to average - make sure slice_value column exists
-            if "slice_value" in merged.columns:
-                merged = merged.rename(columns={"slice_value": "slice_col"})
+            # 5) Calculate comparison to average
             merged = difference_from_average(merged, value_col="val_current")
 
             # 6) Build the slices performance metrics list for reporting
             slices_list = build_slices_performance_list(
                 merged,
-                "slice_col",
+                "slice_value",
                 current_val_col="val_current",
                 prior_val_col="val_prior",
                 include_shares=True,
                 include_avg_comparison=True,
             )
 
-            # 7) Compute top and bottom slices - ensure slice_col exists as dimension column
-            if "slice_value" not in merged.columns and "slice_col" in merged.columns:
-                merged["slice_value"] = merged["slice_col"]
+            # 7) Compute top and bottom slices
             top_slices, bottom_slices = compute_top_bottom_slices(
                 merged, dim_col="slice_value", value_col="val_current", top_n=3
             )
 
             # 8) Identify largest and smallest by share
-            current_share = current_df.rename(columns={"slice_value": "slice_col", "share_pct_current": "share_pct"})
-            prior_share = prior_df.rename(columns={"slice_value": "slice_col", "share_pct_prior": "share_pct"})
-            largest_slice, smallest_slice = identify_largest_smallest_by_share(current_share, prior_share, "slice_col")
+            current_share = current_df.rename(columns={"share_pct_current": "share_pct"})
+            prior_share = prior_df.rename(columns={"share_pct_prior": "share_pct"})
+            largest_slice, smallest_slice = identify_largest_smallest_by_share(
+                current_share, prior_share, "slice_value"
+            )
 
             # 9) Identify new strongest/weakest slices
             strongest, weakest = identify_strongest_weakest_changes(
-                merged, "slice_col", current_val_col="val_current", prior_val_col="val_prior"
+                merged, "slice_value", current_val_col="val_current", prior_val_col="val_prior"
             )
 
             # 10) Create comparison highlights
-            comparison_highlights = highlight_slice_comparisons(merged, "slice_col", top_n=2)
+            comparison_highlights = highlight_slice_comparisons(merged, "slice_value", top_n=2)
 
             # 11) Compute historical rankings
             period_length_days = get_period_length_for_grain(grain)
