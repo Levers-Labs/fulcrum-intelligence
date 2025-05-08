@@ -8,6 +8,7 @@ benchmark comparisons, and trend exceptions.
 """
 
 import logging
+from datetime import date
 
 import pandas as pd
 
@@ -67,7 +68,12 @@ class HistoricalPerformancePattern(Pattern[HistoricalPerformance]):
     output_model: type[HistoricalPerformance] = HistoricalPerformance
 
     def analyze(  # type: ignore
-        self, metric_id: str, data: pd.DataFrame, analysis_window: AnalysisWindow, num_periods: int = 12
+        self,
+        metric_id: str,
+        data: pd.DataFrame,
+        analysis_window: AnalysisWindow,
+        analysis_date: date | None = None,
+        num_periods: int = 12,
     ) -> HistoricalPerformance:
         """
         Execute the historical performance pattern.
@@ -85,6 +91,8 @@ class HistoricalPerformancePattern(Pattern[HistoricalPerformance]):
             ValidationError: If input validation fails or calculation errors occur
         """
         try:
+            # Set analysis date to today if not provided
+            analysis_date = analysis_date or date.today()
             grain = analysis_window.grain
             # Validate input data
             required_columns = ["date", "value"]
@@ -142,6 +150,7 @@ class HistoricalPerformancePattern(Pattern[HistoricalPerformance]):
                 "metric_id": metric_id,
                 "analysis_window": analysis_window,
                 "num_periods": len(data_window),
+                "analysis_date": analysis_date,
                 "period_metrics": period_metrics,
                 "growth_stats": growth_stats,
                 "current_trend": trend_info["current_trend"],

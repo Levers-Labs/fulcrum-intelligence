@@ -99,6 +99,7 @@ class DimensionAnalysisPattern(Pattern[DimensionAnalysis]):
             metric_id: ID of the metric to analyze
             data: DataFrame with columns: metric_id, time_grain, date, dimension, slice_value, metric_value
             analysis_window: Analysis window specifying the time range and grain
+            analysis_date: Optional date of analysis
             num_periods: Number of periods for historical rankings
 
         Returns:
@@ -109,11 +110,14 @@ class DimensionAnalysisPattern(Pattern[DimensionAnalysis]):
             PatternError: For pattern execution errors
         """
         try:
+            # Set analysis date to today if not provided
             analysis_date = analysis_date or date.today()
-            # Validate input data
+
+            # Validate that required columns exist in input data
             required_columns = ["metric_id", "date", "dimension", "slice_value", "metric_value"]
             self.validate_data(data, required_columns)
 
+            # Check if we have enough data points for analysis
             if len(data) < num_periods:
                 logger.info("Insufficient data for metric_id=%s")
                 raise InsufficientDataError("Insufficient data to perform Dimensional Analysis")
@@ -121,23 +125,7 @@ class DimensionAnalysisPattern(Pattern[DimensionAnalysis]):
             # Pre Process data
             ledger_df = self.preprocess_data(data, analysis_window)
 
-            # If empty data or metric not present, return minimal output
-            if (
-                ledger_df.empty
-                or (metric_id not in ledger_df["metric_id"].unique())
-                or (not (ledger_df["dimension"] == dimension_name).any())
-            ):
-                # or metric_id not in ledger_df["metric_id"].unique() or ledger_df['dimension'] != dimension_name
-                logger.info(
-                    "Empty data for metric_id=%s, dimension=%s Returning minimal output.", metric_id, dimension_name
-                )
-                return self.handle_empty_data(metric_id, analysis_window)
-
-            # 1) Determine current and prior period ranges based on grain
-            current_start, current_end = get_period_range_for_grain(analysis_date, grain)
-            prior_start, _ = get_prior_period_range(current_start, current_end, grain)
-
-            # 2) Filter the ledger for the metric and dimension
+            # 1) Filter the ledger for the metric and dimension
             filtered_df = ledger_df[
                 (ledger_df["metric_id"] == metric_id) & (ledger_df["dimension"] == dimension_name)
             ].copy()
@@ -146,6 +134,10 @@ class DimensionAnalysisPattern(Pattern[DimensionAnalysis]):
             if filtered_df.empty:
                 logger.info("No data found for dimension=%s. Returning minimal output.", dimension_name)
                 return self.handle_empty_data(metric_id, analysis_window)
+
+            # 2) Determine current and prior period ranges based on grain
+            current_start, current_end = get_period_range_for_grain(analysis_date, grain)
+            prior_start, _ = get_prior_period_range(current_start, current_end, grain)
 
             # 3) Compare slices across time periods
             compare_df = compare_dimension_slices_over_time(
