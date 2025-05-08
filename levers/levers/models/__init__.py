@@ -18,6 +18,7 @@ from .enums import (
     TrendExceptionType,
     TrendType,
     WindowStrategy,
+    ConcentrationMethod,
 )
 from .common import AnalysisWindow, BaseModel, BasePattern
 from .pattern_config import AnalysisWindowConfig, DataSource, PatternConfig
@@ -27,6 +28,17 @@ from .trend_analysis import (
     RecordHigh,
     RecordLow,
     TrendAnalysis,
+)
+from .dimensional_analysis import (
+    BaseSlice,
+    SliceMetric,
+    SlicePerformance,
+    SliceRanking,
+    SliceShare,
+    SliceStrength,
+    SliceComparison,
+    TopSlice,
+    HistoricalPeriodRanking,
 )
 
 
@@ -45,6 +57,7 @@ __all__ = [
     "CumulativeGrowthMethod",
     "DataSourceType",
     "WindowStrategy",
+    "ConcentrationMethod",
     # Common models
     "AnalysisWindow",
     "BaseModel",
@@ -60,4 +73,14 @@ __all__ = [
     "PerformancePlateau",
     "RecordHigh",
     "RecordLow",
+    # Dimensional analysis models
+    "BaseSlice",
+    "SliceMetric",
+    "SlicePerformance",
+    "SliceRanking",
+    "SliceShare",
+    "SliceStrength",
+    "SliceComparison",
+    "TopSlice",
+    "HistoricalPeriodRanking",
 ]

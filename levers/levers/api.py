@@ -2,6 +2,7 @@
 Main API for the Levers package.
 """
 
+from datetime import date, datetime
 from typing import Any, Generic, TypeVar
 
 import pandas as pd
@@ -13,7 +14,7 @@ from levers.models import (
     Granularity,
     PatternConfig,
 )
-from levers.models.patterns import HistoricalPerformance, MetricPerformance
+from levers.models.patterns import DimensionAnalysis, HistoricalPerformance, MetricPerformance
 from levers.patterns import Pattern
 from levers.primitives import get_primitive_metadata, list_primitives_by_family
 from levers.registry import PatternRegistry, autodiscover_patterns
@@ -28,6 +29,7 @@ class Levers(Generic[T]):
     _pattern_model_registry: dict[str, type[BasePattern]] = {
         "performance_status": MetricPerformance,
         "historical_performance": HistoricalPerformance,
+        "dimension_analysis": DimensionAnalysis,
         # Add other patterns here as they are implemented
     }
 
@@ -234,6 +236,7 @@ class Levers(Generic[T]):
         data: pd.DataFrame,
         start_date: str,
         end_date: str,
+        analysis_date: str | None = None,
         grain: Granularity = Granularity.DAY,
         threshold_ratio: float = 0.05,
     ) -> MetricPerformance:
@@ -247,12 +250,14 @@ class Levers(Generic[T]):
             end_date: Analysis end date (YYYY-MM-DD)
             grain: Time grain for analysis
             threshold_ratio: Tolerance ratio for status classification
+            analysis_date: Analysis date for performing dimension analysis
 
         Returns:
             Performance status analysis
         """
         # Create an analysis window
         analysis_window = AnalysisWindow(start_date=start_date, end_date=end_date, grain=grain)
+        analysis_date = datetime.strptime(analysis_date, "%Y-%m-%d") if analysis_date else date.today()  # type: ignore
 
         # Execute the pattern
         return self.execute_pattern(
@@ -261,6 +266,48 @@ class Levers(Generic[T]):
             data=data,
             analysis_window=analysis_window,
             threshold_ratio=threshold_ratio,
+            analysis_date=analysis_date,
+        )
+
+    # Dimension analysis method
+    def analyze_dimension(
+        self,
+        metric_id: str,
+        data: pd.DataFrame,
+        start_date: str,
+        end_date: str,
+        dimension_name: str,
+        analysis_date: str | None = None,
+        grain: Granularity = Granularity.DAY,
+    ) -> DimensionAnalysis:
+        """
+        Analyze metrics across dimension slices, comparing current vs. prior periods.
+
+        Args:
+            metric_id: ID of the metric to analyze
+            start_date: Analysis start date (YYYY-MM-DD)
+            end_date: Analysis end date (YYYY-MM-DD)
+            dimension_name: Name of the dimension to analyze (e.g., "region", "product")
+            data: DataFrame with columns: metric_id, date, dimension, slice_value, metric_value
+            analysis_date: Analysis date for performing dimension analysis
+            grain: Granularity
+
+        Returns:
+            Dimension analysis results
+        """
+        # Create an analysis window using the analysis date
+        analysis_window = AnalysisWindow(start_date=start_date, end_date=end_date, grain=grain)
+        analysis_date = datetime.strptime(analysis_date, "%Y-%m-%d") if analysis_date else date.today()  # type: ignore
+
+        # Execute the pattern
+        return self.execute_pattern(
+            pattern_name="dimension_analysis",
+            metric_id=metric_id,
+            dimension_name=dimension_name,
+            data=data,
+            analysis_date=analysis_date,
+            grain=grain,
+            analysis_window=analysis_window,
         )
 
     # Pattern configuration methods

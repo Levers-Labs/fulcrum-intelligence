@@ -107,3 +107,10 @@ class CumulativeGrowthMethod(str, Enum):
     INDEX = "index"
     CUMSUM = "cumsum"
     CUMPROD = "cumprod"
+
+
+class ConcentrationMethod(str, Enum):
+    """Method to calculate concentration"""
+
+    GINI = "GINI"
+    HHI = "HHI"

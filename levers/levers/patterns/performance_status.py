@@ -3,11 +3,11 @@ Performance Status Pattern
 
 This module implements the PerformanceStatusPattern which analyzes whether a metric
 is on/off track versus its target. It classifies the current status, tracks status
-changes, and provides details about any gap or overperformance.
+changes, and provides details about any gap or over performance.
 """
 
 import logging
-from datetime import datetime
+from datetime import date, datetime
 
 import pandas as pd
 
@@ -55,6 +55,7 @@ class PerformanceStatusPattern(Pattern[MetricPerformance]):
         metric_id: str,
         data: pd.DataFrame,
         analysis_window: AnalysisWindow,
+        analysis_date: date | None = None,
         threshold_ratio: float = 0.05,
     ) -> MetricPerformance:
         """
@@ -73,6 +74,9 @@ class PerformanceStatusPattern(Pattern[MetricPerformance]):
             ValidationError: If input validation fails or calculation errors occur
         """
         try:
+            # Set analysis date to today if not provided
+            analysis_date = analysis_date or date.today()
+
             # Validate input data and preprocess
             required_columns = ["date", "value"]
             self.validate_data(data, required_columns)
@@ -116,6 +120,7 @@ class PerformanceStatusPattern(Pattern[MetricPerformance]):
                 "version": self.version,
                 "analysis_window": analysis_window,
                 "num_periods": len(df),
+                "analysis_date": analysis_date,
                 "metric_id": metric_id,
                 "evaluation_time": datetime.now(),
                 "current_value": current_value,

@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+from datetime import date
 from typing import Any, Generic, TypeVar
 
 import pandas as pd
@@ -85,7 +86,14 @@ class Pattern(ABC, Generic[T]):
         return []
 
     @abstractmethod
-    def analyze(self, metric_id: str, data: pd.DataFrame, analysis_window: AnalysisWindow, **kwargs) -> T:
+    def analyze(
+        self,
+        metric_id: str,
+        data: pd.DataFrame,
+        analysis_window: AnalysisWindow,
+        analysis_date: date | None = None,
+        **kwargs,
+    ) -> T:
         """
         Execute the analysis pattern and return a standardized output.
 
@@ -210,12 +218,13 @@ class Pattern(ABC, Generic[T]):
         Args:
             metric_id: The metric ID
             analysis_window: AnalysisWindow object
+            **kwargs: Additional parameters to include in the output (e.g., dimension_name)
 
         Returns:
             Empty output with an error message
         """
         result = {
-            "pattern_name": self.name,
+            "pattern": self.name,
             "version": self.version,
             "metric_id": metric_id,
             "analysis_window": analysis_window,

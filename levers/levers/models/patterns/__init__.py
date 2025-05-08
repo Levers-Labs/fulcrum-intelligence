@@ -1,8 +1,12 @@
 """
-Pattern-specific output models.
+Pattern model classes for various analysis patterns.
 
-This module directly exposes all pattern output models for easy import.
+These are the output models for the pattern implementations
+in the levers.patterns module.
 """
+
+# Dimension analysis
+from .dimension_analysis import DimensionAnalysis
 
 # Historical performance models
 from .historical_performance import (
@@ -24,8 +28,6 @@ from .performance_status import (
     Streak,
 )
 
-# Add other patterns here
-
 __all__ = [
     # Performance status
     "StatusChange",
@@ -41,4 +43,6 @@ __all__ = [
     "TrendException",
     "TrendInfo",
     "GrowthStats",
+    # Dimension Analysis
+    "DimensionAnalysis",
 ]
