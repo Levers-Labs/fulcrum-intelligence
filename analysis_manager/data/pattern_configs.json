@@ -66,6 +66,7 @@
       "dimension_name": "dimension",
       "num_periods": 8
     },
+    "needs_dimension_analysis": true,
     "meta": {}
   }
 ]

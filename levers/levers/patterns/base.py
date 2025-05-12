@@ -101,6 +101,7 @@ class Pattern(ABC, Generic[T]):
             metric_id: The ID of the metric being analyzed
             data: DataFrame containing the metric data
             analysis_window: AnalysisWindow object specifying the analysis time window
+            analysis_date: Optional date for analysis (if different from the latest date in the data)
             **kwargs: Additional pattern-specific parameters
 
         Returns:

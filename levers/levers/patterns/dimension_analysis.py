@@ -15,13 +15,12 @@ from datetime import date
 
 import pandas as pd
 
-from levers.exceptions import InsufficientDataError, PatternError
+from levers.exceptions import InsufficientDataError, PatternError, ValidationError
 from levers.models import (
     AnalysisWindow,
     AnalysisWindowConfig,
     DataSource,
     DataSourceType,
-    Granularity,
     PatternConfig,
     WindowStrategy,
 )
@@ -75,21 +74,34 @@ class DimensionAnalysisPattern(Pattern[DimensionAnalysis]):
             description=cls.description,
             version=cls.version,
             data_sources=[
-                DataSource(source_type=DataSourceType.DIMENSIONAL_TIME_SERIES, is_required=True, data_key="ledger_df")
+                DataSource(source_type=DataSourceType.DIMENSIONAL_TIME_SERIES, is_required=True, data_key="data")
             ],
             analysis_window=AnalysisWindowConfig(
                 strategy=WindowStrategy.FIXED_TIME, days=180, min_days=30, max_days=365, include_today=False
             ),
+            needs_dimension_analysis=True,
         )
+
+    def preprocess_data(
+        self, data: pd.DataFrame, analysis_window: AnalysisWindow, date_col: str = "date"
+    ) -> pd.DataFrame:
+        data = super().preprocess_data(data, analysis_window, date_col)
+        # rename columns
+        # existing column : new column
+        column_mapping = {
+            "dimension_name": "dimension",
+            "dimension_slice": "slice_value",
+        }
+        data = data.rename(columns=column_mapping)
+        return data
 
     def analyze(  # type: ignore
         self,
         metric_id: str,
         data: pd.DataFrame,
         analysis_window: AnalysisWindow,
-        dimension_name: str,
         analysis_date: date | None = None,
-        grain: Granularity = Granularity.DAY,
+        dimension_name: str | None = None,
         num_periods: int = 8,
     ) -> DimensionAnalysis:
         """
@@ -97,9 +109,10 @@ class DimensionAnalysisPattern(Pattern[DimensionAnalysis]):
 
         Args:
             metric_id: ID of the metric to analyze
-            data: DataFrame with columns: metric_id, time_grain, date, dimension, slice_value, metric_value
+            data: DataFrame with columns: metric_id, date, dimension_name, dimension_slice, value
             analysis_window: Analysis window specifying the time range and grain
             analysis_date: Optional date of analysis
+            dimension_name: Optional dimension name to analyze
             num_periods: Number of periods for historical rankings
 
         Returns:
@@ -110,11 +123,15 @@ class DimensionAnalysisPattern(Pattern[DimensionAnalysis]):
             PatternError: For pattern execution errors
         """
         try:
+            if not dimension_name:
+                raise ValidationError(
+                    "Dimension name is required", invalid_fields={"dimension_name": "Dimension name is required"}
+                )
             # Set analysis date to today if not provided
             analysis_date = analysis_date or date.today()
-
-            # Validate that required columns exist in input data
-            required_columns = ["metric_id", "date", "dimension", "slice_value", "metric_value"]
+            grain = analysis_window.grain
+            # Validate input data
+            required_columns = ["date", "dimension_name", "dimension_slice", "value"]
             self.validate_data(data, required_columns)
 
             # Check if we have enough data points for analysis
@@ -123,16 +140,15 @@ class DimensionAnalysisPattern(Pattern[DimensionAnalysis]):
                 raise InsufficientDataError("Insufficient data to perform Dimensional Analysis")
 
             # Pre Process data
+            # renames columns to dimension, slice_value
             ledger_df = self.preprocess_data(data, analysis_window)
 
-            # 1) Filter the ledger for the metric and dimension
-            filtered_df = ledger_df[
-                (ledger_df["metric_id"] == metric_id) & (ledger_df["dimension"] == dimension_name)
-            ].copy()
+            # 1) Filter data for the current dimension
+            ledger_df = ledger_df[ledger_df["dimension"] == dimension_name].copy()
 
-            # If no data for the specified dimension, return minimal output
-            if filtered_df.empty:
-                logger.info("No data found for dimension=%s. Returning minimal output.", dimension_name)
+            # If empty data not present, return minimal output
+            if ledger_df.empty:
+                logger.info("Empty data for dimension=%s Returning minimal output.", dimension_name)
                 return self.handle_empty_data(metric_id, analysis_window)
 
             # 2) Determine current and prior period ranges based on grain
@@ -141,10 +157,10 @@ class DimensionAnalysisPattern(Pattern[DimensionAnalysis]):
 
             # 3) Compare slices across time periods
             compare_df = compare_dimension_slices_over_time(
-                df=filtered_df,  # type: ignore
+                df=ledger_df,  # type: ignore
                 slice_col="slice_value",
                 date_col="date",
-                value_col="metric_value",
+                value_col="value",
                 prior_start_date=str(prior_start.date()),
                 current_start_date=str(current_start.date()),
                 agg="sum",
@@ -189,10 +205,10 @@ class DimensionAnalysisPattern(Pattern[DimensionAnalysis]):
             # 11) Compute historical rankings
             period_length_days = get_period_length_for_grain(grain)
             historical_rankings = compute_historical_slice_rankings(
-                filtered_df,
-                "slice_value",
-                "date",
-                "metric_value",
+                ledger_df,
+                slice_col="slice_value",
+                date_col="date",
+                value_col="value",
                 num_periods=num_periods,
                 period_length_days=period_length_days,
             )
@@ -203,7 +219,7 @@ class DimensionAnalysisPattern(Pattern[DimensionAnalysis]):
                 "version": self.version,
                 "metric_id": metric_id,
                 "analysis_window": analysis_window,
-                "num_periods": len(filtered_df),
+                "num_periods": len(ledger_df),
                 "analysis_date": analysis_date,
                 "dimension_name": dimension_name,
                 "slices": slices_list,
