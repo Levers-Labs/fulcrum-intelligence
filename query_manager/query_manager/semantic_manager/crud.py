@@ -62,6 +62,9 @@ class CRUDSemantic(CRUDBase[ModelType, CreateSchemaType, UpdateSchemaType, Filte
         """Get unique constraint fields for the model."""
         unique_fields = ["metric_id", "tenant_id"]
 
+        if hasattr(self.model, "date") and hasattr(self.model, "grain"):
+            unique_fields.extend(["date", "grain"])
+
         if hasattr(self.model, "target_date") and hasattr(self.model, "grain"):
             unique_fields.extend(["target_date", "grain"])
 

@@ -50,6 +50,7 @@ class Story(StorySchemaBaseModel, table=True):  # type: ignore
     version: int = Field(default=1, sa_column=Column(Integer, default=1, server_default="1"))
     # For version 2, we need to add the pattern_run_id
     pattern_run_id: int | None = Field(default=None, sa_column=Column(Integer, nullable=True, index=True))
+    data: dict = Field(default_factory=dict, sa_type=JSONB, nullable=True)
 
     async def set_heuristics(self, session: AsyncSession) -> None:
         """

@@ -30,6 +30,29 @@ class HistoricalPerformanceEvaluator(StoryEvaluatorBase[HistoricalPerformance]):
     pattern_name = "historical_performance"
     # No default genre, we'll set it per story type
 
+    # Define which components should be extracted for each story type
+    REQUIRED_PATTERN_COMPONENTS = {
+        # Growth Stories
+        StoryType.SLOWING_GROWTH: ["growth_stats"],
+        StoryType.ACCELERATING_GROWTH: ["growth_stats"],
+        # Trend Stories
+        StoryType.STABLE_TREND: ["current_trend"],
+        StoryType.NEW_UPWARD_TREND: ["current_trend", "previous_trend"],
+        StoryType.NEW_DOWNWARD_TREND: ["current_trend", "previous_trend"],
+        StoryType.PERFORMANCE_PLATEAU: ["current_trend"],
+        # Performance Change Stories
+        StoryType.IMPROVING_PERFORMANCE: ["current_trend"],
+        StoryType.WORSENING_PERFORMANCE: ["current_trend"],
+        # Trend Exception Stories
+        StoryType.SPIKE: ["trend_exception"],
+        StoryType.DROP: ["trend_exception"],
+        # Record Value Stories
+        StoryType.RECORD_HIGH: ["high_rank"],
+        StoryType.RECORD_LOW: ["low_rank"],
+        # Benchmark Stories
+        StoryType.BENCHMARKS: ["benchmark_comparison", "high_rank"],
+    }
+
     async def evaluate(self, pattern_result: HistoricalPerformance, metric: dict[str, Any]) -> list[dict[str, Any]]:
         """
         Evaluate the historical performance pattern result and generate stories.

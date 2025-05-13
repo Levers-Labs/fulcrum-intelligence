@@ -48,13 +48,16 @@ class StoryEvaluatorManager:
 
         return story_objs
 
-    async def evaluate_pattern_result(self, pattern_result: BaseModel, metric: dict[str, Any]) -> list[dict[str, Any]]:
+    async def evaluate_pattern_result(
+        self, pattern_result: BaseModel, metric: dict[str, Any], series_data: dict[str, Any]
+    ) -> list[dict[str, Any]]:
         """
         Evaluate a pattern result and generate stories.
 
         Args:
             pattern_result: Pattern result to evaluate
             metric: Metric details
+            series_data: Optional pre-fetched time series data
 
         Returns:
             List of generated stories
@@ -73,8 +76,9 @@ class StoryEvaluatorManager:
             # Create story evaluator for the pattern
             evaluator = StoryEvaluatorFactory.create_story_evaluator(pattern_name)
 
-            # Run the evaluator
-            stories = await evaluator.run(pattern_result, metric)
+            # Run the evaluator with series data
+            stories = await evaluator.run(pattern_result, metric, series_data)
+
             logger.info("Generated %d stories for pattern %s, metric %s", len(stories), pattern_name, metric_id)
             return stories
         except Exception as e:

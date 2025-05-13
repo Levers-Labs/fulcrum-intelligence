@@ -28,6 +28,15 @@ class PerformanceStatusEvaluator(StoryEvaluatorBase[MetricPerformance]):
 
     pattern_name = "performance_status"
 
+    # Define which components should be extracted for each story type
+    REQUIRED_PATTERN_COMPONENTS = {
+        StoryType.ON_TRACK: ["status", "streak", "target_value", "current_value", "pop_change_percent"],
+        StoryType.OFF_TRACK: ["status", "streak", "target_value", "current_value", "percent_gap", "prior_value"],
+        StoryType.IMPROVING_STATUS: ["status", "status_change", "target_value", "current_value"],
+        StoryType.WORSENING_STATUS: ["status", "status_change", "target_value", "current_value"],
+        StoryType.HOLD_STEADY: ["status", "hold_steady", "target_value", "current_value"],
+    }
+
     async def evaluate(self, pattern_result: MetricPerformance, metric: dict[str, Any]) -> list[dict[str, Any]]:
         """
         Evaluate the performance status pattern result and generate stories.

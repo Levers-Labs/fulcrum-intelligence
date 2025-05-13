@@ -215,7 +215,7 @@ class Pattern(ABC, Generic[T]):
             Empty output with an error message
         """
         result = {
-            "pattern_name": self.name,
+            "pattern": self.name,
             "version": self.version,
             "metric_id": metric_id,
             "analysis_window": analysis_window,
