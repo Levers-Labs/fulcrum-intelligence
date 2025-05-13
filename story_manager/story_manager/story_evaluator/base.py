@@ -92,6 +92,14 @@ class StoryEvaluatorBase(Generic[T], ABC):
         # Get the story date from the pattern result
         story_date = pattern_result.analysis_date
 
+        if series_data is None:
+            series_data = self.export_dataframe_as_story_series(
+                self.series_df,
+                story_type,
+                story_group,
+                grain,  # type: ignore
+            )
+
         return {
             "version": 2,
             "genre": genre,
@@ -125,7 +133,7 @@ class StoryEvaluatorBase(Generic[T], ABC):
         return story_templates.get(field, "")
 
     def export_dataframe_as_story_series(
-        self, series_df: pd.DataFrame, story_type: StoryType, story_group: StoryGroup, grain: Granularity
+        self, series_df: pd.DataFrame | None, story_type: StoryType, story_group: StoryGroup, grain: Granularity
     ) -> list[dict[str, Any]]:
         """
         Format the time series data for story display.
@@ -139,7 +147,7 @@ class StoryEvaluatorBase(Generic[T], ABC):
         Returns:
             dictionary with formatted time series data and analytics
         """
-        if series_df.empty:
+        if series_df is None or series_df.empty:
             return []
 
         # Figure out the length of the series to export

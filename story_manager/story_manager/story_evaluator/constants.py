@@ -221,6 +221,8 @@ STORY_TYPE_TIME_DURATIONS: dict[str, Any] = {
     },
     StoryType.OFF_TRACK: {
         Granularity.DAY: {"output": 7},
+        Granularity.WEEK: {"output": 5},
+        Granularity.MONTH: {"output": 4},
     },
     StoryType.IMPROVING_STATUS: {
         Granularity.DAY: {"output": 7},

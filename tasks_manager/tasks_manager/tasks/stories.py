@@ -309,7 +309,6 @@ async def process_pattern_stories(
             data_key = pattern_config.data_sources[0].data_key
             # todo: Add multiple data sources handling once we have more than one data source for a pattern
             series_df = series_data[data_key] if series_data else None
-
             # Process pattern results and generate stories with series data
             stories = await manager.evaluate_pattern_result(pattern_run_obj, metric.model_dump(), series_df)
             logger.info(

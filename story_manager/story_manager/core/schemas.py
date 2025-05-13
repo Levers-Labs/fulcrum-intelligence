@@ -48,7 +48,6 @@ class StoryDetail(BaseModel):
     is_salient: bool
     in_cool_off: bool
     is_heuristic: bool
-    data: dict | None = None
 
     digest: list[Digest] | None = None
     section: list[Section] | None = None
