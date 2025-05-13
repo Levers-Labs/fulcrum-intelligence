@@ -35,9 +35,9 @@ class TestDimensionAnalysisPattern:
             data.append(
                 {
                     "date": date,
-                    "dimension": "region",
-                    "slice_value": "North America",
-                    "metric_value": 1000 + day * 10,  # Growing trend
+                    "dimension_name": "region",
+                    "dimension_slice": "North America",
+                    "value": 1000 + day * 10,  # Growing trend
                     "metric_id": "revenue",
                 }
             )
@@ -46,9 +46,9 @@ class TestDimensionAnalysisPattern:
             data.append(
                 {
                     "date": date,
-                    "dimension": "region",
-                    "slice_value": "Europe",
-                    "metric_value": 800 + day * 5,  # Slower growth
+                    "dimension_name": "region",
+                    "dimension_slice": "Europe",
+                    "value": 800 + day * 5,  # Slower growth
                     "metric_id": "revenue",
                 }
             )
@@ -58,9 +58,9 @@ class TestDimensionAnalysisPattern:
             data.append(
                 {
                     "date": date,
-                    "dimension": "region",
-                    "slice_value": "APAC",
-                    "metric_value": 600 + day * trend_factor,
+                    "dimension_name": "region",
+                    "dimension_slice": "APAC",
+                    "value": 600 + day * trend_factor,
                     "metric_id": "revenue",
                 }
             )
@@ -71,9 +71,9 @@ class TestDimensionAnalysisPattern:
             data.append(
                 {
                     "date": date,
-                    "dimension": "region",
-                    "slice_value": "LATAM",
-                    "metric_value": 400 - decline + recovery,
+                    "dimension_name": "region",
+                    "dimension_slice": "LATAM",
+                    "value": 400 - decline + recovery,
                     "metric_id": "revenue",
                 }
             )
@@ -102,7 +102,7 @@ class TestDimensionAnalysisPattern:
         assert config.pattern_name == "dimension_analysis"
         assert config.version == "1.0.0"
         assert len(config.data_sources) == 1
-        assert config.data_sources[0].data_key == "ledger_df"
+        assert config.data_sources[0].data_key == "data"
         assert config.analysis_window.days == 180
 
     def test_analyze_basic_functionality(self, pattern, sample_data, analysis_window, mocker):
@@ -248,7 +248,6 @@ class TestDimensionAnalysisPattern:
             data=sample_data,
             analysis_date=datetime.date(2023, 2, 1),
             dimension_name=dimension_name,
-            grain=Granularity.WEEK,
             analysis_window=analysis_window,
         )
 
