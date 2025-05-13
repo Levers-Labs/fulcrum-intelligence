@@ -22,7 +22,6 @@ anyio = ">=3.5.0,<5.0.0"
 pydantic = { extras = ["email"], version = "^2.7.4" }
 pandas-stubs = "^2.2.0.240218"
 setuptools = "65.5.0"
-pygraphviz = "^1.14"
 
 [build-system]
 requires = ["poetry-core>=1.0.0,<2.0.0"]

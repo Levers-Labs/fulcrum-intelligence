@@ -1548,18 +1548,6 @@ tests = ["pydot[dev]", "pytest", "pytest-cov", "pytest-xdist[psutil]", "tox"]
 types = ["mypy"]
 
 [[package]]
-name = "pygraphviz"
-version = "1.14"
-description = "Python interface to Graphviz"
-optional = false
-python-versions = ">=3.10"
-groups = ["main"]
-markers = "python_version <= \"3.11\""
-files = [
-    {file = "pygraphviz-1.14.tar.gz", hash = "sha256:c10df02377f4e39b00ae17c862f4ee7e5767317f1c6b2dfd04cea6acc7fc2bea"},
-]
-
-[[package]]
 name = "pyparsing"
 version = "3.2.3"
 description = "pyparsing module - Classes and methods to define and execute parsing grammars"
@@ -2029,4 +2017,4 @@ zstd = ["zstandard (>=0.18.0)"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.10,<3.12"
-content-hash = "cb8a5a4af0493133b76740e6b031367be45fa569d1ef86cf972ed8b1e0037619"
+content-hash = "5f8140a1ce3a5d70ebd654f5712a6904fe2382b70ffd1ef48529391d365fd271"
