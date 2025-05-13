@@ -60,15 +60,16 @@ class StoryEvaluatorFactory(Generic[T]):
             raise ValueError(f"No story evaluator found for pattern {pattern_name}")
 
     @classmethod
-    def create_story_evaluator(cls, pattern_name: str) -> StoryEvaluatorBase:
+    def create_story_evaluator(cls, pattern_name: str, **kwargs) -> StoryEvaluatorBase:
         """
         Create an instance of the story evaluator for the given pattern name
 
         Args:
             pattern_name: The name of the pattern
+            **kwargs: Additional arguments to pass to the story evaluator
 
         Returns:
             An instance of the story evaluator
         """
         story_evaluator_class = cls.get_story_evaluator(pattern_name)
-        return story_evaluator_class()
+        return story_evaluator_class(**kwargs)
