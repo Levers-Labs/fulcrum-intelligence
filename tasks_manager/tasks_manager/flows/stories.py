@@ -151,7 +151,6 @@ async def process_metric_pattern_stories(
             grain=grain_enum,
             pattern_run=pattern_run_result,
         )
-        print(f"Stories:::{stories}")
 
         # Create table artifact with stories
         if stories:

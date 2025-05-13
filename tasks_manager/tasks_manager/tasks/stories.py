@@ -1,6 +1,6 @@
 import asyncio
 import os
-from datetime import date, datetime
+from datetime import date
 from typing import Any
 
 from prefect import get_run_logger, task, unmapped
@@ -321,14 +321,6 @@ async def process_pattern_stories(
 
             # Ensure all stories are proper dictionaries, not coroutines
             story_dicts = await asyncio.gather(*stories)
-            # story_dicts = []
-            # for story in stories:
-            #     # If story is a coroutine (awaitable), await it
-            #     if hasattr(story, '__await__'):
-            #         story = await story
-            #     # Make sure JSON serializable
-            #     story = convert_dates_to_str(story)
-            #     story_dicts.append(story)
 
             # Persist stories using the same session
             story_objs = await manager.persist_stories(story_dicts, session)
@@ -374,25 +366,3 @@ async def process_pattern_stories(
     finally:
         # Reset tenant context
         reset_context()
-
-
-def convert_dates_to_str(obj):
-    """
-    Recursively convert date objects to string format for JSON serialization.
-
-    Args:
-        obj: The object to convert
-
-    Returns:
-        The object with all date objects converted to strings
-    """
-    if isinstance(obj, dict):
-        return {k: convert_dates_to_str(v) for k, v in obj.items()}
-    elif isinstance(obj, list):
-        return [convert_dates_to_str(item) for item in obj]
-    elif isinstance(obj, tuple):
-        return tuple(convert_dates_to_str(item) for item in obj)
-    elif isinstance(obj, (date, datetime)):
-        return obj.isoformat()
-    else:
-        return obj
