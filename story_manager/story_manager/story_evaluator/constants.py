@@ -5,7 +5,7 @@ Constants for story evaluators including templates for different story types.
 from typing import Any
 
 from commons.models.enums import Granularity
-from story_manager.core.enums import StoryType
+from story_manager.core.enums import StoryGroup, StoryType
 
 # Templates for each story type
 STORY_TEMPLATES = {
@@ -139,92 +139,97 @@ STORY_TEMPLATES = {
     },
 }
 
+STORY_GROUP_TIME_DURATIONS: dict[str, Any] = {
+    StoryGroup.GOAL_VS_ACTUAL: {
+        Granularity.DAY: {"output": 7},
+        Granularity.WEEK: {"output": 5},
+        Granularity.MONTH: {"output": 4},
+    }
+}
 
 STORY_TYPE_TIME_DURATIONS: dict[str, Any] = {
     StoryType.SLOWING_GROWTH: {
-        Granularity.DAY: {"default_input": 14, "input": 7, "default_output": 30, "output": 14},
-        Granularity.WEEK: {"default_input": 8, "input": 4, "default_output": 12, "output": 8},
-        Granularity.MONTH: {"default_input": 4, "input": 2, "default_output": 6, "output": 4},
+        Granularity.DAY: {"output": 14},
+        Granularity.WEEK: {"output": 8},
+        Granularity.MONTH: {"output": 4},
     },
     StoryType.ACCELERATING_GROWTH: {
-        Granularity.DAY: {"default_input": 14, "input": 7, "default_output": 30, "output": 14},
-        Granularity.WEEK: {"default_input": 8, "input": 4, "default_output": 12, "output": 8},
-        Granularity.MONTH: {"default_input": 4, "input": 2, "default_output": 6, "output": 4},
+        Granularity.DAY: {"output": 14},
+        Granularity.WEEK: {"output": 8},
+        Granularity.MONTH: {"output": 4},
     },
     StoryType.STABLE_TREND: {
-        Granularity.DAY: {"default_input": 30, "input": 14, "default_output": 45, "output": 30},
-        Granularity.WEEK: {"default_input": 10, "input": 6, "default_output": 16, "output": 10},
-        Granularity.MONTH: {"default_input": 6, "input": 3, "default_output": 9, "output": 6},
+        Granularity.DAY: {"output": 30},
+        Granularity.WEEK: {"output": 10},
+        Granularity.MONTH: {"output": 6},
     },
     StoryType.NEW_UPWARD_TREND: {
-        Granularity.DAY: {"default_input": 14, "input": 7, "default_output": 30, "output": 14},
-        Granularity.WEEK: {"default_input": 8, "input": 4, "default_output": 12, "output": 8},
-        Granularity.MONTH: {"default_input": 4, "input": 2, "default_output": 6, "output": 4},
+        Granularity.DAY: {"output": 14},
+        Granularity.WEEK: {"output": 8},
+        Granularity.MONTH: {"output": 4},
     },
     StoryType.NEW_DOWNWARD_TREND: {
-        Granularity.DAY: {"default_input": 14, "input": 7, "default_output": 30, "output": 14},
-        Granularity.WEEK: {"default_input": 8, "input": 4, "default_output": 12, "output": 8},
-        Granularity.MONTH: {"default_input": 4, "input": 2, "default_output": 6, "output": 4},
+        Granularity.DAY: {"output": 14},
+        Granularity.WEEK: {"output": 8},
+        Granularity.MONTH: {"output": 4},
     },
     StoryType.PERFORMANCE_PLATEAU: {
-        Granularity.DAY: {"default_input": 14, "input": 7, "default_output": 30, "output": 14},
-        Granularity.WEEK: {"default_input": 8, "input": 4, "default_output": 12, "output": 8},
-        Granularity.MONTH: {"default_input": 4, "input": 2, "default_output": 6, "output": 4},
+        Granularity.DAY: {"output": 14},
+        Granularity.WEEK: {"output": 8},
+        Granularity.MONTH: {"output": 4},
     },
     StoryType.SPIKE: {
-        Granularity.DAY: {"default_input": 14, "input": 7, "default_output": 30, "output": 14},
-        Granularity.WEEK: {"default_input": 8, "input": 4, "default_output": 12, "output": 8},
-        Granularity.MONTH: {"default_input": 4, "input": 2, "default_output": 6, "output": 4},
+        Granularity.DAY: {"output": 14},
+        Granularity.WEEK: {"output": 8},
+        Granularity.MONTH: {"output": 4},
     },
     StoryType.DROP: {
-        Granularity.DAY: {"default_input": 14, "input": 7, "default_output": 30, "output": 14},
-        Granularity.WEEK: {"default_input": 8, "input": 4, "default_output": 12, "output": 8},
-        Granularity.MONTH: {"default_input": 4, "input": 2, "default_output": 6, "output": 4},
+        Granularity.DAY: {"output": 14},
+        Granularity.WEEK: {"output": 8},
+        Granularity.MONTH: {"output": 4},
     },
     StoryType.IMPROVING_PERFORMANCE: {
-        Granularity.DAY: {"default_input": 30, "input": 14, "default_output": 45, "output": 30},
-        Granularity.WEEK: {"default_input": 10, "input": 6, "default_output": 16, "output": 10},
-        Granularity.MONTH: {"default_input": 6, "input": 3, "default_output": 9, "output": 6},
+        Granularity.DAY: {"output": 30},
+        Granularity.WEEK: {"output": 10},
+        Granularity.MONTH: {"output": 6},
     },
     StoryType.WORSENING_PERFORMANCE: {
-        Granularity.DAY: {"default_input": 30, "input": 14, "default_output": 45, "output": 30},
-        Granularity.WEEK: {"default_input": 10, "input": 6, "default_output": 16, "output": 10},
-        Granularity.MONTH: {"default_input": 6, "input": 3, "default_output": 9, "output": 6},
+        Granularity.DAY: {"output": 30},
+        Granularity.WEEK: {"output": 10},
+        Granularity.MONTH: {"output": 6},
     },
     StoryType.RECORD_HIGH: {
-        Granularity.DAY: {"default_input": 14, "input": 7, "default_output": 21, "output": 14},
-        Granularity.WEEK: {"default_input": 8, "input": 4, "default_output": 12, "output": 8},
-        Granularity.MONTH: {"default_input": 4, "input": 2, "default_output": 6, "output": 4},
+        Granularity.DAY: {"output": 14},
+        Granularity.WEEK: {"output": 8},
+        Granularity.MONTH: {"output": 4},
     },
     StoryType.RECORD_LOW: {
-        Granularity.DAY: {"default_input": 14, "input": 7, "default_output": 21, "output": 14},
-        Granularity.WEEK: {"default_input": 8, "input": 4, "default_output": 12, "output": 8},
-        Granularity.MONTH: {"default_input": 4, "input": 2, "default_output": 6, "output": 4},
+        Granularity.DAY: {"output": 14},
+        Granularity.WEEK: {"output": 8},
+        Granularity.MONTH: {"output": 4},
     },
     StoryType.BENCHMARKS: {
-        Granularity.DAY: {"default_input": 14, "input": 7, "default_output": 30, "output": 14},
-        Granularity.WEEK: {"default_input": 8, "input": 4, "default_output": 12, "output": 8},
-        Granularity.MONTH: {"default_input": 4, "input": 2, "default_output": 6, "output": 4},
+        Granularity.DAY: {"output": 14},
+        Granularity.WEEK: {"output": 8},
+        Granularity.MONTH: {"output": 4},
     },
     # TODO: Need to confirm the values with abhi for below
     StoryType.ON_TRACK: {
-        Granularity.DAY: {"default_input": 7, "input": 7, "default_output": 7, "output": 7},
-        Granularity.WEEK: {"default_input": 5, "input": 5, "default_output": 5, "output": 5},
-        Granularity.MONTH: {"default_input": 4, "input": 4, "default_output": 4, "output": 4},
+        Granularity.DAY: {"output": 7},
+        Granularity.WEEK: {"output": 5},
+        Granularity.MONTH: {"output": 4},
     },
     StoryType.OFF_TRACK: {
-        Granularity.DAY: {"default_input": 7, "input": 7, "default_output": 7, "output": 7},
-        Granularity.WEEK: {"default_input": 5, "input": 5, "default_output": 5, "output": 5},
-        Granularity.MONTH: {"default_input": 4, "input": 4, "default_output": 4, "output": 4},
+        Granularity.DAY: {"output": 7},
     },
     StoryType.IMPROVING_STATUS: {
-        Granularity.DAY: {"default_input": 7, "input": 7, "default_output": 7, "output": 7},
-        Granularity.WEEK: {"default_input": 5, "input": 5, "default_output": 5, "output": 5},
-        Granularity.MONTH: {"default_input": 4, "input": 4, "default_output": 4, "output": 4},
+        Granularity.DAY: {"output": 7},
+        Granularity.WEEK: {"output": 5},
+        Granularity.MONTH: {"output": 4},
     },
     StoryType.WORSENING_STATUS: {
-        Granularity.DAY: {"default_input": 7, "input": 7, "default_output": 7, "output": 7},
-        Granularity.WEEK: {"default_input": 5, "input": 5, "default_output": 5, "output": 5},
-        Granularity.MONTH: {"default_input": 4, "input": 4, "default_output": 4, "output": 4},
+        Granularity.DAY: {"output": 7},
+        Granularity.WEEK: {"output": 5},
+        Granularity.MONTH: {"output": 4},
     },
 }

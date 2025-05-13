@@ -5,6 +5,7 @@ Story evaluator manager for generating stories from pattern results.
 import logging
 from typing import Any, TypeVar
 
+import pandas as pd
 from pydantic import BaseModel
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -49,7 +50,7 @@ class StoryEvaluatorManager:
         return story_objs
 
     async def evaluate_pattern_result(
-        self, pattern_result: BaseModel, metric: dict[str, Any], series_data: dict[str, Any]
+        self, pattern_result: BaseModel, metric: dict[str, Any], series_df: pd.DataFrame | None = None
     ) -> list[dict[str, Any]]:
         """
         Evaluate a pattern result and generate stories.
@@ -57,7 +58,7 @@ class StoryEvaluatorManager:
         Args:
             pattern_result: Pattern result to evaluate
             metric: Metric details
-            series_data: Optional pre-fetched time series data
+            series_df: Optional pre-fetched time series data
 
         Returns:
             List of generated stories
@@ -74,10 +75,10 @@ class StoryEvaluatorManager:
 
         try:
             # Create story evaluator for the pattern
-            evaluator = StoryEvaluatorFactory.create_story_evaluator(pattern_name)
+            evaluator = StoryEvaluatorFactory.create_story_evaluator(pattern_name, series_df=series_df)
 
             # Run the evaluator with series data
-            stories = await evaluator.run(pattern_result, metric, series_data)
+            stories = await evaluator.run(pattern_result, metric)
 
             logger.info("Generated %d stories for pattern %s, metric %s", len(stories), pattern_name, metric_id)
             return stories

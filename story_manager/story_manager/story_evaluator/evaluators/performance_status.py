@@ -5,6 +5,8 @@ Story evaluator for the performance status pattern.
 import logging
 from typing import Any
 
+import pandas as pd
+
 from commons.utilities.grain_utils import GRAIN_META
 from levers.models.common import Granularity
 from levers.models.patterns.performance_status import MetricGVAStatus, MetricPerformance
@@ -155,6 +157,7 @@ class PerformanceStatusEvaluator(StoryEvaluatorBase[MetricPerformance]):
         """
         # Get the story group for this story type
         story_group = StoryGroup.GOAL_VS_ACTUAL
+        story_type = StoryType.ON_TRACK
 
         # Prepare context for template rendering
         context = self._populate_template_context(pattern_result, metric, grain)
@@ -163,16 +166,25 @@ class PerformanceStatusEvaluator(StoryEvaluatorBase[MetricPerformance]):
         title = render_story_text(StoryType.ON_TRACK, "title", context)
         detail = render_story_text(StoryType.ON_TRACK, "detail", context)
 
+        # Get story series data
+        series_data = self.export_dataframe_as_story_series(
+            self.series_df or pd.DataFrame(),
+            story_type,
+            story_group,
+            grain,  # type: ignore
+        )
+
         # Prepare the story model
         return self.prepare_story_model(
             genre=StoryGenre.PERFORMANCE,
-            story_type=StoryType.ON_TRACK,
+            story_type=story_type,
             story_group=story_group,
             metric_id=metric_id,
             pattern_result=pattern_result,
             title=title,
             detail=detail,
             grain=grain,  # type: ignore
+            series_data=series_data,
             **context,
         )
 

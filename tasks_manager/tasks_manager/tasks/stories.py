@@ -1,4 +1,3 @@
-import asyncio
 import os
 from datetime import date
 from typing import Any
@@ -303,14 +302,16 @@ async def process_pattern_stories(
             series_data = await data_organiser.fetch_data_for_pattern(
                 config=pattern_config,
                 metric_id=metric_id,
-                grain=grain,
+                grain=grain,  # type: ignore
                 metric_definition=metric,
             )
             # Get the time series data from the fetched data
-            # series_data = pd.DataFrame(data['data']) if data else pd.DataFrame()
+            data_key = pattern_config.data_sources[0].data_key
+            # todo: Add multiple data sources handling once we have more than one data source for a pattern
+            series_df = series_data[data_key] if series_data else None
 
             # Process pattern results and generate stories with series data
-            stories = await manager.evaluate_pattern_result(pattern_run_obj, metric.model_dump(), series_data)
+            stories = await manager.evaluate_pattern_result(pattern_run_obj, metric.model_dump(), series_df)
             logger.info(
                 "Generated %d stories for pattern %s, metric %s, grain %s",
                 len(stories),
@@ -319,11 +320,8 @@ async def process_pattern_stories(
                 grain.value,
             )
 
-            # Ensure all stories are proper dictionaries, not coroutines
-            story_dicts = await asyncio.gather(*stories)
-
             # Persist stories using the same session
-            story_objs = await manager.persist_stories(story_dicts, session)
+            story_objs = await manager.persist_stories(stories, session)
             logger.info(
                 "Persisted %d stories for pattern %s, metric %s, grain %s",
                 len(stories),
