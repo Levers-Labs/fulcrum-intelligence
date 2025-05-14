@@ -57,11 +57,12 @@ class StoryEvaluatorBase(Generic[T], ABC):
         Prepare a story model dictionary.
 
         Args:
+            genre: The genre of story
             story_type: The type of story
             story_group: The group of the story
             metric_id: The ID of the metric
             pattern_result: The pattern result
-            metric: Details about the metric
+            metric_id: Details about the metric
             title: The story title
             detail: The story detail text
             grain: Granularity of the analysis

@@ -28,7 +28,11 @@ from tasks_manager.services.pattern_data_organiser import DataDict, PatternDataO
     task_run_name="fetch-metric-time-series-{metric_id}-{grain}",
 )
 async def fetch_pattern_data(
-    pattern_config: PatternConfig, metric_id: str, grain: Granularity, metric_definition: MetricDetail
+    pattern_config: PatternConfig,
+    metric_id: str,
+    grain: Granularity,
+    metric_definition: MetricDetail,
+    dimension_name: str | None = None,
 ) -> DataDict:
     """
     Fetch pattern data for analysis.
@@ -38,6 +42,7 @@ async def fetch_pattern_data(
         metric_id: Metric ID
         grain: Data granularity
         metric_definition: Metric definition
+        dimension_name: Optional dimension name for dimension-based patterns
 
     Returns:
         DataDict with data for the pattern for all the pattern data sources
@@ -54,11 +59,16 @@ async def fetch_pattern_data(
             # create a pattern data organiser
             data_organiser = PatternDataOrganiser(semantic_manager=semantic_manager)
             # fetch data for the pattern
+            fetch_kwargs = {}
+            # Add dimension name if it exists
+            if dimension_name:
+                fetch_kwargs["dimension_name"] = dimension_name
             data = await data_organiser.fetch_data_for_pattern(
                 config=pattern_config,
                 metric_id=metric_id,
                 grain=grain,  # type: ignore
                 metric_definition=metric_definition,
+                **fetch_kwargs,
             )
             logger.info("retrieved data for pattern %s", pattern_config.pattern_name)
             return data
@@ -117,10 +127,14 @@ async def get_pattern_config(pattern: str) -> PatternConfig:
     retries=1,
     retry_delay_seconds=30,
     timeout_seconds=600,  # 10 minutes
-    task_run_name="run-pattern-{pattern}-{metric_id}-{grain}",
+    task_run_name="run-pattern-{pattern}-{metric_id}-{grain}-{dimension_name}",
 )
 async def run_pattern(
-    pattern: str, metric_id: str, grain: Granularity, metric_definition: MetricDetail
+    pattern: str,
+    metric_id: str,
+    grain: Granularity,
+    metric_definition: MetricDetail,
+    dimension_name: str | None = None,
 ) -> dict[str, Any]:
     """
     Run a pattern on metric data.
@@ -130,6 +144,7 @@ async def run_pattern(
         metric_id: Metric ID
         grain: Data granularity
         metric_definition: Metric definition
+        dimension_name: Optional dimension name for dimension-based patterns
 
     Returns:
         Dictionary containing pattern analysis result or error information
@@ -138,6 +153,7 @@ async def run_pattern(
     tenant_id = get_tenant_id()
     levers: Levers = Levers()
 
+    dimension_suffix = f" dimension- {dimension_name}" if dimension_name else ""
     # Emit "pattern analysis started" event
     emit_event(
         event="pattern.run.started",
@@ -147,6 +163,7 @@ async def run_pattern(
             "tenant_id": str(tenant_id),
             "grain": grain.value,
             "pattern": pattern,
+            **({"dimension": dimension_name} if dimension_name else {}),
         },
         payload={
             "pattern": pattern,
@@ -154,6 +171,7 @@ async def run_pattern(
             "tenant_id": tenant_id,
             "grain": grain.value,
             "timestamp": datetime.now().isoformat(),
+            **({"dimension": dimension_name} if dimension_name else {}),
         },
     )
 
@@ -163,7 +181,11 @@ async def run_pattern(
 
         # Fetch pattern data
         data = await fetch_pattern_data(
-            pattern_config=pattern_config, metric_id=metric_id, grain=grain, metric_definition=metric_definition
+            pattern_config=pattern_config,
+            metric_id=metric_id,
+            grain=grain,
+            metric_definition=metric_definition,
+            dimension_name=dimension_name,
         )
         logger.info("Fetched data for pattern %s", pattern)
 
@@ -180,6 +202,7 @@ async def run_pattern(
                         "metric_id": metric_id,
                         "grain": grain,
                         "pattern": pattern,
+                        **({"dimension": dimension_name} if dimension_name else {}),
                     },
                     payload={
                         "status": "skipped",
@@ -189,23 +212,35 @@ async def run_pattern(
                         "grain": grain,
                         "metric_id": metric_id,
                         "tenant_id": tenant_id,
+                        **({"dimension": dimension_name} if dimension_name else {}),
                     },
                 )
+                return {
+                    "success": False,
+                    "pattern": pattern,
+                    "metric_id": metric_id,
+                    "grain": grain,
+                    "key": key,
+                    "error": {"message": "No data available", "type": "NoDataAvailableError"},
+                    **({"dimension_name": dimension_name} if dimension_name else {}),
+                }
 
         # Create an analysis window based on data
         analysis_window = create_analysis_window(pattern_config=pattern_config, grain=grain)
 
         # prepare the data arguments for the pattern run
         data_args: dict[str, Any] = {"metric_id": metric_id}
+        if dimension_name:
+            data_args["dimension_name"] = dimension_name
         for key, _key_data in data.items():
             data_args[key] = _key_data
 
-        logger.info("Running pattern %s for metric %s", pattern, metric_id)
+        logger.info("Running pattern %s for metric %s%s", pattern, metric_id, dimension_suffix)
         # Run pattern analysis
         result = levers.execute_pattern(
             pattern_name=pattern, analysis_window=analysis_window, config=pattern_config, **data_args
         )
-        logger.info("Successfully ran pattern %s for metric %s", pattern, metric_id)
+        logger.info("Successfully ran pattern %s for metric %s%s", pattern, metric_id, dimension_suffix)
 
         # Store the pattern result
         stored_result = await store_pattern_result(result=result)
@@ -219,6 +254,7 @@ async def run_pattern(
                 "tenant_id": str(tenant_id),
                 "grain": grain.value,
                 "pattern": pattern,
+                **({"dimension": dimension_name} if dimension_name else {}),
             },
             payload=stored_result,
         )
@@ -228,7 +264,7 @@ async def run_pattern(
         success = False if stored_result.get("error") else True
         return {"success": success, **stored_result}
     except Exception as e:
-        logger.error("Error running pattern %s for metric %s: %s", pattern, metric_id, str(e))
+        logger.error("Error running pattern %s for metric %s%s: %s", pattern, metric_id, dimension_suffix, str(e))
 
         failed_result = {
             "success": False,
@@ -236,6 +272,7 @@ async def run_pattern(
             "metric_id": metric_id,
             "timestamp": datetime.now().isoformat(),
             "error": {"message": str(e), "type": type(e).__name__},
+            **({"dimension_name": dimension_name} if dimension_name else {}),
         }
 
         # Emit "pattern analysis failed" event
@@ -247,6 +284,7 @@ async def run_pattern(
                 "tenant_id": str(tenant_id),
                 "grain": grain.value,
                 "pattern": pattern,
+                **({"dimension": dimension_name} if dimension_name else {}),
             },
             payload=failed_result,
         )
@@ -301,39 +339,72 @@ async def create_pattern_artifact(pattern_results: list[dict[str, Any]], metric_
     logger = get_run_logger()
     logger.info("Creating artifact for tenant %s, metric %s", tenant_id, metric_id)
 
+    # Separate metric-based and dimension-based patterns
+    metric_patterns = [r for r in pattern_results if not r.get("dimension_name")]
+    dimension_patterns = [r for r in pattern_results if r.get("dimension_name")]
+
     # Summary section
     summary = f"# Pattern Runs for Metric {metric_id}\n\n"
     summary += f"- **Analysis Date**: {date.today().isoformat()}\n"
     summary += f"- **Granularity**: {grain.value}\n"
     summary += f"- **Metric ID**: {metric_id}\n"
     summary += f"- **Tenant ID**: {tenant_id}\n"
-    summary += f"- **Patterns Executed**: {len(pattern_results)}\n\n"
+    summary += f"- **Total Patterns Executed**: {len(pattern_results)}\n"
+    summary += f"- **Metric-based Patterns**: {len(metric_patterns)}\n"
+    summary += f"- **Dimension-based Patterns**: {len(dimension_patterns)}\n\n"
 
-    # Results for each pattern
-    # Create a table header for pattern results
-    summary += "## Pattern Runs\n\n"
-    summary += "| Result ID | Pattern | Version | Status | Error Type | Error Message |\n"
-    summary += "|-----------|---------|---------|--------|------------|---------------|\n"
+    # Metric-based patterns table
+    if metric_patterns:
+        summary += "## Metric-based Pattern Runs\n\n"
+        summary += "| Result ID | Pattern | Version | Status | Error Type | Error Message |\n"
+        summary += "|-----------|---------|---------|--------|------------|---------------|\n"
 
-    for result in pattern_results:
-        pattern_name = result["pattern"]
-        success = result["success"]
-        version = result.get("version", "N/A")
-        result_id = result.get("id", "N/A")
-        status = "✅ Success" if success else "❌ Failed"
+        for result in metric_patterns:
+            pattern_name = result["pattern"]
+            success = result["success"]
+            version = result.get("version", "N/A")
+            result_id = result.get("id", "N/A")
+            status = "✅ Success" if success else "❌ Failed"
 
-        if not success:
-            error = result["error"]
-            error_message = error.get("message", "Unknown error")
-            error_type = error.get("type", "Unknown")
-        else:
-            error_message = ""
-            error_type = ""
+            if not success:
+                error = result["error"]
+                error_message = error.get("message", "Unknown error")
+                error_type = error.get("type", "Unknown")
+            else:
+                error_message = ""
+                error_type = ""
 
-        # Add row to the table
-        summary += f"| {result_id} | {pattern_name} | {version} | {status} | {error_type} | {error_message} |\n"
+            # Add row to the table
+            summary += f"| {result_id} | {pattern_name} | {version} | {status} | {error_type} | {error_message} |\n"
 
-    summary += "\n"
+        summary += "\n"
+
+    # Dimension-based patterns table
+    if dimension_patterns:
+        summary += "## Dimension-based Pattern Runs\n\n"
+        summary += "| Result ID | Pattern | Dimension | Version | Status | Error Type | Error Message |\n"
+        summary += "|-----------|---------|-----------|---------|--------|------------|---------------|\n"
+
+        for result in dimension_patterns:
+            pattern_name = result["pattern"]
+            success = result["success"]
+            version = result.get("version", "N/A")
+            result_id = result.get("id", "N/A")
+            dimension_name = result.get("dimension_name", "N/A")
+            status = "✅ Success" if success else "❌ Failed"
+
+            if not success:
+                error = result["error"]
+                error_message = error.get("message", "Unknown error")
+                error_type = error.get("type", "Unknown")
+            else:
+                error_message = ""
+                error_type = ""
+
+            # Add row to the table
+            summary += f"| {result_id} | {pattern_name} | {dimension_name} | {version} | {status} | {error_type} | {error_message} |\n"  # noqa
+
+        summary += "\n"
 
     # Create the artifact
     await create_markdown_artifact(  # type: ignore

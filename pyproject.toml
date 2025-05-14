@@ -52,6 +52,7 @@ skip_glob = [
     "commons/commons/db/signals/__init__.py",
     "analysis_manager/analysis_manager/patterns/models/__init__.py",
     "levers/levers/models/__init__.py",
+    "levers/levers/primitives/__init__.py"
 ]
 
 [tool.black]

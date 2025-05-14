@@ -89,6 +89,7 @@ class PatternManager:
     async def clear_pattern_results(
         self,
         metric_id: str,
+        dimension_name: str | None = None,
         pattern_name: str | None = None,
         start_date: date | None = None,
         end_date: date | None = None,
@@ -98,6 +99,7 @@ class PatternManager:
 
         Args:
             metric_id: The metric ID
+            dimension_name: Optional dimension name to filter by
             pattern_name: Optional pattern name to filter by
             start_date: Optional start date of the range to clear
             end_date: Optional end date of the range to clear
@@ -106,7 +108,11 @@ class PatternManager:
             Operation results
         """
         return await self.pattern_crud.clear_data(
-            metric_id=metric_id, pattern_name=pattern_name, start_date=start_date, end_date=end_date
+            metric_id=metric_id,
+            dimension_name=dimension_name,
+            pattern_name=pattern_name,
+            start_date=start_date,
+            end_date=end_date,
         )
 
     # Configuration methods

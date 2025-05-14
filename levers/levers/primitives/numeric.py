@@ -10,6 +10,8 @@ Dependencies:
   - None (standard Python)
 """
 
+import pandas as pd
+
 from levers.exceptions import CalculationError, ValidationError
 
 
@@ -44,6 +46,9 @@ def calculate_difference(value: float, reference_value: float) -> float:
 def calculate_percentage_difference(value: float, reference_value: float, handle_zero_reference: bool = False) -> float:
     """
     Calculate the percentage difference between two values.
+
+    Note: This function is similar to calculate_relative_change but multiplies the result by 100
+    and has different handling for zero reference values.
 
     Family: numeric
     Version: 1.0
@@ -152,6 +157,44 @@ def safe_divide(
 
     result = numerator / denominator
     return result * 100.0 if as_percentage else result
+
+
+def calculate_relative_change(
+    current_value: float, reference_value: float, default_value: float | None = None
+) -> float | None:
+    """
+    Calculate the relative change between two values.
+
+    Note: This function is similar to calculate_percentage_difference but returns a decimal value
+    instead of a percentage and has different zero handling (returns default_value).
+
+    Family: numeric
+    Version: 1.0
+
+    Args:
+        current_value: The current value
+        reference_value: The reference value to compare against
+        default_value: Value to return if reference_value is zero or NaN
+
+    Returns:
+        The relative change (current_value - reference_value) / abs(reference_value)
+
+    Raises:
+        ValidationError: If inputs are not numeric
+    """
+    try:
+        current_value = float(current_value)
+        reference_value = float(reference_value)
+    except (TypeError, ValueError) as exc:
+        raise ValidationError(
+            "Both current_value and reference_value must be numeric",
+            {"current_value": current_value, "reference_value": reference_value},
+        ) from exc
+
+    if reference_value == 0 or pd.isna(reference_value):
+        return default_value
+
+    return (current_value - reference_value) / abs(reference_value)
 
 
 def round_to_precision(value: float, precision: int = 2) -> float:
