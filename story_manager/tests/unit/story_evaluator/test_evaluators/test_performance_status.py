@@ -231,7 +231,9 @@ async def test_evaluate_all_stories(mock_metric_performance, mock_metric):
 
 def test_populate_template_context(evaluator, mock_metric_performance, mock_metric):
     """Test _populate_template_context method."""
-    context = evaluator._populate_template_context(mock_metric_performance, mock_metric, Granularity.DAY)
+    context = evaluator._populate_template_context(
+        mock_metric_performance, mock_metric, Granularity.DAY, ["status_change", "hold_steady"]
+    )
 
     assert context["current_value"] == 100.0
     assert context["target_value"] == 90.0

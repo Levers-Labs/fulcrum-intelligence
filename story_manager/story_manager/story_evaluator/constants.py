@@ -140,11 +140,56 @@ STORY_TEMPLATES = {
 }
 
 STORY_GROUP_TIME_DURATIONS: dict[str, Any] = {
+    StoryGroup.TREND_CHANGES: {
+        Granularity.DAY: {"output": 20},
+        Granularity.WEEK: {"output": 20},
+        Granularity.MONTH: {"output": 10},
+    },
+    StoryGroup.TREND_EXCEPTIONS: {
+        Granularity.DAY: {"output": 20},
+        Granularity.WEEK: {"output": 20},
+        Granularity.MONTH: {"output": 10},
+    },
+    StoryGroup.LONG_RANGE: {
+        Granularity.DAY: {"output": 30},
+        Granularity.WEEK: {"output": 14},
+        Granularity.MONTH: {"output": 4},
+    },
+    StoryGroup.RECORD_VALUES: {
+        Granularity.DAY: {"output": 20},
+        Granularity.WEEK: {"output": 20},
+        Granularity.MONTH: {"output": 10},
+    },
+    StoryGroup.GROWTH_RATES: {
+        Granularity.DAY: {"output": 30},
+        Granularity.WEEK: {"output": 14},
+        Granularity.MONTH: {"output": 4},
+    },
     StoryGroup.GOAL_VS_ACTUAL: {
         Granularity.DAY: {"output": 7},
         Granularity.WEEK: {"output": 5},
         Granularity.MONTH: {"output": 4},
-    }
+    },
+    StoryGroup.STATUS_CHANGE: {
+        Granularity.DAY: {"output": 7},
+        Granularity.WEEK: {"output": 5},
+        Granularity.MONTH: {"output": 4},
+    },
+    StoryGroup.SEGMENT_DRIFT: {
+        Granularity.DAY: {"output": 2},
+        Granularity.WEEK: {"output": 2},
+        Granularity.MONTH: {"output": 2},
+    },
+    StoryGroup.INFLUENCE_DRIFT: {
+        Granularity.DAY: {"output": 2},
+        Granularity.WEEK: {"output": 2},
+        Granularity.MONTH: {"output": 2},
+    },
+    StoryGroup.COMPONENT_DRIFT: {
+        Granularity.DAY: {"output": 2},
+        Granularity.WEEK: {"output": 2},
+        Granularity.MONTH: {"output": 2},
+    },
 }
 
 STORY_TYPE_TIME_DURATIONS: dict[str, Any] = {

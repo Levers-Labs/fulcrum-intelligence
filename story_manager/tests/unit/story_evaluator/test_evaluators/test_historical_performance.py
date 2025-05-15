@@ -312,7 +312,21 @@ async def test_evaluate_benchmarks(mock_historical_performance, mock_metric):
 
 def test_populate_template_context(evaluator, mock_historical_performance, mock_metric):
     """Test _populate_template_context method."""
-    context = evaluator._populate_template_context(mock_historical_performance, mock_metric, Granularity.MONTH)
+    context = evaluator._populate_template_context(
+        mock_historical_performance,
+        mock_metric,
+        Granularity.MONTH,
+        [
+            "current_trend",
+            "previous_trend",
+            "high_rank",
+            "low_rank",
+            "benchmark_comparison",
+            "trend_exception",
+            "growth_stats",
+            "seasonality",
+        ],
+    )
 
     assert context["grain_label"] == "month"
     assert context["pop"] == "m/m"

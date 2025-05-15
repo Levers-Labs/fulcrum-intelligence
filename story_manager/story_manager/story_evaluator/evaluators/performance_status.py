@@ -68,7 +68,7 @@ class PerformanceStatusEvaluator(StoryEvaluatorBase[MetricPerformance]):
         return stories
 
     def _populate_template_context(
-        self, pattern_result: MetricPerformance, metric: dict, grain: Granularity, required_components: list[str]
+        self, pattern_result: MetricPerformance, metric: dict, grain: Granularity, include: list[str]
     ) -> dict[str, Any]:
         """
         Populate context for template rendering.
@@ -77,7 +77,7 @@ class PerformanceStatusEvaluator(StoryEvaluatorBase[MetricPerformance]):
             pattern_result: Performance status pattern result
             metric: Metric details
             grain: Granularity of the analysis
-            required_components: The components of the story being rendered, determines which context fields to include
+            include: The components of the story being rendered, determines which context fields to include
         Returns:
             Template context dictionary
         """
@@ -119,11 +119,11 @@ class PerformanceStatusEvaluator(StoryEvaluatorBase[MetricPerformance]):
         }
 
         # Add status change specifics
-        if "status_change" in required_components and pattern_result.status_change:
+        if "status_change" in include and pattern_result.status_change:
             context["old_status_duration"] = pattern_result.status_change.old_status_duration_grains or 0
 
         # Add hold steady specifics
-        if "hold_steady" in required_components and pattern_result.hold_steady:
+        if "hold_steady" in include and pattern_result.hold_steady:
             context["current_margin"] = pattern_result.hold_steady.current_margin_percent or 0
             context["time_to_maintain"] = pattern_result.hold_steady.time_to_maintain_grains or 0
 
@@ -155,14 +155,6 @@ class PerformanceStatusEvaluator(StoryEvaluatorBase[MetricPerformance]):
         title = render_story_text(StoryType.ON_TRACK, "title", context)
         detail = render_story_text(StoryType.ON_TRACK, "detail", context)
 
-        # Get story series data
-        series_data = self.export_dataframe_as_story_series(
-            self.series_df,
-            story_type,
-            story_group,
-            grain,  # type: ignore
-        )
-
         # Prepare the story model
         return self.prepare_story_model(
             genre=StoryGenre.PERFORMANCE,
@@ -173,7 +165,6 @@ class PerformanceStatusEvaluator(StoryEvaluatorBase[MetricPerformance]):
             title=title,
             detail=detail,
             grain=grain,  # type: ignore
-            series_data=series_data,
             **context,
         )
 
@@ -202,14 +193,6 @@ class PerformanceStatusEvaluator(StoryEvaluatorBase[MetricPerformance]):
         title = render_story_text(story_type, "title", context)
         detail = render_story_text(story_type, "detail", context)
 
-        # Get story series data
-        series_data = self.export_dataframe_as_story_series(
-            self.series_df,
-            story_type,
-            story_group,
-            grain,  # type: ignore
-        )
-
         # Prepare the story model
         return self.prepare_story_model(
             genre=StoryGenre.PERFORMANCE,
@@ -220,7 +203,6 @@ class PerformanceStatusEvaluator(StoryEvaluatorBase[MetricPerformance]):
             title=title,
             detail=detail,
             grain=grain,  # type: ignore
-            series_data=series_data,
             **context,
         )
 
@@ -250,14 +232,6 @@ class PerformanceStatusEvaluator(StoryEvaluatorBase[MetricPerformance]):
         title = render_story_text(story_type, "title", context)
         detail = render_story_text(story_type, "detail", context)
 
-        # Get story series data
-        series_data = self.export_dataframe_as_story_series(
-            self.series_df,
-            story_type,
-            story_group,
-            grain,  # type: ignore
-        )
-
         # Prepare the story model
         return self.prepare_story_model(
             genre=StoryGenre.PERFORMANCE,
@@ -268,7 +242,6 @@ class PerformanceStatusEvaluator(StoryEvaluatorBase[MetricPerformance]):
             title=title,
             detail=detail,
             grain=grain,  # type: ignore
-            series_data=series_data,
             **context,
         )
 
@@ -298,14 +271,6 @@ class PerformanceStatusEvaluator(StoryEvaluatorBase[MetricPerformance]):
         title = render_story_text(story_type, "title", context)
         detail = render_story_text(story_type, "detail", context)
 
-        # Get story series data
-        series_data = self.export_dataframe_as_story_series(
-            self.series_df,
-            story_type,
-            story_group,
-            grain,  # type: ignore
-        )
-
         # Prepare the story model
         return self.prepare_story_model(
             genre=StoryGenre.PERFORMANCE,
@@ -316,7 +281,6 @@ class PerformanceStatusEvaluator(StoryEvaluatorBase[MetricPerformance]):
             title=title,
             detail=detail,
             grain=grain,  # type: ignore
-            series_data=series_data,
             **context,
         )
 
@@ -345,14 +309,6 @@ class PerformanceStatusEvaluator(StoryEvaluatorBase[MetricPerformance]):
         title = render_story_text(story_type, "title", context)
         detail = render_story_text(story_type, "detail", context)
 
-        # Get story series data
-        series_data = self.export_dataframe_as_story_series(
-            self.series_df,
-            story_type,
-            story_group,
-            grain,  # type: ignore
-        )
-
         # Prepare the story model
         return self.prepare_story_model(
             genre=StoryGenre.PERFORMANCE,
@@ -363,6 +319,5 @@ class PerformanceStatusEvaluator(StoryEvaluatorBase[MetricPerformance]):
             title=title,
             detail=detail,
             grain=grain,  # type: ignore
-            series_data=series_data,
             **context,
         )

@@ -5,6 +5,8 @@ Story evaluator for the historical performance pattern.
 import logging
 from typing import Any
 
+import pandas as pd
+
 from commons.utilities.grain_utils import GRAIN_META
 from levers.models import Granularity, TrendExceptionType, TrendType
 from levers.models.patterns import HistoricalPerformance
@@ -29,6 +31,57 @@ class HistoricalPerformanceEvaluator(StoryEvaluatorBase[HistoricalPerformance]):
 
     pattern_name = "historical_performance"
 
+    def _prepare_story_series_data(
+        self, pattern_result: HistoricalPerformance, story_type: StoryType
+    ) -> pd.DataFrame | None:
+        """
+        Enhance the dataframe with pattern-specific metrics and indicators.
+
+        Args:
+            pattern_result: Historical performance pattern result
+            story_type: Type of story being created
+
+        Returns:
+            A series dataframe with the additional data or None if the series dataframe is empty
+        """
+        if self.series_df is None or self.series_df.empty:
+            return None
+
+        # Make a copy to avoid modifying the original
+        series_df = self.series_df.copy()
+
+        # Ensure date is in datetime format
+        if "date" in series_df.columns:
+            series_df["date"] = pd.to_datetime(series_df["date"])
+
+        if story_type in [
+            StoryType.SLOWING_GROWTH,
+            StoryType.ACCELERATING_GROWTH,
+            StoryType.IMPROVING_PERFORMANCE,
+            StoryType.WORSENING_PERFORMANCE,
+        ]:
+            # Add period metrics to series data
+            if pattern_result.period_metrics:
+                period_df = pd.DataFrame(
+                    [period_metric.model_dump() for period_metric in pattern_result.period_metrics]
+                )
+
+                # Map period_end to date for joining
+                period_df["date"] = pd.to_datetime(period_df["period_end"])
+
+                # check if value column exists
+                if "value" in series_df.columns:
+                    # Create a temporary merged dataframe to calculate growth values
+                    merged_df = (
+                        series_df[["date", "value"]]
+                        .merge(period_df[["date", "pop_growth_percent"]], on="date", how="left")
+                        .sort_values("date")
+                    )
+
+                    return merged_df
+
+        return series_df
+
     async def evaluate(self, pattern_result: HistoricalPerformance, metric: dict[str, Any]) -> list[dict[str, Any]]:
         """
         Evaluate the historical performance pattern result and generate stories.
@@ -40,6 +93,7 @@ class HistoricalPerformanceEvaluator(StoryEvaluatorBase[HistoricalPerformance]):
         Returns:
             List of story dictionaries
         """
+
         stories = []
         metric_id = pattern_result.metric_id
         grain = pattern_result.analysis_window.grain
@@ -106,7 +160,7 @@ class HistoricalPerformanceEvaluator(StoryEvaluatorBase[HistoricalPerformance]):
         )
 
     def _populate_template_context(
-        self, pattern_result: HistoricalPerformance, metric: dict, grain: Granularity, required_components: list[str]
+        self, pattern_result: HistoricalPerformance, metric: dict, grain: Granularity, include: list[str]
     ) -> dict[str, Any]:
         """
         Populate context for template rendering based on story type.
@@ -115,7 +169,7 @@ class HistoricalPerformanceEvaluator(StoryEvaluatorBase[HistoricalPerformance]):
             pattern_result: Historical performance pattern result
             metric: Metric details
             grain: Granularity of the analysis
-            required_components: The components of the story being rendered, determines which context fields to include
+            include: The components of the story being rendered, determines which context fields to include
 
         Returns:
             Template context dictionary with only the necessary fields for the given story type
@@ -130,7 +184,7 @@ class HistoricalPerformanceEvaluator(StoryEvaluatorBase[HistoricalPerformance]):
         }
 
         # Add growth stats
-        if "growth_stats" in required_components and pattern_result.growth_stats:
+        if "growth_stats" in include and pattern_result.growth_stats:
             context.update(
                 {
                     "current_growth": abs(pattern_result.growth_stats.current_pop_growth or 0),
@@ -142,7 +196,7 @@ class HistoricalPerformanceEvaluator(StoryEvaluatorBase[HistoricalPerformance]):
             )
 
         # Add current trend info
-        if "current_trend" in required_components and pattern_result.current_trend:
+        if "current_trend" in include and pattern_result.current_trend:
             context.update(
                 {
                     "trend_start_date": pattern_result.current_trend.start_date,
@@ -158,7 +212,7 @@ class HistoricalPerformanceEvaluator(StoryEvaluatorBase[HistoricalPerformance]):
             )
 
         # Add previous trend info
-        if "previous_trend" in required_components and pattern_result.previous_trend:
+        if "previous_trend" in include and pattern_result.previous_trend:
             context.update(
                 {
                     "prev_trend_duration": pattern_result.previous_trend.duration_grains,
@@ -167,7 +221,7 @@ class HistoricalPerformanceEvaluator(StoryEvaluatorBase[HistoricalPerformance]):
             )
 
         # Add rank summaries
-        if "high_rank" in required_components and pattern_result.high_rank:
+        if "high_rank" in include and pattern_result.high_rank:
             context.update(
                 {
                     "high_value": pattern_result.high_rank.value,
@@ -180,7 +234,7 @@ class HistoricalPerformanceEvaluator(StoryEvaluatorBase[HistoricalPerformance]):
                 }
             )
 
-        if "low_rank" in required_components and pattern_result.low_rank:
+        if "low_rank" in include and pattern_result.low_rank:
             context.update(
                 {
                     "low_value": pattern_result.low_rank.value,
@@ -194,7 +248,7 @@ class HistoricalPerformanceEvaluator(StoryEvaluatorBase[HistoricalPerformance]):
             )
 
         # Add trend exception info
-        if "trend_exception" in required_components and pattern_result.trend_exception:
+        if "trend_exception" in include and pattern_result.trend_exception:
             context.update(
                 {
                     "exception_value": pattern_result.trend_exception.current_value,
@@ -206,7 +260,7 @@ class HistoricalPerformanceEvaluator(StoryEvaluatorBase[HistoricalPerformance]):
             )
 
         # Add benchmark info
-        if "benchmark_comparison" in required_components and pattern_result.benchmark_comparison:
+        if "benchmark_comparison" in include and pattern_result.benchmark_comparison:
             # Map reference periods to more readable names for stories
             period_display_names = {
                 "WTD": "Week to Date",
@@ -236,20 +290,27 @@ class HistoricalPerformanceEvaluator(StoryEvaluatorBase[HistoricalPerformance]):
     ) -> dict[str, Any]:
         """Create a SLOWING_GROWTH story."""
         story_group = StoryGroup.GROWTH_RATES
+        story_type = StoryType.SLOWING_GROWTH
+
         context = self._populate_template_context(pattern_result, metric, grain, ["growth_stats"])
 
-        title = render_story_text(StoryType.SLOWING_GROWTH, "title", context)
-        detail = render_story_text(StoryType.SLOWING_GROWTH, "detail", context)
+        title = render_story_text(story_type, "title", context)
+        detail = render_story_text(story_type, "detail", context)
+
+        # First prepare the series data with growth rates story-specific customizations
+        series_df = self._prepare_story_series_data(pattern_result, story_type)
+        series_data = self.export_dataframe_as_story_series(series_df, story_type, story_group, grain)
 
         return self.prepare_story_model(
             genre=StoryGenre.GROWTH,
-            story_type=StoryType.SLOWING_GROWTH,
+            story_type=story_type,
             story_group=story_group,
             metric_id=metric_id,
             pattern_result=pattern_result,
             title=title,
             detail=detail,
             grain=grain,  # type: ignore
+            series_data=series_data,
             **context,
         )
 
@@ -258,20 +319,27 @@ class HistoricalPerformanceEvaluator(StoryEvaluatorBase[HistoricalPerformance]):
     ) -> dict[str, Any]:
         """Create an ACCELERATING_GROWTH story."""
         story_group = StoryGroup.GROWTH_RATES
+        story_type = StoryType.ACCELERATING_GROWTH
+
         context = self._populate_template_context(pattern_result, metric, grain, ["growth_stats"])
 
-        title = render_story_text(StoryType.ACCELERATING_GROWTH, "title", context)
-        detail = render_story_text(StoryType.ACCELERATING_GROWTH, "detail", context)
+        title = render_story_text(story_type, "title", context)
+        detail = render_story_text(story_type, "detail", context)
+
+        # First prepare the series data with growth rates story-specific customizations
+        series_df = self._prepare_story_series_data(pattern_result, story_type)
+        series_data = self.export_dataframe_as_story_series(series_df, story_type, story_group, grain)
 
         return self.prepare_story_model(
             genre=StoryGenre.GROWTH,
-            story_type=StoryType.ACCELERATING_GROWTH,
+            story_type=story_type,
             story_group=story_group,
             metric_id=metric_id,
             pattern_result=pattern_result,
             title=title,
             detail=detail,
             grain=grain,  # type: ignore
+            series_data=series_data,
             **context,
         )
 
@@ -425,20 +493,27 @@ class HistoricalPerformanceEvaluator(StoryEvaluatorBase[HistoricalPerformance]):
     ) -> dict[str, Any]:
         """Create an IMPROVING_PERFORMANCE story."""
         story_group = StoryGroup.TREND_CHANGES
+        story_type = StoryType.IMPROVING_PERFORMANCE
+
         context = self._populate_template_context(pattern_result, metric, grain, ["current_trend"])
 
-        title = render_story_text(StoryType.IMPROVING_PERFORMANCE, "title", context)
-        detail = render_story_text(StoryType.IMPROVING_PERFORMANCE, "detail", context)
+        title = render_story_text(story_type, "title", context)
+        detail = render_story_text(story_type, "detail", context)
+
+        # First prepare the series data with growth rates story-specific customizations
+        series_df = self._prepare_story_series_data(pattern_result, story_type)
+        series_data = self.export_dataframe_as_story_series(series_df, story_type, story_group, grain)
 
         return self.prepare_story_model(
             genre=StoryGenre.TRENDS,
-            story_type=StoryType.IMPROVING_PERFORMANCE,
+            story_type=story_type,
             story_group=story_group,
             metric_id=metric_id,
             pattern_result=pattern_result,
             title=title,
             detail=detail,
             grain=grain,  # type: ignore
+            series_data=series_data,
             **context,
         )
 
@@ -469,15 +544,17 @@ class HistoricalPerformanceEvaluator(StoryEvaluatorBase[HistoricalPerformance]):
         self, pattern_result: HistoricalPerformance, metric_id: str, metric: dict, grain: Granularity
     ) -> dict[str, Any]:
         """Create a RECORD_HIGH story."""
+
         story_group = StoryGroup.RECORD_VALUES
+        story_type = StoryType.RECORD_HIGH
         context = self._populate_template_context(pattern_result, metric, grain, ["high_rank"])
 
-        title = render_story_text(StoryType.RECORD_HIGH, "title", context)
-        detail = render_story_text(StoryType.RECORD_HIGH, "detail", context)
+        title = render_story_text(story_type, "title", context)
+        detail = render_story_text(story_type, "detail", context)
 
         return self.prepare_story_model(
             genre=StoryGenre.TRENDS,
-            story_type=StoryType.RECORD_HIGH,
+            story_type=story_type,
             story_group=story_group,
             metric_id=metric_id,
             pattern_result=pattern_result,
@@ -491,15 +568,17 @@ class HistoricalPerformanceEvaluator(StoryEvaluatorBase[HistoricalPerformance]):
         self, pattern_result: HistoricalPerformance, metric_id: str, metric: dict, grain: Granularity
     ) -> dict[str, Any]:
         """Create a RECORD_LOW story."""
+
         story_group = StoryGroup.RECORD_VALUES
+        story_type = StoryType.RECORD_LOW
         context = self._populate_template_context(pattern_result, metric, grain, ["low_rank"])
 
-        title = render_story_text(StoryType.RECORD_LOW, "title", context)
-        detail = render_story_text(StoryType.RECORD_LOW, "detail", context)
+        title = render_story_text(story_type, "title", context)
+        detail = render_story_text(story_type, "detail", context)
 
         return self.prepare_story_model(
             genre=StoryGenre.TRENDS,
-            story_type=StoryType.RECORD_LOW,
+            story_type=story_type,
             story_group=story_group,
             metric_id=metric_id,
             pattern_result=pattern_result,
