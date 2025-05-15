@@ -29,6 +29,8 @@ class PatternResult(AnalysisSchemaBaseModel, table=True):
     version: str = Field(default="1.0", index=True)
     grain: Granularity = Field(index=True)
     analysis_date: date = Field(default_factory=date.today, index=True)
+    # Dimension name is only set for dimension analysis patterns
+    dimension_name: str | None = Field(default=None, index=True)
     analysis_window: AnalysisWindow = Field(default=None, sa_type=JSONB)
     error: dict[str, Any] | None = Field(default=None, sa_type=JSONB, nullable=True)
     run_result: dict[str, Any] = Field(default_factory=dict, sa_type=JSONB)
@@ -39,6 +41,7 @@ class PatternResult(AnalysisSchemaBaseModel, table=True):
         Index("idx_pattern_result_metric_tenant", "metric_id", "tenant_id"),
         Index("idx_pattern_result_metric_tenant_pattern", "metric_id", "tenant_id", "pattern"),
         Index("idx_pattern_result_metric_tenant_grain", "metric_id", "tenant_id", "grain"),
+        Index("idx_pattern_result_metric_tenant_grain_dimension", "metric_id", "tenant_id", "grain", "dimension_name"),
         # unique constraint
         UniqueConstraint(
             "metric_id",
@@ -47,6 +50,7 @@ class PatternResult(AnalysisSchemaBaseModel, table=True):
             "version",
             "analysis_date",
             "grain",
+            "dimension_name",
         ),
         # Maintain schema definition from parent class
         {"schema": "analysis_store"},

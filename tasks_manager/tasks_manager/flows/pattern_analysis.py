@@ -8,7 +8,7 @@ from prefect.events import emit_event
 from commons.models.enums import Granularity
 from commons.utilities.context import reset_context, set_tenant_id
 from levers import Levers
-from tasks_manager.tasks.pattern_analysis import create_pattern_artifact, run_pattern
+from tasks_manager.tasks.pattern_analysis import create_pattern_artifact, get_pattern_config, run_pattern
 from tasks_manager.tasks.query import get_metric
 
 
@@ -59,6 +59,7 @@ async def analyze_metric_patterns(tenant_id_str: str, metric_id: str, grain: str
                 },
                 payload={"status": "skipped", "reason": "no_patterns"},
             )
+            return
 
         # Emit the start event
         emit_event(
@@ -72,16 +73,66 @@ async def analyze_metric_patterns(tenant_id_str: str, metric_id: str, grain: str
             payload={"patterns": available_patterns},
         )
 
-        # Get the metric definition
+        # Get the metric definition with dimensions
         metric_definition = await get_metric(metric_id=metric_id)
 
-        # Run analysis for each pattern in parallel
-        pattern_futures = run_pattern.map(
-            pattern=available_patterns,
-            metric_id=metric_id,
-            grain=grain,
-            metric_definition=unmapped(metric_definition),
+        logger.info(
+            "Metric details, name: %s, dimensions count: %s",
+            metric_definition.metric_id,
+            len(metric_definition.dimensions) if metric_definition.dimensions else 0,
         )
+
+        # Categorize patterns into standard and dimension-based
+        standard_patterns = []
+        dimension_patterns = []
+
+        # Populate the pattern lists
+        for pattern_name in available_patterns:
+            # Get the pattern config
+            pattern_config = await get_pattern_config(pattern_name)
+            # Check if the pattern needs dimension analysis
+            if pattern_config.needs_dimension_analysis:
+                dimension_patterns.append(pattern_name)
+            else:
+                standard_patterns.append(pattern_name)
+
+        logger.info("Categorized patterns - Standard: %s, Dimension-based: %s", standard_patterns, dimension_patterns)
+
+        # Prepare the tasks for execution
+        pattern_futures: Any = []
+
+        # Process standard patterns
+        if standard_patterns:
+            logger.info("Submitting tasks for standard patterns: %s", standard_patterns)
+            standard_futures = run_pattern.map(
+                pattern=standard_patterns,
+                metric_id=unmapped(metric_id),
+                grain=unmapped(grain),
+                metric_definition=unmapped(metric_definition),
+            )
+            logger.info("Submitted tasks for standard patterns: %s", standard_futures)
+            pattern_futures.extend(standard_futures)
+
+        # Process dimension patterns
+        if dimension_patterns and metric_definition.dimensions:
+            # Get available dimensions from the metric definition
+            dimensions = [dim.dimension_id for dim in metric_definition.dimensions]
+            logger.info("Found %d dimensions for metric %s: %s", len(dimensions), metric_id, dimensions)
+
+            # For each dimension pattern, create tasks for all dimensions
+            for pattern_name in dimension_patterns:
+                for dimension_name in dimensions:
+                    logger.info("Submitting task for pattern %s and dimension %s", pattern_name, dimension_name)
+                    # Create a task for each pattern-dimension combination
+                    dimension_future = run_pattern.submit(
+                        pattern=pattern_name,
+                        metric_id=metric_id,
+                        grain=grain,
+                        metric_definition=metric_definition,
+                        dimension_name=dimension_name,
+                    )
+                    logger.info("Submitted task for pattern %s and dimension %s", pattern_name, dimension_name)
+                    pattern_futures.append(dimension_future)
 
         # Wait for all pattern analyses to complete
         pattern_results = []
@@ -96,8 +147,8 @@ async def analyze_metric_patterns(tenant_id_str: str, metric_id: str, grain: str
         successful_patterns = [r for r in pattern_results if r["success"]]
         failed_patterns = [r for r in pattern_results if not r["success"]]
 
-        # Extract pattern names (now always available in the dictionary)
-        pattern_names = [r["pattern"] for r in pattern_results]
+        # Extract pattern names
+        pattern_names = list({r.get("pattern") for r in pattern_results})
 
         summary = {
             "tenant_id": tenant_id,
@@ -166,3 +217,54 @@ async def analyze_metric_patterns(tenant_id_str: str, metric_id: str, grain: str
     finally:
         # Reset tenant context
         reset_context()
+
+
+@flow(
+    name="run-pattern",
+    flow_run_name="run-pattern:tenant={tenant_id}_pattern={pattern_name}_metric={metric_id}_grain={grain}",
+    description="Run a pattern for a specific metric and dimension (optional)",
+)
+async def trigger_run_pattern(
+    tenant_id: int, pattern_name: str, metric_id: str, grain: Granularity, dimension_name: str | None = None
+):
+    """
+    Trigger the run_pattern flow for a specific pattern, metric, and grain.
+
+    Args:
+        tenant_id: Tenant ID as integer
+        pattern_name: Name of the pattern to run
+        metric_id: ID of the metric to analyze
+        grain: Granularity (day, week, month)
+        dimension_name: Name of the dimension to analyze
+    """
+    logger = get_run_logger()
+
+    # Set tenant context
+    set_tenant_id(tenant_id)
+
+    # Get the metric definition with dimensions
+    metric_definition = await get_metric(metric_id=metric_id)
+
+    logger.info(
+        "Running pattern %s for metric %s, grain %s, dimension %s", pattern_name, metric_id, grain, dimension_name
+    )
+    # Run the pattern
+    result = await run_pattern(
+        pattern=pattern_name,
+        metric_id=metric_id,
+        grain=grain,
+        metric_definition=metric_definition,
+        dimension_name=dimension_name,
+    )
+    logger.info(
+        "Completed run_pattern for pattern %s, metric %s, grain %s, dimension %s",
+        pattern_name,
+        metric_id,
+        grain,
+        dimension_name,
+    )
+
+    # Reset tenant context
+    reset_context()
+
+    return result

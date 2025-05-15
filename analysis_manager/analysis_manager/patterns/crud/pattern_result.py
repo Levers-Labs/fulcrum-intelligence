@@ -45,6 +45,7 @@ class PatternCRUD(CRUDBase[PatternResult, PatternResultType, PatternResultType, 
                 pattern=pattern_name,
                 version=pattern_result.version,
                 grain=run_result["analysis_window"]["grain"],
+                dimension_name=run_result.get("dimension_name"),  # Only set for dimension analysis patterns
                 analysis_date=pattern_result.analysis_date,
                 analysis_window=run_result["analysis_window"],
                 error=pattern_result.error,
@@ -126,6 +127,7 @@ class PatternCRUD(CRUDBase[PatternResult, PatternResultType, PatternResultType, 
     async def clear_data(
         self,
         metric_id: str,
+        dimension_name: str | None = None,
         pattern_name: str | None = None,
         start_date: date | None = None,
         end_date: date | None = None,
@@ -135,6 +137,7 @@ class PatternCRUD(CRUDBase[PatternResult, PatternResultType, PatternResultType, 
 
         Args:
             metric_id: The metric ID
+            dimension_name: Optional dimension name to filter by
             pattern_name: Optional pattern name to filter by
             start_date: Optional start date range
             end_date: Optional end date range
@@ -152,6 +155,9 @@ class PatternCRUD(CRUDBase[PatternResult, PatternResultType, PatternResultType, 
 
         try:
             conditions = [self.model.metric_id == metric_id]  # type: ignore
+
+            if dimension_name:
+                conditions.append(self.model.dimension_name == dimension_name)  # type: ignore
 
             if pattern_name:
                 conditions.append(self.model.pattern == pattern_name)  # type: ignore

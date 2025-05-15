@@ -176,6 +176,11 @@ class PatternConfig(BaseModel):
     # Additional metadata
     meta: dict[str, Any] = Field(default_factory=dict)
 
+    # Indicates if pattern needs dimension-based analysis
+    needs_dimension_analysis: bool = Field(
+        default=False, description="Whether this pattern should be run for each dimension"
+    )
+
     @model_validator(mode="after")
     def validate_nested_models(self):
         """Validate nested models with context."""
@@ -199,6 +204,7 @@ class PatternConfig(BaseModel):
                     "include_today": False,
                 },
                 "settings": {"threshold_ratio": 0.05},
+                "needs_dimension_analysis": False,
             }
         }
     )

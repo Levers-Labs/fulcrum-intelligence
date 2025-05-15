@@ -6,11 +6,13 @@ analyze metrics and produce structured, rich insights.
 """
 
 from .base import Pattern
+from .dimension_analysis import DimensionAnalysisPattern
 from .historical_performance import HistoricalPerformancePattern
 from .performance_status import PerformanceStatusPattern
 
 __all__ = [
     "Pattern",
-    "PerformanceStatusPattern",
     "HistoricalPerformancePattern",
+    "PerformanceStatusPattern",
+    "DimensionAnalysisPattern",
 ]

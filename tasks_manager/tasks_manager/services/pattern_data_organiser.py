@@ -51,6 +51,7 @@ class PatternDataOrganiser:
         metric_id: str,
         grain: Granularity,
         metric_definition: MetricDetail | None = None,
+        **fetch_kwargs,
     ) -> DataDict:
         """
         Fetch all data required for a pattern based on its configuration.
@@ -60,6 +61,7 @@ class PatternDataOrganiser:
             metric_id: The metric ID
             grain: Data granularity
             metric_definition: Optional metric definition containing related metrics
+            **fetch_kwargs: Additional keyword arguments
 
         Returns:
             Dictionary of DataFrames with standardized data keys from the configuration
@@ -88,6 +90,7 @@ class PatternDataOrganiser:
             start_date=start_date,
             end_date=end_date,
             metric_definition=metric_definition,
+            **fetch_kwargs,
         )
 
     async def _fetch_data_sources(
@@ -98,6 +101,7 @@ class PatternDataOrganiser:
         start_date: date,
         end_date: date,
         metric_definition: MetricDetail | None = None,
+        **fetch_kwargs,
     ) -> DataDict:
         """
         Fetch data for all data sources configured in the pattern.
@@ -109,6 +113,7 @@ class PatternDataOrganiser:
             start_date: Start date for data fetching
             end_date: End date for data fetching
             metric_definition: Optional metric definition
+            kwargs: Additional keyword arguments
 
         Returns:
             Dictionary of DataFrames with keys from the configuration's data_sources
@@ -144,14 +149,12 @@ class PatternDataOrganiser:
                     start_date=start_date,
                     end_date=end_date,
                     metric_definition=metric_definition,
+                    **fetch_kwargs,
                 )
             else:
                 # Fetch data for this source type
                 data = await fetcher(
-                    metric_id=metric_id,
-                    grain=grain,
-                    start_date=start_date,
-                    end_date=end_date,
+                    metric_id=metric_id, grain=grain, start_date=start_date, end_date=end_date, **fetch_kwargs
                 )
             df = self._convert_to_dataframe(data, source_type)
 
@@ -195,7 +198,13 @@ class PatternDataOrganiser:
         )
 
     async def _fetch_dimensional_time_series(
-        self, metric_id: str, grain: Granularity, start_date: date, end_date: date, **kwargs
+        self,
+        metric_id: str,
+        grain: Granularity,
+        start_date: date,
+        end_date: date,
+        dimension_name: str | None = None,
+        **kwargs,
     ) -> list[dict[str, Any]]:
         """Fetch dimensional time series data."""
         series = await self.semantic_manager.get_dimensional_time_series(
@@ -203,6 +212,7 @@ class PatternDataOrganiser:
             grain=grain,  # type: ignore
             start_date=start_date,
             end_date=end_date,
+            dimension_names=[dimension_name] if dimension_name else None,
         )
         return [
             dict(
@@ -241,6 +251,7 @@ class PatternDataOrganiser:
         start_date: date,
         end_date: date,
         metric_definition: MetricDetail | None = None,
+        **kwargs,
     ) -> list[dict[str, Any]]:
         """Handle fetching for multi-metric data sources."""
         # Get related metrics from metric definition

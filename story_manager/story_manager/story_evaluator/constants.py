@@ -137,6 +137,60 @@ STORY_TEMPLATES = {
         "high_value|format_number }}. Compared to last {{ reference_period }}, this is {{ "
         "change_percent|format_percent }}% {{ comparison_direction }}.",
     },
+    StoryType.TOP_4_SEGMENTS: {
+        "title": "Strongest segments",
+        "detail": "The 4 strongest-performing segments for {{ metric.label }} are {{ top_segments }}, "
+        "which collectively outperforming the average of {{ min_diff_percent|format_percent }}% to {{ "
+        "max_diff_percent|format_percent }}%. These segments represent {{ "
+        "total_share_percent|format_percent }}% of total volume and have maintained above-average "
+        "performance for {{ streak_length }} consecutive {{ grain_label }}s.",
+    },
+    StoryType.BOTTOM_4_SEGMENTS: {
+        "title": "Weakest segments",
+        "detail": "The 4 weakest-performing segments for {{ metric.label }} are {{ bottom_segments }}, "
+        "which collectively underperforming the average of {{ min_diff_percent|format_percent }}% to {{ "
+        "max_diff_percent|format_percent }}%. These segments represent {{ "
+        "total_share_percent|format_percent }}% of total volume and have maintained below-average "
+        "performance for {{ streak_length }} consecutive {{ grain_label }}s.",
+    },
+    StoryType.SEGMENT_COMPARISONS: {
+        "title": "{{ segment_a }} vs. {{ segment_b }}",
+        "detail": "{{ segment_a }} outperforms {{ segment_b }} by {{ performance_diff_percent|format_percent }}%. "
+        "Over the past {{ grain_label }}, this gap has {{ gap_trend }} by {{ "
+        "gap_change_percent|format_percent }}%.",
+    },
+    StoryType.NEW_STRONGEST_SEGMENT: {
+        "title": "{{ segment_name }} is now the best-performing segment",
+        "detail": "{{ segment_name }} is now the strongest performing segment with an average {{ metric.label }} "
+        "value of {{ current_value|format_number }} -- {{ diff_from_avg_percent|format_percent }}% higher "
+        "than the average across all segments of {{ avg_value|format_number }}. Meanwhile, the previously "
+        "strongest segment {{ previous_segment }} is {{ trend_direction }} {{ change_percent|format_percent "
+        "}}% to an average {{ metric.label }} value of {{ previous_value|format_number }}.",
+    },
+    StoryType.NEW_WEAKEST_SEGMENT: {
+        "title": "{{ segment_name }} is now the worst-performing segment",
+        "detail": "{{ segment_name }} is now the weakest performing segment with an average {{ metric.label }} value "
+        "of {{ current_value|format_number }} -- {{ diff_from_avg_percent|format_percent }}% lower than the "
+        "average across all segments of {{ avg_value|format_number }}. Meanwhile, the previously weakest "
+        "segment {{ previous_segment }} is {{ trend_direction }} {{ change_percent|format_percent }}% to an "
+        "average {{ metric.label }} value of {{ previous_value|format_number }}.",
+    },
+    StoryType.NEW_LARGEST_SEGMENT: {
+        "title": "{{ segment_name }} is now the most represented segment",
+        "detail": "{{ segment_name }} now comprises the largest share of {{ dimension_name }}, "
+        "at {{ current_share_percent|format_percent }}%, up from {{ prior_share_percent|format_percent }}% "
+        "the prior {{ grain_label }}. This surpasses the previously most represented segment {{ "
+        "previous_segment }} which now comprises {{ previous_share_percent|format_percent }}% of {{ "
+        "dimension_name }}.",
+    },
+    StoryType.NEW_SMALLEST_SEGMENT: {
+        "title": "{{ segment_name }} is now the least represented segment",
+        "detail": "{{ segment_name }} now comprises the smallest share of {{ dimension_name }}, "
+        "at {{ current_share_percent|format_percent }}%, down from {{ prior_share_percent|format_percent "
+        "}}% in the prior {{ grain_label }}. The previously least represented segment {{ previous_segment "
+        "}} now comprises {{ previous_share_percent|format_percent }}% of {{ dimension_name }}, up from {{ "
+        "previous_prior_share_percent|format_percent }}%.",
+    },
 }
 
 STORY_GROUP_TIME_DURATIONS: dict[str, Any] = {

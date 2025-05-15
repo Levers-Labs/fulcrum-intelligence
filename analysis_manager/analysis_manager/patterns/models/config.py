@@ -19,6 +19,7 @@ class PatternConfig(AnalysisSchemaBaseModel, table=True):  # type: ignore
     description: str | None = None
     data_sources: list[DataSource] = Field(default_factory=list, sa_type=JSONB)
     analysis_window: AnalysisWindowConfig = Field(sa_type=JSONB)
+    needs_dimension_analysis: bool = Field(default=False)
     settings: dict[str, Any] = Field(default_factory=dict, sa_type=JSONB, sa_column_kwargs={"server_default": "{}"})
     meta: dict[str, Any] = Field(default_factory=dict, sa_type=JSONB, sa_column_kwargs={"server_default": "{}"})
 
@@ -40,6 +41,7 @@ class PatternConfig(AnalysisSchemaBaseModel, table=True):  # type: ignore
             analysis_window=analysis_window,
             settings=self.settings,
             meta=self.meta,
+            needs_dimension_analysis=self.needs_dimension_analysis,
         )
 
     @classmethod
@@ -53,4 +55,5 @@ class PatternConfig(AnalysisSchemaBaseModel, table=True):  # type: ignore
             analysis_window=config.analysis_window,
             settings=config.settings,
             meta=config.meta,
+            needs_dimension_analysis=config.needs_dimension_analysis,
         )
