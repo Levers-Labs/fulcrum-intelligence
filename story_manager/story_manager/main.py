@@ -9,6 +9,7 @@ from story_manager.config import get_settings
 from story_manager.core.routes import router as core_router
 from story_manager.exceptions import add_exception_handlers
 from story_manager.health import router as health_check_router
+from story_manager.story_evaluator.routes import router as story_evaluator_router
 
 
 def get_application() -> FastAPI:
@@ -24,6 +25,7 @@ def get_application() -> FastAPI:
     )
     _app.include_router(core_router, prefix="/v1")
     _app.include_router(health_check_router, prefix="/v1")
+    _app.include_router(story_evaluator_router, prefix="/v2")
     swagger_router = setup_swagger_ui("Story Manager", settings.URL_PREFIX)
     _app.include_router(swagger_router)
     _app.openapi = custom_openapi(_app, settings)  # type: ignore

@@ -213,6 +213,26 @@ async def test_get_stories(db_session, async_client, jwt_payload):
             is_heuristic=True,
             tenant_id=tenant_id,
         ),
+        Story(
+            genre=StoryGenre.ROOT_CAUSES,
+            story_group=StoryGroup.SEGMENT_DRIFT,
+            grain=Granularity.MONTH,
+            story_date=datetime(2020, 1, 1),
+            story_type=StoryType.SHRINKING_SEGMENT,
+            metric_id="NewBizDeals",
+            title="d/d growth is slowing down",
+            title_template="{{pop}} growth is slowing down",
+            detail="The d/d growth rate for NewBizDeals is slowing down. It is currently 10% and down from the 15% "
+            "average over the past 5 days.",
+            detail_template="The {{pop}} growth rate for {{metric.label}} is slowing down. It is currently {{"
+            "current_growth}}% and down from the {{reference_growth}}% average over the past {{"
+            "reference_period_days}} {{grain}}s.",
+            is_salient=True,
+            in_cool_off=True,
+            is_heuristic=True,
+            tenant_id=tenant_id,
+            version=2,
+        ),
     ]
     db_session.add_all(stories)
     await db_session.flush()
@@ -221,7 +241,7 @@ async def test_get_stories(db_session, async_client, jwt_payload):
     response = await async_client.get("/v1/stories/")
     assert response.status_code == status.HTTP_200_OK
     data = response.json()
-    assert data["count"] == len(stories)
+    assert data["count"] == len(stories) - 1  # excluding version 2 story
 
     # Test filtering by genre
     response = await async_client.get("/v1/stories/?genres=GROWTH")
@@ -231,6 +251,7 @@ async def test_get_stories(db_session, async_client, jwt_payload):
     for result in data["results"]:
         assert result["genre"] == StoryGenre.GROWTH.value
         assert result["story_group"] == StoryGroup.GROWTH_RATES.value
+        assert result["version"] == 1
 
     # Test filtering by metric_id
     response = await async_client.get("/v1/stories/?metric_ids=CAC")
@@ -238,6 +259,7 @@ async def test_get_stories(db_session, async_client, jwt_payload):
     data = response.json()
     assert data["count"] == 1
     assert data["results"][0]["metric_id"] == "CAC"
+    assert data["results"][0]["version"] == 1
 
     # Test filtering by story_type
     response = await async_client.get("/v1/stories/?story_types=ACCELERATING_GROWTH")
@@ -255,24 +277,27 @@ async def test_get_stories(db_session, async_client, jwt_payload):
     assert data["results"][0]["story_group"] == StoryGroup.GROWTH_RATES.value
     assert data["results"][0]["grain"] == Granularity.DAY.value
     assert data["results"][0]["metric_id"] == "NewMRR"
+    assert data["results"][0]["version"] == 1
 
     # Test Multiple story types based filtering
     response = await async_client.get("/v1/stories/?story_types=NEW_UPWARD_TREND&story_types=ACCELERATING_GROWTH")
     assert response.status_code == status.HTTP_200_OK
     data = response.json()
     assert data["count"] == 3
-
+    assert data["results"][0]["version"] == 1
     # Test Multiple story group based filtering
     response = await async_client.get("/v1/stories/?story_groups=TREND_CHANGES&story_groups=GROWTH_RATES")
     assert response.status_code == status.HTTP_200_OK
     data = response.json()
     assert data["count"] == 4
+    assert data["results"][0]["version"] == 1
 
     # Test Multiple metric ids based filtering
     response = await async_client.get("/v1/stories/?metric_ids=NewBizDeals&metric_ids=CAC")
     assert response.status_code == status.HTTP_200_OK
     data = response.json()
     assert data["count"] == 7
+    assert data["results"][0]["version"] == 1
 
     # Test multiple genre based filtering
     response = await async_client.get("/v1/stories/?genres=GROWTH&genres=TRENDS")
@@ -296,7 +321,7 @@ async def test_get_stories(db_session, async_client, jwt_payload):
     response = await async_client.get("/v1/stories/?story_date=2022-01-01")
     assert response.status_code == status.HTTP_200_OK
     data = response.json()
-    assert data["count"] == len(stories)
+    assert data["count"] == len(stories) - 1  # excluding version 2 story
     assert data["results"][0]["story_date"] == "2020-01-01T00:00:00+0000"
 
     response = await async_client.get("/v1/stories/?digest=PORTFOLIO&section=STATUS_CHANGES")

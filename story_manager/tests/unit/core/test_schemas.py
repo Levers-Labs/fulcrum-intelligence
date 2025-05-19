@@ -30,6 +30,7 @@ def test_story_detail_for_story_group():
         is_salient=True,
         in_cool_off=False,
         is_heuristic=True,
+        version=1,
     )
 
     assert set(story.digest) == {Digest.PORTFOLIO, Digest.METRIC}
@@ -55,6 +56,7 @@ def test_story_detail_multiple_matches():
         is_salient=True,
         in_cool_off=False,
         is_heuristic=True,
+        version=1,
     )
 
     assert set(story.digest) == {Digest.PORTFOLIO, Digest.METRIC}

@@ -71,6 +71,7 @@ async def get_stories(
         digest=digest,
         section=section,
         is_heuristic=is_heuristic,
+        version=1,
     )
 
     results, count = await story_crud.paginate(params=params, filter_params=story_filter.model_dump(exclude_unset=True))
