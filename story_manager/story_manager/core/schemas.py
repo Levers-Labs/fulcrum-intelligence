@@ -33,6 +33,7 @@ class StoryGroupMeta(BaseModel):
 
 class StoryDetail(BaseModel):
     id: int
+    version: int
     genre: StoryGenre
     story_group: StoryGroup
     story_type: StoryType

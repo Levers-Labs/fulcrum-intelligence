@@ -27,6 +27,7 @@ class StoryFilter(BaseFilter[Story]):
     digest: Digest | None = FilterField(None, default=None)  # type: ignore
     section: Section | None = FilterField(None, default=None)  # type: ignore
     is_heuristic: bool | None = FilterField(Story.is_heuristic, operator="eq", default=None)  # type: ignore
+    version: int | None = FilterField(Story.version, operator="eq", default=1)  # type: ignore
 
     @classmethod
     def apply_filters(cls, query: Select, values: dict[str, Any]) -> Select:
