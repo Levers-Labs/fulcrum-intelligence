@@ -5,8 +5,7 @@ Story evaluator for the performance status pattern.
 import logging
 from typing import Any
 
-from commons.utilities.grain_utils import GRAIN_META
-from levers.models.common import Granularity
+from commons.models.enums import Granularity
 from levers.models.patterns.performance_status import MetricGVAStatus, MetricPerformance
 from story_manager.core.enums import StoryGenre, StoryGroup, StoryType
 from story_manager.story_evaluator import StoryEvaluatorBase, render_story_text
@@ -41,7 +40,7 @@ class PerformanceStatusEvaluator(StoryEvaluatorBase[MetricPerformance]):
         """
         stories = []
         metric_id = pattern_result.metric_id
-        grain = pattern_result.analysis_window.grain
+        grain = Granularity(pattern_result.analysis_window.grain)
 
         # Check the current status
         current_status = pattern_result.status
@@ -68,7 +67,7 @@ class PerformanceStatusEvaluator(StoryEvaluatorBase[MetricPerformance]):
         return stories
 
     def _populate_template_context(
-        self, pattern_result: MetricPerformance, metric: dict, grain: Granularity
+        self, pattern_result: MetricPerformance, metric: dict, grain: Granularity, **kwargs
     ) -> dict[str, Any]:
         """
         Populate context for template rendering.
@@ -77,11 +76,15 @@ class PerformanceStatusEvaluator(StoryEvaluatorBase[MetricPerformance]):
             pattern_result: Performance status pattern result
             metric: Metric details
             grain: Granularity of the analysis
+            **kwargs: Additional keyword arguments including:
+                - include: List of components to include in the context (default: [])
 
         Returns:
             Template context dictionary
         """
-        grain_info = GRAIN_META.get(grain, {"label": "period", "pop": "PoP"})  # type: ignore
+
+        include = kwargs.get("include", [])
+        context = self.prepare_base_context(metric, grain)
 
         # Determine trend direction
         trend_direction = (
@@ -103,27 +106,26 @@ class PerformanceStatusEvaluator(StoryEvaluatorBase[MetricPerformance]):
             "improving" if pattern_result.pop_change_percent and pattern_result.pop_change_percent > 0 else "declining"
         )
 
-        context = {
-            "metric": metric,
-            "current_value": pattern_result.current_value,
-            "target_value": pattern_result.target_value,
-            "performance_percent": abs(pattern_result.percent_over_performance or 0),
-            "gap_percent": abs(pattern_result.percent_gap or 0),
-            "change_percent": abs(pattern_result.pop_change_percent or 0),
-            "pop": grain_info["pop"],
-            "grain_label": grain_info["label"],
-            "streak_length": pattern_result.streak.length if pattern_result.streak else 0,
-            "trend_direction": trend_direction,
-            "gap_trend": gap_trend,
-            "performance_trend": performance_trend,
-        }
+        context.update(
+            {
+                "current_value": pattern_result.current_value,
+                "target_value": pattern_result.target_value,
+                "performance_percent": abs(pattern_result.percent_over_performance or 0),
+                "gap_percent": abs(pattern_result.percent_gap or 0),
+                "change_percent": abs(pattern_result.pop_change_percent or 0),
+                "streak_length": pattern_result.streak.length if pattern_result.streak else 0,
+                "trend_direction": trend_direction,
+                "gap_trend": gap_trend,
+                "performance_trend": performance_trend,
+            }
+        )
 
         # Add status change specifics
-        if pattern_result.status_change:
+        if "status_change" in include and pattern_result.status_change:
             context["old_status_duration"] = pattern_result.status_change.old_status_duration_grains or 0
 
         # Add hold steady specifics
-        if pattern_result.hold_steady:
+        if "hold_steady" in include and pattern_result.hold_steady:
             context["current_margin"] = pattern_result.hold_steady.current_margin_percent or 0
             context["time_to_maintain"] = pattern_result.hold_steady.time_to_maintain_grains or 0
 
@@ -146,18 +148,19 @@ class PerformanceStatusEvaluator(StoryEvaluatorBase[MetricPerformance]):
         """
         # Get the story group for this story type
         story_group = StoryGroup.GOAL_VS_ACTUAL
+        story_type = StoryType.ON_TRACK
 
         # Prepare context for template rendering
-        context = self._populate_template_context(pattern_result, metric, grain)
+        context = self._populate_template_context(pattern_result, metric, grain, include=[])
 
         # Render title and detail from templates
-        title = render_story_text(StoryType.ON_TRACK, "title", context)
-        detail = render_story_text(StoryType.ON_TRACK, "detail", context)
+        title = render_story_text(story_type, "title", context)
+        detail = render_story_text(story_type, "detail", context)
 
         # Prepare the story model
         return self.prepare_story_model(
             genre=StoryGenre.PERFORMANCE,
-            story_type=StoryType.ON_TRACK,
+            story_type=story_type,
             story_group=story_group,
             metric_id=metric_id,
             pattern_result=pattern_result,
@@ -184,18 +187,18 @@ class PerformanceStatusEvaluator(StoryEvaluatorBase[MetricPerformance]):
         """
         # Get the story group for this story type
         story_group = StoryGroup.GOAL_VS_ACTUAL
-
+        story_type = StoryType.OFF_TRACK
         # Prepare context for template rendering
         context = self._populate_template_context(pattern_result, metric, grain)
 
         # Render title and detail from templates
-        title = render_story_text(StoryType.OFF_TRACK, "title", context)
-        detail = render_story_text(StoryType.OFF_TRACK, "detail", context)
+        title = render_story_text(story_type, "title", context)
+        detail = render_story_text(story_type, "detail", context)
 
         # Prepare the story model
         return self.prepare_story_model(
             genre=StoryGenre.PERFORMANCE,
-            story_type=StoryType.OFF_TRACK,
+            story_type=story_type,
             story_group=story_group,
             metric_id=metric_id,
             pattern_result=pattern_result,
@@ -222,18 +225,19 @@ class PerformanceStatusEvaluator(StoryEvaluatorBase[MetricPerformance]):
         """
         # Get the story group for this story type
         story_group = StoryGroup.STATUS_CHANGE
+        story_type = StoryType.IMPROVING_STATUS
 
         # Prepare context for template rendering
-        context = self._populate_template_context(pattern_result, metric, grain)
+        context = self._populate_template_context(pattern_result, metric, grain, include=["status_change"])
 
         # Render title and detail from templates
-        title = render_story_text(StoryType.IMPROVING_STATUS, "title", context)
-        detail = render_story_text(StoryType.IMPROVING_STATUS, "detail", context)
+        title = render_story_text(story_type, "title", context)
+        detail = render_story_text(story_type, "detail", context)
 
         # Prepare the story model
         return self.prepare_story_model(
             genre=StoryGenre.PERFORMANCE,
-            story_type=StoryType.IMPROVING_STATUS,
+            story_type=story_type,
             story_group=story_group,
             metric_id=metric_id,
             pattern_result=pattern_result,
@@ -260,18 +264,19 @@ class PerformanceStatusEvaluator(StoryEvaluatorBase[MetricPerformance]):
         """
         # Get the story group for this story type
         story_group = StoryGroup.STATUS_CHANGE
+        story_type = StoryType.WORSENING_STATUS
 
         # Prepare context for template rendering
-        context = self._populate_template_context(pattern_result, metric, grain)
+        context = self._populate_template_context(pattern_result, metric, grain, include=["status_change"])
 
         # Render title and detail from templates
-        title = render_story_text(StoryType.WORSENING_STATUS, "title", context)
-        detail = render_story_text(StoryType.WORSENING_STATUS, "detail", context)
+        title = render_story_text(story_type, "title", context)
+        detail = render_story_text(story_type, "detail", context)
 
         # Prepare the story model
         return self.prepare_story_model(
             genre=StoryGenre.PERFORMANCE,
-            story_type=StoryType.WORSENING_STATUS,
+            story_type=story_type,
             story_group=story_group,
             metric_id=metric_id,
             pattern_result=pattern_result,
@@ -298,18 +303,18 @@ class PerformanceStatusEvaluator(StoryEvaluatorBase[MetricPerformance]):
         """
         # Get the story group for this story type
         story_group = StoryGroup.LIKELY_STATUS
-
+        story_type = StoryType.HOLD_STEADY
         # Prepare context for template rendering
-        context = self._populate_template_context(pattern_result, metric, grain)
+        context = self._populate_template_context(pattern_result, metric, grain, include=["hold_steady"])
 
         # Render title and detail from templates
-        title = render_story_text(StoryType.HOLD_STEADY, "title", context)
-        detail = render_story_text(StoryType.HOLD_STEADY, "detail", context)
+        title = render_story_text(story_type, "title", context)
+        detail = render_story_text(story_type, "detail", context)
 
         # Prepare the story model
         return self.prepare_story_model(
             genre=StoryGenre.PERFORMANCE,
-            story_type=StoryType.HOLD_STEADY,
+            story_type=story_type,
             story_group=story_group,
             metric_id=metric_id,
             pattern_result=pattern_result,

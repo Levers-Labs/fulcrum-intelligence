@@ -166,14 +166,40 @@ class TestAnalysisWindowConfig:
         }
 
         config = AnalysisWindowConfig(
-            strategy=WindowStrategy.GRAIN_SPECIFIC_TIME,
-            grain_days=grain_days,
+            strategy=WindowStrategy.GRAIN_SPECIFIC_TIME, grain_days=grain_days, include_today=True
         )
         today = date.today()
-        expected_end_date = today - timedelta(days=1)  # not including today
+        expected_end_date = today  # including today
 
         # Act & Assert
         for grain, days in grain_days.items():
+            expected_start_date = expected_end_date - timedelta(days=days)
+            start_date, end_date = config.get_date_range(grain)
+            assert start_date == expected_start_date
+            assert end_date == expected_end_date
+
+    def test_get_date_range_grain_specific_time_without_including_today(self):
+        """Test get_date_range with GRAIN_SPECIFIC_TIME strategy without including today."""
+        # Arrange
+        grain_days = {
+            Granularity.DAY: 90,
+            Granularity.WEEK: 180,
+            Granularity.MONTH: 365,
+        }
+
+        config = AnalysisWindowConfig(
+            strategy=WindowStrategy.GRAIN_SPECIFIC_TIME, grain_days=grain_days, include_today=False
+        )
+        today = date.today()
+        expected_end_date = today
+        # Act & Assert
+        for grain, days in grain_days.items():
+            if grain == Granularity.DAY:
+                expected_end_date = today - timedelta(days=1)
+            elif grain == Granularity.WEEK:
+                expected_end_date = today - timedelta(days=date.today().weekday() + 1)
+            elif grain == Granularity.MONTH:
+                expected_end_date = date(today.year, today.month, 1) - timedelta(days=1)
             expected_start_date = expected_end_date - timedelta(days=days)
             start_date, end_date = config.get_date_range(grain)
             assert start_date == expected_start_date

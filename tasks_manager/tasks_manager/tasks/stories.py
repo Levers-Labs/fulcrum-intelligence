@@ -10,6 +10,7 @@ from commons.models.enums import Granularity
 from commons.utilities.context import reset_context, set_tenant_id
 from levers import Levers
 from query_manager.core.schemas import MetricDetail
+from query_manager.semantic_manager.crud import SemanticManager
 from story_manager.core.crud import CRUDStory
 from story_manager.core.enums import StoryGroup
 from story_manager.core.models import Story
@@ -17,7 +18,9 @@ from story_manager.db.config import get_async_session
 from story_manager.story_builder.manager import StoryManager
 from story_manager.story_evaluator.manager import StoryEvaluatorManager
 from tasks_manager.config import AppConfig
+from tasks_manager.services.pattern_data_organiser import PatternDataOrganiser
 from tasks_manager.tasks.common import get_grains
+from tasks_manager.tasks.pattern_analysis import get_pattern_config
 from tasks_manager.tasks.query import fetch_metrics_for_tenant, get_metric
 from tasks_manager.utils import increment_date_by_grain, should_update_grain
 
@@ -285,19 +288,39 @@ async def process_pattern_stories(
         # Get metric details
         metric: MetricDetail = await get_metric(metric_id)
 
+        # Get pattern config to fetch series data
+        pattern_config = await get_pattern_config(pattern)
+
         # Initialize story evaluator manager
         manager = StoryEvaluatorManager()
 
-        # Process pattern results and generate stories
-        stories = await manager.evaluate_pattern_result(pattern_run_obj, metric.model_dump())
-        logger.info(
-            "Generated %d stories for pattern %s, metric %s, grain %s",
-            len(stories),
-            pattern,
-            metric_id,
-            grain.value,
-        )
+        # Use a single database session for both data fetching and story persistence
         async with get_async_session() as session:
+            # Fetch series data using PatternDataOrganiser
+            semantic_manager = SemanticManager(session)
+            data_organiser = PatternDataOrganiser(semantic_manager=semantic_manager)
+            series_data = await data_organiser.fetch_data_for_pattern(
+                config=pattern_config,
+                metric_id=metric_id,
+                grain=grain,  # type: ignore
+                metric_definition=metric,
+            )
+            # Get the time series data from the fetched data
+            data_key = pattern_config.data_sources[0].data_key
+            # todo: Add multiple data sources handling once we have more than one data source for a pattern
+            series_df = series_data[data_key] if series_data else None
+
+            # Process pattern results and generate stories with series data
+            stories = await manager.evaluate_pattern_result(pattern_run_obj, metric.model_dump(), series_df)
+            logger.info(
+                "Generated %d stories for pattern %s, metric %s, grain %s",
+                len(stories),
+                pattern,
+                metric_id,
+                grain.value,
+            )
+
+            # Persist stories using the same session
             story_objs = await manager.persist_stories(stories, session)
             logger.info(
                 "Persisted %d stories for pattern %s, metric %s, grain %s",
@@ -306,6 +329,7 @@ async def process_pattern_stories(
                 metric_id,
                 grain.value,
             )
+
             # Return stories as dictionaries for the event payload
             story_dicts = [story.model_dump(mode="json") for story in story_objs]
             # Need to keep these keys in the story Artifact

@@ -2,6 +2,7 @@
 Utility functions for story evaluators.
 """
 
+import pandas as pd
 from jinja2 import Environment, Template
 
 from story_manager.core.enums import StoryType
@@ -122,3 +123,47 @@ def render_story_text(story_type: StoryType, field: str, context: dict) -> str:
     """
     template = get_story_template(story_type, field)
     return template.render(**context)
+
+
+def format_segment_names(segments: list[str]) -> str:
+    """
+    Format a list of segment names into a readable string.
+
+    Args:
+        segments: List of segment names
+
+    Returns:
+        Formatted string like "A, B, and C"
+    """
+    if not segments:
+        return ""
+
+    if len(segments) == 1:
+        return segments[0]
+
+    return ", ".join(segments[:-1]) + f", and {segments[-1]}"
+
+
+def format_date_column(df: pd.DataFrame, **kwargs) -> pd.DataFrame:
+    """
+    Format the date column in a dataframe to datetime and ISO format.
+
+    Args:
+        df: DataFrame containing a 'date' column
+        **kwargs: Additional parameters including:
+            - date_column: Name of the date column to format (default: "date")
+            - sort_values: Whether to sort the dataframe by date (default: True)
+            - ascending: Whether to sort in ascending (True) or descending (False) order (default: True)
+
+    Returns:
+        DataFrame with formatted date column
+    """
+    date_column = kwargs.get("date_column", "date")
+    sort_values = kwargs.get("sort_values", True)
+    ascending = kwargs.get("ascending", True)
+
+    df[date_column] = pd.to_datetime(df[date_column])
+    if sort_values:
+        df = df.sort_values(by=date_column, ascending=ascending)
+    df[date_column] = df[date_column].dt.date.apply(lambda d: d.isoformat())
+    return df

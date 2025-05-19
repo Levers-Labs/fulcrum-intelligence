@@ -2,7 +2,10 @@
 Constants for story evaluators including templates for different story types.
 """
 
-from story_manager.core.enums import StoryType
+from typing import Any
+
+from commons.models.enums import Granularity
+from story_manager.core.enums import StoryGroup, StoryType
 
 # Templates for each story type
 STORY_TEMPLATES = {
@@ -187,5 +190,147 @@ STORY_TEMPLATES = {
         "}}% in the prior {{ grain_label }}. The previously least represented segment {{ previous_segment "
         "}} now comprises {{ previous_share_percent|format_percent }}% of {{ dimension_name }}, up from {{ "
         "previous_prior_share_percent|format_percent }}%.",
+    },
+}
+
+STORY_GROUP_TIME_DURATIONS: dict[str, Any] = {
+    StoryGroup.TREND_CHANGES: {
+        Granularity.DAY: {"output": 20},
+        Granularity.WEEK: {"output": 20},
+        Granularity.MONTH: {"output": 10},
+    },
+    StoryGroup.TREND_EXCEPTIONS: {
+        Granularity.DAY: {"output": 20},
+        Granularity.WEEK: {"output": 20},
+        Granularity.MONTH: {"output": 10},
+    },
+    StoryGroup.LONG_RANGE: {
+        Granularity.DAY: {"output": 30},
+        Granularity.WEEK: {"output": 14},
+        Granularity.MONTH: {"output": 4},
+    },
+    StoryGroup.RECORD_VALUES: {
+        Granularity.DAY: {"output": 20},
+        Granularity.WEEK: {"output": 20},
+        Granularity.MONTH: {"output": 10},
+    },
+    StoryGroup.GROWTH_RATES: {
+        Granularity.DAY: {"output": 30},
+        Granularity.WEEK: {"output": 14},
+        Granularity.MONTH: {"output": 4},
+    },
+    StoryGroup.GOAL_VS_ACTUAL: {
+        Granularity.DAY: {"output": 7},
+        Granularity.WEEK: {"output": 5},
+        Granularity.MONTH: {"output": 4},
+    },
+    StoryGroup.STATUS_CHANGE: {
+        Granularity.DAY: {"output": 7},
+        Granularity.WEEK: {"output": 5},
+        Granularity.MONTH: {"output": 4},
+    },
+    StoryGroup.SEGMENT_DRIFT: {
+        Granularity.DAY: {"output": 2},
+        Granularity.WEEK: {"output": 2},
+        Granularity.MONTH: {"output": 2},
+    },
+    StoryGroup.INFLUENCE_DRIFT: {
+        Granularity.DAY: {"output": 2},
+        Granularity.WEEK: {"output": 2},
+        Granularity.MONTH: {"output": 2},
+    },
+    StoryGroup.COMPONENT_DRIFT: {
+        Granularity.DAY: {"output": 2},
+        Granularity.WEEK: {"output": 2},
+        Granularity.MONTH: {"output": 2},
+    },
+}
+
+STORY_TYPE_TIME_DURATIONS: dict[str, Any] = {
+    StoryType.SLOWING_GROWTH: {
+        Granularity.DAY: {"output": 14},
+        Granularity.WEEK: {"output": 8},
+        Granularity.MONTH: {"output": 4},
+    },
+    StoryType.ACCELERATING_GROWTH: {
+        Granularity.DAY: {"output": 14},
+        Granularity.WEEK: {"output": 8},
+        Granularity.MONTH: {"output": 4},
+    },
+    StoryType.STABLE_TREND: {
+        Granularity.DAY: {"output": 30},
+        Granularity.WEEK: {"output": 10},
+        Granularity.MONTH: {"output": 6},
+    },
+    StoryType.NEW_UPWARD_TREND: {
+        Granularity.DAY: {"output": 14},
+        Granularity.WEEK: {"output": 8},
+        Granularity.MONTH: {"output": 4},
+    },
+    StoryType.NEW_DOWNWARD_TREND: {
+        Granularity.DAY: {"output": 14},
+        Granularity.WEEK: {"output": 8},
+        Granularity.MONTH: {"output": 4},
+    },
+    StoryType.PERFORMANCE_PLATEAU: {
+        Granularity.DAY: {"output": 14},
+        Granularity.WEEK: {"output": 8},
+        Granularity.MONTH: {"output": 4},
+    },
+    StoryType.SPIKE: {
+        Granularity.DAY: {"output": 14},
+        Granularity.WEEK: {"output": 8},
+        Granularity.MONTH: {"output": 4},
+    },
+    StoryType.DROP: {
+        Granularity.DAY: {"output": 14},
+        Granularity.WEEK: {"output": 8},
+        Granularity.MONTH: {"output": 4},
+    },
+    StoryType.IMPROVING_PERFORMANCE: {
+        Granularity.DAY: {"output": 30},
+        Granularity.WEEK: {"output": 10},
+        Granularity.MONTH: {"output": 6},
+    },
+    StoryType.WORSENING_PERFORMANCE: {
+        Granularity.DAY: {"output": 30},
+        Granularity.WEEK: {"output": 10},
+        Granularity.MONTH: {"output": 6},
+    },
+    StoryType.RECORD_HIGH: {
+        Granularity.DAY: {"output": 14},
+        Granularity.WEEK: {"output": 8},
+        Granularity.MONTH: {"output": 4},
+    },
+    StoryType.RECORD_LOW: {
+        Granularity.DAY: {"output": 14},
+        Granularity.WEEK: {"output": 8},
+        Granularity.MONTH: {"output": 4},
+    },
+    StoryType.BENCHMARKS: {
+        Granularity.DAY: {"output": 14},
+        Granularity.WEEK: {"output": 8},
+        Granularity.MONTH: {"output": 4},
+    },
+    # TODO: Need to confirm the values with abhi for below
+    StoryType.ON_TRACK: {
+        Granularity.DAY: {"output": 7},
+        Granularity.WEEK: {"output": 5},
+        Granularity.MONTH: {"output": 4},
+    },
+    StoryType.OFF_TRACK: {
+        Granularity.DAY: {"output": 7},
+        Granularity.WEEK: {"output": 5},
+        Granularity.MONTH: {"output": 4},
+    },
+    StoryType.IMPROVING_STATUS: {
+        Granularity.DAY: {"output": 7},
+        Granularity.WEEK: {"output": 5},
+        Granularity.MONTH: {"output": 4},
+    },
+    StoryType.WORSENING_STATUS: {
+        Granularity.DAY: {"output": 7},
+        Granularity.WEEK: {"output": 5},
+        Granularity.MONTH: {"output": 4},
     },
 }

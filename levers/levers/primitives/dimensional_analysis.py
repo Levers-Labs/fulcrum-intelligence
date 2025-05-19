@@ -444,7 +444,6 @@ def calculate_concentration_index(
 # =============================================================================
 
 
-# TODO: check for type of prior_start_date and current_start_date
 def compare_dimension_slices_over_time(
     df: pd.DataFrame,
     slice_col: str,
@@ -612,7 +611,12 @@ def difference_from_average(df: pd.DataFrame, value_col: str) -> pd.DataFrame:
 
 
 def compute_top_bottom_slices(
-    df: pd.DataFrame, dim_col: str, value_col: str, top_n: int = 3, include_avg_comparison: bool = True
+    df: pd.DataFrame,
+    slice_col: str,
+    value_col: str,
+    dimension_name: str,
+    top_n: int = 3,
+    include_avg_comparison: bool = True,
 ) -> tuple[list[SliceRanking], list[SliceRanking]]:
     """
     Compute both top and bottom slices based on provided value column.
@@ -622,10 +626,11 @@ def compute_top_bottom_slices(
 
     Args:
         df: DataFrame with slices and values
-        dim_col: Name of the dimension column
+        slice_col: Name of the dimension column
         value_col: Column containing the metric values
         top_n: Number of top/bottom slices to compute
         include_avg_comparison: Whether to compute comparisons with average of other slices
+        dimension_name: name of the dimension
 
     Returns:
         Tuple of (top_slices, bottom_slices) as lists of TopSlicePerformance objects
@@ -634,7 +639,7 @@ def compute_top_bottom_slices(
         ValidationError: If value_col not found in DataFrame
     """
     # Input validation
-    required_cols = [dim_col, value_col]
+    required_cols = [slice_col, value_col]
     for col in required_cols:
         if col not in df.columns:
             raise ValidationError(
@@ -654,8 +659,8 @@ def compute_top_bottom_slices(
     for i in range(min(top_n, len(sorted_df))):
         row = sorted_df.iloc[i]
         slice_perf = SliceRanking(
-            dimension=dim_col,
-            slice_value=str(row[dim_col]),
+            dimension=dimension_name,
+            slice_value=str(row[slice_col]),
             metric_value=float(row[value_col]),
             avg_other_slices_value=float(row.get("avg_other_slices_value", 0.0)),
             absolute_diff_from_avg=float(row.get("absolute_diff_from_avg", 0.0)),
@@ -670,8 +675,8 @@ def compute_top_bottom_slices(
     for i in range(min(top_n, len(bottom_df))):
         row = bottom_df.iloc[i]
         slice_perf = SliceRanking(
-            dimension=dim_col,
-            slice_value=str(row[dim_col]),
+            dimension=dimension_name,
+            slice_value=str(row[slice_col]),
             metric_value=float(row[value_col]),
             avg_other_slices_value=float(row.get("avg_other_slices_value", 0.0)),
             absolute_diff_from_avg=float(row.get("absolute_diff_from_avg", 0.0)),
@@ -930,6 +935,7 @@ def compute_historical_slice_rankings(
     slice_col: str,
     date_col: str,
     value_col: str,
+    dimension_name: str,
     num_periods: int = 8,
     period_length_days: int = 7,
     top_n: int = 5,
@@ -995,7 +1001,7 @@ def compute_historical_slice_rankings(
         top_slices_list = []
         for _, row in top_slices.iterrows():
             top_slices_list.append(
-                TopSlice(dimension=slice_col, slice_value=str(row[slice_col]), metric_value=float(row[value_col]))
+                TopSlice(dimension=dimension_name, slice_value=str(row[slice_col]), metric_value=float(row[value_col]))
             )
 
         # Add period info
@@ -1129,13 +1135,13 @@ def compute_slice_vs_avg_others(df: pd.DataFrame, value_col: str) -> pd.DataFram
 
     result_df = df.copy()
 
-    # Get dimension column (first column that is not value_col)
-    dim_col = [col for col in df.columns if col != value_col][0]
+    # Get slice column (first column that is not value_col)
+    slice_col = [col for col in df.columns if col != value_col][0]
 
     # For each row, compute average of all other rows
     for idx, row in result_df.iterrows():
-        current_slice = row[dim_col]
-        others_mask = result_df[dim_col] != current_slice
+        current_slice = row[slice_col]
+        others_mask = result_df[slice_col] != current_slice
 
         if others_mask.any():
             avg_others = result_df.loc[others_mask, value_col].mean()

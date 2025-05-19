@@ -119,7 +119,18 @@ class AnalysisWindowConfig(BaseModel):
         Returns:
             Tuple of (start_date, end_date)
         """
-        end_date = date.today() if self.include_today else date.today() - timedelta(days=1)
+
+        if self.include_today:
+            end_date = date.today()
+        else:
+            if grain == Granularity.DAY:
+                end_date = date.today() - timedelta(days=1)
+            elif grain == Granularity.WEEK:
+                end_date = date.today() - timedelta(days=date.today().weekday() + 1)
+            elif grain == Granularity.MONTH:
+                end_date = date(date.today().year, date.today().month, 1) - timedelta(days=1)
+
+        # end_date = date.today() if self.include_today else date.today() - timedelta(days=1)
 
         if self.strategy == WindowStrategy.FIXED_TIME:
             # Same time window for all grains
@@ -133,11 +144,11 @@ class AnalysisWindowConfig(BaseModel):
         elif self.strategy == WindowStrategy.FIXED_DATAPOINTS:
             datapoints = self.datapoints or 30
             # Fixed number of data points
-            # Calculate start date by going back (datapoints-1) periods from the end date
+            # Calculate start date by going back datapoints periods from the end date
             # We don't need available_dates since we can calculate based on grain and datapoints
             start_date = self.get_prev_period_start_date(
                 grain=grain,  # type: ignore
-                period_count=datapoints - 1,  # -1 because we include the end date
+                period_count=datapoints,
                 latest_start_date=end_date,
             )
         else:
