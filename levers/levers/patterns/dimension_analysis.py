@@ -102,7 +102,7 @@ class DimensionAnalysisPattern(Pattern[DimensionAnalysis]):
         analysis_window: AnalysisWindow,
         analysis_date: date | None = None,
         dimension_name: str | None = None,
-        num_periods: int = 8,
+        num_periods: int = 2,
     ) -> DimensionAnalysis:
         """
         Perform dimension analysis for a metric across slices of a dimension.
@@ -184,7 +184,7 @@ class DimensionAnalysisPattern(Pattern[DimensionAnalysis]):
 
             # 7) Compute top and bottom slices
             top_slices, bottom_slices = compute_top_bottom_slices(
-                merged, dim_col="slice_value", value_col="val_current", top_n=3
+                df=merged, dim_col="slice_value", value_col="val_current", top_n=3, dimension=dimension_name
             )
 
             # 8) Identify largest and smallest by share
@@ -205,7 +205,8 @@ class DimensionAnalysisPattern(Pattern[DimensionAnalysis]):
             # 11) Compute historical rankings
             period_length_days = get_period_length_for_grain(grain)
             historical_rankings = compute_historical_slice_rankings(
-                ledger_df,
+                dimension=dimension_name,
+                df=ledger_df,
                 slice_col="slice_value",
                 date_col="date",
                 value_col="value",

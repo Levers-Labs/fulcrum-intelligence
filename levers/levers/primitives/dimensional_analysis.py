@@ -612,7 +612,7 @@ def difference_from_average(df: pd.DataFrame, value_col: str) -> pd.DataFrame:
 
 
 def compute_top_bottom_slices(
-    df: pd.DataFrame, dim_col: str, value_col: str, top_n: int = 3, include_avg_comparison: bool = True
+    dimension: str, df: pd.DataFrame, dim_col: str, value_col: str, top_n: int = 3, include_avg_comparison: bool = True
 ) -> tuple[list[SliceRanking], list[SliceRanking]]:
     """
     Compute both top and bottom slices based on provided value column.
@@ -626,6 +626,7 @@ def compute_top_bottom_slices(
         value_col: Column containing the metric values
         top_n: Number of top/bottom slices to compute
         include_avg_comparison: Whether to compute comparisons with average of other slices
+        dimension: name of the dimension
 
     Returns:
         Tuple of (top_slices, bottom_slices) as lists of TopSlicePerformance objects
@@ -654,7 +655,7 @@ def compute_top_bottom_slices(
     for i in range(min(top_n, len(sorted_df))):
         row = sorted_df.iloc[i]
         slice_perf = SliceRanking(
-            dimension=dim_col,
+            dimension=dimension,
             slice_value=str(row[dim_col]),
             metric_value=float(row[value_col]),
             avg_other_slices_value=float(row.get("avg_other_slices_value", 0.0)),
@@ -670,7 +671,7 @@ def compute_top_bottom_slices(
     for i in range(min(top_n, len(bottom_df))):
         row = bottom_df.iloc[i]
         slice_perf = SliceRanking(
-            dimension=dim_col,
+            dimension=dimension,
             slice_value=str(row[dim_col]),
             metric_value=float(row[value_col]),
             avg_other_slices_value=float(row.get("avg_other_slices_value", 0.0)),
@@ -926,6 +927,7 @@ def highlight_slice_comparisons(
 
 
 def compute_historical_slice_rankings(
+    dimension: str,
     df: pd.DataFrame,
     slice_col: str,
     date_col: str,
@@ -995,7 +997,7 @@ def compute_historical_slice_rankings(
         top_slices_list = []
         for _, row in top_slices.iterrows():
             top_slices_list.append(
-                TopSlice(dimension=slice_col, slice_value=str(row[slice_col]), metric_value=float(row[value_col]))
+                TopSlice(dimension=dimension, slice_value=str(row[slice_col]), metric_value=float(row[value_col]))
             )
 
         # Add period info

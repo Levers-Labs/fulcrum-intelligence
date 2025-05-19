@@ -17,6 +17,7 @@ import numpy as np
 import pandas as pd
 
 from commons.models.enums import Granularity
+from commons.utilities.grain_utils import GRAIN_META
 from levers.models.common import BasePattern
 from story_manager.core.enums import StoryGenre, StoryGroup, StoryType
 from story_manager.story_evaluator.constants import (
@@ -24,6 +25,7 @@ from story_manager.story_evaluator.constants import (
     STORY_TEMPLATES,
     STORY_TYPE_TIME_DURATIONS,
 )
+from story_manager.story_evaluator.utils import format_date_column
 
 T = TypeVar("T", bound=BasePattern)
 logger = logging.getLogger(__name__)
@@ -156,8 +158,7 @@ class StoryEvaluatorBase(Generic[T], ABC):
 
         # Convert the date column to datetime and then to ISO format strings
         if "date" in series_df.columns:
-            series_df["date"] = pd.to_datetime(series_df["date"])
-            series_df["date"] = series_df["date"].dt.date.apply(lambda d: d.isoformat())
+            series_df = format_date_column(series_df)
 
         # Replace inf, -inf, and NaN with None
         series_df.replace([float("inf"), float("-inf"), np.NaN], [None, None, None], inplace=True)  # type: ignore
@@ -168,6 +169,14 @@ class StoryEvaluatorBase(Generic[T], ABC):
         # Add the time series data to the result
         data = series.to_dict(orient="records")
         return cast(list[dict[str, Any]], data)
+
+    def prepare_base_context(self, metric: dict, grain: Granularity) -> dict[str, Any]:
+        """
+        Prepare the base context for the story.
+        """
+        grain_info = GRAIN_META.get(grain, {"label": "period", "pop": "PoP"})  # type: ignore
+
+        return {"metric": metric, "grain_label": grain_info["label"], "pop": grain_info["pop"]}
 
     def get_output_length(self, story_type: StoryType, story_group: StoryGroup, grain: Granularity) -> int | None:
         """

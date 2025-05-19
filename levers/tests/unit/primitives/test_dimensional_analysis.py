@@ -457,7 +457,8 @@ class TestComputeHistoricalSliceRankings:
         """Test calculating historical rankings with sample data."""
         # Act
         result = compute_historical_slice_rankings(
-            sample_time_series_data,
+            dimension="region",
+            df=sample_time_series_data,
             slice_col="slice_value",
             date_col="date",
             value_col="value",
@@ -480,7 +481,7 @@ class TestComputeHistoricalSliceRankings:
         empty_df = pd.DataFrame(columns=["slice_value", "date", "value"])
 
         # Act
-        result = compute_historical_slice_rankings(empty_df, "slice_value", "date", "value", num_periods=2)
+        result = compute_historical_slice_rankings("region", empty_df, "slice_value", "date", "value", num_periods=2)
 
         # Assert
         assert len(result) == 0

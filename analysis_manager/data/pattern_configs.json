@@ -56,8 +56,8 @@
       }
     ],
     "analysis_window": {
-      "strategy": "fixed_time",
-      "days": 180,
+      "strategy": "fixed_datapoints",
+      "datapoints": 2,
       "min_days": 30,
       "max_days": 365,
       "include_today": false

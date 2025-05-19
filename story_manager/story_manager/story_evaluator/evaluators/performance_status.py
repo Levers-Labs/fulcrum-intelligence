@@ -5,7 +5,6 @@ Story evaluator for the performance status pattern.
 import logging
 from typing import Any
 
-from commons.utilities.grain_utils import GRAIN_META
 from levers.models.common import Granularity
 from levers.models.patterns.performance_status import MetricGVAStatus, MetricPerformance
 from story_manager.core.enums import StoryGenre, StoryGroup, StoryType
@@ -81,7 +80,8 @@ class PerformanceStatusEvaluator(StoryEvaluatorBase[MetricPerformance]):
         Returns:
             Template context dictionary
         """
-        grain_info = GRAIN_META.get(grain, {"label": "period", "pop": "PoP"})  # type: ignore
+
+        context = self.prepare_base_context(metric, grain)
 
         # Determine trend direction
         trend_direction = (
@@ -103,20 +103,19 @@ class PerformanceStatusEvaluator(StoryEvaluatorBase[MetricPerformance]):
             "improving" if pattern_result.pop_change_percent and pattern_result.pop_change_percent > 0 else "declining"
         )
 
-        context = {
-            "metric": metric,
-            "current_value": pattern_result.current_value,
-            "target_value": pattern_result.target_value,
-            "performance_percent": abs(pattern_result.percent_over_performance or 0),
-            "gap_percent": abs(pattern_result.percent_gap or 0),
-            "change_percent": abs(pattern_result.pop_change_percent or 0),
-            "pop": grain_info["pop"],
-            "grain_label": grain_info["label"],
-            "streak_length": pattern_result.streak.length if pattern_result.streak else 0,
-            "trend_direction": trend_direction,
-            "gap_trend": gap_trend,
-            "performance_trend": performance_trend,
-        }
+        context.update(
+            {
+                "current_value": pattern_result.current_value,
+                "target_value": pattern_result.target_value,
+                "performance_percent": abs(pattern_result.percent_over_performance or 0),
+                "gap_percent": abs(pattern_result.percent_gap or 0),
+                "change_percent": abs(pattern_result.pop_change_percent or 0),
+                "streak_length": pattern_result.streak.length if pattern_result.streak else 0,
+                "trend_direction": trend_direction,
+                "gap_trend": gap_trend,
+                "performance_trend": performance_trend,
+            }
+        )
 
         # Add status change specifics
         if "status_change" in include and pattern_result.status_change:
@@ -129,6 +128,7 @@ class PerformanceStatusEvaluator(StoryEvaluatorBase[MetricPerformance]):
 
         return context
 
+    # TODO: should I keep or remove the metric_id parameter? check in other evaluators
     def _create_on_track_story(
         self, pattern_result: MetricPerformance, metric_id: str, metric: dict, grain: Granularity
     ) -> dict[str, Any]:
@@ -152,8 +152,8 @@ class PerformanceStatusEvaluator(StoryEvaluatorBase[MetricPerformance]):
         context = self._populate_template_context(pattern_result, metric, grain, [])
 
         # Render title and detail from templates
-        title = render_story_text(StoryType.ON_TRACK, "title", context)
-        detail = render_story_text(StoryType.ON_TRACK, "detail", context)
+        title = render_story_text(story_type, "title", context)
+        detail = render_story_text(story_type, "detail", context)
 
         # Prepare the story model
         return self.prepare_story_model(

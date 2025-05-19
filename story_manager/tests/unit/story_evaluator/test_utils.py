@@ -7,7 +7,9 @@ import pytest
 from story_manager.core.enums import StoryType
 from story_manager.story_evaluator.utils import (
     format_number,
+    format_ordinal,
     format_percent,
+    format_segment_names,
     get_story_template,
     get_template_env,
     render_story_text,
@@ -26,6 +28,17 @@ def test_format_percent():
     assert format_percent(12.3456) == "12.3"
     assert format_percent(12.3456, precision=2) == "12.35"
     assert format_percent(None) == "N/A"
+
+
+def test_format_ordinal():
+    """Test format_ordinal function."""
+    assert "1" in format_ordinal(1)
+    assert "2" in format_ordinal(2)
+    assert "3" in format_ordinal(3)
+    assert "4" in format_ordinal(4)
+    assert "11" in format_ordinal(11)
+    assert "21" in format_ordinal(21)
+    assert format_ordinal(None) == "N/A"
 
 
 def test_get_template_env():
@@ -65,7 +78,7 @@ def test_get_story_template():
 def test_get_story_template_invalid_type():
     """Test get_story_template function with invalid story type."""
     with pytest.raises(ValueError, match="No templates found for story type"):
-        get_story_template("invalid_type", "title")
+        get_story_template("invalid_type", "title")  # type: ignore
 
 
 def test_get_story_template_invalid_field():
@@ -99,3 +112,30 @@ def test_render_story_text():
     assert "by 10.0%" in detail
     assert "3-month streak" in detail
     assert "improving by 5.0% over this period" in detail
+
+
+def test_format_segment_names():
+    """Test format_segment_names function."""
+    # Test single segment
+    assert format_segment_names(["Segment A"]) == "Segment A"
+
+    # Test two segments
+    assert format_segment_names(["Segment A", "Segment B"]) == "Segment A, and Segment B"
+
+    # Test multiple segments
+    assert format_segment_names(["Segment A", "Segment B", "Segment C"]) == "Segment A, Segment B, and Segment C"
+
+    # Test four segments
+    assert (
+        format_segment_names(["Segment A", "Segment B", "Segment C", "Segment D"])
+        == "Segment A, Segment B, Segment C, and Segment D"
+    )
+
+    # Test with numbers as segments
+    assert format_segment_names(["1", "2", "3"]) == "1, 2, and 3"
+
+    # Test with empty strings
+    assert format_segment_names(["", "", ""]) == ", , and "
+
+    # Test empty list
+    assert format_segment_names([]) == ""

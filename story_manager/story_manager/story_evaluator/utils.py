@@ -2,6 +2,7 @@
 Utility functions for story evaluators.
 """
 
+import pandas as pd
 from jinja2 import Environment, Template
 
 from story_manager.core.enums import StoryType
@@ -122,3 +123,38 @@ def render_story_text(story_type: StoryType, field: str, context: dict) -> str:
     """
     template = get_story_template(story_type, field)
     return template.render(**context)
+
+
+def format_segment_names(segments: list[str]) -> str:
+    """
+    Format a list of segment names into a readable string.
+
+    Args:
+        segments: List of segment names
+
+    Returns:
+        Formatted string like "A, B, and C"
+    """
+    if not segments:
+        return ""
+
+    if len(segments) == 1:
+        return segments[0]
+
+    return ", ".join(segments[:-1]) + f", and {segments[-1]}"
+
+
+def format_date_column(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Format the date column in a dataframe to datetime and ISO format.
+
+    Args:
+        df: DataFrame containing a 'date' column
+
+    Returns:
+        DataFrame with formatted date column
+    """
+    df["date"] = pd.to_datetime(df["date"])
+    df = df.sort_values(by="date")
+    df["date"] = df["date"].dt.date.apply(lambda d: d.isoformat())
+    return df

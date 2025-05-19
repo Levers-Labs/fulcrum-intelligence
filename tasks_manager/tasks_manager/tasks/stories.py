@@ -352,16 +352,16 @@ async def process_pattern_stories(
             story_records = [{key: story[key] for key in artifact_keys} for story in story_dicts]
             return story_records
 
-    except Exception as e:
-        logger.error(
-            "Error processing pattern stories for tenant %s, pattern %s, metric %s, grain %s: %s",
-            tenant_id,
-            pattern,
-            metric_id,
-            grain.value,
-            str(e),
-            exc_info=True,
-        )
+        # except Exception as e:
+        #     logger.error(
+        #         "Error processing pattern stories for tenant %s, pattern %s, metric %s, grain %s: %s",
+        #         tenant_id,
+        #         pattern,
+        #         metric_id,
+        #         grain.value,
+        #         str(e),
+        #         exc_info=True,
+        #     )
         raise
     finally:
         # Reset tenant context

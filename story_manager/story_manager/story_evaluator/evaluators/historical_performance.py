@@ -7,7 +7,6 @@ from typing import Any
 
 import pandas as pd
 
-from commons.utilities.grain_utils import GRAIN_META
 from levers.models import Granularity, TrendExceptionType, TrendType
 from levers.models.patterns import HistoricalPerformance
 from story_manager.core.enums import StoryGenre, StoryGroup, StoryType
@@ -31,57 +30,6 @@ class HistoricalPerformanceEvaluator(StoryEvaluatorBase[HistoricalPerformance]):
 
     pattern_name = "historical_performance"
 
-    def _prepare_story_series_data(
-        self, pattern_result: HistoricalPerformance, story_type: StoryType
-    ) -> pd.DataFrame | None:
-        """
-        Enhance the dataframe with pattern-specific metrics and indicators.
-
-        Args:
-            pattern_result: Historical performance pattern result
-            story_type: Type of story being created
-
-        Returns:
-            A series dataframe with the additional data or None if the series dataframe is empty
-        """
-        if self.series_df is None or self.series_df.empty:
-            return None
-
-        # Make a copy to avoid modifying the original
-        series_df = self.series_df.copy()
-
-        # Ensure date is in datetime format
-        if "date" in series_df.columns:
-            series_df["date"] = pd.to_datetime(series_df["date"])
-
-        if story_type in [
-            StoryType.SLOWING_GROWTH,
-            StoryType.ACCELERATING_GROWTH,
-            StoryType.IMPROVING_PERFORMANCE,
-            StoryType.WORSENING_PERFORMANCE,
-        ]:
-            # Add period metrics to series data
-            if pattern_result.period_metrics:
-                period_df = pd.DataFrame(
-                    [period_metric.model_dump() for period_metric in pattern_result.period_metrics]
-                )
-
-                # Map period_end to date for joining
-                period_df["date"] = pd.to_datetime(period_df["period_end"])
-
-                # check if value column exists
-                if "value" in series_df.columns:
-                    # Create a temporary merged dataframe to calculate growth values
-                    merged_df = (
-                        series_df[["date", "value"]]
-                        .merge(period_df[["date", "pop_growth_percent"]], on="date", how="left")
-                        .sort_values("date")
-                    )
-
-                    return merged_df
-
-        return series_df
-
     async def evaluate(self, pattern_result: HistoricalPerformance, metric: dict[str, Any]) -> list[dict[str, Any]]:
         """
         Evaluate the historical performance pattern result and generate stories.
@@ -99,7 +47,7 @@ class HistoricalPerformanceEvaluator(StoryEvaluatorBase[HistoricalPerformance]):
         grain = pattern_result.analysis_window.grain
 
         # Growth Stories
-        if pattern_result.growth_stats is not None and pattern_result.growth_stats.current_growth_acceleration:
+        if pattern_result.growth_stats and pattern_result.growth_stats.current_growth_acceleration:
             if pattern_result.growth_stats.current_growth_acceleration < 0:
                 stories.append(self._create_slowing_growth_story(pattern_result, metric_id, metric, grain))
             elif pattern_result.growth_stats.current_growth_acceleration > 0:
@@ -174,14 +122,8 @@ class HistoricalPerformanceEvaluator(StoryEvaluatorBase[HistoricalPerformance]):
         Returns:
             Template context dictionary with only the necessary fields for the given story type
         """
-        grain_info = GRAIN_META.get(grain, {"label": "period", "pop": "PoP"})  # type: ignore
 
-        # Base context always included
-        context = {
-            "metric": metric,
-            "grain_label": grain_info["label"],
-            "pop": grain_info["pop"],
-        }
+        context = self.prepare_base_context(metric, grain)
 
         # Add growth stats
         if "growth_stats" in include and pattern_result.growth_stats:
@@ -284,7 +226,6 @@ class HistoricalPerformanceEvaluator(StoryEvaluatorBase[HistoricalPerformance]):
 
         return context
 
-    # Growth Story Methods
     def _create_slowing_growth_story(
         self, pattern_result: HistoricalPerformance, metric_id: str, metric: dict, grain: Granularity
     ) -> dict[str, Any]:
@@ -298,7 +239,7 @@ class HistoricalPerformanceEvaluator(StoryEvaluatorBase[HistoricalPerformance]):
         detail = render_story_text(story_type, "detail", context)
 
         # First prepare the series data with growth rates story-specific customizations
-        series_df = self._prepare_story_series_data(pattern_result, story_type)
+        series_df = self._prepare_series_data_with_pop_growth(pattern_result)
         series_data = self.export_dataframe_as_story_series(series_df, story_type, story_group, grain)
 
         return self.prepare_story_model(
@@ -327,7 +268,7 @@ class HistoricalPerformanceEvaluator(StoryEvaluatorBase[HistoricalPerformance]):
         detail = render_story_text(story_type, "detail", context)
 
         # First prepare the series data with growth rates story-specific customizations
-        series_df = self._prepare_story_series_data(pattern_result, story_type)
+        series_df = self._prepare_series_data_with_pop_growth(pattern_result)
         series_data = self.export_dataframe_as_story_series(series_df, story_type, story_group, grain)
 
         return self.prepare_story_model(
@@ -343,7 +284,6 @@ class HistoricalPerformanceEvaluator(StoryEvaluatorBase[HistoricalPerformance]):
             **context,
         )
 
-    # Trend Story Methods
     def _create_stable_trend_story(
         self, pattern_result: HistoricalPerformance, metric_id: str, metric: dict, grain: Granularity
     ) -> dict[str, Any]:
@@ -432,7 +372,6 @@ class HistoricalPerformanceEvaluator(StoryEvaluatorBase[HistoricalPerformance]):
             **context,
         )
 
-    # Trend Exception Story Methods
     def _create_spike_story(
         self,
         pattern_result: HistoricalPerformance,
@@ -487,7 +426,6 @@ class HistoricalPerformanceEvaluator(StoryEvaluatorBase[HistoricalPerformance]):
             **context,
         )
 
-    # Performance Change Story Methods
     def _create_improving_performance_story(
         self, pattern_result: HistoricalPerformance, metric_id: str, metric: dict, grain: Granularity
     ) -> dict[str, Any]:
@@ -501,7 +439,7 @@ class HistoricalPerformanceEvaluator(StoryEvaluatorBase[HistoricalPerformance]):
         detail = render_story_text(story_type, "detail", context)
 
         # First prepare the series data with growth rates story-specific customizations
-        series_df = self._prepare_story_series_data(pattern_result, story_type)
+        series_df = self._prepare_series_data_with_pop_growth(pattern_result)
         series_data = self.export_dataframe_as_story_series(series_df, story_type, story_group, grain)
 
         return self.prepare_story_model(
@@ -522,24 +460,30 @@ class HistoricalPerformanceEvaluator(StoryEvaluatorBase[HistoricalPerformance]):
     ) -> dict[str, Any]:
         """Create a WORSENING_PERFORMANCE story."""
         story_group = StoryGroup.TREND_CHANGES
+        story_type = StoryType.WORSENING_PERFORMANCE
+
         context = self._populate_template_context(pattern_result, metric, grain, ["current_trend"])
 
-        title = render_story_text(StoryType.WORSENING_PERFORMANCE, "title", context)
-        detail = render_story_text(StoryType.WORSENING_PERFORMANCE, "detail", context)
+        title = render_story_text(story_type, "title", context)
+        detail = render_story_text(story_type, "detail", context)
+
+        # First prepare the series data with growth rates story-specific customizations
+        series_df = self._prepare_series_data_with_pop_growth(pattern_result)
+        series_data = self.export_dataframe_as_story_series(series_df, story_type, story_group, grain)
 
         return self.prepare_story_model(
             genre=StoryGenre.TRENDS,
-            story_type=StoryType.WORSENING_PERFORMANCE,
+            story_type=story_type,
             story_group=story_group,
             metric_id=metric_id,
             pattern_result=pattern_result,
             title=title,
             detail=detail,
             grain=grain,  # type: ignore
+            series_data=series_data,
             **context,
         )
 
-    # Record Value Methods
     def _create_record_high_story(
         self, pattern_result: HistoricalPerformance, metric_id: str, metric: dict, grain: Granularity
     ) -> dict[str, Any]:
@@ -588,7 +532,6 @@ class HistoricalPerformanceEvaluator(StoryEvaluatorBase[HistoricalPerformance]):
             **context,
         )
 
-    # Benchmark Methods
     def _create_benchmark_story(
         self, pattern_result: HistoricalPerformance, metric_id: str, metric: dict, grain: Granularity
     ) -> dict[str, Any]:
@@ -611,3 +554,31 @@ class HistoricalPerformanceEvaluator(StoryEvaluatorBase[HistoricalPerformance]):
             grain=grain,  # type: ignore
             **context,
         )
+
+    def _prepare_series_data_with_pop_growth(self, pattern_result: HistoricalPerformance) -> pd.DataFrame:
+        """
+        Prepare the series data for growth stories.
+        """
+
+        # Make a copy to avoid modifying the original
+        series_df = self.series_df.copy() if self.series_df is not None else pd.DataFrame()
+
+        if not pattern_result.period_metrics:
+            return series_df
+
+        series_df["date"] = pd.to_datetime(series_df["date"])
+
+        # Add period metrics to series data
+        period_df = pd.DataFrame([period_metric.model_dump() for period_metric in pattern_result.period_metrics])
+
+        # Map period_end to date for joining
+        period_df["date"] = pd.to_datetime(period_df["period_end"])
+
+        # Create a temporary merged dataframe to calculate growth values
+        merged_df = (
+            series_df[["date", "value"]]
+            .merge(period_df[["date", "pop_growth_percent"]], on="date", how="left")
+            .sort_values("date")
+        )
+
+        return merged_df
