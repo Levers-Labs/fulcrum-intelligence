@@ -472,7 +472,9 @@ async def test_evaluate_empty_slices(mock_dimension_analysis, mock_metric):
 
 def test_populate_template_context(evaluator, mock_dimension_analysis, mock_metric):
     """Test _populate_template_context method."""
-    context = evaluator._populate_template_context(mock_dimension_analysis, mock_metric, Granularity.DAY)
+    context = evaluator._populate_template_context(
+        mock_dimension_analysis, mock_metric, Granularity.DAY, include=["top_slices"]
+    )
 
     assert context["metric"] == mock_metric
     assert context["dimension_name"] == "region"
@@ -501,7 +503,7 @@ def test_create_top_segments_story(evaluator, mock_dimension_analysis, mock_metr
         max_diff = max(diffs) if diffs else 0
 
         # Populate context
-        context = self._populate_template_context(pattern_result, metric, grain)
+        context = self._populate_template_context(pattern_result, metric, grain, include=["top_slices"])
         context.update(
             {
                 "top_segments": segment_names,
@@ -568,7 +570,7 @@ def test_create_bottom_segments_story(evaluator, mock_dimension_analysis, mock_m
         max_diff = max(diffs) if diffs else 0
 
         # Populate context
-        context = self._populate_template_context(pattern_result, metric, grain)
+        context = self._populate_template_context(pattern_result, metric, grain, include=["bottom_slices"])
         context.update(
             {
                 "bottom_segments": segment_names,
@@ -641,7 +643,7 @@ def test_create_new_strongest_segment_story(evaluator, mock_dimension_analysis, 
         diff_from_avg_percent = 20.0  # Placeholder
 
         # Populate context
-        context = self._populate_template_context(pattern_result, metric, grain)
+        context = self._populate_template_context(pattern_result, metric, grain, include=["strongest_slice"])
         context.update(
             {
                 "segment_name": segment_name,
@@ -719,7 +721,7 @@ def test_create_new_weakest_segment_story(evaluator, mock_dimension_analysis, mo
         diff_from_avg_percent = 30.0  # Placeholder
 
         # Populate context
-        context = self._populate_template_context(pattern_result, metric, grain)
+        context = self._populate_template_context(pattern_result, metric, grain, include=["weakest_slice"])
         context.update(
             {
                 "segment_name": segment_name,
@@ -791,7 +793,7 @@ def test_create_largest_segment_story(evaluator, mock_dimension_analysis, mock_m
         previous_share_percent = pattern_result.largest_slice.previous_share_percent
 
         # Populate context
-        context = self._populate_template_context(pattern_result, metric, grain)
+        context = self._populate_template_context(pattern_result, metric, grain, include=["largest_slice"])
         context.update(
             {
                 "segment_name": segment_name,
@@ -864,7 +866,7 @@ def test_create_smallest_segment_story(evaluator, mock_dimension_analysis, mock_
         previous_prior_share_percent = 8.0  # Placeholder
 
         # Populate context
-        context = self._populate_template_context(pattern_result, metric, grain)
+        context = self._populate_template_context(pattern_result, metric, grain, include=["smallest_slice"])
         context.update(
             {
                 "segment_name": segment_name,

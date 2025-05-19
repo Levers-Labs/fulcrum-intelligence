@@ -5,7 +5,7 @@ Story evaluator for the performance status pattern.
 import logging
 from typing import Any
 
-from levers.models.common import Granularity
+from commons.models.enums import Granularity
 from levers.models.patterns.performance_status import MetricGVAStatus, MetricPerformance
 from story_manager.core.enums import StoryGenre, StoryGroup, StoryType
 from story_manager.story_evaluator import StoryEvaluatorBase, render_story_text
