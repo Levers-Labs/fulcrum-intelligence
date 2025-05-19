@@ -175,8 +175,11 @@ class StoryEvaluatorBase(Generic[T], ABC):
         Prepare the base context for the story.
         """
         grain_info = GRAIN_META.get(grain, {"label": "period", "pop": "PoP"})  # type: ignore
-
-        return {"metric": metric, "grain_label": grain_info["label"], "pop": grain_info["pop"]}
+        metric_info = {
+            "label": metric["label"],
+            "metric_id": metric["metric_id"],
+        }
+        return {"metric": metric_info, "grain_label": grain_info["label"], "pop": grain_info["pop"]}
 
     def get_output_length(self, story_type: StoryType, story_group: StoryGroup, grain: Granularity) -> int | None:
         """

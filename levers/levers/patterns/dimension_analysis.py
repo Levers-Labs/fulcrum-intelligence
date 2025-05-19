@@ -170,12 +170,12 @@ class DimensionAnalysisPattern(Pattern[DimensionAnalysis]):
             prior_df, current_df, merged = self._compute_slice_shares(compare_df)
 
             # 5) Calculate comparison to average
-            merged = difference_from_average(merged, value_col="val_current")
+            merged = difference_from_average(df=merged, value_col="val_current")
 
             # 6) Build the slices performance metrics list for reporting
             slices_list = build_slices_performance_list(
-                merged,
-                "slice_value",
+                df=merged,
+                slice_col="slice_value",
                 current_val_col="val_current",
                 prior_val_col="val_prior",
                 include_shares=True,
@@ -184,7 +184,7 @@ class DimensionAnalysisPattern(Pattern[DimensionAnalysis]):
 
             # 7) Compute top and bottom slices
             top_slices, bottom_slices = compute_top_bottom_slices(
-                df=merged, dim_col="slice_value", value_col="val_current", top_n=3, dimension=dimension_name
+                df=merged, slice_col="slice_value", value_col="val_current", top_n=3, dimension_name=dimension_name
             )
 
             # 8) Identify largest and smallest by share
@@ -205,13 +205,13 @@ class DimensionAnalysisPattern(Pattern[DimensionAnalysis]):
             # 11) Compute historical rankings
             period_length_days = get_period_length_for_grain(grain)
             historical_rankings = compute_historical_slice_rankings(
-                dimension=dimension_name,
                 df=ledger_df,
                 slice_col="slice_value",
                 date_col="date",
                 value_col="value",
                 num_periods=num_periods,
                 period_length_days=period_length_days,
+                dimension_name=dimension_name,
             )
 
             # 12) Create result
@@ -259,14 +259,14 @@ class DimensionAnalysisPattern(Pattern[DimensionAnalysis]):
         prior_df = compare_df[["slice_value", "val_prior"]].copy()
         prior_df = prior_df.rename(columns={"val_prior": "aggregated_value"})
         prior_df = compute_slice_shares(
-            prior_df, "slice_value", val_col="aggregated_value", share_col_name="share_pct_prior"
+            agg_df=prior_df, slice_col="slice_value", val_col="aggregated_value", share_col_name="share_pct_prior"
         )
 
         # Compute share percentages for current
         current_df = compare_df[["slice_value", "val_current"]].copy()
         current_df = current_df.rename(columns={"val_current": "aggregated_value"})
         current_df = compute_slice_shares(
-            current_df, "slice_value", val_col="aggregated_value", share_col_name="share_pct_current"
+            agg_df=current_df, slice_col="slice_value", val_col="aggregated_value", share_col_name="share_pct_current"
         )
 
         # Merge data together

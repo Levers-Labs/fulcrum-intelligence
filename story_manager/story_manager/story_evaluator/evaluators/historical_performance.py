@@ -7,7 +7,8 @@ from typing import Any
 
 import pandas as pd
 
-from levers.models import Granularity, TrendExceptionType, TrendType
+from commons.models.enums import Granularity
+from levers.models import TrendExceptionType, TrendType
 from levers.models.patterns import HistoricalPerformance
 from story_manager.core.enums import StoryGenre, StoryGroup, StoryType
 from story_manager.story_evaluator import StoryEvaluatorBase, render_story_text
@@ -44,7 +45,7 @@ class HistoricalPerformanceEvaluator(StoryEvaluatorBase[HistoricalPerformance]):
 
         stories = []
         metric_id = pattern_result.metric_id
-        grain = pattern_result.analysis_window.grain
+        grain = Granularity(pattern_result.analysis_window.grain)
 
         # Growth Stories
         if pattern_result.growth_stats and pattern_result.growth_stats.current_growth_acceleration:
@@ -108,7 +109,7 @@ class HistoricalPerformanceEvaluator(StoryEvaluatorBase[HistoricalPerformance]):
         )
 
     def _populate_template_context(
-        self, pattern_result: HistoricalPerformance, metric: dict, grain: Granularity, include: list[str]
+        self, pattern_result: HistoricalPerformance, metric: dict, grain: Granularity, **kwargs
     ) -> dict[str, Any]:
         """
         Populate context for template rendering based on story type.
@@ -117,12 +118,14 @@ class HistoricalPerformanceEvaluator(StoryEvaluatorBase[HistoricalPerformance]):
             pattern_result: Historical performance pattern result
             metric: Metric details
             grain: Granularity of the analysis
-            include: The components of the story being rendered, determines which context fields to include
+            **kwargs: Additional keyword arguments including:
+                - include: List of components to include in the context (default: [])
 
         Returns:
             Template context dictionary with only the necessary fields for the given story type
         """
 
+        include = kwargs.get("include", [])
         context = self.prepare_base_context(metric, grain)
 
         # Add growth stats
@@ -233,7 +236,7 @@ class HistoricalPerformanceEvaluator(StoryEvaluatorBase[HistoricalPerformance]):
         story_group = StoryGroup.GROWTH_RATES
         story_type = StoryType.SLOWING_GROWTH
 
-        context = self._populate_template_context(pattern_result, metric, grain, ["growth_stats"])
+        context = self._populate_template_context(pattern_result, metric, grain, include=["growth_stats"])
 
         title = render_story_text(story_type, "title", context)
         detail = render_story_text(story_type, "detail", context)
@@ -262,7 +265,7 @@ class HistoricalPerformanceEvaluator(StoryEvaluatorBase[HistoricalPerformance]):
         story_group = StoryGroup.GROWTH_RATES
         story_type = StoryType.ACCELERATING_GROWTH
 
-        context = self._populate_template_context(pattern_result, metric, grain, ["growth_stats"])
+        context = self._populate_template_context(pattern_result, metric, grain, include=["growth_stats"])
 
         title = render_story_text(story_type, "title", context)
         detail = render_story_text(story_type, "detail", context)
@@ -289,7 +292,9 @@ class HistoricalPerformanceEvaluator(StoryEvaluatorBase[HistoricalPerformance]):
     ) -> dict[str, Any]:
         """Create a STABLE_TREND story."""
         story_group = StoryGroup.LONG_RANGE
-        context = self._populate_template_context(pattern_result, metric, grain, ["current_trend", "previous_trend"])
+        context = self._populate_template_context(
+            pattern_result, metric, grain, include=["current_trend", "previous_trend"]
+        )
 
         title = render_story_text(StoryType.STABLE_TREND, "title", context)
         detail = render_story_text(StoryType.STABLE_TREND, "detail", context)
@@ -311,7 +316,9 @@ class HistoricalPerformanceEvaluator(StoryEvaluatorBase[HistoricalPerformance]):
     ) -> dict[str, Any]:
         """Create a NEW_UPWARD_TREND story."""
         story_group = StoryGroup.TREND_CHANGES
-        context = self._populate_template_context(pattern_result, metric, grain, ["current_trend", "previous_trend"])
+        context = self._populate_template_context(
+            pattern_result, metric, grain, include=["current_trend", "previous_trend"]
+        )
 
         title = render_story_text(StoryType.NEW_UPWARD_TREND, "title", context)
         detail = render_story_text(StoryType.NEW_UPWARD_TREND, "detail", context)
@@ -333,7 +340,9 @@ class HistoricalPerformanceEvaluator(StoryEvaluatorBase[HistoricalPerformance]):
     ) -> dict[str, Any]:
         """Create a NEW_DOWNWARD_TREND story."""
         story_group = StoryGroup.TREND_CHANGES
-        context = self._populate_template_context(pattern_result, metric, grain, ["current_trend", "previous_trend"])
+        context = self._populate_template_context(
+            pattern_result, metric, grain, include=["current_trend", "previous_trend"]
+        )
 
         title = render_story_text(StoryType.NEW_DOWNWARD_TREND, "title", context)
         detail = render_story_text(StoryType.NEW_DOWNWARD_TREND, "detail", context)
@@ -355,7 +364,9 @@ class HistoricalPerformanceEvaluator(StoryEvaluatorBase[HistoricalPerformance]):
     ) -> dict[str, Any]:
         """Create a PERFORMANCE_PLATEAU story."""
         story_group = StoryGroup.TREND_CHANGES
-        context = self._populate_template_context(pattern_result, metric, grain, ["current_trend", "previous_trend"])
+        context = self._populate_template_context(
+            pattern_result, metric, grain, include=["current_trend", "previous_trend"]
+        )
 
         title = render_story_text(StoryType.PERFORMANCE_PLATEAU, "title", context)
         detail = render_story_text(StoryType.PERFORMANCE_PLATEAU, "detail", context)
@@ -382,7 +393,7 @@ class HistoricalPerformanceEvaluator(StoryEvaluatorBase[HistoricalPerformance]):
     ) -> dict[str, Any]:
         """Create a SPIKE story."""
         story_group = StoryGroup.TREND_EXCEPTIONS
-        context = self._populate_template_context(pattern_result, metric, grain, ["trend_exception"])
+        context = self._populate_template_context(pattern_result, metric, grain, include=["trend_exception"])
 
         title = render_story_text(StoryType.SPIKE, "title", context)
         detail = render_story_text(StoryType.SPIKE, "detail", context)
@@ -409,7 +420,7 @@ class HistoricalPerformanceEvaluator(StoryEvaluatorBase[HistoricalPerformance]):
     ) -> dict[str, Any]:
         """Create a DROP story."""
         story_group = StoryGroup.TREND_EXCEPTIONS
-        context = self._populate_template_context(pattern_result, metric, grain, ["trend_exception"])
+        context = self._populate_template_context(pattern_result, metric, grain, include=["trend_exception"])
 
         title = render_story_text(StoryType.DROP, "title", context)
         detail = render_story_text(StoryType.DROP, "detail", context)
@@ -433,7 +444,7 @@ class HistoricalPerformanceEvaluator(StoryEvaluatorBase[HistoricalPerformance]):
         story_group = StoryGroup.TREND_CHANGES
         story_type = StoryType.IMPROVING_PERFORMANCE
 
-        context = self._populate_template_context(pattern_result, metric, grain, ["current_trend"])
+        context = self._populate_template_context(pattern_result, metric, grain, include=["current_trend"])
 
         title = render_story_text(story_type, "title", context)
         detail = render_story_text(story_type, "detail", context)
@@ -462,7 +473,7 @@ class HistoricalPerformanceEvaluator(StoryEvaluatorBase[HistoricalPerformance]):
         story_group = StoryGroup.TREND_CHANGES
         story_type = StoryType.WORSENING_PERFORMANCE
 
-        context = self._populate_template_context(pattern_result, metric, grain, ["current_trend"])
+        context = self._populate_template_context(pattern_result, metric, grain, include=["current_trend"])
 
         title = render_story_text(story_type, "title", context)
         detail = render_story_text(story_type, "detail", context)
@@ -491,7 +502,7 @@ class HistoricalPerformanceEvaluator(StoryEvaluatorBase[HistoricalPerformance]):
 
         story_group = StoryGroup.RECORD_VALUES
         story_type = StoryType.RECORD_HIGH
-        context = self._populate_template_context(pattern_result, metric, grain, ["high_rank"])
+        context = self._populate_template_context(pattern_result, metric, grain, include=["high_rank"])
 
         title = render_story_text(story_type, "title", context)
         detail = render_story_text(story_type, "detail", context)
@@ -515,7 +526,7 @@ class HistoricalPerformanceEvaluator(StoryEvaluatorBase[HistoricalPerformance]):
 
         story_group = StoryGroup.RECORD_VALUES
         story_type = StoryType.RECORD_LOW
-        context = self._populate_template_context(pattern_result, metric, grain, ["low_rank"])
+        context = self._populate_template_context(pattern_result, metric, grain, include=["low_rank"])
 
         title = render_story_text(story_type, "title", context)
         detail = render_story_text(story_type, "detail", context)
@@ -537,7 +548,9 @@ class HistoricalPerformanceEvaluator(StoryEvaluatorBase[HistoricalPerformance]):
     ) -> dict[str, Any]:
         """Create a BENCHMARKS story."""
         story_group = StoryGroup.BENCHMARK_COMPARISONS
-        context = self._populate_template_context(pattern_result, metric, grain, ["high_rank", "benchmark_comparison"])
+        context = self._populate_template_context(
+            pattern_result, metric, grain, include=["high_rank", "benchmark_comparison"]
+        )
 
         # Only generate story if we have both benchmark comparison and high rank data
         title = render_story_text(StoryType.BENCHMARKS, "title", context)

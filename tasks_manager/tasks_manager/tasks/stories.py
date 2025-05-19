@@ -311,9 +311,7 @@ async def process_pattern_stories(
             series_df = series_data[data_key] if series_data else None
 
             # Process pattern results and generate stories with series data
-            stories = await manager.evaluate_pattern_result(
-                pattern_run_obj, metric.model_dump(include={"metric_id", "label"}), series_df
-            )
+            stories = await manager.evaluate_pattern_result(pattern_run_obj, metric.model_dump(), series_df)
             logger.info(
                 "Generated %d stories for pattern %s, metric %s, grain %s",
                 len(stories),
@@ -352,16 +350,16 @@ async def process_pattern_stories(
             story_records = [{key: story[key] for key in artifact_keys} for story in story_dicts]
             return story_records
 
-        # except Exception as e:
-        #     logger.error(
-        #         "Error processing pattern stories for tenant %s, pattern %s, metric %s, grain %s: %s",
-        #         tenant_id,
-        #         pattern,
-        #         metric_id,
-        #         grain.value,
-        #         str(e),
-        #         exc_info=True,
-        #     )
+    except Exception as e:
+        logger.error(
+            "Error processing pattern stories for tenant %s, pattern %s, metric %s, grain %s: %s",
+            tenant_id,
+            pattern,
+            metric_id,
+            grain.value,
+            str(e),
+            exc_info=True,
+        )
         raise
     finally:
         # Reset tenant context

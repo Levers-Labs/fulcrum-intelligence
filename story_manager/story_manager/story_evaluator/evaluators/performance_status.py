@@ -40,7 +40,7 @@ class PerformanceStatusEvaluator(StoryEvaluatorBase[MetricPerformance]):
         """
         stories = []
         metric_id = pattern_result.metric_id
-        grain = pattern_result.analysis_window.grain
+        grain = Granularity(pattern_result.analysis_window.grain)
 
         # Check the current status
         current_status = pattern_result.status
@@ -67,7 +67,7 @@ class PerformanceStatusEvaluator(StoryEvaluatorBase[MetricPerformance]):
         return stories
 
     def _populate_template_context(
-        self, pattern_result: MetricPerformance, metric: dict, grain: Granularity, include: list[str]
+        self, pattern_result: MetricPerformance, metric: dict, grain: Granularity, **kwargs
     ) -> dict[str, Any]:
         """
         Populate context for template rendering.
@@ -76,11 +76,14 @@ class PerformanceStatusEvaluator(StoryEvaluatorBase[MetricPerformance]):
             pattern_result: Performance status pattern result
             metric: Metric details
             grain: Granularity of the analysis
-            include: The components of the story being rendered, determines which context fields to include
+            **kwargs: Additional keyword arguments including:
+                - include: List of components to include in the context (default: [])
+
         Returns:
             Template context dictionary
         """
 
+        include = kwargs.get("include", [])
         context = self.prepare_base_context(metric, grain)
 
         # Determine trend direction
@@ -149,7 +152,7 @@ class PerformanceStatusEvaluator(StoryEvaluatorBase[MetricPerformance]):
         story_type = StoryType.ON_TRACK
 
         # Prepare context for template rendering
-        context = self._populate_template_context(pattern_result, metric, grain, [])
+        context = self._populate_template_context(pattern_result, metric, grain, include=[])
 
         # Render title and detail from templates
         title = render_story_text(story_type, "title", context)
@@ -187,7 +190,7 @@ class PerformanceStatusEvaluator(StoryEvaluatorBase[MetricPerformance]):
         story_group = StoryGroup.GOAL_VS_ACTUAL
         story_type = StoryType.OFF_TRACK
         # Prepare context for template rendering
-        context = self._populate_template_context(pattern_result, metric, grain, [])
+        context = self._populate_template_context(pattern_result, metric, grain)
 
         # Render title and detail from templates
         title = render_story_text(story_type, "title", context)
@@ -226,7 +229,7 @@ class PerformanceStatusEvaluator(StoryEvaluatorBase[MetricPerformance]):
         story_type = StoryType.IMPROVING_STATUS
 
         # Prepare context for template rendering
-        context = self._populate_template_context(pattern_result, metric, grain, ["status_change"])
+        context = self._populate_template_context(pattern_result, metric, grain, include=["status_change"])
 
         # Render title and detail from templates
         title = render_story_text(story_type, "title", context)
@@ -265,7 +268,7 @@ class PerformanceStatusEvaluator(StoryEvaluatorBase[MetricPerformance]):
         story_type = StoryType.WORSENING_STATUS
 
         # Prepare context for template rendering
-        context = self._populate_template_context(pattern_result, metric, grain, ["status_change"])
+        context = self._populate_template_context(pattern_result, metric, grain, include=["status_change"])
 
         # Render title and detail from templates
         title = render_story_text(story_type, "title", context)
@@ -303,7 +306,7 @@ class PerformanceStatusEvaluator(StoryEvaluatorBase[MetricPerformance]):
         story_group = StoryGroup.LIKELY_STATUS
         story_type = StoryType.HOLD_STEADY
         # Prepare context for template rendering
-        context = self._populate_template_context(pattern_result, metric, grain, ["hold_steady"])
+        context = self._populate_template_context(pattern_result, metric, grain, include=["hold_steady"])
 
         # Render title and detail from templates
         title = render_story_text(story_type, "title", context)

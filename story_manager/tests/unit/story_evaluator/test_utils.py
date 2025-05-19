@@ -2,10 +2,12 @@
 Tests for the story evaluator utils module.
 """
 
+import pandas as pd
 import pytest
 
 from story_manager.core.enums import StoryType
 from story_manager.story_evaluator.utils import (
+    format_date_column,
     format_number,
     format_ordinal,
     format_percent,
@@ -139,3 +141,27 @@ def test_format_segment_names():
 
     # Test empty list
     assert format_segment_names([]) == ""
+
+
+def test_format_date_column():
+    """Test format_date_column function."""
+    # Test with default parameters
+    df = pd.DataFrame({"date": ["2023-01-03", "2023-01-01", "2023-01-02"], "value": [3, 1, 2]})
+    result = format_date_column(df)
+    assert list(result["date"]) == ["2023-01-01", "2023-01-02", "2023-01-03"]  # Check sorting
+    assert isinstance(result["date"].iloc[0], str)  # Verify ISO format string
+
+    # Test with custom date_column
+    df = pd.DataFrame({"my_date": ["2023-01-03", "2023-01-01", "2023-01-02"], "value": [3, 1, 2]})
+    result = format_date_column(df, date_column="my_date")
+    assert list(result["my_date"]) == ["2023-01-01", "2023-01-02", "2023-01-03"]
+
+    # Test with sort_values=False
+    df = pd.DataFrame({"date": ["2023-01-03", "2023-01-01", "2023-01-02"], "value": [3, 1, 2]})
+    result = format_date_column(df, sort_values=False)
+    assert list(result["date"]) == ["2023-01-03", "2023-01-01", "2023-01-02"]  # Original order preserved
+
+    # Test with ascending=False
+    df = pd.DataFrame({"date": ["2023-01-03", "2023-01-01", "2023-01-02"], "value": [3, 1, 2]})
+    result = format_date_column(df, ascending=False)
+    assert list(result["date"]) == ["2023-01-03", "2023-01-02", "2023-01-01"]  # Descending order

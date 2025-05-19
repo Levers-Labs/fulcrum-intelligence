@@ -310,7 +310,7 @@ def mock_dimension_analysis(
 @pytest.fixture
 def mock_metric():
     """Fixture for mock metric."""
-    return {"label": "Test Metric", "value": 1000.0}
+    return {"label": "Test Metric", "metric_id": "test_metric"}
 
 
 @pytest.fixture
@@ -1255,3 +1255,154 @@ def test_populate_template_context_strongest_slice_section(
     assert "change_percent" in context
     assert "avg_value" in context
     assert "diff_from_avg_percent" in context
+
+
+def test_calculate_average_value(evaluator, mock_dimension_analysis):
+    """Test _calculate_average_value helper function."""
+    # Test with valid slices
+    slices = mock_dimension_analysis.slices
+    avg_value = evaluator._calculate_average_value(slices)
+
+    # Calculate expected average manually
+    expected_avg = sum(s.current_value for s in slices) / len(slices)
+    assert avg_value == expected_avg
+
+    # Test with empty slices list
+    assert evaluator._calculate_average_value([]) == 0
+
+    # Test with None
+    assert evaluator._calculate_average_value(None) == 0
+
+
+def test_add_top_slices_context(evaluator, mock_dimension_analysis):
+    """Test _add_top_slices_context helper function."""
+    context = {}
+    slice_lookup = {s.slice_value: s for s in mock_dimension_analysis.slices}
+
+    # Call the function
+    evaluator._add_top_slices_context(mock_dimension_analysis, context, slice_lookup=slice_lookup)
+
+    # Verify that context was populated correctly
+    assert "top_segments" in context
+    assert "min_diff_percent" in context
+    assert "max_diff_percent" in context
+    assert "total_share_percent" in context
+    assert "streak_length" in context
+
+    # For the top segments, verify it's a formatted string containing the segment names
+    assert isinstance(context["top_segments"], str)
+    for segment in mock_dimension_analysis.top_slices[:4]:
+        assert segment.slice_value in context["top_segments"]
+
+
+def test_add_bottom_slices_context(evaluator, mock_dimension_analysis):
+    """Test _add_bottom_slices_context helper function."""
+    context = {}
+    slice_lookup = {s.slice_value: s for s in mock_dimension_analysis.slices}
+
+    # Call the function
+    evaluator._add_bottom_slices_context(mock_dimension_analysis, context, slice_lookup=slice_lookup)
+
+    # Verify that context was populated correctly
+    assert "bottom_segments" in context
+    assert "min_diff_percent" in context
+    assert "max_diff_percent" in context
+    assert "total_share_percent" in context
+    assert "streak_length" in context
+
+    # For the bottom segments, verify it's a formatted string containing the segment names
+    assert isinstance(context["bottom_segments"], str)
+    for segment in mock_dimension_analysis.bottom_slices[:4]:
+        assert segment.slice_value in context["bottom_segments"]
+
+
+def test_add_comparison_highlights_context(evaluator, mock_dimension_analysis):
+    """Test _add_comparison_highlights_context helper function."""
+    context = {}
+
+    # Call the function
+    evaluator._add_comparison_highlights_context(mock_dimension_analysis, context)
+
+    # Verify that context was populated correctly
+    assert "segment_a" in context
+    assert "segment_b" in context
+    assert "performance_diff_percent" in context
+    assert "gap_trend" in context
+    assert "gap_change_percent" in context
+
+    # Verify segment values are as expected
+    comparison = max(mock_dimension_analysis.comparison_highlights, key=lambda x: abs(x.performance_gap_percent or 0))
+    assert context["segment_a"] == comparison.slice_a
+    assert context["segment_b"] == comparison.slice_b
+
+
+def test_add_performance_slice_context(evaluator, mock_dimension_analysis):
+    """Test _add_performance_slice_context helper function."""
+    # Test strongest slice
+    context = {}
+    avg_value = evaluator._calculate_average_value(mock_dimension_analysis.slices)
+
+    # Call the function for strongest slice
+    evaluator._add_performance_slice_context(
+        mock_dimension_analysis.strongest_slice, context, slice_type="strongest", avg_value=avg_value
+    )
+
+    # Verify context for strongest slice
+    assert "segment_name" in context
+    assert "current_value" in context
+    assert "previous_segment" in context
+    assert "previous_value" in context
+    assert "trend_direction" in context
+    assert "change_percent" in context
+    assert "avg_value" in context
+    assert "diff_from_avg_percent" in context
+
+    # Test weakest slice
+    context = {}
+
+    # Call the function for weakest slice
+    evaluator._add_performance_slice_context(
+        mock_dimension_analysis.weakest_slice, context, slice_type="weakest", avg_value=avg_value
+    )
+
+    # Verify context for weakest slice
+    assert "segment_name" in context
+    assert context["segment_name"] == mock_dimension_analysis.weakest_slice.slice_value
+    assert "diff_from_avg_percent" in context
+    # For weakest, we expect positive diff_from_avg_percent (absolute value)
+    assert context["diff_from_avg_percent"] >= 0
+
+
+def test_add_share_slice_context(evaluator, mock_dimension_analysis):
+    """Test _add_share_slice_context helper function."""
+    # Test largest slice
+    context = {}
+
+    # Call the function for largest slice
+    evaluator._add_share_slice_context(
+        mock_dimension_analysis.largest_slice, mock_dimension_analysis.slices, context, slice_type="largest"
+    )
+
+    # Verify context for largest slice
+    assert "segment_name" in context
+    assert "current_share_percent" in context
+    assert "prior_share_percent" in context
+    assert "previous_segment" in context
+    assert "previous_share_percent" in context
+    assert "previous_prior_share_percent" not in context  # Only for smallest
+
+    # Test smallest slice
+    context = {}
+
+    # Call the function for smallest slice
+    evaluator._add_share_slice_context(
+        mock_dimension_analysis.smallest_slice, mock_dimension_analysis.slices, context, slice_type="smallest"
+    )
+
+    # Verify context for smallest slice
+    assert "segment_name" in context
+    assert "current_share_percent" in context
+    assert "prior_share_percent" in context
+    assert "previous_segment" in context
+    assert "previous_share_percent" in context
+    assert "previous_prior_share_percent" in context  # This is unique to smallest
