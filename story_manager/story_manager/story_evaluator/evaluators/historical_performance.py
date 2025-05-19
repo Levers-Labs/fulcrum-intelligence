@@ -7,8 +7,7 @@ from typing import Any
 
 import pandas as pd
 
-from commons.models.enums import Granularity
-from levers.models import TrendExceptionType, TrendType
+from levers.models import Granularity, TrendExceptionType, TrendType
 from levers.models.patterns import HistoricalPerformance
 from story_manager.core.enums import StoryGenre, StoryGroup, StoryType
 from story_manager.story_evaluator import StoryEvaluatorBase, render_story_text
