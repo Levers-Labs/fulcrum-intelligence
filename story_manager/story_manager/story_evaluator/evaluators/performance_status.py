@@ -131,7 +131,6 @@ class PerformanceStatusEvaluator(StoryEvaluatorBase[MetricPerformance]):
 
         return context
 
-    # TODO: should I keep or remove the metric_id parameter? check in other evaluators
     def _create_on_track_story(
         self, pattern_result: MetricPerformance, metric_id: str, metric: dict, grain: Granularity
     ) -> dict[str, Any]:

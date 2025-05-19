@@ -444,7 +444,6 @@ def calculate_concentration_index(
 # =============================================================================
 
 
-# TODO: check for type of prior_start_date and current_start_date
 def compare_dimension_slices_over_time(
     df: pd.DataFrame,
     slice_col: str,

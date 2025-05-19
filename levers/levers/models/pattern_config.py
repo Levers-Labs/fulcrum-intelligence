@@ -144,11 +144,10 @@ class AnalysisWindowConfig(BaseModel):
         elif self.strategy == WindowStrategy.FIXED_DATAPOINTS:
             datapoints = self.datapoints or 30
             # Fixed number of data points
-            # Calculate start date by going back (datapoints-1) periods from the end date
+            # Calculate start date by going back datapoints periods from the end date
             # We don't need available_dates since we can calculate based on grain and datapoints
             start_date = self.get_prev_period_start_date(
                 grain=grain,  # type: ignore
-                # period_count=datapoints - 1,  # -1 because we include the end date
                 period_count=datapoints,
                 latest_start_date=end_date,
             )
