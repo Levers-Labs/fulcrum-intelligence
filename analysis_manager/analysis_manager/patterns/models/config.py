@@ -31,6 +31,7 @@ class PatternConfig(AnalysisSchemaBaseModel, table=True):  # type: ignore
             "tenant_id",
             "pattern_name",
             "version",
+            name="uq_pattern_config_tenant_pattern_version",
         ),
         # Maintain schema definition from parent class
         {"schema": "analysis_store"},
