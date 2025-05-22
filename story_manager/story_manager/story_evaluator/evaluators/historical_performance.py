@@ -77,13 +77,9 @@ class HistoricalPerformanceEvaluator(StoryEvaluatorBase[HistoricalPerformance]):
         # Trend Exception Stories (Spikes & Drops)
         if pattern_result.trend_exception:
             if pattern_result.trend_exception.type == TrendExceptionType.SPIKE:
-                stories.append(
-                    self._create_spike_story(pattern_result, pattern_result.trend_exception, metric_id, metric, grain)
-                )
+                stories.append(self._create_spike_story(pattern_result, metric_id, metric, grain))
             elif pattern_result.trend_exception.type == TrendExceptionType.DROP:
-                stories.append(
-                    self._create_drop_story(pattern_result, pattern_result.trend_exception, metric_id, metric, grain)
-                )
+                stories.append(self._create_drop_story(pattern_result, metric_id, metric, grain))
 
         # Record Value Stories
         if pattern_result.high_rank and pattern_result.high_rank.rank <= 2:  # Consider top 2 as record high
@@ -291,23 +287,30 @@ class HistoricalPerformanceEvaluator(StoryEvaluatorBase[HistoricalPerformance]):
         self, pattern_result: HistoricalPerformance, metric_id: str, metric: dict, grain: Granularity
     ) -> dict[str, Any]:
         """Create a STABLE_TREND story."""
-        story_group = StoryGroup.LONG_RANGE
+        story_group = StoryGroup.TREND_CHANGES
+        story_type = StoryType.STABLE_TREND
+
         context = self._populate_template_context(
             pattern_result, metric, grain, include=["current_trend", "previous_trend"]
         )
 
-        title = render_story_text(StoryType.STABLE_TREND, "title", context)
-        detail = render_story_text(StoryType.STABLE_TREND, "detail", context)
+        title = render_story_text(story_type, "title", context)
+        detail = render_story_text(story_type, "detail", context)
+
+        # prepare series data with SPC data
+        series_df = self._prepare_series_data_with_spc(pattern_result)
+        series_data = self.export_dataframe_as_story_series(series_df, story_type, story_group, grain)
 
         return self.prepare_story_model(
             genre=StoryGenre.TRENDS,
-            story_type=StoryType.STABLE_TREND,
+            story_type=story_type,
             story_group=story_group,
             metric_id=metric_id,
             pattern_result=pattern_result,
             title=title,
             detail=detail,
             grain=grain,  # type: ignore
+            series_data=series_data,
             **context,
         )
 
@@ -316,22 +319,28 @@ class HistoricalPerformanceEvaluator(StoryEvaluatorBase[HistoricalPerformance]):
     ) -> dict[str, Any]:
         """Create a NEW_UPWARD_TREND story."""
         story_group = StoryGroup.TREND_CHANGES
+        story_type = StoryType.NEW_UPWARD_TREND
         context = self._populate_template_context(
             pattern_result, metric, grain, include=["current_trend", "previous_trend"]
         )
 
-        title = render_story_text(StoryType.NEW_UPWARD_TREND, "title", context)
-        detail = render_story_text(StoryType.NEW_UPWARD_TREND, "detail", context)
+        title = render_story_text(story_type, "title", context)
+        detail = render_story_text(story_type, "detail", context)
+
+        # prepare series data with SPC data
+        series_df = self._prepare_series_data_with_spc(pattern_result)
+        series_data = self.export_dataframe_as_story_series(series_df, story_type, story_group, grain)
 
         return self.prepare_story_model(
             genre=StoryGenre.TRENDS,
-            story_type=StoryType.NEW_UPWARD_TREND,
+            story_type=story_type,
             story_group=story_group,
             metric_id=metric_id,
             pattern_result=pattern_result,
             title=title,
             detail=detail,
             grain=grain,  # type: ignore
+            series_data=series_data,
             **context,
         )
 
@@ -340,22 +349,29 @@ class HistoricalPerformanceEvaluator(StoryEvaluatorBase[HistoricalPerformance]):
     ) -> dict[str, Any]:
         """Create a NEW_DOWNWARD_TREND story."""
         story_group = StoryGroup.TREND_CHANGES
+        story_type = StoryType.NEW_DOWNWARD_TREND
+
         context = self._populate_template_context(
             pattern_result, metric, grain, include=["current_trend", "previous_trend"]
         )
 
-        title = render_story_text(StoryType.NEW_DOWNWARD_TREND, "title", context)
-        detail = render_story_text(StoryType.NEW_DOWNWARD_TREND, "detail", context)
+        title = render_story_text(story_type, "title", context)
+        detail = render_story_text(story_type, "detail", context)
+
+        # prepare series data with SPC data
+        series_df = self._prepare_series_data_with_spc(pattern_result)
+        series_data = self.export_dataframe_as_story_series(series_df, story_type, story_group, grain)
 
         return self.prepare_story_model(
             genre=StoryGenre.TRENDS,
-            story_type=StoryType.NEW_DOWNWARD_TREND,
+            story_type=story_type,
             story_group=story_group,
             metric_id=metric_id,
             pattern_result=pattern_result,
             title=title,
             detail=detail,
             grain=grain,  # type: ignore
+            series_data=series_data,
             **context,
         )
 
@@ -364,76 +380,94 @@ class HistoricalPerformanceEvaluator(StoryEvaluatorBase[HistoricalPerformance]):
     ) -> dict[str, Any]:
         """Create a PERFORMANCE_PLATEAU story."""
         story_group = StoryGroup.TREND_CHANGES
+        story_type = StoryType.PERFORMANCE_PLATEAU
+
         context = self._populate_template_context(
             pattern_result, metric, grain, include=["current_trend", "previous_trend"]
         )
 
-        title = render_story_text(StoryType.PERFORMANCE_PLATEAU, "title", context)
-        detail = render_story_text(StoryType.PERFORMANCE_PLATEAU, "detail", context)
+        title = render_story_text(story_type, "title", context)
+        detail = render_story_text(story_type, "detail", context)
+
+        # prepare series data with SPC data
+        series_df = self._prepare_series_data_with_spc(pattern_result)
+        series_data = self.export_dataframe_as_story_series(series_df, story_type, story_group, grain)
 
         return self.prepare_story_model(
             genre=StoryGenre.TRENDS,
-            story_type=StoryType.PERFORMANCE_PLATEAU,
+            story_type=story_type,
             story_group=story_group,
             metric_id=metric_id,
             pattern_result=pattern_result,
             title=title,
             detail=detail,
             grain=grain,  # type: ignore
+            series_data=series_data,
             **context,
         )
 
     def _create_spike_story(
         self,
         pattern_result: HistoricalPerformance,
-        trend_exception: Any,
         metric_id: str,
         metric: dict,
         grain: Granularity,
     ) -> dict[str, Any]:
         """Create a SPIKE story."""
         story_group = StoryGroup.TREND_EXCEPTIONS
+        story_type = StoryType.SPIKE
         context = self._populate_template_context(pattern_result, metric, grain, include=["trend_exception"])
 
-        title = render_story_text(StoryType.SPIKE, "title", context)
-        detail = render_story_text(StoryType.SPIKE, "detail", context)
+        title = render_story_text(story_type, "title", context)
+        detail = render_story_text(story_type, "detail", context)
+
+        # prepare series data with SPC data
+        series_df = self._prepare_series_data_with_spc(pattern_result)
+        series_data = self.export_dataframe_as_story_series(series_df, story_type, story_group, grain)
 
         return self.prepare_story_model(
             genre=StoryGenre.TRENDS,
-            story_type=StoryType.SPIKE,
+            story_type=story_type,
             story_group=story_group,
             metric_id=metric_id,
             pattern_result=pattern_result,
             title=title,
             detail=detail,
             grain=grain,  # type: ignore
+            series_data=series_data,
             **context,
         )
 
     def _create_drop_story(
         self,
         pattern_result: HistoricalPerformance,
-        trend_exception: Any,
         metric_id: str,
         metric: dict,
         grain: Granularity,
     ) -> dict[str, Any]:
         """Create a DROP story."""
         story_group = StoryGroup.TREND_EXCEPTIONS
+        story_type = StoryType.DROP
+
         context = self._populate_template_context(pattern_result, metric, grain, include=["trend_exception"])
 
-        title = render_story_text(StoryType.DROP, "title", context)
-        detail = render_story_text(StoryType.DROP, "detail", context)
+        title = render_story_text(story_type, "title", context)
+        detail = render_story_text(story_type, "detail", context)
+
+        # prepare series data with SPC data
+        series_df = self._prepare_series_data_with_spc(pattern_result)
+        series_data = self.export_dataframe_as_story_series(series_df, story_type, story_group, grain)
 
         return self.prepare_story_model(
             genre=StoryGenre.TRENDS,
-            story_type=StoryType.DROP,
+            story_type=story_type,
             story_group=story_group,
             metric_id=metric_id,
             pattern_result=pattern_result,
             title=title,
             detail=detail,
             grain=grain,  # type: ignore
+            series_data=series_data,
             **context,
         )
 
@@ -441,7 +475,8 @@ class HistoricalPerformanceEvaluator(StoryEvaluatorBase[HistoricalPerformance]):
         self, pattern_result: HistoricalPerformance, metric_id: str, metric: dict, grain: Granularity
     ) -> dict[str, Any]:
         """Create an IMPROVING_PERFORMANCE story."""
-        story_group = StoryGroup.TREND_CHANGES
+
+        story_group = StoryGroup.LONG_RANGE
         story_type = StoryType.IMPROVING_PERFORMANCE
 
         context = self._populate_template_context(pattern_result, metric, grain, include=["current_trend"])
@@ -470,7 +505,8 @@ class HistoricalPerformanceEvaluator(StoryEvaluatorBase[HistoricalPerformance]):
         self, pattern_result: HistoricalPerformance, metric_id: str, metric: dict, grain: Granularity
     ) -> dict[str, Any]:
         """Create a WORSENING_PERFORMANCE story."""
-        story_group = StoryGroup.TREND_CHANGES
+
+        story_group = StoryGroup.LONG_RANGE
         story_type = StoryType.WORSENING_PERFORMANCE
 
         context = self._populate_template_context(pattern_result, metric, grain, include=["current_trend"])
@@ -592,6 +628,43 @@ class HistoricalPerformanceEvaluator(StoryEvaluatorBase[HistoricalPerformance]):
             series_df[["date", "value"]]
             .merge(period_df[["date", "pop_growth_percent"]], on="date", how="left")
             .sort_values("date")
+        )
+
+        return merged_df
+
+    def _prepare_series_data_with_spc(self, pattern_result: HistoricalPerformance) -> pd.DataFrame:
+        """
+        Prepare the series data with SPC (Statistical Process Control) metrics.
+
+        This method extracts SPC-related fields from period metrics and merges them
+        with the series data for visualization and story generation.
+
+        Args:
+            pattern_result: Historical performance pattern result
+
+        Returns:
+            DataFrame with series data and SPC metrics
+        """
+        # Make a copy to avoid modifying the original
+        series_df = self.series_df.copy() if self.series_df is not None else pd.DataFrame()
+
+        if not pattern_result.period_metrics:
+            return series_df
+
+        series_df["date"] = pd.to_datetime(series_df["date"])
+
+        # Extract SPC data from period metrics
+        period_df = pd.DataFrame([period_metric.model_dump() for period_metric in pattern_result.period_metrics])
+
+        # Map period_end to date for joining
+        period_df["date"] = pd.to_datetime(period_df["period_end"])
+
+        # Select SPC-related columns
+        spc_columns = ["date", "central_line", "ucl", "lcl", "slope", "slope_change_percent", "trend_signal_detected"]
+
+        # Create a merged dataframe with SPC metrics
+        merged_df = (
+            series_df[["date", "value"]].merge(period_df[spc_columns], on="date", how="left").sort_values("date")
         )
 
         return merged_df

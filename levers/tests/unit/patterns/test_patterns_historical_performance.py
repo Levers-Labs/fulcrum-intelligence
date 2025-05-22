@@ -315,3 +315,67 @@ class TestHistoricalPerformancePattern:
         assert result is not None
         # Note: Trend exceptions might not be present depending on the pattern implementation
         # We shouldn't assert that there must be exceptions
+
+    def test_analyze_with_spc_data(self, pattern, analysis_window):
+        """Test that SPC data is properly included in the analysis results."""
+        # Arrange
+        metric_id = "test_metric"
+        # Create data with a clear trend for SPC analysis
+        df = pd.DataFrame(
+            {
+                "date": pd.date_range(start="2023-01-01", periods=20, freq="D"),
+                "value": [100 + i * 2 for i in range(20)],  # Clear upward trend
+            }
+        )
+
+        # Act
+        result = pattern.analyze(metric_id=metric_id, data=df, analysis_window=analysis_window)
+
+        # Assert
+        assert result is not None
+        assert len(result.period_metrics) > 0
+
+        # Check that SPC fields are populated in period metrics
+        for pm in result.period_metrics:
+            assert pm.central_line is not None, "central_line should be populated"
+            assert pm.ucl is not None, "ucl should be populated"
+            assert pm.lcl is not None, "lcl should be populated"
+            assert pm.slope is not None, "slope should be populated"
+            # Slope for a linear trend should be consistent
+            assert abs(pm.slope - 2.0) < 0.5, f"Expected slope near 2.0, got {pm.slope}"
+
+        # Verify upward trend is detected
+        assert result.current_trend is not None
+        assert result.current_trend.trend_type == TrendType.UPWARD
+
+    def test_spc_trend_signal_detection(self, pattern, analysis_window):
+        """Test detection of trend signals in SPC analysis."""
+        # Arrange
+        metric_id = "test_metric"
+        # Create data with a clear change in trend
+        dates = pd.date_range(start="2023-01-01", periods=30, freq="D")
+        # First part stable, second part rapid increase - make the change more extreme
+        values = [100 + i * 0.1 for i in range(15)] + [105 + i * 5 for i in range(15)]
+
+        df = pd.DataFrame({"date": dates, "value": values})
+
+        # Act
+        result = pattern.analyze(metric_id=metric_id, data=df, analysis_window=analysis_window)
+
+        # Assert
+        assert result is not None
+
+        # Verify SPC data is present
+        assert len(result.period_metrics) > 0
+
+        # Verify period metrics have SPC fields populated
+        for pm in result.period_metrics:
+            assert hasattr(pm, "central_line"), "central_line field should exist"
+            assert hasattr(pm, "ucl"), "ucl field should exist"
+            assert hasattr(pm, "lcl"), "lcl field should exist"
+            assert hasattr(pm, "slope"), "slope field should exist"
+            assert hasattr(pm, "trend_signal_detected"), "trend_signal_detected field should exist"
+
+        # Verify the trend type is correctly identified as upward
+        assert result.current_trend is not None
+        assert result.current_trend.trend_type == TrendType.UPWARD

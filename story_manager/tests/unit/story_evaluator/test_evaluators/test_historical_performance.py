@@ -1035,7 +1035,7 @@ def test_prepare_series_data_with_pop_growth(evaluator, mock_historical_performa
     import pandas as pd
 
     series_df = pd.DataFrame(
-        {"date": pd.date_range(start="2023-10-01", periods=5, freq="M"), "value": [100, 105, 110, 115, 120]}
+        {"date": pd.date_range(start="2023-10-01", periods=5, freq="ME"), "value": [100, 105, 110, 115, 120]}
     )
     evaluator.series_df = series_df
 
@@ -1071,3 +1071,81 @@ def test_prepare_series_data_with_pop_growth(evaluator, mock_historical_performa
     none_df = evaluator._prepare_series_data_with_pop_growth(mock_historical_performance)
     assert isinstance(none_df, pd.DataFrame)
     assert len(none_df) == len(series_df)
+
+
+def test_prepare_series_data_with_spc(evaluator, mock_historical_performance):
+    """Test the preparation of series data with SPC metrics."""
+
+    # Create mock period metrics with SPC data
+    class PeriodMetric:
+        def __init__(
+            self, period_end, value, central_line, ucl, lcl, slope, slope_change_percent, trend_signal_detected
+        ):
+            self.period_end = period_end
+            self.value = value
+            self.central_line = central_line
+            self.ucl = ucl
+            self.lcl = lcl
+            self.slope = slope
+            self.slope_change_percent = slope_change_percent
+            self.trend_signal_detected = trend_signal_detected
+
+        def model_dump(self):
+            return {
+                "period_end": self.period_end,
+                "value": self.value,
+                "central_line": self.central_line,
+                "ucl": self.ucl,
+                "lcl": self.lcl,
+                "slope": self.slope,
+                "slope_change_percent": self.slope_change_percent,
+                "trend_signal_detected": self.trend_signal_detected,
+            }
+
+    # Create mock period metrics with SPC data
+    mock_historical_performance.period_metrics = [
+        PeriodMetric("2023-10-31", 100, 100, 120, 80, 1.0, 0.0, False),
+        PeriodMetric("2023-11-30", 105, 102, 122, 82, 1.2, 0.2, False),
+        PeriodMetric("2023-12-31", 110, 105, 125, 85, 1.5, 0.25, False),
+        PeriodMetric("2024-01-31", 115, 108, 128, 88, 2.0, 0.33, True),
+        PeriodMetric("2024-02-29", 120, 110, 130, 90, 2.5, 0.25, True),
+    ]
+
+    # Create a test series_df - use month-end dates to match the period_metrics
+    evaluator.series_df = pd.DataFrame(
+        {"date": pd.date_range(start="2023-10-31", periods=5, freq="ME"), "value": [100, 105, 110, 115, 120]}
+    )
+
+    # Call the method
+    result_df = evaluator._prepare_series_data_with_spc(mock_historical_performance)
+
+    # Assert the result
+    assert isinstance(result_df, pd.DataFrame)
+    assert "central_line" in result_df.columns
+    assert "ucl" in result_df.columns
+    assert "lcl" in result_df.columns
+    assert "slope" in result_df.columns
+    assert "slope_change_percent" in result_df.columns
+    assert "trend_signal_detected" in result_df.columns
+
+    # Check that the values are correctly mapped
+    assert len(result_df) == 5
+    assert result_df["central_line"].iloc[0] == 100
+    assert result_df["ucl"].iloc[0] == 120
+    assert result_df["lcl"].iloc[0] == 80
+    assert result_df["slope"].iloc[0] == 1.0
+    assert result_df["slope_change_percent"].iloc[0] == 0.0
+    assert not result_df["trend_signal_detected"].iloc[0]
+    assert result_df["trend_signal_detected"].iloc[-1]
+
+    # Test with empty period metrics
+    mock_historical_performance.period_metrics = []
+    empty_df = evaluator._prepare_series_data_with_spc(mock_historical_performance)
+    assert isinstance(empty_df, pd.DataFrame)
+    assert len(empty_df) == len(evaluator.series_df)
+
+    # Test with None period metrics
+    mock_historical_performance.period_metrics = None
+    none_df = evaluator._prepare_series_data_with_spc(mock_historical_performance)
+    assert isinstance(none_df, pd.DataFrame)
+    assert len(none_df) == len(evaluator.series_df)
