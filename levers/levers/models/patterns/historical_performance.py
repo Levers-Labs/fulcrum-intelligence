@@ -17,10 +17,20 @@ from levers.models import (
 class PeriodMetrics(BaseModel):
     """Growth and acceleration metrics for a specific period."""
 
-    period_start: str
-    period_end: str
-    pop_growth_percent: float | None = None
-    pop_acceleration_percent: float | None = None
+    period_start: str  # Start date of the period
+    period_end: str  # End date of the period
+
+    # Growth metrics
+    pop_growth_percent: float | None = None  # Period-over-period growth
+    pop_acceleration_percent: float | None = None  # Growth acceleration
+
+    # SPC metrics
+    central_line: float | None = None  # Center line value
+    ucl: float | None = None  # Upper control limit
+    lcl: float | None = None  # Lower control limit
+    slope: float | None = None  # Slope at this point
+    slope_change_percent: float | None = None  # Percentage change in slope
+    trend_signal_detected: bool = False  # Whether a signal was detected
 
 
 class GrowthStats(BaseModel):

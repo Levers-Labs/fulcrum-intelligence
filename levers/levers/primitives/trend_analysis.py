@@ -18,7 +18,6 @@ import logging
 
 import numpy as np
 import pandas as pd
-from scipy.stats import linregress
 
 from levers.exceptions import InsufficientDataError, ValidationError
 from levers.models import (
@@ -37,10 +36,14 @@ logger = logging.getLogger(__name__)
 
 
 def analyze_metric_trend(
-    df: pd.DataFrame, value_col: str = "value", date_col: str = "date", window_size: int = 7
+    df: pd.DataFrame,
+    value_col: str = "value",
+    date_col: str = "date",
+    # TODO: reconfirm window size
+    window_size: int = 7,
 ) -> TrendAnalysis | None:
     """
-    Analyze the trend direction in a time series.
+    Analyze the trend direction in a time series using Statistical Process Control analysis.
 
     Family: trend_analysis
     Version: 1.0
@@ -67,27 +70,25 @@ def analyze_metric_trend(
         logger.warning("Not enough data points to analyze trend")
         return None
 
-    # Full dataset trend analysis
-    y = df_sorted[value_col].values
-    x = np.arange(len(y))
+    # Use SPC analysis if we have enough data
+    # TODO: check how much min data is needed
+    # if len(df_sorted) >= 5:
+    # Extract trend info from SPC data
+    latest_row = df_sorted.iloc[-1]
 
-    # Handle missing values
-    mask = ~np.isnan(y)  # type: ignore
-    if sum(mask) < 2:
-        return None
+    # Get the slope from SPC analysis
+    slope = latest_row.get("slope", 0)
+    if pd.isna(slope):
+        slope = 0
 
-    # Calculate trend using linregress
-    slope, _, r_value, _, _ = linregress(x[mask], y[mask])
-    trend_confidence = r_value**2  # R-squared
-
-    # Calculate normalized slope
-    mean_val = np.mean(y[mask])
+    # Get normalized slope
+    mean_val = df_sorted[value_col].mean()
     if mean_val != 0:
         norm_slope = (slope / abs(mean_val)) * 100  # as percentage
     else:
-        norm_slope = 0 if slope == 0 else (100 if slope > 0 else -100)  # Arbitrary large value
+        norm_slope = 0 if slope == 0 else (100 if slope > 0 else -100)
 
-    # Determine trend direction using absolute slope threshold
+    # Determine trend direction using slope
     if abs(norm_slope) < 0.5:
         trend_type = TrendType.STABLE
     elif slope > 0:
@@ -95,44 +96,7 @@ def analyze_metric_trend(
     else:
         trend_type = TrendType.DOWNWARD
 
-    # Check for acceleration and recent trend
-    is_accelerating = False
-    recent_trend_type = None
-
-    # Get recent window for analysis if enough data points
-    if len(df_sorted) >= window_size:
-        recent_df = df_sorted.tail(window_size)
-        recent_y = recent_df[value_col].values
-        recent_x = np.arange(len(recent_y))
-
-        mask_recent = ~np.isnan(recent_y)  # type: ignore
-        if sum(mask_recent) >= 2:
-            # Calculate recent trend using linregress
-            try:
-                recent_slope, _, _, _, _ = linregress(recent_x[mask_recent], recent_y[mask_recent])
-
-                recent_mean = np.mean(recent_y[mask_recent])
-                if recent_mean != 0:
-                    recent_norm_slope = (recent_slope / abs(recent_mean)) * 100
-                else:
-                    recent_norm_slope = 0 if recent_slope == 0 else (100 if recent_slope > 0 else -100)
-
-                if abs(recent_norm_slope) < 0.5:
-                    # Determine recent direction using absolute slope threshold
-                    recent_trend_type = TrendType.STABLE
-                elif recent_slope > 0:
-                    recent_trend_type = TrendType.UPWARD
-                else:
-                    recent_trend_type = TrendType.DOWNWARD
-
-                # Check for acceleration
-                is_accelerating = abs(recent_slope) > abs(slope)
-            except Exception:
-                # If regression fails, skip recent direction and acceleration
-                is_accelerating = False
-                recent_trend_type = None
-
-    # Check for plateau after determining basic trend
+    # Check for plateau
     plateau_window = min(window_size, len(df_sorted))
     plateau_result = detect_performance_plateau(df_sorted, value_col=value_col, tolerance=0.01, window=plateau_window)
     is_plateaued = plateau_result.is_plateaued
@@ -141,12 +105,28 @@ def analyze_metric_trend(
     if is_plateaued:
         trend_type = TrendType.PLATEAU
 
+    # Calculate confidence based on scatter within control limits
+    within_limits = 0
+    for _, row in df_sorted.iterrows():
+        if row.get("ucl") is not None and row.get("lcl") is not None and row.get("central_line") is not None:
+            if row.get("lcl") <= row[value_col] <= row.get("ucl"):
+                within_limits += 1
+
+    trend_confidence = within_limits / len(df_sorted) if len(df_sorted) > 0 else 0
+
+    # Determine if accelerating by checking slope change
+    is_accelerating = False
+    if "slope_change" in df_sorted.columns:
+        recent_slope_changes = df_sorted["slope_change"].tail(window_size).dropna()
+        if len(recent_slope_changes) > 0:
+            is_accelerating = recent_slope_changes.mean() > 0
+
     return TrendAnalysis(
         trend_type=trend_type,
         trend_slope=slope,
         trend_confidence=trend_confidence,
         normalized_slope=norm_slope,
-        recent_trend_type=recent_trend_type,
+        recent_trend_type=None,  # Not calculated in SPC mode
         is_accelerating=is_accelerating,
         is_plateaued=is_plateaued,
     )
@@ -253,7 +233,12 @@ def detect_record_low(df: pd.DataFrame, value_col: str = "value") -> RecordLow:
 
 
 def detect_trend_exceptions(
-    df: pd.DataFrame, date_col: str = "date", value_col: str = "value", window_size: int = 5, z_threshold: float = 2.0
+    df: pd.DataFrame,
+    date_col: str = "date",
+    value_col: str = "value",
+    window_size: int = 5,
+    z_threshold: float = 2.0,
+    use_spc_analysis: bool = True,
 ) -> TrendException | None:
     """
     Detect spikes and drops in a time series relative to recent values.
@@ -267,6 +252,7 @@ def detect_trend_exceptions(
         value_col: Column name containing values
         window_size: Number of periods to include in normal range calculation
         z_threshold: Number of standard deviations to consider exceptional
+        use_spc_analysis: Whether to use SPC analysis for exception detection
 
     Returns:
         TrendException object containing exception details,
@@ -287,6 +273,51 @@ def detect_trend_exceptions(
         logger.warning("Insufficient data for trend exceptions detection")
         return None
 
+    if use_spc_analysis:
+        # Use SPC control limits for exception detection
+        latest_row = df_sorted.iloc[-1]
+
+        # Get current value and control limits
+        current_value = latest_row[value_col]
+        ucl = latest_row["ucl"]
+        lcl = latest_row["lcl"]
+        central_line = latest_row["central_line"]
+
+        # Skip if control limits are not valid
+        if pd.isna(ucl) or pd.isna(lcl) or pd.isna(central_line):
+            logger.warning("Invalid control limits for trend exceptions detection")
+            return None
+        else:
+            # Check for spike (above UCL)
+            if current_value > ucl:
+                delta_from_range = current_value - ucl
+                magnitude_percent = (delta_from_range / ucl * 100.0) if ucl != 0 else None
+
+                return TrendException(
+                    type=TrendExceptionType.SPIKE,
+                    current_value=current_value,
+                    normal_range_low=lcl,
+                    normal_range_high=ucl,
+                    absolute_delta_from_normal_range=delta_from_range,
+                    magnitude_percent=magnitude_percent,
+                )
+
+            # Check for drop (below LCL)
+            elif current_value < lcl:
+                delta_from_range = lcl - current_value
+                magnitude_percent = (delta_from_range / abs(lcl) * 100.0) if lcl != 0 else None
+
+                return TrendException(
+                    type=TrendExceptionType.DROP,
+                    current_value=current_value,
+                    normal_range_low=lcl,
+                    normal_range_high=ucl,
+                    absolute_delta_from_normal_range=-delta_from_range,  # Negative for drops
+                    magnitude_percent=magnitude_percent,
+                )
+        return None
+
+    # If we don't want to use SPC analysis, use traditional method:
     # Get the recent window for analysis
     recent_subset = df_sorted[value_col].iloc[-window_size - 1 : -1]
 
@@ -633,11 +664,11 @@ def process_control_analysis(
     # Check if we have enough data
     if len(df_sorted) < min_data_points:
         result_df = df_sorted.copy()
-        result_df["central_line"] = np.nan
-        result_df["ucl"] = np.nan
-        result_df["lcl"] = np.nan
-        result_df["slope"] = np.nan
-        result_df["slope_change"] = np.nan
+        result_df["central_line"] = None
+        result_df["ucl"] = None
+        result_df["lcl"] = None
+        result_df["slope"] = None
+        result_df["slope_change"] = None
         result_df["trend_signal_detected"] = False
         return result_df
 
@@ -686,8 +717,8 @@ def process_control_analysis(
                     ucl_array[idx] = cl_val + avg_range * control_limit_multiplier  # type: ignore
                     lcl_array[idx] = cl_val - avg_range * control_limit_multiplier  # type: ignore
                 else:
-                    ucl_array[idx] = np.nan  # type: ignore
-                    lcl_array[idx] = np.nan  # type: ignore
+                    ucl_array[idx] = None  # type: ignore
+                    lcl_array[idx] = None  # type: ignore
 
         # Detect signals
         signals_idx = _detect_spc_signals(
@@ -721,7 +752,7 @@ def process_control_analysis(
     dff["trend_signal_detected"] = signal_array
 
     # Calculate slope changes
-    dff["slope_change"] = np.nan
+    dff["slope_change"] = None
     for i in range(1, len(dff)):
         s_now = slope_array[i]
         s_prev = slope_array[i - 1]
@@ -749,16 +780,18 @@ def _apply_anomaly_detection_methods(
     # Variance method: z-score approach
     if method in [AnomalyDetectionMethod.VARIANCE, AnomalyDetectionMethod.COMBINED]:
         # Calculate z-scores
-        df["z_score"] = np.nan
+        df["z_score"] = None
         mask = ~df["rolling_std"].isna() & (df["rolling_std"] > 0)
         if mask.any():
             df.loc[mask, "z_score"] = (df.loc[mask, value_col] - df.loc[mask, "rolling_mean"]) / df.loc[
                 mask, "rolling_std"
             ]
 
-        # Flag anomalies based on z-score threshold
-        df["is_anomaly_variance"] = np.abs(df["z_score"]) > z_threshold
-        df["is_anomaly_variance"] = df["is_anomaly_variance"].fillna(False)
+        # Flag anomalies based on z-score threshold, but only where z_score is not None
+        df["is_anomaly_variance"] = False
+        z_score_mask = ~df["z_score"].isna()
+        if z_score_mask.any():
+            df.loc[z_score_mask, "is_anomaly_variance"] = np.abs(df.loc[z_score_mask, "z_score"]) > z_threshold
     else:
         df["is_anomaly_variance"] = False
 

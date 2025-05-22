@@ -30,7 +30,16 @@ class TestPeriodMetrics:
         """Test creating a valid PeriodMetrics object."""
         # Arrange & Act
         metrics = PeriodMetrics(
-            period_start="2023-01-01", period_end="2023-01-31", pop_growth_percent=10.5, pop_acceleration_percent=2.0
+            period_start="2023-01-01",
+            period_end="2023-01-31",
+            pop_growth_percent=10.5,
+            pop_acceleration_percent=2.0,
+            central_line=105.5,
+            ucl=120.3,
+            lcl=90.7,
+            slope=1.5,
+            slope_change_percent=0.5,
+            trend_signal_detected=True,
         )
 
         # Assert
@@ -38,12 +47,26 @@ class TestPeriodMetrics:
         assert metrics.period_end == "2023-01-31"
         assert metrics.pop_growth_percent == 10.5
         assert metrics.pop_acceleration_percent == 2.0
+        assert metrics.central_line == 105.5
+        assert metrics.ucl == 120.3
+        assert metrics.lcl == 90.7
+        assert metrics.slope == 1.5
+        assert metrics.slope_change_percent == 0.5
+        assert metrics.trend_signal_detected is True
 
     def test_optional_fields(self):
         """Test creating an object with optional fields as None."""
         # Arrange & Act
         metrics = PeriodMetrics(
-            period_start="2023-01-01", period_end="2023-01-31", pop_growth_percent=None, pop_acceleration_percent=None
+            period_start="2023-01-01",
+            period_end="2023-01-31",
+            pop_growth_percent=None,
+            pop_acceleration_percent=None,
+            central_line=None,
+            ucl=None,
+            lcl=None,
+            slope=None,
+            slope_change_percent=None,
         )
 
         # Assert
@@ -51,6 +74,12 @@ class TestPeriodMetrics:
         assert metrics.period_end == "2023-01-31"
         assert metrics.pop_growth_percent is None
         assert metrics.pop_acceleration_percent is None
+        assert metrics.central_line is None
+        assert metrics.ucl is None
+        assert metrics.lcl is None
+        assert metrics.slope is None
+        assert metrics.slope_change_percent is None
+        assert metrics.trend_signal_detected is False  # Default value
 
     def test_required_fields(self):
         """Test required fields validation."""
@@ -65,7 +94,16 @@ class TestPeriodMetrics:
         """Test conversion to dictionary."""
         # Arrange
         metrics = PeriodMetrics(
-            period_start="2023-01-01", period_end="2023-01-31", pop_growth_percent=10.5, pop_acceleration_percent=2.0
+            period_start="2023-01-01",
+            period_end="2023-01-31",
+            pop_growth_percent=10.5,
+            pop_acceleration_percent=2.0,
+            central_line=105.5,
+            ucl=120.3,
+            lcl=90.7,
+            slope=1.5,
+            slope_change_percent=0.5,
+            trend_signal_detected=True,
         )
 
         # Act
@@ -76,6 +114,12 @@ class TestPeriodMetrics:
         assert result["period_end"] == "2023-01-31"
         assert result["pop_growth_percent"] == 10.5
         assert result["pop_acceleration_percent"] == 2.0
+        assert result["central_line"] == 105.5
+        assert result["ucl"] == 120.3
+        assert result["lcl"] == 90.7
+        assert result["slope"] == 1.5
+        assert result["slope_change_percent"] == 0.5
+        assert result["trend_signal_detected"] is True
 
 
 class TestGrowthStats:

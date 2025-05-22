@@ -55,7 +55,7 @@ STORY_TEMPLATES = {
         "title": "{{ pop }} growth is speeding up",
         "detail": "{{ metric.label }} growth has accelerated to {{ current_growth|format_percent }}% {{ pop }}, "
         "up from {{ average_growth|format_percent }}% average over past {{ num_periods_accelerating }} {{ "
-        "grain_label }}s. This acceleration began {{ trend_duration }} {{ grain_label }}s ago.",
+        "grain_label }}s",
     },
     StoryType.STABLE_TREND: {
         "title": "Following a stable trend",
