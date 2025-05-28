@@ -154,7 +154,7 @@ class StoryEvaluatorBase(Generic[T], ABC):
             return []
 
         # Figure out the length of the series to export
-        _ = self.get_output_length(story_type, story_group, grain)
+        series_length = self.get_output_length(story_type, story_group, grain)
 
         # Convert the date column to datetime and then to ISO format strings
         if "date" in series_df.columns:
@@ -164,8 +164,7 @@ class StoryEvaluatorBase(Generic[T], ABC):
         series_df.replace([float("inf"), float("-inf"), np.NaN], [None, None, None], inplace=True)  # type: ignore
 
         # Get the last n rows
-        # series = series_df.tail(series_length) if series_length else series_df
-        series = series_df
+        series = series_df.tail(series_length) if series_length else series_df
 
         # Add the time series data to the result
         data = series.to_dict(orient="records")

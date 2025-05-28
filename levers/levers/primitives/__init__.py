@@ -56,6 +56,8 @@ from .trend_analysis import (
     detect_seasonality_pattern,
     detect_trend_exceptions,
     process_control_analysis,
+    detect_trend_exceptions_using_spc_analysis,
+    analyze_trend
 )
 
 # Dimensional Analysis primitives
@@ -121,6 +123,8 @@ _primitive_families = {
         detect_trend_exceptions,
         process_control_analysis,
         detect_seasonality_pattern,
+        detect_trend_exceptions_using_spc_analysis,
+        analyze_trend
     ],
     "dimensional_analysis": [
         # Slice Metrics & Shares
@@ -235,6 +239,8 @@ __all__ = [
     "detect_trend_exceptions",
     "process_control_analysis",
     "detect_seasonality_pattern",
+    "detect_trend_exceptions_using_spc_analysis",
+    "analyze_trend"
     # Dimensional Analysis primitives
     "calculate_slice_metrics",
     "compute_slice_shares",

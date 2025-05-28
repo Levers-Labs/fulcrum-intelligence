@@ -294,7 +294,7 @@ class HistoricalPerformanceEvaluator(StoryEvaluatorBase[HistoricalPerformance]):
         detail = render_story_text(story_type, "detail", context)
 
         # prepare series data with SPC data
-        series_df = self._prepare_series_data_with_spc(pattern_result)
+        series_df = self._prepare_trend_analysis_series_data(pattern_result)
         series_data = self.export_dataframe_as_story_series(series_df, story_type, story_group, grain)
 
         return self.prepare_story_model(
@@ -324,7 +324,7 @@ class HistoricalPerformanceEvaluator(StoryEvaluatorBase[HistoricalPerformance]):
         detail = render_story_text(story_type, "detail", context)
 
         # prepare series data with SPC data
-        series_df = self._prepare_series_data_with_spc(pattern_result)
+        series_df = self._prepare_trend_analysis_series_data(pattern_result)
         series_data = self.export_dataframe_as_story_series(series_df, story_type, story_group, grain)
 
         return self.prepare_story_model(
@@ -355,7 +355,7 @@ class HistoricalPerformanceEvaluator(StoryEvaluatorBase[HistoricalPerformance]):
         detail = render_story_text(story_type, "detail", context)
 
         # prepare series data with SPC data
-        series_df = self._prepare_series_data_with_spc(pattern_result)
+        series_df = self._prepare_trend_analysis_series_data(pattern_result)
         series_data = self.export_dataframe_as_story_series(series_df, story_type, story_group, grain)
 
         return self.prepare_story_model(
@@ -386,7 +386,7 @@ class HistoricalPerformanceEvaluator(StoryEvaluatorBase[HistoricalPerformance]):
         detail = render_story_text(story_type, "detail", context)
 
         # prepare series data with SPC data
-        series_df = self._prepare_series_data_with_spc(pattern_result)
+        series_df = self._prepare_trend_analysis_series_data(pattern_result)
         series_data = self.export_dataframe_as_story_series(series_df, story_type, story_group, grain)
 
         return self.prepare_story_model(
@@ -418,7 +418,7 @@ class HistoricalPerformanceEvaluator(StoryEvaluatorBase[HistoricalPerformance]):
         detail = render_story_text(story_type, "detail", context)
 
         # prepare series data with SPC data
-        series_df = self._prepare_series_data_with_spc(pattern_result)
+        series_df = self._prepare_trend_analysis_series_data(pattern_result)
         series_data = self.export_dataframe_as_story_series(series_df, story_type, story_group, grain)
 
         return self.prepare_story_model(
@@ -451,7 +451,7 @@ class HistoricalPerformanceEvaluator(StoryEvaluatorBase[HistoricalPerformance]):
         detail = render_story_text(story_type, "detail", context)
 
         # prepare series data with SPC data
-        series_df = self._prepare_series_data_with_spc(pattern_result)
+        series_df = self._prepare_trend_analysis_series_data(pattern_result)
         series_data = self.export_dataframe_as_story_series(series_df, story_type, story_group, grain)
 
         return self.prepare_story_model(
@@ -628,9 +628,9 @@ class HistoricalPerformanceEvaluator(StoryEvaluatorBase[HistoricalPerformance]):
 
         return merged_df
 
-    def _prepare_series_data_with_spc(self, pattern_result: HistoricalPerformance) -> pd.DataFrame:
+    def _prepare_trend_analysis_series_data(self, pattern_result: HistoricalPerformance) -> pd.DataFrame:
         """
-        Prepare the series data with SPC (Statistical Process Control) metrics.
+        Prepare the series data for trend analysis stories.
 
         This method extracts SPC-related fields from the trend_analysis results
         (which are derived from process_control_analysis) and merges them
@@ -650,22 +650,14 @@ class HistoricalPerformanceEvaluator(StoryEvaluatorBase[HistoricalPerformance]):
 
         series_df["date"] = pd.to_datetime(series_df["date"])
 
-        # Extract SPC data from trend_analysis results
-        # TrendAnalysis objects contain all necessary SPC fields
-        spc_data_list = [ta.model_dump() for ta in pattern_result.trend_analysis]
-        spc_df = pd.DataFrame(spc_data_list)
+        # Extract data from trend_analysis results
+        # TrendAnalysis objects contain all necessary fields
+        trend_analysis_data = [data.model_dump() for data in pattern_result.trend_analysis]
+        trend_analysis_df = pd.DataFrame(trend_analysis_data)
 
-        # Ensure date column in spc_df is datetime for merging
-        if "date" in spc_df.columns:
-            spc_df["date"] = pd.to_datetime(spc_df["date"])
-        else:
-            # If 'date' is not in spc_df, we cannot merge. Return base series_df.
-            logger.warning("Date column not found in SPC trend_analysis data. Cannot merge SPC metrics.")
-            return series_df
-
-        # Select SPC-related columns that are expected by stories.
+        # Select columns that are expected by stories.
         # These should align with fields in the TrendAnalysis model.
-        spc_columns_to_merge = [
+        columns_to_merge = [
             "date",
             "value",
             "central_line",
@@ -677,27 +669,11 @@ class HistoricalPerformanceEvaluator(StoryEvaluatorBase[HistoricalPerformance]):
             "trend_type",
         ]
 
-        # Filter spc_df to only include necessary columns, ensure 'date' is present
-        available_spc_columns = [col for col in spc_columns_to_merge if col in spc_df.columns]
-        if "date" not in available_spc_columns and "date" in spc_df.columns:  # ensure date is always included if
-            # available
-            available_spc_columns.append("date")
+        # Filter trend_analysis_df to only include necessary columns, ensure 'date' is present
+        available_columns = [col for col in columns_to_merge if col in trend_analysis_df.columns]
+        df_to_merge = trend_analysis_df[available_columns].drop(columns=["value"], errors="ignore")
+        df_to_merge["date"] = pd.to_datetime(df_to_merge["date"])
 
-        spc_df_filtered = spc_df[available_spc_columns]
-
-        # Merge with the base series_df which should contain 'date' and original 'value'
-        # We will merge on 'date'. The 'value' from series_df is the primary one.
-        # We can drop 'value' from spc_df_filtered if it exists to avoid ambiguity,
-        # or ensure it's consistent. For now, let's assume series_df['value'] is canonical.
-        if "value" in spc_df_filtered.columns and "value" in series_df.columns:
-            # If 'value' is in both, decide which to keep or rename.
-            # For simplicity, let's use the value from the base series_df and drop it from spc_df_filtered before merge
-            # or ensure the merge handles it (e.g., suffixes).
-            # A left merge will keep series_df['value'].
-            spc_df_to_merge = spc_df_filtered.drop(columns=["value"], errors="ignore")
-        else:
-            spc_df_to_merge = spc_df_filtered
-
-        merged_df = pd.merge(series_df, spc_df_to_merge, on="date", how="left").sort_values("date")
+        merged_df = pd.merge(series_df, df_to_merge, on="date", how="left").sort_values("date")
 
         return merged_df

@@ -15,6 +15,7 @@ from levers.primitives import (
     detect_record_low,
     detect_seasonality_pattern,
     detect_trend_exceptions,
+    detect_trend_exceptions_using_spc_analysis,
     process_control_analysis,
 )
 from levers.primitives.trend_analysis import (
@@ -526,7 +527,6 @@ class TestDetectTrendExceptions:
             value_col="value",
             window_size=len(window_data),
             z_threshold=2.0,
-            use_spc_analysis=False,
         )
 
         # Assert
@@ -556,7 +556,6 @@ class TestDetectTrendExceptions:
             value_col="value",
             window_size=len(window_data),
             z_threshold=2.0,
-            use_spc_analysis=False,
         )
 
         # Assert
@@ -582,9 +581,9 @@ class TestDetectTrendExceptions:
         # Add SPC data
         spc_df = process_control_analysis(df, date_col="date", value_col="value")
 
-        # Act - use SPC analysis
-        result = detect_trend_exceptions(
-            spc_df, date_col="date", value_col="value", window_size=len(window_data), use_spc_analysis=True
+        # Act - use SPC-specific analysis function
+        result = detect_trend_exceptions_using_spc_analysis(
+            spc_df, date_col="date", value_col="value", window_size=len(window_data)
         )
 
         # Assert
@@ -618,14 +617,12 @@ class TestDetectTrendExceptions:
         spc_df = process_control_analysis(df, date_col="date", value_col="value")
 
         # Act - Test with SPC analysis
-        result_spc = detect_trend_exceptions(
-            spc_df, date_col="date", value_col="value", window_size=len(window_data), use_spc_analysis=True
+        result_spc = detect_trend_exceptions_using_spc_analysis(
+            spc_df, date_col="date", value_col="value", window_size=len(window_data)
         )
 
         # Act - Test with traditional analysis
-        result_trad = detect_trend_exceptions(
-            df, date_col="date", value_col="value", window_size=len(window_data), use_spc_analysis=False
-        )
+        result_trad = detect_trend_exceptions(df, date_col="date", value_col="value", window_size=len(window_data))
 
         # Compare results
         # The SPC method might be more or less sensitive depending on the implementation
@@ -653,31 +650,6 @@ class TestDetectTrendExceptions:
 
         # Assert
         assert result is None
-
-    def test_with_parameter_use_spc_analysis_false(self):
-        """Test explicitly disabling SPC analysis."""
-        # Arrange - Create data with SPC fields
-        df = pd.DataFrame(
-            {
-                "date": pd.date_range(start="2023-01-01", periods=6, freq="D"),
-                "value": [100, 110, 120, 130, 140, 200],  # Last value is a spike
-                "central_line": [100, 110, 120, 130, 140, 150],  # Expected trend
-                "ucl": [120, 130, 140, 150, 160, 170],  # Upper control limit
-                "lcl": [80, 90, 100, 110, 120, 130],  # Lower control limit
-            }
-        )
-
-        # Act - Explicitly disable SPC analysis
-        result = detect_trend_exceptions(
-            df, date_col="date", value_col="value", window_size=5, z_threshold=2.0, use_spc_analysis=False
-        )
-
-        # Assert - Should use traditional method and ignore SPC fields
-        assert result is not None
-        assert result.type == TrendExceptionType.SPIKE
-        # The normal range should not match the SPC fields but be calculated from window data
-        assert result.normal_range_high != 170  # Should not use UCL from SPC data
-        assert result.normal_range_low != 130  # Should not use LCL from SPC data
 
 
 class TestDetectPerformancePlateau:

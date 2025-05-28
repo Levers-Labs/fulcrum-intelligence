@@ -87,7 +87,6 @@ class TrendException(BaseModel):
 class TrendAnalysis(BaseModel):
     """Trend analysis information."""
 
-    trend_type: TrendType | None = None
     value: float
     date: str
     central_line: float | None = None

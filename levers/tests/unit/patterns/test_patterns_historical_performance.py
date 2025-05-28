@@ -386,7 +386,6 @@ class TestHistoricalPerformancePattern:
         for trend_analysis in result.trend_analysis:
             assert hasattr(trend_analysis, "value")
             assert hasattr(trend_analysis, "date")
-            assert hasattr(trend_analysis, "trend_type")
             assert hasattr(trend_analysis, "central_line")
             assert hasattr(trend_analysis, "ucl")
             assert hasattr(trend_analysis, "lcl")
@@ -539,18 +538,16 @@ class TestHistoricalPerformancePattern:
         assert upward_result.current_trend is not None
         assert upward_result.current_trend.trend_type == TrendType.UPWARD
 
-        # Check trend_analysis has upward trend types
-        upward_trends = [ta for ta in upward_result.trend_analysis if ta.trend_type == TrendType.UPWARD]
-        assert len(upward_trends) > 0, "Expected upward trend types in trend_analysis"
+        # Check that trend_analysis has SPC data (trend_type is now determined separately)
+        assert len(upward_result.trend_analysis) > 0, "Expected trend analysis data"
 
         # Act & Assert for downward trend
         downward_result = pattern.analyze(metric_id=metric_id, data=downward_df, analysis_window=analysis_window)
         assert downward_result.current_trend is not None
         assert downward_result.current_trend.trend_type == TrendType.DOWNWARD
 
-        # Check trend_analysis has downward trend types
-        downward_trends = [ta for ta in downward_result.trend_analysis if ta.trend_type == TrendType.DOWNWARD]
-        assert len(downward_trends) > 0, "Expected downward trend types in trend_analysis"
+        # Check that trend_analysis has SPC data (trend_type is now determined separately)
+        assert len(downward_result.trend_analysis) > 0, "Expected trend analysis data"
 
         # Act & Assert for plateau
         plateau_result = pattern.analyze(metric_id=metric_id, data=plateau_df, analysis_window=analysis_window)
@@ -578,17 +575,15 @@ class TestHistoricalPerformancePattern:
 
             # If analysis succeeds, verify the result structure
             assert result is not None
-            # With insufficient data, trend_analysis might be empty or have limited data
+            # If trend_analysis exists, it should still have valid structure
             if result.trend_analysis:
-                # If trend_analysis exists, it should still have valid structure
                 for ta in result.trend_analysis:
                     assert hasattr(ta, "value")
                     assert hasattr(ta, "date")
-                    assert hasattr(ta, "trend_type")
         except ValidationError as e:
             # If validation fails due to insufficient data, that's acceptable
             # The pattern should handle this case gracefully
-            assert "insufficient" in str(e).lower() or "trend_type" in str(e).lower()
+            assert "insufficient" in str(e).lower()
             # This is expected behavior for insufficient data
 
     def test_spc_date_alignment(self, pattern, analysis_window):

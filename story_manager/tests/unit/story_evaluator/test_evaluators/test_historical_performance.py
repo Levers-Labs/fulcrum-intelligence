@@ -17,6 +17,7 @@ from levers.models.patterns import (
     HistoricalPerformance,
     RankSummary,
     Seasonality,
+    TrendAnalysis,
     TrendException,
     TrendInfo,
 )
@@ -1073,13 +1074,9 @@ def test_prepare_series_data_with_pop_growth(evaluator, mock_historical_performa
     assert len(none_df) == len(series_df)
 
 
-def test_prepare_series_data_with_spc(evaluator, mock_historical_performance):
-    """Test the _prepare_series_data_with_spc method."""
+def test_prepare_trend_analysis_series_data(evaluator, mock_historical_performance):
+    """Test the _prepare_trend_analysis_series_data method."""
     _ensure_series_df(evaluator)
-    import pandas as pd
-
-    from levers.models import TrendType
-    from levers.models.patterns import TrendAnalysis
 
     # Set up series_df
     series_df = pd.DataFrame(
@@ -1092,7 +1089,6 @@ def test_prepare_series_data_with_spc(evaluator, mock_historical_performance):
         TrendAnalysis(
             value=100.0,
             date="2023-10-01",
-            trend_type=TrendType.UPWARD,
             central_line=102.0,
             ucl=115.0,
             lcl=89.0,
@@ -1103,7 +1099,6 @@ def test_prepare_series_data_with_spc(evaluator, mock_historical_performance):
         TrendAnalysis(
             value=105.0,
             date="2023-10-02",
-            trend_type=TrendType.UPWARD,
             central_line=103.0,
             ucl=116.0,
             lcl=90.0,
@@ -1114,7 +1109,6 @@ def test_prepare_series_data_with_spc(evaluator, mock_historical_performance):
         TrendAnalysis(
             value=110.0,
             date="2023-10-03",
-            trend_type=TrendType.UPWARD,
             central_line=104.0,
             ucl=117.0,
             lcl=91.0,
@@ -1125,7 +1119,7 @@ def test_prepare_series_data_with_spc(evaluator, mock_historical_performance):
     ]
 
     # Act
-    df = evaluator._prepare_series_data_with_spc(mock_historical_performance)
+    df = evaluator._prepare_trend_analysis_series_data(mock_historical_performance)
 
     # Assert
     assert isinstance(df, pd.DataFrame)
@@ -1137,7 +1131,6 @@ def test_prepare_series_data_with_spc(evaluator, mock_historical_performance):
     assert "slope" in df.columns
     assert "slope_change_percent" in df.columns
     assert "trend_signal_detected" in df.columns
-    assert "trend_type" in df.columns
 
     # Check that data is properly merged
     assert len(df) == len(series_df)
@@ -1154,8 +1147,8 @@ def test_prepare_series_data_with_spc(evaluator, mock_historical_performance):
     assert second_row["trend_signal_detected"] is True
 
 
-def test_prepare_series_data_with_spc_empty_trend_analysis(evaluator, mock_historical_performance):
-    """Test _prepare_series_data_with_spc with empty trend_analysis."""
+def test_prepare_trend_analysis_series_data_empty_trend_analysis(evaluator, mock_historical_performance):
+    """Test _prepare_trend_analysis_series_data with empty trend_analysis."""
     _ensure_series_df(evaluator)
     import pandas as pd
 
@@ -1165,7 +1158,7 @@ def test_prepare_series_data_with_spc_empty_trend_analysis(evaluator, mock_histo
 
     # Test with empty trend_analysis
     mock_historical_performance.trend_analysis = []
-    df = evaluator._prepare_series_data_with_spc(mock_historical_performance)
+    df = evaluator._prepare_trend_analysis_series_data(mock_historical_performance)
 
     assert isinstance(df, pd.DataFrame)
     assert len(df) == len(series_df)
@@ -1175,18 +1168,14 @@ def test_prepare_series_data_with_spc_empty_trend_analysis(evaluator, mock_histo
 
     # Test with None trend_analysis
     mock_historical_performance.trend_analysis = None
-    df_none = evaluator._prepare_series_data_with_spc(mock_historical_performance)
+    df_none = evaluator._prepare_trend_analysis_series_data(mock_historical_performance)
     assert isinstance(df_none, pd.DataFrame)
     assert len(df_none) == len(series_df)
 
 
-def test_prepare_series_data_with_spc_missing_date_column(evaluator, mock_historical_performance):
-    """Test _prepare_series_data_with_spc when trend_analysis has mismatched dates."""
+def test_prepare_trend_analysis_series_data_missing_date_column(evaluator, mock_historical_performance):
+    """Test _prepare_trend_analysis_series_data when trend_analysis has mismatched dates."""
     _ensure_series_df(evaluator)
-    import pandas as pd
-
-    from levers.models import TrendType
-    from levers.models.patterns import TrendAnalysis
 
     # Set up series_df
     series_df = pd.DataFrame({"date": pd.date_range(start="2023-10-01", periods=3, freq="D"), "value": [100, 105, 110]})
@@ -1197,13 +1186,12 @@ def test_prepare_series_data_with_spc_missing_date_column(evaluator, mock_histor
         TrendAnalysis(
             value=100.0,
             date="2023-09-01",  # Date not in series_df
-            trend_type=TrendType.UPWARD,
             central_line=102.0,
         ),
     ]
 
     # Act
-    result_df = evaluator._prepare_series_data_with_spc(mock_historical_performance)
+    result_df = evaluator._prepare_trend_analysis_series_data(mock_historical_performance)
 
     # Assert
     assert isinstance(result_df, pd.DataFrame)
@@ -1211,13 +1199,9 @@ def test_prepare_series_data_with_spc_missing_date_column(evaluator, mock_histor
     assert len(result_df) == len(series_df)
 
 
-def test_prepare_series_data_with_spc_date_mismatch(evaluator, mock_historical_performance):
-    """Test _prepare_series_data_with_spc when dates don't perfectly align."""
+def test_prepare_trend_analysis_series_data_date_mismatch(evaluator, mock_historical_performance):
+    """Test _prepare_trend_analysis_series_data when dates don't perfectly align."""
     _ensure_series_df(evaluator)
-    import pandas as pd
-
-    from levers.models import TrendType
-    from levers.models.patterns import TrendAnalysis
 
     # Set up series_df
     series_df = pd.DataFrame({"date": pd.date_range(start="2023-10-01", periods=3, freq="D"), "value": [100, 105, 110]})
@@ -1228,7 +1212,6 @@ def test_prepare_series_data_with_spc_date_mismatch(evaluator, mock_historical_p
         TrendAnalysis(
             value=100.0,
             date="2023-10-01",
-            trend_type=TrendType.UPWARD,
             central_line=102.0,
             ucl=115.0,
             lcl=89.0,
@@ -1236,7 +1219,6 @@ def test_prepare_series_data_with_spc_date_mismatch(evaluator, mock_historical_p
         TrendAnalysis(
             value=108.0,
             date="2023-10-05",  # Date not in series_df
-            trend_type=TrendType.UPWARD,
             central_line=104.0,
             ucl=117.0,
             lcl=91.0,
@@ -1244,7 +1226,7 @@ def test_prepare_series_data_with_spc_date_mismatch(evaluator, mock_historical_p
     ]
 
     # Act
-    df = evaluator._prepare_series_data_with_spc(mock_historical_performance)
+    df = evaluator._prepare_trend_analysis_series_data(mock_historical_performance)
 
     # Assert
     assert isinstance(df, pd.DataFrame)
@@ -1262,10 +1244,6 @@ def test_prepare_series_data_with_spc_date_mismatch(evaluator, mock_historical_p
 def test_spc_story_generation_with_signals(evaluator, mock_historical_performance, mock_metric):
     """Test that SPC signals influence story generation."""
     _ensure_series_df(evaluator)
-    import pandas as pd
-
-    from levers.models import TrendType
-    from levers.models.patterns import TrendAnalysis
 
     # Set up series_df
     series_df = pd.DataFrame(
@@ -1278,7 +1256,6 @@ def test_spc_story_generation_with_signals(evaluator, mock_historical_performanc
         TrendAnalysis(
             value=100.0,
             date="2023-10-01",
-            trend_type=TrendType.UPWARD,
             central_line=102.0,
             ucl=115.0,
             lcl=89.0,
@@ -1288,7 +1265,6 @@ def test_spc_story_generation_with_signals(evaluator, mock_historical_performanc
         TrendAnalysis(
             value=105.0,
             date="2023-10-02",
-            trend_type=TrendType.UPWARD,
             central_line=103.0,
             ucl=116.0,
             lcl=90.0,
@@ -1298,7 +1274,7 @@ def test_spc_story_generation_with_signals(evaluator, mock_historical_performanc
     ]
 
     # Test that SPC data is properly prepared for stories
-    df = evaluator._prepare_series_data_with_spc(mock_historical_performance)
+    df = evaluator._prepare_trend_analysis_series_data(mock_historical_performance)
 
     # Check that signals are preserved
     signals = df["trend_signal_detected"].dropna()
@@ -1308,10 +1284,6 @@ def test_spc_story_generation_with_signals(evaluator, mock_historical_performanc
 def test_spc_control_limits_in_story_data(evaluator, mock_historical_performance):
     """Test that SPC control limits are properly included in story data."""
     _ensure_series_df(evaluator)
-    import pandas as pd
-
-    from levers.models import TrendType
-    from levers.models.patterns import TrendAnalysis
 
     # Set up series_df
     series_df = pd.DataFrame({"date": pd.date_range(start="2023-10-01", periods=3, freq="D"), "value": [100, 105, 110]})
@@ -1322,7 +1294,6 @@ def test_spc_control_limits_in_story_data(evaluator, mock_historical_performance
         TrendAnalysis(
             value=100.0,
             date="2023-10-01",
-            trend_type=TrendType.UPWARD,
             central_line=102.0,
             ucl=115.0,
             lcl=89.0,
@@ -1332,7 +1303,6 @@ def test_spc_control_limits_in_story_data(evaluator, mock_historical_performance
         TrendAnalysis(
             value=105.0,
             date="2023-10-02",
-            trend_type=TrendType.UPWARD,
             central_line=103.0,
             ucl=116.0,
             lcl=90.0,
@@ -1342,7 +1312,7 @@ def test_spc_control_limits_in_story_data(evaluator, mock_historical_performance
     ]
 
     # Act
-    df = evaluator._prepare_series_data_with_spc(mock_historical_performance)
+    df = evaluator._prepare_trend_analysis_series_data(mock_historical_performance)
 
     # Assert control limits are present and valid
     assert "ucl" in df.columns
@@ -1363,10 +1333,6 @@ def test_spc_control_limits_in_story_data(evaluator, mock_historical_performance
 def test_spc_slope_data_in_stories(evaluator, mock_historical_performance):
     """Test that SPC slope data is properly included for trend stories."""
     _ensure_series_df(evaluator)
-    import pandas as pd
-
-    from levers.models import TrendType
-    from levers.models.patterns import TrendAnalysis
 
     # Set up series_df
     series_df = pd.DataFrame(
@@ -1379,7 +1345,6 @@ def test_spc_slope_data_in_stories(evaluator, mock_historical_performance):
         TrendAnalysis(
             value=100.0,
             date="2023-10-01",
-            trend_type=TrendType.UPWARD,
             slope=2.5,
             slope_change_percent=0.0,
             trend_signal_detected=False,
@@ -1387,7 +1352,6 @@ def test_spc_slope_data_in_stories(evaluator, mock_historical_performance):
         TrendAnalysis(
             value=105.0,
             date="2023-10-02",
-            trend_type=TrendType.UPWARD,
             slope=2.7,
             slope_change_percent=8.0,
             trend_signal_detected=False,
@@ -1395,7 +1359,6 @@ def test_spc_slope_data_in_stories(evaluator, mock_historical_performance):
         TrendAnalysis(
             value=110.0,
             date="2023-10-03",
-            trend_type=TrendType.UPWARD,
             slope=2.8,
             slope_change_percent=3.7,
             trend_signal_detected=False,
@@ -1403,7 +1366,7 @@ def test_spc_slope_data_in_stories(evaluator, mock_historical_performance):
     ]
 
     # Act
-    df = evaluator._prepare_series_data_with_spc(mock_historical_performance)
+    df = evaluator._prepare_trend_analysis_series_data(mock_historical_performance)
 
     # Assert slope data is present
     assert "slope" in df.columns
@@ -1422,10 +1385,6 @@ def test_spc_slope_data_in_stories(evaluator, mock_historical_performance):
 async def test_evaluate_with_spc_trend_signals(mock_historical_performance, mock_metric, evaluator):
     """Test story evaluation when SPC trend signals are present."""
     _ensure_series_df(evaluator)
-    import pandas as pd
-
-    from levers.models import TrendType
-    from levers.models.patterns import TrendAnalysis
 
     # Set up series_df with matching dates
     series_df = pd.DataFrame(
@@ -1438,7 +1397,6 @@ async def test_evaluate_with_spc_trend_signals(mock_historical_performance, mock
         TrendAnalysis(
             value=100.0,
             date="2023-10-01",
-            trend_type=TrendType.UPWARD,
             central_line=102.0,
             ucl=115.0,
             lcl=89.0,
@@ -1448,7 +1406,6 @@ async def test_evaluate_with_spc_trend_signals(mock_historical_performance, mock
         TrendAnalysis(
             value=105.0,
             date="2023-10-02",
-            trend_type=TrendType.UPWARD,
             central_line=103.0,
             ucl=116.0,
             lcl=90.0,

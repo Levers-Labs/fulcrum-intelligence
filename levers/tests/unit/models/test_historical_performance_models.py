@@ -486,26 +486,22 @@ class TestTrendAnalysis:
         """Test creating a valid TrendAnalysis object."""
         # Arrange & Act
         trend_analysis = TrendAnalysis(
-            trend_type=TrendType.UPWARD,
             value=150.0,
             date="2023-01-31",
             central_line=120.0,
             ucl=140.0,
             lcl=100.0,
             slope=2.5,
-            slope_change_percent=10.0,
             trend_signal_detected=True,
         )
 
         # Assert
-        assert trend_analysis.trend_type == TrendType.UPWARD
         assert trend_analysis.value == 150.0
         assert trend_analysis.date == "2023-01-31"
         assert trend_analysis.central_line == 120.0
         assert trend_analysis.ucl == 140.0
         assert trend_analysis.lcl == 100.0
         assert trend_analysis.slope == 2.5
-        assert trend_analysis.slope_change_percent == 10.0
         assert trend_analysis.trend_signal_detected is True
 
     def test_optional_fields(self):
@@ -514,24 +510,20 @@ class TestTrendAnalysis:
         trend_analysis = TrendAnalysis(
             value=150.0,
             date="2023-01-31",
-            trend_type=None,
             central_line=None,
             ucl=None,
             lcl=None,
             slope=None,
-            slope_change_percent=None,
             trend_signal_detected=False,
         )
 
         # Assert
-        assert trend_analysis.trend_type is None
         assert trend_analysis.value == 150.0
         assert trend_analysis.date == "2023-01-31"
         assert trend_analysis.central_line is None
         assert trend_analysis.ucl is None
         assert trend_analysis.lcl is None
         assert trend_analysis.slope is None
-        assert trend_analysis.slope_change_percent is None
         assert trend_analysis.trend_signal_detected is False
 
     def test_required_fields(self):
@@ -539,7 +531,6 @@ class TestTrendAnalysis:
         # Act & Assert
         with pytest.raises(ValidationError):
             TrendAnalysis(
-                trend_type=TrendType.UPWARD,
                 date="2023-01-31",
                 # Missing value
             )
@@ -548,14 +539,12 @@ class TestTrendAnalysis:
         """Test conversion to dictionary."""
         # Arrange
         trend_analysis = TrendAnalysis(
-            trend_type=TrendType.UPWARD,
             value=150.0,
             date="2023-01-31",
             central_line=120.0,
             ucl=140.0,
             lcl=100.0,
             slope=2.5,
-            slope_change_percent=10.0,
             trend_signal_detected=True,
         )
 
@@ -563,14 +552,12 @@ class TestTrendAnalysis:
         result = trend_analysis.to_dict()
 
         # Assert
-        assert result["trend_type"] == "upward"
         assert result["value"] == 150.0
         assert result["date"] == "2023-01-31"
         assert result["central_line"] == 120.0
         assert result["ucl"] == 140.0
         assert result["lcl"] == 100.0
         assert result["slope"] == 2.5
-        assert result["slope_change_percent"] == 10.0
         assert result["trend_signal_detected"] is True
 
 
@@ -592,7 +579,6 @@ class TestHistoricalPerformance:
             current_trend=TrendInfo(trend_type=TrendType.UPWARD, start_date="2023-01-01", duration_grains=31),
             trend_analysis=[
                 TrendAnalysis(
-                    trend_type=TrendType.UPWARD,
                     value=150.0,
                     date="2023-01-31",
                     central_line=120.0,
@@ -620,7 +606,6 @@ class TestHistoricalPerformance:
         assert performance.growth_stats.current_pop_growth == 12.0
         assert performance.current_trend.trend_type == TrendType.UPWARD
         assert len(performance.trend_analysis) == 1
-        assert performance.trend_analysis[0].trend_type == TrendType.UPWARD
         assert performance.trend_analysis[0].central_line == 120.0
         assert performance.high_rank.value == 150.0
         assert performance.low_rank.value == 100.0
@@ -650,10 +635,13 @@ class TestHistoricalPerformance:
             growth_stats=GrowthStats(),
             trend_analysis=[
                 TrendAnalysis(
-                    trend_type=TrendType.UPWARD,
                     value=150.0,
                     date="2023-01-31",
                     central_line=120.0,
+                    ucl=140.0,
+                    lcl=100.0,
+                    slope=2.5,
+                    trend_signal_detected=True,
                 )
             ],
             high_rank=RankSummary(value=150.0, rank=1, duration_grains=31),
