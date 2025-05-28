@@ -31,12 +31,12 @@ from levers.models.patterns import (
     PeriodMetrics,
     RankSummary,
     Seasonality,
+    TrendAnalysis,
     TrendException,
     TrendInfo,
 )
 from levers.patterns import Pattern
 from levers.primitives import (
-    analyze_metric_trend,
     calculate_average_growth,
     calculate_period_benchmarks,
     calculate_pop_growth,
@@ -59,7 +59,6 @@ class HistoricalPerformancePattern(Pattern[HistoricalPerformance]):
     required_primitives = [
         "calculate_pop_growth",
         "calculate_average_growth",
-        "analyze_metric_trend",
         "detect_record_high",
         "detect_record_low",
         "detect_trend_exceptions",
@@ -129,15 +128,17 @@ class HistoricalPerformancePattern(Pattern[HistoricalPerformance]):
                 df=period_data,
                 date_col="date",
                 value_col="value",
-                min_data_points=5,
                 half_average_point=len(period_data) // 2,
             )
 
             # Compute period metrics (growth, acceleration, and SPC data)
-            period_metrics = self._compute_period_metrics(period_data_with_spc)
+            period_metrics = self._compute_period_metrics(period_data)
 
             # Calculate growth summary statistics
             growth_stats = self._calculate_growth_statistics(period_data, period_metrics)
+
+            # Compute trend analysis objects from SPC data
+            trend_analysis = self._compute_trend_analysis(period_data_with_spc)
 
             # Analyze trends using period data and pre-computed SPC data
             trend_info = self._analyze_trends(period_data_with_spc, avg_pop_growth=growth_stats.average_pop_growth)
@@ -166,6 +167,7 @@ class HistoricalPerformancePattern(Pattern[HistoricalPerformance]):
                 "growth_stats": growth_stats,
                 "current_trend": trend_info["current_trend"],
                 "previous_trend": trend_info["previous_trend"],
+                "trend_analysis": trend_analysis,
                 "high_rank": value_rankings["high_rank"],
                 "low_rank": value_rankings["low_rank"],
                 "seasonality": seasonality_pattern,
@@ -250,15 +252,42 @@ class HistoricalPerformancePattern(Pattern[HistoricalPerformance]):
                     period_end=curr["date"].strftime("%Y-%m-%d"),
                     pop_growth_percent=pop_growth,
                     pop_acceleration_percent=pop_acceleration,
-                    central_line=curr["central_line"],
-                    ucl=curr["ucl"],
-                    lcl=curr["lcl"],
-                    slope=curr["slope"],
-                    slope_change_percent=curr["slope_change"],
-                    trend_signal_detected=curr["trend_signal_detected"],
                 )
             )
         return period_metrics
+
+    def _compute_trend_analysis(self, period_data_with_spc: pd.DataFrame) -> list[TrendAnalysis]:
+        """
+        Compute trend analysis objects from SPC data.
+
+        Args:
+            period_data_with_spc: DataFrame containing time series data with SPC analysis results
+
+        Returns:
+            List of TrendAnalysis objects containing trend information for each data point
+        """
+        # Convert DataFrame to list of dictionaries for efficient processing
+        records = period_data_with_spc.to_dict("records")
+
+        # Create TrendAnalysis objects using list comprehension
+        trend_analysis = [
+            TrendAnalysis(
+                trend_type=record["trend_type"],
+                value=record["value"],
+                date=(
+                    record["date"].strftime("%Y-%m-%d") if hasattr(record["date"], "strftime") else str(record["date"])
+                ),
+                central_line=record.get("central_line"),
+                ucl=record.get("ucl"),
+                lcl=record.get("lcl"),
+                slope=record.get("slope"),
+                slope_change_percent=record.get("slope_change"),
+                trend_signal_detected=record.get("trend_signal_detected", False),
+            )
+            for record in records
+        ]
+
+        return trend_analysis
 
     def _calculate_growth_statistics(
         self,
@@ -321,31 +350,25 @@ class HistoricalPerformancePattern(Pattern[HistoricalPerformance]):
         self, period_data_with_spc: pd.DataFrame, avg_pop_growth: float | None
     ) -> dict[str, TrendInfo | None]:
         """
-        Analyze metric trends and classify current and previous trends.
+        Analyze metric trends and classify current and previous trends using SPC data.
 
         Args:
-            period_data_with_spc: DataFrame containing time series data at the appropriate grain
+            period_data_with_spc: DataFrame containing time series data with SPC analysis results
             avg_pop_growth: Average growth rate over the analysis window
 
         Returns:
             Dictionary containing current and previous trend information
         """
-        # Trend classification using SPC data
-        trend_result = analyze_metric_trend(
-            df=period_data_with_spc,
-            value_col="value",
-            date_col="date",
-        )
-        # If no trend, return None
-        # No need to analyze previous trend in this case
-        if trend_result is None:
+        if len(period_data_with_spc) < 2:
             return {
                 "current_trend": None,
                 "previous_trend": None,
             }
 
+        # Get the most recent trend type from SPC analysis
+        current_trend_type = period_data_with_spc["trend_type"].iloc[-1]
+
         # Define trend_start_date as the earliest date in period_data
-        # TODO: shouldn't we consider trend signal detected flag too?
         trend_start_date = period_data_with_spc["date"].iloc[0].strftime("%Y-%m-%d")
 
         # For "previous" trend info, analyze the previous subset
@@ -353,7 +376,7 @@ class HistoricalPerformancePattern(Pattern[HistoricalPerformance]):
 
         return {
             "current_trend": TrendInfo(
-                trend_type=trend_result.trend_type,
+                trend_type=current_trend_type,
                 start_date=trend_start_date,
                 average_pop_growth=avg_pop_growth,
                 duration_grains=len(period_data_with_spc),
@@ -363,10 +386,10 @@ class HistoricalPerformancePattern(Pattern[HistoricalPerformance]):
 
     def _analyze_previous_trend(self, period_data_with_spc: pd.DataFrame) -> TrendInfo | None:
         """
-        Analyze the previous trend by examining all points except the last one.
+        Analyze the previous trend by examining all points except the last one using SPC data.
 
         Args:
-            period_data_with_spc: DataFrame containing time series data at the appropriate grain
+            period_data_with_spc: DataFrame containing time series data with SPC analysis results
 
         Returns:
             TrendInfo object containing previous trend information
@@ -376,16 +399,11 @@ class HistoricalPerformancePattern(Pattern[HistoricalPerformance]):
 
         prev_subset = period_data_with_spc.iloc[:-1].copy()
 
-        prev_trend_res = analyze_metric_trend(
-            df=prev_subset,
-            value_col="value",
-            date_col="date",
-        )
-
-        # If no trend, return None
-        if prev_trend_res is None:
+        if len(prev_subset) < 1:
             return None
 
+        # Get the most recent trend type from the previous subset
+        previous_trend_type = prev_subset["trend_type"].iloc[-1]
         previous_trend_start_date = prev_subset["date"].iloc[0].strftime("%Y-%m-%d")
 
         # Calculate average growth for previous subset
@@ -396,7 +414,7 @@ class HistoricalPerformancePattern(Pattern[HistoricalPerformance]):
         previous_trend_duration_grains = len(prev_subset)
 
         return TrendInfo(
-            trend_type=prev_trend_res.trend_type,
+            trend_type=previous_trend_type,
             start_date=previous_trend_start_date,
             average_pop_growth=previous_trend_average_pop_growth,
             duration_grains=previous_trend_duration_grains,

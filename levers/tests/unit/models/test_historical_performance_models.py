@@ -18,6 +18,7 @@ from levers.models.patterns import (
     PeriodMetrics,
     RankSummary,
     Seasonality,
+    TrendAnalysis,
     TrendException,
     TrendInfo,
 )
@@ -34,12 +35,6 @@ class TestPeriodMetrics:
             period_end="2023-01-31",
             pop_growth_percent=10.5,
             pop_acceleration_percent=2.0,
-            central_line=105.5,
-            ucl=120.3,
-            lcl=90.7,
-            slope=1.5,
-            slope_change_percent=0.5,
-            trend_signal_detected=True,
         )
 
         # Assert
@@ -47,12 +42,6 @@ class TestPeriodMetrics:
         assert metrics.period_end == "2023-01-31"
         assert metrics.pop_growth_percent == 10.5
         assert metrics.pop_acceleration_percent == 2.0
-        assert metrics.central_line == 105.5
-        assert metrics.ucl == 120.3
-        assert metrics.lcl == 90.7
-        assert metrics.slope == 1.5
-        assert metrics.slope_change_percent == 0.5
-        assert metrics.trend_signal_detected is True
 
     def test_optional_fields(self):
         """Test creating an object with optional fields as None."""
@@ -62,11 +51,6 @@ class TestPeriodMetrics:
             period_end="2023-01-31",
             pop_growth_percent=None,
             pop_acceleration_percent=None,
-            central_line=None,
-            ucl=None,
-            lcl=None,
-            slope=None,
-            slope_change_percent=None,
         )
 
         # Assert
@@ -74,12 +58,6 @@ class TestPeriodMetrics:
         assert metrics.period_end == "2023-01-31"
         assert metrics.pop_growth_percent is None
         assert metrics.pop_acceleration_percent is None
-        assert metrics.central_line is None
-        assert metrics.ucl is None
-        assert metrics.lcl is None
-        assert metrics.slope is None
-        assert metrics.slope_change_percent is None
-        assert metrics.trend_signal_detected is False  # Default value
 
     def test_required_fields(self):
         """Test required fields validation."""
@@ -98,12 +76,6 @@ class TestPeriodMetrics:
             period_end="2023-01-31",
             pop_growth_percent=10.5,
             pop_acceleration_percent=2.0,
-            central_line=105.5,
-            ucl=120.3,
-            lcl=90.7,
-            slope=1.5,
-            slope_change_percent=0.5,
-            trend_signal_detected=True,
         )
 
         # Act
@@ -114,12 +86,6 @@ class TestPeriodMetrics:
         assert result["period_end"] == "2023-01-31"
         assert result["pop_growth_percent"] == 10.5
         assert result["pop_acceleration_percent"] == 2.0
-        assert result["central_line"] == 105.5
-        assert result["ucl"] == 120.3
-        assert result["lcl"] == 90.7
-        assert result["slope"] == 1.5
-        assert result["slope_change_percent"] == 0.5
-        assert result["trend_signal_detected"] is True
 
 
 class TestGrowthStats:
@@ -513,6 +479,101 @@ class TestTrendException:
         assert result["magnitude_percent"] == 15.38
 
 
+class TestTrendAnalysis:
+    """Tests for the TrendAnalysis class."""
+
+    def test_valid_creation(self):
+        """Test creating a valid TrendAnalysis object."""
+        # Arrange & Act
+        trend_analysis = TrendAnalysis(
+            trend_type=TrendType.UPWARD,
+            value=150.0,
+            date="2023-01-31",
+            central_line=120.0,
+            ucl=140.0,
+            lcl=100.0,
+            slope=2.5,
+            slope_change_percent=10.0,
+            trend_signal_detected=True,
+        )
+
+        # Assert
+        assert trend_analysis.trend_type == TrendType.UPWARD
+        assert trend_analysis.value == 150.0
+        assert trend_analysis.date == "2023-01-31"
+        assert trend_analysis.central_line == 120.0
+        assert trend_analysis.ucl == 140.0
+        assert trend_analysis.lcl == 100.0
+        assert trend_analysis.slope == 2.5
+        assert trend_analysis.slope_change_percent == 10.0
+        assert trend_analysis.trend_signal_detected is True
+
+    def test_optional_fields(self):
+        """Test creating an object with optional fields as None."""
+        # Arrange & Act
+        trend_analysis = TrendAnalysis(
+            value=150.0,
+            date="2023-01-31",
+            trend_type=None,
+            central_line=None,
+            ucl=None,
+            lcl=None,
+            slope=None,
+            slope_change_percent=None,
+            trend_signal_detected=False,
+        )
+
+        # Assert
+        assert trend_analysis.trend_type is None
+        assert trend_analysis.value == 150.0
+        assert trend_analysis.date == "2023-01-31"
+        assert trend_analysis.central_line is None
+        assert trend_analysis.ucl is None
+        assert trend_analysis.lcl is None
+        assert trend_analysis.slope is None
+        assert trend_analysis.slope_change_percent is None
+        assert trend_analysis.trend_signal_detected is False
+
+    def test_required_fields(self):
+        """Test required fields validation."""
+        # Act & Assert
+        with pytest.raises(ValidationError):
+            TrendAnalysis(
+                trend_type=TrendType.UPWARD,
+                date="2023-01-31",
+                # Missing value
+            )
+
+    def test_dict_conversion(self):
+        """Test conversion to dictionary."""
+        # Arrange
+        trend_analysis = TrendAnalysis(
+            trend_type=TrendType.UPWARD,
+            value=150.0,
+            date="2023-01-31",
+            central_line=120.0,
+            ucl=140.0,
+            lcl=100.0,
+            slope=2.5,
+            slope_change_percent=10.0,
+            trend_signal_detected=True,
+        )
+
+        # Act
+        result = trend_analysis.to_dict()
+
+        # Assert
+        assert result["trend_type"] == "upward"
+        assert result["value"] == 150.0
+        assert result["date"] == "2023-01-31"
+        assert result["central_line"] == 120.0
+        assert result["ucl"] == 140.0
+        assert result["lcl"] == 100.0
+        assert result["slope"] == 2.5
+        assert result["slope_change_percent"] == 10.0
+        assert result["trend_signal_detected"] is True
+
+
 class TestHistoricalPerformance:
     """Tests for the HistoricalPerformance class."""
 
@@ -529,6 +590,18 @@ class TestHistoricalPerformance:
             ],
             growth_stats=GrowthStats(current_pop_growth=12.0, average_pop_growth=11.25),
             current_trend=TrendInfo(trend_type=TrendType.UPWARD, start_date="2023-01-01", duration_grains=31),
+            trend_analysis=[
+                TrendAnalysis(
+                    trend_type=TrendType.UPWARD,
+                    value=150.0,
+                    date="2023-01-31",
+                    central_line=120.0,
+                    ucl=140.0,
+                    lcl=100.0,
+                    slope=2.5,
+                    trend_signal_detected=True,
+                )
+            ],
             high_rank=RankSummary(value=150.0, rank=1, duration_grains=31),
             low_rank=RankSummary(value=100.0, rank=31, duration_grains=31),
             benchmark_comparison=BenchmarkComparison(reference_period="WTD", absolute_change=10.0, change_percent=5.0),
@@ -546,6 +619,9 @@ class TestHistoricalPerformance:
         assert len(performance.period_metrics) == 2
         assert performance.growth_stats.current_pop_growth == 12.0
         assert performance.current_trend.trend_type == TrendType.UPWARD
+        assert len(performance.trend_analysis) == 1
+        assert performance.trend_analysis[0].trend_type == TrendType.UPWARD
+        assert performance.trend_analysis[0].central_line == 120.0
         assert performance.high_rank.value == 150.0
         assert performance.low_rank.value == 100.0
         assert performance.benchmark_comparison is not None
@@ -572,6 +648,14 @@ class TestHistoricalPerformance:
             metric_id="test_metric",
             analysis_window=AnalysisWindow(start_date="2023-01-01", end_date="2023-01-31"),
             growth_stats=GrowthStats(),
+            trend_analysis=[
+                TrendAnalysis(
+                    trend_type=TrendType.UPWARD,
+                    value=150.0,
+                    date="2023-01-31",
+                    central_line=120.0,
+                )
+            ],
             high_rank=RankSummary(value=150.0, rank=1, duration_grains=31),
             low_rank=RankSummary(value=100.0, rank=31, duration_grains=31),
             grain=Granularity.DAY,
@@ -587,5 +671,7 @@ class TestHistoricalPerformance:
         assert result["analysis_window"]["end_date"] == "2023-01-31"
         assert "period_metrics" in result
         assert "growth_stats" in result
+        assert "trend_analysis" in result
+        assert len(result["trend_analysis"]) == 1
         assert "high_rank" in result
         assert "low_rank" in result

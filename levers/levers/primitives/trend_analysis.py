@@ -18,6 +18,7 @@ import logging
 
 import numpy as np
 import pandas as pd
+from scipy.stats import linregress
 
 from levers.exceptions import InsufficientDataError, ValidationError
 from levers.models import (
@@ -36,14 +37,10 @@ logger = logging.getLogger(__name__)
 
 
 def analyze_metric_trend(
-    df: pd.DataFrame,
-    value_col: str = "value",
-    date_col: str = "date",
-    # TODO: reconfirm window size
-    window_size: int = 7,
+    df: pd.DataFrame, value_col: str = "value", date_col: str = "date", window_size: int = 7
 ) -> TrendAnalysis | None:
     """
-    Analyze the trend direction in a time series using Statistical Process Control analysis.
+    Analyze the trend direction in a time series.
 
     Family: trend_analysis
     Version: 1.0
@@ -70,25 +67,27 @@ def analyze_metric_trend(
         logger.warning("Not enough data points to analyze trend")
         return None
 
-    # Use SPC analysis if we have enough data
-    # TODO: check how much min data is needed
-    # if len(df_sorted) >= 5:
-    # Extract trend info from SPC data
-    latest_row = df_sorted.iloc[-1]
+    # Full dataset trend analysis
+    y = df_sorted[value_col].values
+    x = np.arange(len(y))
 
-    # Get the slope from SPC analysis
-    slope = latest_row.get("slope", 0)
-    if pd.isna(slope):
-        slope = 0
+    # Handle missing values
+    mask = ~np.isnan(y)  # type: ignore
+    if sum(mask) < 2:
+        return None
 
-    # Get normalized slope
-    mean_val = df_sorted[value_col].mean()
+    # Calculate trend using linregress
+    slope, _, r_value, _, _ = linregress(x[mask], y[mask])
+    trend_confidence = r_value**2  # R-squared
+
+    # Calculate normalized slope
+    mean_val = np.mean(y[mask])
     if mean_val != 0:
         norm_slope = (slope / abs(mean_val)) * 100  # as percentage
     else:
-        norm_slope = 0 if slope == 0 else (100 if slope > 0 else -100)
+        norm_slope = 0 if slope == 0 else (100 if slope > 0 else -100)  # Arbitrary large value
 
-    # Determine trend direction using slope
+    # Determine trend direction using absolute slope threshold
     if abs(norm_slope) < 0.5:
         trend_type = TrendType.STABLE
     elif slope > 0:
@@ -96,7 +95,44 @@ def analyze_metric_trend(
     else:
         trend_type = TrendType.DOWNWARD
 
-    # Check for plateau
+    # Check for acceleration and recent trend
+    is_accelerating = False
+    recent_trend_type = None
+
+    # Get recent window for analysis if enough data points
+    if len(df_sorted) >= window_size:
+        recent_df = df_sorted.tail(window_size)
+        recent_y = recent_df[value_col].values
+        recent_x = np.arange(len(recent_y))
+
+        mask_recent = ~np.isnan(recent_y)  # type: ignore
+        if sum(mask_recent) >= 2:
+            # Calculate recent trend using linregress
+            try:
+                recent_slope, _, _, _, _ = linregress(recent_x[mask_recent], recent_y[mask_recent])
+
+                recent_mean = np.mean(recent_y[mask_recent])
+                if recent_mean != 0:
+                    recent_norm_slope = (recent_slope / abs(recent_mean)) * 100
+                else:
+                    recent_norm_slope = 0 if recent_slope == 0 else (100 if recent_slope > 0 else -100)
+
+                if abs(recent_norm_slope) < 0.5:
+                    # Determine recent direction using absolute slope threshold
+                    recent_trend_type = TrendType.STABLE
+                elif recent_slope > 0:
+                    recent_trend_type = TrendType.UPWARD
+                else:
+                    recent_trend_type = TrendType.DOWNWARD
+
+                # Check for acceleration
+                is_accelerating = abs(recent_slope) > abs(slope)
+            except Exception:
+                # If regression fails, skip recent direction and acceleration
+                is_accelerating = False
+                recent_trend_type = None
+
+    # Check for plateau after determining basic trend
     plateau_window = min(window_size, len(df_sorted))
     plateau_result = detect_performance_plateau(df_sorted, value_col=value_col, tolerance=0.01, window=plateau_window)
     is_plateaued = plateau_result.is_plateaued
@@ -105,28 +141,12 @@ def analyze_metric_trend(
     if is_plateaued:
         trend_type = TrendType.PLATEAU
 
-    # Calculate confidence based on scatter within control limits
-    within_limits = 0
-    for _, row in df_sorted.iterrows():
-        if row.get("ucl") is not None and row.get("lcl") is not None and row.get("central_line") is not None:
-            if row.get("lcl") <= row[value_col] <= row.get("ucl"):
-                within_limits += 1
-
-    trend_confidence = within_limits / len(df_sorted) if len(df_sorted) > 0 else 0
-
-    # Determine if accelerating by checking slope change
-    is_accelerating = False
-    if "slope_change" in df_sorted.columns:
-        recent_slope_changes = df_sorted["slope_change"].tail(window_size).dropna()
-        if len(recent_slope_changes) > 0:
-            is_accelerating = recent_slope_changes.mean() > 0
-
     return TrendAnalysis(
         trend_type=trend_type,
         trend_slope=slope,
         trend_confidence=trend_confidence,
         normalized_slope=norm_slope,
-        recent_trend_type=None,  # Not calculated in SPC mode
+        recent_trend_type=recent_trend_type,
         is_accelerating=is_accelerating,
         is_plateaued=is_plateaued,
     )
@@ -549,7 +569,7 @@ def _detect_spc_signals(
         consecutive_run_length: Number of consecutive points for run detection
 
     Returns:
-        List of indices where signals were detected
+        List of signal indices
     """
     n = len(df_segment)
     idx_start = offset
@@ -562,10 +582,9 @@ def _detect_spc_signals(
             continue
 
         val = df_segment[value_col].iloc[i]
-
-        if (ucl_array[idx] is not None and val > ucl_array[idx]) or (
-            lcl_array[idx] is not None and val < lcl_array[idx]
-        ):
+        if ucl_array[idx] is not None and val > ucl_array[idx]:
+            signals_idx.append(idx)
+        elif lcl_array[idx] is not None and val < lcl_array[idx]:
             signals_idx.append(idx)
 
     # 2. Consecutive points above/below center line
@@ -650,7 +669,7 @@ def process_control_analysis(
         consecutive_signal_threshold: Number of consecutive signals that triggers recalculation
 
     Returns:
-        DataFrame with SPC analysis results, including control limits and signals
+        DataFrame with SPC analysis results, including control limits, signals, and trend types
     """
     # Input validation
     if date_col not in df.columns:
@@ -670,6 +689,7 @@ def process_control_analysis(
         result_df["slope"] = None
         result_df["slope_change"] = None
         result_df["trend_signal_detected"] = False
+        result_df["trend_type"] = None
         return result_df
 
     # Create a copy for SPC analysis
@@ -682,6 +702,7 @@ def process_control_analysis(
     lcl_array = [None] * n_points
     signal_array = [False] * n_points
     slope_array: list[float | None] = [None] * n_points
+    trend_type_array: list[TrendType] = [TrendType.STABLE] * n_points
 
     # Process data in segments for a more dynamic approach
     start_idx = 0
@@ -717,8 +738,8 @@ def process_control_analysis(
                     ucl_array[idx] = cl_val + avg_range * control_limit_multiplier  # type: ignore
                     lcl_array[idx] = cl_val - avg_range * control_limit_multiplier  # type: ignore
                 else:
-                    ucl_array[idx] = None  # type: ignore
-                    lcl_array[idx] = None  # type: ignore
+                    ucl_array[idx] = None
+                    lcl_array[idx] = None
 
         # Detect signals
         signals_idx = _detect_spc_signals(
@@ -731,10 +752,12 @@ def process_control_analysis(
             consecutive_run_length=consecutive_run_length,
         )
 
-        # Mark signals
-        for idx in signals_idx:
-            if idx < n_points:
-                signal_array[idx] = True
+        # Mark signals in the global signal array
+        # This loop takes the signal indices detected in the current segment
+        # and marks them as True in the global signal_array that tracks
+        # which data points have SPC rule violations (signals)
+        for signal_idx in signals_idx:
+            signal_array[signal_idx] = True
 
         # Check for consecutive signals to trigger recalculation
         recalc_idx = _check_consecutive_signals(signals_idx, consecutive_signal_threshold)
@@ -744,12 +767,63 @@ def process_control_analysis(
         else:
             start_idx = end_idx
 
+    # Determine trend type for each point using signals and slopes
+    for i in range(n_points):
+        # First check for plateau
+        window_size = min(7, len(dff))
+        start_window = max(0, i - window_size // 2)
+        end_window = min(len(dff), i + window_size // 2 + 1)
+        window_data = dff.iloc[start_window:end_window].copy()
+
+        plateau_result = detect_performance_plateau(
+            window_data, value_col=value_col, tolerance=0.01, window=min(window_size, len(window_data))
+        )
+
+        if plateau_result.is_plateaued:
+            trend_type_array[i] = TrendType.PLATEAU
+        else:
+            # If not plateaued, use slope and signals to determine trend
+            slope = slope_array[i]
+            is_signal = signal_array[i]
+
+            # Use normalized slope comparison like in analyze_metric_trend
+            # This normalizes the slope relative to the mean value to make it
+            # scale-independent and comparable across different value ranges
+            if slope is not None:
+                # TODO: check this window calculation not sure if it is what we need
+                # This defines a 7-point moving window (current point, 3 before, 3 after)
+                # to calculate a local mean. This local mean provides context for
+                # normalizing the slope, making the trend determination sensitive
+                # to recent local behavior of the time series.
+                # Get a window around current point to calculate mean for normalization
+                window_start = max(0, i - 3)
+                window_end = min(len(dff), i + 4)
+                window_values = dff[value_col].iloc[window_start:window_end]
+                mean_val = window_values.mean()
+
+                if mean_val != 0:
+                    normalized_slope = (slope / abs(mean_val)) * 100  # as percentage
+                else:
+                    normalized_slope = 0 if slope == 0 else (100 if slope > 0 else -100)
+
+                # Use 0.5% threshold like in analyze_metric_trend for consistency
+                if abs(normalized_slope) > 0.5:
+                    if slope > 0:
+                        trend_type_array[i] = TrendType.UPWARD if is_signal else TrendType.STABLE
+                    else:
+                        trend_type_array[i] = TrendType.DOWNWARD if is_signal else TrendType.STABLE
+                else:
+                    trend_type_array[i] = TrendType.STABLE
+            else:
+                trend_type_array[i] = TrendType.STABLE
+
     # Prepare result DataFrame
     dff["central_line"] = central_line_array
     dff["ucl"] = ucl_array
     dff["lcl"] = lcl_array
     dff["slope"] = slope_array
     dff["trend_signal_detected"] = signal_array
+    dff["trend_type"] = trend_type_array
 
     # Calculate slope changes
     dff["slope_change"] = None

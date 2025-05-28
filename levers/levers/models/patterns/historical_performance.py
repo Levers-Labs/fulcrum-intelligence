@@ -24,14 +24,6 @@ class PeriodMetrics(BaseModel):
     pop_growth_percent: float | None = None  # Period-over-period growth
     pop_acceleration_percent: float | None = None  # Growth acceleration
 
-    # SPC metrics
-    central_line: float | None = None  # Center line value
-    ucl: float | None = None  # Upper control limit
-    lcl: float | None = None  # Lower control limit
-    slope: float | None = None  # Slope at this point
-    slope_change_percent: float | None = None  # Percentage change in slope
-    trend_signal_detected: bool = False  # Whether a signal was detected
-
 
 class GrowthStats(BaseModel):
     """Growth statistics for a specific period."""
@@ -92,6 +84,20 @@ class TrendException(BaseModel):
     magnitude_percent: float | None = None
 
 
+class TrendAnalysis(BaseModel):
+    """Trend analysis information."""
+
+    trend_type: TrendType | None = None
+    value: float
+    date: str
+    central_line: float | None = None
+    ucl: float | None = None
+    lcl: float | None = None
+    slope: float | None = None
+    slope_change_percent: float | None = None
+    trend_signal_detected: bool = False
+
+
 class HistoricalPerformance(BasePattern):
     """Historical performance analysis output."""
 
@@ -105,6 +111,7 @@ class HistoricalPerformance(BasePattern):
     # Trends
     current_trend: TrendInfo | None = None
     previous_trend: TrendInfo | None = None
+    trend_analysis: list[TrendAnalysis] = []
 
     # Value ranking summaries
     high_rank: RankSummary

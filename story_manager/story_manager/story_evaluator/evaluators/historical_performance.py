@@ -57,7 +57,7 @@ class HistoricalPerformanceEvaluator(StoryEvaluatorBase[HistoricalPerformance]):
         # Trend Stories
         if pattern_result.current_trend:
             trend_type = pattern_result.current_trend.trend_type
-            if self._is_stable_trend(pattern_result) and trend_type == TrendType.STABLE:
+            if trend_type == TrendType.STABLE:
                 stories.append(self._create_stable_trend_story(pattern_result, metric_id, metric, grain))
             elif self._is_new_trend(pattern_result):
                 if trend_type == TrendType.UPWARD:
@@ -92,10 +92,6 @@ class HistoricalPerformanceEvaluator(StoryEvaluatorBase[HistoricalPerformance]):
             stories.append(self._create_benchmark_story(pattern_result, metric_id, metric, grain))
 
         return stories
-
-    def _is_stable_trend(self, pattern_result: HistoricalPerformance) -> bool:
-        """Check if the current trend is stable (has been ongoing for a while)."""
-        return pattern_result.current_trend is not None and pattern_result.previous_trend is None
 
     def _is_new_trend(self, pattern_result: HistoricalPerformance) -> bool:
         """Check if there's a new trend (current trend exists and different from previous)."""
@@ -636,8 +632,9 @@ class HistoricalPerformanceEvaluator(StoryEvaluatorBase[HistoricalPerformance]):
         """
         Prepare the series data with SPC (Statistical Process Control) metrics.
 
-        This method extracts SPC-related fields from period metrics and merges them
-        with the series data for visualization and story generation.
+        This method extracts SPC-related fields from the trend_analysis results
+        (which are derived from process_control_analysis) and merges them
+        with the base series data for visualization and story generation.
 
         Args:
             pattern_result: Historical performance pattern result
@@ -648,23 +645,59 @@ class HistoricalPerformanceEvaluator(StoryEvaluatorBase[HistoricalPerformance]):
         # Make a copy to avoid modifying the original
         series_df = self.series_df.copy() if self.series_df is not None else pd.DataFrame()
 
-        if not pattern_result.period_metrics:
+        if not pattern_result.trend_analysis:  # Check trend_analysis
             return series_df
 
         series_df["date"] = pd.to_datetime(series_df["date"])
 
-        # Extract SPC data from period metrics
-        period_df = pd.DataFrame([period_metric.model_dump() for period_metric in pattern_result.period_metrics])
+        # Extract SPC data from trend_analysis results
+        # TrendAnalysis objects contain all necessary SPC fields
+        spc_data_list = [ta.model_dump() for ta in pattern_result.trend_analysis]
+        spc_df = pd.DataFrame(spc_data_list)
 
-        # Map period_end to date for joining
-        period_df["date"] = pd.to_datetime(period_df["period_end"])
+        # Ensure date column in spc_df is datetime for merging
+        if "date" in spc_df.columns:
+            spc_df["date"] = pd.to_datetime(spc_df["date"])
+        else:
+            # If 'date' is not in spc_df, we cannot merge. Return base series_df.
+            logger.warning("Date column not found in SPC trend_analysis data. Cannot merge SPC metrics.")
+            return series_df
 
-        # Select SPC-related columns
-        spc_columns = ["date", "central_line", "ucl", "lcl", "slope", "slope_change_percent", "trend_signal_detected"]
+        # Select SPC-related columns that are expected by stories.
+        # These should align with fields in the TrendAnalysis model.
+        spc_columns_to_merge = [
+            "date",
+            "value",
+            "central_line",
+            "ucl",
+            "lcl",
+            "slope",
+            "slope_change_percent",
+            "trend_signal_detected",
+            "trend_type",
+        ]
 
-        # Create a merged dataframe with SPC metrics
-        merged_df = (
-            series_df[["date", "value"]].merge(period_df[spc_columns], on="date", how="left").sort_values("date")
-        )
+        # Filter spc_df to only include necessary columns, ensure 'date' is present
+        available_spc_columns = [col for col in spc_columns_to_merge if col in spc_df.columns]
+        if "date" not in available_spc_columns and "date" in spc_df.columns:  # ensure date is always included if
+            # available
+            available_spc_columns.append("date")
+
+        spc_df_filtered = spc_df[available_spc_columns]
+
+        # Merge with the base series_df which should contain 'date' and original 'value'
+        # We will merge on 'date'. The 'value' from series_df is the primary one.
+        # We can drop 'value' from spc_df_filtered if it exists to avoid ambiguity,
+        # or ensure it's consistent. For now, let's assume series_df['value'] is canonical.
+        if "value" in spc_df_filtered.columns and "value" in series_df.columns:
+            # If 'value' is in both, decide which to keep or rename.
+            # For simplicity, let's use the value from the base series_df and drop it from spc_df_filtered before merge
+            # or ensure the merge handles it (e.g., suffixes).
+            # A left merge will keep series_df['value'].
+            spc_df_to_merge = spc_df_filtered.drop(columns=["value"], errors="ignore")
+        else:
+            spc_df_to_merge = spc_df_filtered
+
+        merged_df = pd.merge(series_df, spc_df_to_merge, on="date", how="left").sort_values("date")
 
         return merged_df
