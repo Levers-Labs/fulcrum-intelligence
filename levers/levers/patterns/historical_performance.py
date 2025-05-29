@@ -37,7 +37,7 @@ from levers.models.patterns import (
 )
 from levers.patterns import Pattern
 from levers.primitives import (
-    analyze_trend,
+    analyze_trend_using_spc_analysis,
     calculate_average_growth,
     calculate_period_benchmarks,
     calculate_pop_growth,
@@ -58,7 +58,7 @@ class HistoricalPerformancePattern(Pattern[HistoricalPerformance]):
     version = "1.0"
     description = "Analyzes a metric's historical performance patterns over time"
     required_primitives = [
-        "analyze_trend",
+        "analyze_trend_using_spc_analysis",
         "calculate_pop_growth",
         "calculate_average_growth",
         "detect_record_high",
@@ -364,7 +364,7 @@ class HistoricalPerformancePattern(Pattern[HistoricalPerformance]):
                 "previous_trend": None,
             }
 
-        analyzed_trend_df = analyze_trend(df)
+        analyzed_trend_df = analyze_trend_using_spc_analysis(df)
 
         # Get the most recent trend type from Trend Analysis
         current_trend_type = analyzed_trend_df["trend_type"].iloc[-1]

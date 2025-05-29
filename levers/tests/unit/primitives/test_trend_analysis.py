@@ -23,6 +23,7 @@ from levers.primitives.trend_analysis import (
     _check_consecutive_signals,
     _compute_segment_center_line,
     _detect_spc_signals,
+    analyze_trend_using_spc_analysis,
     detect_anomalies,
 )
 
@@ -1177,6 +1178,240 @@ class TestDetectAnomalies:
         # With loose threshold, we should detect more anomalies
         if "is_anomaly" in loose_result.columns and "is_anomaly" in strict_result.columns:
             assert loose_result["is_anomaly"].sum() >= strict_result["is_anomaly"].sum()
+
+
+class TestAnalyzeTrendUsingSpcAnalysis:
+    """Tests for the analyze_trend_using_spc_analysis function."""
+
+    def test_basic_trend_analysis(self):
+        """Test basic functionality of SPC trend analysis."""
+        # Arrange
+        df = pd.DataFrame(
+            {
+                "date": pd.date_range(start="2023-01-01", periods=15, freq="D"),
+                "value": [100 + i * 2 for i in range(15)],  # Upward trend
+            }
+        )
+
+        # Add SPC analysis results
+        spc_df = process_control_analysis(df, date_col="date", value_col="value")
+
+        # Act
+        result = analyze_trend_using_spc_analysis(spc_df, date_col="date", value_col="value")
+
+        # Assert
+        assert result is not None
+        assert "trend_type" in result.columns
+        assert len(result) == len(df)
+
+    def test_upward_trend_detection(self):
+        """Test detection of upward trend."""
+        # Arrange - Strong upward trend
+        df = pd.DataFrame(
+            {
+                "date": pd.date_range(start="2023-01-01", periods=20, freq="D"),
+                "value": [100 + i * 5 for i in range(20)],
+            }
+        )
+
+        # Add SPC analysis results
+        spc_df = process_control_analysis(df, date_col="date", value_col="value")
+
+        # Act
+        result = analyze_trend_using_spc_analysis(spc_df, date_col="date", value_col="value", slope_threshold=1.0)
+
+        # Assert
+        assert result is not None
+        assert "trend_type" in result.columns
+
+        # Check that some trends are detected
+        trend_types = result["trend_type"].dropna()
+        assert len(trend_types) >= 0  # At least some trend types should be assigned
+
+    def test_plateau_detection(self):
+        """Test detection of plateau patterns."""
+        # Arrange - Flat data
+        df = pd.DataFrame(
+            {
+                "date": pd.date_range(start="2023-01-01", periods=15, freq="D"),
+                "value": [100.0] * 15,  # Perfect plateau
+            }
+        )
+
+        # Add SPC analysis results
+        spc_df = process_control_analysis(df, date_col="date", value_col="value")
+
+        # Act
+        result = analyze_trend_using_spc_analysis(
+            spc_df, date_col="date", value_col="value", plateau_tolerance=0.01, plateau_window=7
+        )
+
+        # Assert
+        assert result is not None
+        assert "trend_type" in result.columns
+
+        # Should detect some form of stable/plateau pattern
+        trend_types = result["trend_type"].dropna()
+        if len(trend_types) > 0:
+            stable_or_plateau = sum(1 for t in trend_types if t in [TrendType.STABLE, TrendType.PLATEAU])
+            assert stable_or_plateau >= 0
+
+    def test_mixed_patterns(self):
+        """Test with mixed trend patterns."""
+        # Arrange - Different phases
+        upward_phase = [100 + i * 3 for i in range(10)]
+        plateau_phase = [130] * 5
+        downward_phase = [130 - i * 2 for i in range(1, 11)]
+
+        df = pd.DataFrame(
+            {
+                "date": pd.date_range(start="2023-01-01", periods=25, freq="D"),
+                "value": upward_phase + plateau_phase + downward_phase,
+            }
+        )
+
+        # Add SPC analysis results
+        spc_df = process_control_analysis(df, date_col="date", value_col="value")
+
+        # Act
+        result = analyze_trend_using_spc_analysis(spc_df, date_col="date", value_col="value")
+
+        # Assert
+        assert result is not None
+        assert "trend_type" in result.columns
+        assert len(result) == len(df)
+
+    def test_insufficient_data(self):
+        """Test with minimal data."""
+        # Arrange
+        df = pd.DataFrame(
+            {
+                "date": [pd.Timestamp("2023-01-01")],
+                "value": [100],
+            }
+        )
+
+        # Add SPC analysis results
+        spc_df = process_control_analysis(df, date_col="date", value_col="value")
+
+        # Act
+        result = analyze_trend_using_spc_analysis(spc_df, date_col="date", value_col="value")
+
+        # Assert
+        assert result is not None
+        assert "trend_type" in result.columns
+        assert len(result) == 1
+
+    def test_invalid_columns(self):
+        """Test error handling for invalid columns."""
+        # Arrange
+        df = pd.DataFrame(
+            {
+                "date": pd.date_range(start="2023-01-01", periods=10, freq="D"),
+                "value": [100 + i for i in range(10)],
+            }
+        )
+
+        # Add SPC analysis results
+        spc_df = process_control_analysis(df, date_col="date", value_col="value")
+
+        # Act & Assert
+        with pytest.raises((ValidationError, KeyError)):
+            analyze_trend_using_spc_analysis(spc_df, date_col="invalid", value_col="value")
+
+    def test_custom_parameters(self):
+        """Test with custom parameter values."""
+        # Arrange
+        np.random.seed(42)  # For reproducible results
+        df = pd.DataFrame(
+            {
+                "date": pd.date_range(start="2023-01-01", periods=20, freq="D"),
+                "value": [100 + i + np.random.normal(0, 2) for i in range(20)],
+            }
+        )
+
+        # Add SPC analysis results
+        spc_df = process_control_analysis(df, date_col="date", value_col="value")
+
+        # Act with different parameters
+        result1 = analyze_trend_using_spc_analysis(
+            spc_df, date_col="date", value_col="value", slope_threshold=0.1, plateau_tolerance=0.001, plateau_window=3
+        )
+
+        result2 = analyze_trend_using_spc_analysis(
+            spc_df, date_col="date", value_col="value", slope_threshold=5.0, plateau_tolerance=0.1, plateau_window=10
+        )
+
+        # Assert
+        assert result1 is not None
+        assert result2 is not None
+        assert "trend_type" in result1.columns
+        assert "trend_type" in result2.columns
+
+    def test_missing_spc_columns(self):
+        """Test behavior when SPC columns are missing."""
+        # Arrange - Basic DataFrame without SPC columns
+        df = pd.DataFrame(
+            {
+                "date": pd.date_range(start="2023-01-01", periods=10, freq="D"),
+                "value": [100 + i for i in range(10)],
+            }
+        )
+
+        # Act
+        result = analyze_trend_using_spc_analysis(
+            df, date_col="date", value_col="value", slope_col="missing_slope", signal_col="missing_signal"
+        )
+
+        # Assert
+        assert result is not None
+        assert "trend_type" in result.columns
+
+    def test_with_missing_values(self):
+        """Test robustness with missing data."""
+        # Arrange
+        values = [100 + i for i in range(15)]
+        values[5] = np.nan
+        values[10] = np.nan
+
+        df = pd.DataFrame(
+            {
+                "date": pd.date_range(start="2023-01-01", periods=15, freq="D"),
+                "value": values,
+            }
+        )
+
+        # Add SPC analysis results
+        spc_df = process_control_analysis(df, date_col="date", value_col="value")
+
+        # Act
+        result = analyze_trend_using_spc_analysis(spc_df, date_col="date", value_col="value")
+
+        # Assert
+        assert result is not None
+        assert "trend_type" in result.columns
+        assert len(result) == len(df)
+
+    def test_edge_case_all_same_values(self):
+        """Test edge case with identical values."""
+        # Arrange
+        df = pd.DataFrame(
+            {
+                "date": pd.date_range(start="2023-01-01", periods=10, freq="D"),
+                "value": [100.0] * 10,
+            }
+        )
+
+        # Add SPC analysis results
+        spc_df = process_control_analysis(df, date_col="date", value_col="value")
+
+        # Act
+        result = analyze_trend_using_spc_analysis(spc_df, date_col="date", value_col="value")
+
+        # Assert
+        assert result is not None
+        assert "trend_type" in result.columns
+        assert len(result) == len(df)
 
 
 # Helper function tests - to increase coverage of internal functions

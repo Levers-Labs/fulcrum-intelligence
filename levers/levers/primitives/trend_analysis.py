@@ -1006,7 +1006,7 @@ def detect_trend_exceptions_using_spc_analysis(
     return None
 
 
-def analyze_trend(
+def analyze_trend_using_spc_analysis(
     df: pd.DataFrame,
     date_col: str = "date",
     value_col: str = "value",
