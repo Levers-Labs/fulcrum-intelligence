@@ -35,9 +35,9 @@
     ],
     "analysis_window": {
       "strategy": "fixed_time",
-      "days": 730,
-      "min_days": 365,
-      "max_days": 730,
+      "days": 180,
+      "min_days": 30,
+      "max_days": 365,
       "include_today": false
     },
     "settings": {
@@ -56,15 +56,15 @@
       }
     ],
     "analysis_window": {
-      "strategy": "fixed_datapoints",
-      "datapoints": 2,
-      "min_days": 30,
-      "max_days": 365,
+      "strategy": "fixed_time",
+      "days": 730,
+      "min_days": 365,
+      "max_days": 730,
       "include_today": false
     },
     "settings": {
       "dimension_name": "dimension",
-      "num_periods": 8
+      "num_periods": 2
     },
     "needs_dimension_analysis": true,
     "meta": {}

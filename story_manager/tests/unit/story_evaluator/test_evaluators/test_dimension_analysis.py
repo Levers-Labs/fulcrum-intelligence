@@ -1225,7 +1225,6 @@ def test_populate_template_context_top_slices_section(evaluator, mock_dimension_
     assert "min_diff_percent" in context
     assert "max_diff_percent" in context
     assert "total_share_percent" in context
-    assert "streak_length" in context
 
 
 def test_populate_template_context_bottom_slices_section(evaluator, mock_dimension_analysis, mock_metric):
@@ -1237,7 +1236,6 @@ def test_populate_template_context_bottom_slices_section(evaluator, mock_dimensi
     assert "min_diff_percent" in context
     assert "max_diff_percent" in context
     assert "total_share_percent" in context
-    assert "streak_length" in context
 
 
 def test_populate_template_context_strongest_slice_section(
@@ -1287,7 +1285,6 @@ def test_add_top_slices_context(evaluator, mock_dimension_analysis):
     assert "min_diff_percent" in context
     assert "max_diff_percent" in context
     assert "total_share_percent" in context
-    assert "streak_length" in context
 
     # For the top segments, verify it's a formatted string containing the segment names
     assert isinstance(context["top_segments"], str)
@@ -1308,7 +1305,6 @@ def test_add_bottom_slices_context(evaluator, mock_dimension_analysis):
     assert "min_diff_percent" in context
     assert "max_diff_percent" in context
     assert "total_share_percent" in context
-    assert "streak_length" in context
 
     # For the bottom segments, verify it's a formatted string containing the segment names
     assert isinstance(context["bottom_segments"], str)

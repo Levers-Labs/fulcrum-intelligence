@@ -184,7 +184,7 @@ class DimensionAnalysisPattern(Pattern[DimensionAnalysis]):
 
             # 7) Compute top and bottom slices
             top_slices, bottom_slices = compute_top_bottom_slices(
-                df=merged, slice_col="slice_value", value_col="val_current", top_n=3, dimension_name=dimension_name
+                df=merged, slice_col="slice_value", value_col="val_current", top_n=4, dimension_name=dimension_name
             )
 
             # 8) Identify largest and smallest by share

@@ -159,15 +159,14 @@ class DimensionAnalysisEvaluator(StoryEvaluatorBase[DimensionAnalysis]):
         top_segment_names = [s.slice_value for s in top_segments]
         formatted_names = format_segment_names(top_segment_names)
 
-        # Get slices data using lookup
-        slices = [slice_lookup.get(name) for name in top_segment_names if slice_lookup.get(name)]
-
-        # Compute metrics
-        diffs = [abs(s.absolute_diff_percent_from_avg or 0) for s in slices]  # type: ignore
+        # Calculate performance difference percentages from top_slices data
+        diffs = [abs(s.absolute_diff_percent_from_avg or 0) for s in top_segments]
         min_diff_percent = min(diffs, default=0)
         max_diff_percent = max(diffs, default=0)
+
+        # Calculate total volume share from slice data
+        slices = [slice_lookup.get(name) for name in top_segment_names if slice_lookup.get(name)]
         total_share_percent = sum(s.current_share_of_volume_percent or 0 for s in slices)  # type: ignore
-        streak_length = max((s.consecutive_above_avg_streak or 0 for s in slices), default=0)  # type: ignore
 
         context.update(
             {
@@ -175,7 +174,6 @@ class DimensionAnalysisEvaluator(StoryEvaluatorBase[DimensionAnalysis]):
                 "min_diff_percent": min_diff_percent,
                 "max_diff_percent": max_diff_percent,
                 "total_share_percent": total_share_percent,
-                "streak_length": streak_length,
             }
         )
 
@@ -186,24 +184,14 @@ class DimensionAnalysisEvaluator(StoryEvaluatorBase[DimensionAnalysis]):
         bottom_segment_names = [s.slice_value for s in bottom_segments]
         formatted_names = format_segment_names(bottom_segment_names)
 
-        # Get slices data using lookup
-        slices = [slice_lookup.get(name) for name in bottom_segment_names if slice_lookup.get(name)]
-
-        # Compute metrics
-        diffs = [abs(s.absolute_diff_percent_from_avg or 0) for s in slices]  # type: ignore
+        # Calculate performance difference percentages from bottom_slices data
+        diffs = [abs(s.absolute_diff_percent_from_avg or 0) for s in bottom_segments]
         min_diff_percent = min(diffs, default=0)
         max_diff_percent = max(diffs, default=0)
-        total_share_percent = sum(s.current_share_of_volume_percent or 0 for s in slices)  # type: ignore
 
-        # Longest negative (under performance) streak
-        streak_length = max(
-            (
-                abs(s.consecutive_above_avg_streak)  # type: ignore
-                for s in slices
-                if s.consecutive_above_avg_streak and s.consecutive_above_avg_streak < 0  # type: ignore
-            ),
-            default=0,
-        )
+        # Calculate total volume share from slice data
+        slices = [slice_lookup.get(name) for name in bottom_segment_names if slice_lookup.get(name)]
+        total_share_percent = sum(s.current_share_of_volume_percent or 0 for s in slices)  # type: ignore
 
         context.update(
             {
@@ -211,7 +199,6 @@ class DimensionAnalysisEvaluator(StoryEvaluatorBase[DimensionAnalysis]):
                 "min_diff_percent": min_diff_percent,
                 "max_diff_percent": max_diff_percent,
                 "total_share_percent": total_share_percent,
-                "streak_length": streak_length,
             }
         )
 
@@ -741,16 +728,13 @@ class DimensionAnalysisEvaluator(StoryEvaluatorBase[DimensionAnalysis]):
             else pattern_result.bottom_slices[:limit]
         )
 
-        # Calculate average value from all slices
-        avg_value = 0
-        if pattern_result.slices and len(pattern_result.slices) > 0:
-            total = sum(s.current_value for s in pattern_result.slices)
-            avg_value = total / len(pattern_result.slices)  # type: ignore
+        # Calculate average value across all slices to provide meaningful reference benchmark
+        avg_value = self._calculate_average_value(pattern_result.slices)
 
         # Create segment entries
         segments = [{"segment": slice_obj.slice_value, "value": slice_obj.metric_value} for slice_obj in slices]
 
-        # Add average as an additional entry
+        # Add average as an additional entry for reference
         avg_entry = {"segment": "Average", "value": avg_value}
 
         if story_type == StoryType.TOP_4_SEGMENTS:
