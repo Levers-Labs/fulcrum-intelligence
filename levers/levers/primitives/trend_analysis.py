@@ -253,7 +253,11 @@ def detect_record_low(df: pd.DataFrame, value_col: str = "value") -> RecordLow:
 
 
 def detect_trend_exceptions(
-    df: pd.DataFrame, date_col: str = "date", value_col: str = "value", window_size: int = 5, z_threshold: float = 2.0
+    df: pd.DataFrame,
+    date_col: str = "date",
+    value_col: str = "value",
+    window_size: int = 5,
+    z_threshold: float = 2.0,
 ) -> TrendException | None:
     """
     Detect spikes and drops in a time series relative to recent values.
@@ -283,12 +287,12 @@ def detect_trend_exceptions(
     df_sorted = validate_date_sorted(df, date_col)
 
     # Check if we have enough data
-    if len(df_sorted) < window_size + 1:
+    if len(df_sorted) < window_size:
         logger.warning("Insufficient data for trend exceptions detection")
         return None
 
     # Get the recent window for analysis
-    recent_subset = df_sorted[value_col].iloc[-window_size - 1 : -1]
+    recent_subset = df_sorted[value_col].iloc[-window_size:-1]
 
     # Calculate mean and standard deviation of recent values
     mean_val = recent_subset.mean()
@@ -518,7 +522,7 @@ def _detect_spc_signals(
         consecutive_run_length: Number of consecutive points for run detection
 
     Returns:
-        List of indices where signals were detected
+        List of signal indices
     """
     n = len(df_segment)
     idx_start = offset
@@ -531,10 +535,9 @@ def _detect_spc_signals(
             continue
 
         val = df_segment[value_col].iloc[i]
-
-        if (ucl_array[idx] is not None and val > ucl_array[idx]) or (
-            lcl_array[idx] is not None and val < lcl_array[idx]
-        ):
+        if ucl_array[idx] is not None and val > ucl_array[idx]:
+            signals_idx.append(idx)
+        elif lcl_array[idx] is not None and val < lcl_array[idx]:
             signals_idx.append(idx)
 
     # 2. Consecutive points above/below center line
@@ -619,7 +622,7 @@ def process_control_analysis(
         consecutive_signal_threshold: Number of consecutive signals that triggers recalculation
 
     Returns:
-        DataFrame with SPC analysis results, including control limits and signals
+        DataFrame with SPC analysis results, including control limits, signals, and trend types
     """
     # Input validation
     if date_col not in df.columns:
@@ -633,12 +636,13 @@ def process_control_analysis(
     # Check if we have enough data
     if len(df_sorted) < min_data_points:
         result_df = df_sorted.copy()
-        result_df["central_line"] = np.nan
-        result_df["ucl"] = np.nan
-        result_df["lcl"] = np.nan
-        result_df["slope"] = np.nan
-        result_df["slope_change"] = np.nan
+        result_df["central_line"] = None
+        result_df["ucl"] = None
+        result_df["lcl"] = None
+        result_df["slope"] = None
+        result_df["slope_change"] = None
         result_df["trend_signal_detected"] = False
+        result_df["trend_type"] = None
         return result_df
 
     # Create a copy for SPC analysis
@@ -686,8 +690,8 @@ def process_control_analysis(
                     ucl_array[idx] = cl_val + avg_range * control_limit_multiplier  # type: ignore
                     lcl_array[idx] = cl_val - avg_range * control_limit_multiplier  # type: ignore
                 else:
-                    ucl_array[idx] = np.nan  # type: ignore
-                    lcl_array[idx] = np.nan  # type: ignore
+                    ucl_array[idx] = None
+                    lcl_array[idx] = None
 
         # Detect signals
         signals_idx = _detect_spc_signals(
@@ -700,10 +704,12 @@ def process_control_analysis(
             consecutive_run_length=consecutive_run_length,
         )
 
-        # Mark signals
-        for idx in signals_idx:
-            if idx < n_points:
-                signal_array[idx] = True
+        # Mark signals in the global signal array
+        # This loop takes the signal indices detected in the current segment
+        # and marks them as True in the global signal_array that tracks
+        # which data points have SPC rule violations (signals)
+        for signal_idx in signals_idx:
+            signal_array[signal_idx] = True
 
         # Check for consecutive signals to trigger recalculation
         recalc_idx = _check_consecutive_signals(signals_idx, consecutive_signal_threshold)
@@ -713,7 +719,7 @@ def process_control_analysis(
         else:
             start_idx = end_idx
 
-    # Prepare result DataFrame
+    # Prepare result DataFrame with SPC analysis
     dff["central_line"] = central_line_array
     dff["ucl"] = ucl_array
     dff["lcl"] = lcl_array
@@ -721,7 +727,7 @@ def process_control_analysis(
     dff["trend_signal_detected"] = signal_array
 
     # Calculate slope changes
-    dff["slope_change"] = np.nan
+    dff["slope_change"] = None
     for i in range(1, len(dff)):
         s_now = slope_array[i]
         s_prev = slope_array[i - 1]
@@ -749,16 +755,18 @@ def _apply_anomaly_detection_methods(
     # Variance method: z-score approach
     if method in [AnomalyDetectionMethod.VARIANCE, AnomalyDetectionMethod.COMBINED]:
         # Calculate z-scores
-        df["z_score"] = np.nan
+        df["z_score"] = None
         mask = ~df["rolling_std"].isna() & (df["rolling_std"] > 0)
         if mask.any():
             df.loc[mask, "z_score"] = (df.loc[mask, value_col] - df.loc[mask, "rolling_mean"]) / df.loc[
                 mask, "rolling_std"
             ]
 
-        # Flag anomalies based on z-score threshold
-        df["is_anomaly_variance"] = np.abs(df["z_score"]) > z_threshold
-        df["is_anomaly_variance"] = df["is_anomaly_variance"].fillna(False)
+        # Flag anomalies based on z-score threshold, but only where z_score is not None
+        df["is_anomaly_variance"] = False
+        z_score_mask = ~df["z_score"].isna()
+        if z_score_mask.any():
+            df.loc[z_score_mask, "is_anomaly_variance"] = np.abs(df.loc[z_score_mask, "z_score"]) > z_threshold
     else:
         df["is_anomaly_variance"] = False
 
@@ -914,3 +922,176 @@ def detect_seasonality_pattern(
         actual_change_percent=actual_change_percent,
         deviation_percent=deviation_percent,
     )
+
+
+def detect_trend_exceptions_using_spc_analysis(
+    df: pd.DataFrame,
+    date_col: str = "date",
+    value_col: str = "value",
+    window_size: int = 5,
+) -> TrendException | None:
+    """
+    Detect spikes and drops in a time series using SPC analysis.
+
+    Family: trend_analysis
+    Version: 1.0
+
+    Args:
+        df: DataFrame containing time series data
+        date_col: Column name containing dates
+        value_col: Column name containing values
+        window_size: Number of periods to include in normal range calculation
+
+    Returns:
+        TrendException object containing exception details,
+        - type: str, the type of exception
+        - current_value: float, the current value
+        - normal_range_low: float, the lower bound of the normal range
+        - normal_range_high: float, the upper bound of the normal range
+        - absolute_delta_from_normal_range: float, the absolute difference between current and normal range
+        - magnitude_percent: float, the percentage difference between current and normal range
+        or None if no exceptions are detected
+    """
+
+    # Ensure data is sorted by date
+    df_sorted = validate_date_sorted(df, date_col)
+
+    # Check if we have enough data
+    if len(df_sorted) < window_size:
+        logger.warning("Insufficient data for trend exceptions detection")
+        return None
+
+    # Use SPC control limits for exception detection
+    latest_row = df_sorted.iloc[-1]
+
+    # Get current value and control limits
+    current_value = latest_row[value_col]
+    ucl = latest_row["ucl"]
+    lcl = latest_row["lcl"]
+    central_line = latest_row["central_line"]
+
+    # Skip if control limits are not valid
+    if pd.isna(ucl) or pd.isna(lcl) or pd.isna(central_line):
+        logger.warning("Invalid control limits for trend exceptions detection")
+        return None
+
+    # Check for spike (above UCL)
+    if current_value > ucl:
+        delta_from_range = current_value - ucl
+        magnitude_percent = (delta_from_range / ucl * 100.0) if ucl != 0 else None
+
+        return TrendException(
+            type=TrendExceptionType.SPIKE,
+            current_value=current_value,
+            normal_range_low=lcl,
+            normal_range_high=ucl,
+            absolute_delta_from_normal_range=delta_from_range,
+            magnitude_percent=magnitude_percent,
+        )
+
+    # Check for drop (below LCL)
+    elif current_value < lcl:
+        delta_from_range = lcl - current_value
+        magnitude_percent = (delta_from_range / abs(lcl) * 100.0) if lcl != 0 else None
+
+        return TrendException(
+            type=TrendExceptionType.DROP,
+            current_value=current_value,
+            normal_range_low=lcl,
+            normal_range_high=ucl,
+            absolute_delta_from_normal_range=-delta_from_range,  # Negative for drops
+            magnitude_percent=magnitude_percent,
+        )
+
+    return None
+
+
+def analyze_trend_using_spc_analysis(
+    df: pd.DataFrame,
+    date_col: str = "date",
+    value_col: str = "value",
+    slope_col: str = "slope",
+    signal_col: str = "trend_signal_detected",
+    slope_threshold: float = 0.5,
+    plateau_tolerance: float = 0.01,
+    plateau_window: int = 7,
+) -> pd.DataFrame:
+    """
+    Analyze trend types for each point in a time series with SPC data.
+
+    This is a post-processing primitive that determines trend types based on:
+    - Plateau detection using performance plateau analysis
+    - Slope analysis with normalized thresholds
+    - SPC signal detection results
+
+    Family: trend_analysis
+    Version: 1.0
+
+    Args:
+        df: DataFrame containing time series data with SPC analysis results
+        date_col: Column name containing dates
+        value_col: Column name containing values
+        slope_col: Column name containing slope values from SPC analysis
+        signal_col: Column name containing signal detection flags
+        slope_threshold: Threshold for normalized slope to determine trend direction (as percentage)
+        plateau_tolerance: Relative change threshold for plateau detection
+        plateau_window: Window size for plateau detection
+
+    Returns:
+        DataFrame with added 'trend_type' column containing trend classifications
+    """
+    # Ensure data is sorted by date
+    df_sorted = validate_date_sorted(df, date_col)
+
+    # Create working copy
+    dff = df_sorted.copy()
+
+    if len(dff) < 2:
+        return dff
+
+    n_points = len(dff)
+
+    # Determine trend type for each point using signals and slopes
+    for i in range(n_points):
+        # First check for plateau
+        window_size = min(plateau_window, len(dff))
+        start_window = max(0, i - window_size // 2)
+        end_window = min(len(dff), i + window_size // 2 + 1)
+        window_data = dff.iloc[start_window:end_window].copy()
+
+        plateau_result = detect_performance_plateau(
+            window_data, value_col=value_col, tolerance=plateau_tolerance, window=min(window_size, len(window_data))
+        )
+
+        if plateau_result.is_plateaued:
+            dff.loc[dff.index[i], "trend_type"] = TrendType.PLATEAU
+        else:
+            # If not plateaued, use slope and signals to determine trend
+            slope = dff[slope_col].iloc[i] if slope_col in dff.columns else None
+            is_signal = dff[signal_col].iloc[i] if signal_col in dff.columns else False
+
+            # Use normalized slope comparison like in analyze_metric_trend
+            if slope is not None and not pd.isna(slope):
+                # Get a window around current point to calculate mean for normalization
+                window_start = max(0, i - 3)
+                window_end = min(len(dff), i + 4)
+                window_values = dff[value_col].iloc[window_start:window_end]
+                mean_val = window_values.mean()
+
+                if mean_val != 0:
+                    normalized_slope = (slope / abs(mean_val)) * 100  # as percentage
+                else:
+                    normalized_slope = 0 if slope == 0 else (100 if slope > 0 else -100)
+
+                # Use threshold for trend determination
+                if abs(normalized_slope) > slope_threshold:
+                    if slope > 0:
+                        dff.loc[dff.index[i], "trend_type"] = TrendType.UPWARD if is_signal else TrendType.STABLE
+                    else:
+                        dff.loc[dff.index[i], "trend_type"] = TrendType.DOWNWARD if is_signal else TrendType.STABLE
+                else:
+                    dff.loc[dff.index[i], "trend_type"] = TrendType.STABLE
+            else:
+                dff.loc[dff.index[i], "trend_type"] = None
+
+    return dff

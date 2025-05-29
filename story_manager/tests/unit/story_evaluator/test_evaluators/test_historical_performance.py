@@ -17,6 +17,7 @@ from levers.models.patterns import (
     HistoricalPerformance,
     RankSummary,
     Seasonality,
+    TrendAnalysis,
     TrendException,
     TrendInfo,
 )
@@ -1035,7 +1036,7 @@ def test_prepare_series_data_with_pop_growth(evaluator, mock_historical_performa
     import pandas as pd
 
     series_df = pd.DataFrame(
-        {"date": pd.date_range(start="2023-10-01", periods=5, freq="M"), "value": [100, 105, 110, 115, 120]}
+        {"date": pd.date_range(start="2023-10-01", periods=5, freq="ME"), "value": [100, 105, 110, 115, 120]}
     )
     evaluator.series_df = series_df
 
@@ -1071,3 +1072,359 @@ def test_prepare_series_data_with_pop_growth(evaluator, mock_historical_performa
     none_df = evaluator._prepare_series_data_with_pop_growth(mock_historical_performance)
     assert isinstance(none_df, pd.DataFrame)
     assert len(none_df) == len(series_df)
+
+
+def test_prepare_trend_analysis_series_data(evaluator, mock_historical_performance):
+    """Test the _prepare_trend_analysis_series_data method."""
+    _ensure_series_df(evaluator)
+
+    # Set up series_df
+    series_df = pd.DataFrame(
+        {"date": pd.date_range(start="2023-10-01", periods=5, freq="D"), "value": [100, 105, 110, 115, 120]}
+    )
+    evaluator.series_df = series_df
+
+    # Create mock trend analysis data
+    mock_historical_performance.trend_analysis = [
+        TrendAnalysis(
+            value=100.0,
+            date="2023-10-01",
+            central_line=102.0,
+            ucl=115.0,
+            lcl=89.0,
+            slope=2.5,
+            slope_change_percent=10.0,
+            trend_signal_detected=False,
+        ),
+        TrendAnalysis(
+            value=105.0,
+            date="2023-10-02",
+            central_line=103.0,
+            ucl=116.0,
+            lcl=90.0,
+            slope=2.7,
+            slope_change_percent=8.0,
+            trend_signal_detected=True,
+        ),
+        TrendAnalysis(
+            value=110.0,
+            date="2023-10-03",
+            central_line=104.0,
+            ucl=117.0,
+            lcl=91.0,
+            slope=2.8,
+            slope_change_percent=3.7,
+            trend_signal_detected=False,
+        ),
+    ]
+
+    # Act
+    df = evaluator._prepare_trend_analysis_series_data(mock_historical_performance)
+
+    # Assert
+    assert isinstance(df, pd.DataFrame)
+    assert "date" in df.columns
+    assert "value" in df.columns
+    assert "central_line" in df.columns
+    assert "ucl" in df.columns
+    assert "lcl" in df.columns
+    assert "slope" in df.columns
+    assert "slope_change_percent" in df.columns
+    assert "trend_signal_detected" in df.columns
+
+    # Check that data is properly merged
+    assert len(df) == len(series_df)
+
+    # Check specific values for merged data
+    first_row = df.iloc[0]
+    assert first_row["central_line"] == 102.0
+    assert first_row["ucl"] == 115.0
+    assert first_row["lcl"] == 89.0
+    assert first_row["slope"] == 2.5
+    assert first_row["trend_signal_detected"] is False
+
+    second_row = df.iloc[1]
+    assert second_row["trend_signal_detected"] is True
+
+
+def test_prepare_trend_analysis_series_data_empty_trend_analysis(evaluator, mock_historical_performance):
+    """Test _prepare_trend_analysis_series_data with empty trend_analysis."""
+    _ensure_series_df(evaluator)
+    import pandas as pd
+
+    # Set up series_df
+    series_df = pd.DataFrame({"date": pd.date_range(start="2023-10-01", periods=3, freq="D"), "value": [100, 105, 110]})
+    evaluator.series_df = series_df
+
+    # Test with empty trend_analysis
+    mock_historical_performance.trend_analysis = []
+    df = evaluator._prepare_trend_analysis_series_data(mock_historical_performance)
+
+    assert isinstance(df, pd.DataFrame)
+    assert len(df) == len(series_df)
+    assert "date" in df.columns
+    assert "value" in df.columns
+    # SPC columns should not be present or should be NaN
+
+    # Test with None trend_analysis
+    mock_historical_performance.trend_analysis = None
+    df_none = evaluator._prepare_trend_analysis_series_data(mock_historical_performance)
+    assert isinstance(df_none, pd.DataFrame)
+    assert len(df_none) == len(series_df)
+
+
+def test_prepare_trend_analysis_series_data_missing_date_column(evaluator, mock_historical_performance):
+    """Test _prepare_trend_analysis_series_data when trend_analysis has mismatched dates."""
+    _ensure_series_df(evaluator)
+
+    # Set up series_df
+    series_df = pd.DataFrame({"date": pd.date_range(start="2023-10-01", periods=3, freq="D"), "value": [100, 105, 110]})
+    evaluator.series_df = series_df
+
+    # Create trend analysis with date that doesn't match series_df (simulate edge case)
+    mock_historical_performance.trend_analysis = [
+        TrendAnalysis(
+            value=100.0,
+            date="2023-09-01",  # Date not in series_df
+            central_line=102.0,
+        ),
+    ]
+
+    # Act
+    result_df = evaluator._prepare_trend_analysis_series_data(mock_historical_performance)
+
+    # Assert
+    assert isinstance(result_df, pd.DataFrame)
+    # Should return the original series_df when trend_analysis dates don't match
+    assert len(result_df) == len(series_df)
+
+
+def test_prepare_trend_analysis_series_data_date_mismatch(evaluator, mock_historical_performance):
+    """Test _prepare_trend_analysis_series_data when dates don't perfectly align."""
+    _ensure_series_df(evaluator)
+
+    # Set up series_df
+    series_df = pd.DataFrame({"date": pd.date_range(start="2023-10-01", periods=3, freq="D"), "value": [100, 105, 110]})
+    evaluator.series_df = series_df
+
+    # Create trend analysis with different dates
+    mock_historical_performance.trend_analysis = [
+        TrendAnalysis(
+            value=100.0,
+            date="2023-10-01",
+            central_line=102.0,
+            ucl=115.0,
+            lcl=89.0,
+        ),
+        TrendAnalysis(
+            value=108.0,
+            date="2023-10-05",  # Date not in series_df
+            central_line=104.0,
+            ucl=117.0,
+            lcl=91.0,
+        ),
+    ]
+
+    # Act
+    df = evaluator._prepare_trend_analysis_series_data(mock_historical_performance)
+
+    # Assert
+    assert isinstance(df, pd.DataFrame)
+    assert len(df) == len(series_df)
+
+    # Check that only matching dates get SPC data
+    first_row = df.iloc[0]
+    assert first_row["central_line"] == 102.0
+
+    # Rows without matching SPC data should have NaN for SPC fields
+    last_row = df.iloc[-1]
+    assert pd.isna(last_row["central_line"]) or last_row["central_line"] is None
+
+
+def test_spc_story_generation_with_signals(evaluator, mock_historical_performance, mock_metric):
+    """Test that SPC signals influence story generation."""
+    _ensure_series_df(evaluator)
+
+    # Set up series_df
+    series_df = pd.DataFrame(
+        {"date": pd.date_range(start="2023-10-01", periods=5, freq="D"), "value": [100, 105, 110, 115, 120]}
+    )
+    evaluator.series_df = series_df
+
+    # Create trend analysis with signals detected
+    mock_historical_performance.trend_analysis = [
+        TrendAnalysis(
+            value=100.0,
+            date="2023-10-01",
+            central_line=102.0,
+            ucl=115.0,
+            lcl=89.0,
+            slope=2.5,
+            trend_signal_detected=True,  # Signal detected
+        ),
+        TrendAnalysis(
+            value=105.0,
+            date="2023-10-02",
+            central_line=103.0,
+            ucl=116.0,
+            lcl=90.0,
+            slope=2.7,
+            trend_signal_detected=True,  # Signal detected
+        ),
+    ]
+
+    # Test that SPC data is properly prepared for stories
+    df = evaluator._prepare_trend_analysis_series_data(mock_historical_performance)
+
+    # Check that signals are preserved
+    signals = df["trend_signal_detected"].dropna()
+    assert any(signals), "Expected at least one signal to be detected"
+
+
+def test_spc_control_limits_in_story_data(evaluator, mock_historical_performance):
+    """Test that SPC control limits are properly included in story data."""
+    _ensure_series_df(evaluator)
+
+    # Set up series_df
+    series_df = pd.DataFrame({"date": pd.date_range(start="2023-10-01", periods=3, freq="D"), "value": [100, 105, 110]})
+    evaluator.series_df = series_df
+
+    # Create trend analysis with control limits
+    mock_historical_performance.trend_analysis = [
+        TrendAnalysis(
+            value=100.0,
+            date="2023-10-01",
+            central_line=102.0,
+            ucl=115.0,
+            lcl=89.0,
+            slope=2.5,
+            trend_signal_detected=False,
+        ),
+        TrendAnalysis(
+            value=105.0,
+            date="2023-10-02",
+            central_line=103.0,
+            ucl=116.0,
+            lcl=90.0,
+            slope=2.7,
+            trend_signal_detected=False,
+        ),
+    ]
+
+    # Act
+    df = evaluator._prepare_trend_analysis_series_data(mock_historical_performance)
+
+    # Assert control limits are present and valid
+    assert "ucl" in df.columns
+    assert "lcl" in df.columns
+    assert "central_line" in df.columns
+
+    # Check that control limits make sense (UCL > central_line > LCL)
+    for _, row in df.iterrows():
+        if not pd.isna(row["central_line"]) and not pd.isna(row["ucl"]) and not pd.isna(row["lcl"]):
+            assert (
+                row["ucl"] >= row["central_line"]
+            ), f"UCL {row['ucl']} should be >= central line {row['central_line']}"
+            assert (
+                row["central_line"] >= row["lcl"]
+            ), f"Central line {row['central_line']} should be >= LCL {row['lcl']}"
+
+
+def test_spc_slope_data_in_stories(evaluator, mock_historical_performance):
+    """Test that SPC slope data is properly included for trend stories."""
+    _ensure_series_df(evaluator)
+
+    # Set up series_df
+    series_df = pd.DataFrame(
+        {"date": pd.date_range(start="2023-10-01", periods=4, freq="D"), "value": [100, 105, 110, 115]}
+    )
+    evaluator.series_df = series_df
+
+    # Create trend analysis with slope data
+    mock_historical_performance.trend_analysis = [
+        TrendAnalysis(
+            value=100.0,
+            date="2023-10-01",
+            slope=2.5,
+            slope_change_percent=0.0,
+            trend_signal_detected=False,
+        ),
+        TrendAnalysis(
+            value=105.0,
+            date="2023-10-02",
+            slope=2.7,
+            slope_change_percent=8.0,
+            trend_signal_detected=False,
+        ),
+        TrendAnalysis(
+            value=110.0,
+            date="2023-10-03",
+            slope=2.8,
+            slope_change_percent=3.7,
+            trend_signal_detected=False,
+        ),
+    ]
+
+    # Act
+    df = evaluator._prepare_trend_analysis_series_data(mock_historical_performance)
+
+    # Assert slope data is present
+    assert "slope" in df.columns
+    assert "slope_change_percent" in df.columns
+
+    # Check that slope values are preserved
+    slopes = df["slope"].dropna()
+    assert len(slopes) > 0, "Expected slope data to be present"
+
+    # Check that slope change percentages are preserved
+    slope_changes = df["slope_change_percent"].dropna()
+    assert len(slope_changes) > 0, "Expected slope change data to be present"
+
+
+@pytest.mark.asyncio
+async def test_evaluate_with_spc_trend_signals(mock_historical_performance, mock_metric, evaluator):
+    """Test story evaluation when SPC trend signals are present."""
+    _ensure_series_df(evaluator)
+
+    # Set up series_df with matching dates
+    series_df = pd.DataFrame(
+        {"date": pd.date_range(start="2023-10-01", periods=5, freq="D"), "value": [100, 105, 110, 115, 120]}
+    )
+    evaluator.series_df = series_df
+
+    # Set up trend analysis with signals
+    mock_historical_performance.trend_analysis = [
+        TrendAnalysis(
+            value=100.0,
+            date="2023-10-01",
+            central_line=102.0,
+            ucl=115.0,
+            lcl=89.0,
+            slope=2.5,
+            trend_signal_detected=True,  # Signal detected
+        ),
+        TrendAnalysis(
+            value=105.0,
+            date="2023-10-02",
+            central_line=103.0,
+            ucl=116.0,
+            lcl=90.0,
+            slope=2.7,
+            trend_signal_detected=True,  # Signal detected
+        ),
+    ]
+
+    # Ensure current trend is set for story generation
+    mock_historical_performance.current_trend.trend_type = TrendType.UPWARD
+    mock_historical_performance.current_trend.average_pop_growth = 5.0
+
+    # Act
+    stories = await evaluator.evaluate(mock_historical_performance, mock_metric)
+
+    # Assert
+    assert len(stories) > 0, "Expected stories to be generated with SPC data"
+
+    # Check that trend-related stories are generated
+    story_types = [s.get("story_type") for s in stories]
+    trend_story_types = [StoryType.NEW_UPWARD_TREND, StoryType.STABLE_TREND, StoryType.IMPROVING_PERFORMANCE]
+    assert any(st in story_types for st in trend_story_types), "Expected trend-related stories with SPC signals"

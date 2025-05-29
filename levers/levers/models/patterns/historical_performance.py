@@ -17,10 +17,12 @@ from levers.models import (
 class PeriodMetrics(BaseModel):
     """Growth and acceleration metrics for a specific period."""
 
-    period_start: str
-    period_end: str
-    pop_growth_percent: float | None = None
-    pop_acceleration_percent: float | None = None
+    period_start: str  # Start date of the period
+    period_end: str  # End date of the period
+
+    # Growth metrics
+    pop_growth_percent: float | None = None  # Period-over-period growth
+    pop_acceleration_percent: float | None = None  # Growth acceleration
 
 
 class GrowthStats(BaseModel):
@@ -82,6 +84,19 @@ class TrendException(BaseModel):
     magnitude_percent: float | None = None
 
 
+class TrendAnalysis(BaseModel):
+    """Trend analysis information."""
+
+    value: float
+    date: str
+    central_line: float | None = None
+    ucl: float | None = None
+    lcl: float | None = None
+    slope: float | None = None
+    slope_change_percent: float | None = None
+    trend_signal_detected: bool = False
+
+
 class HistoricalPerformance(BasePattern):
     """Historical performance analysis output."""
 
@@ -95,6 +110,7 @@ class HistoricalPerformance(BasePattern):
     # Trends
     current_trend: TrendInfo | None = None
     previous_trend: TrendInfo | None = None
+    trend_analysis: list[TrendAnalysis] = []
 
     # Value ranking summaries
     high_rank: RankSummary

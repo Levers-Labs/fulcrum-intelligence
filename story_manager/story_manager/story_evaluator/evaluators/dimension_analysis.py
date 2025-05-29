@@ -220,7 +220,7 @@ class DimensionAnalysisEvaluator(StoryEvaluatorBase[DimensionAnalysis]):
         comparison = max(pattern_result.comparison_highlights, key=lambda x: abs(x.performance_gap_percent or 0))
 
         # Determine gap trend
-        gap_trend = "widened"
+        gap_trend = "grown"
         if comparison.gap_change_percent is not None and comparison.performance_gap_percent is not None:
             if abs(comparison.performance_gap_percent) < abs(comparison.gap_change_percent):
                 gap_trend = "narrowed"

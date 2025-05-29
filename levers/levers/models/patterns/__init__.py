@@ -16,6 +16,7 @@ from .historical_performance import (
     PeriodMetrics,
     RankSummary,
     Seasonality,
+    TrendAnalysis,
     TrendException,
     TrendInfo,
 )
@@ -40,6 +41,7 @@ __all__ = [
     "PeriodMetrics",
     "RankSummary",
     "Seasonality",
+    "TrendAnalysis",
     "TrendException",
     "TrendInfo",
     "GrowthStats",
