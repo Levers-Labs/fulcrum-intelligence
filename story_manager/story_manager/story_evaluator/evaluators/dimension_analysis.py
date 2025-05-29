@@ -168,22 +168,12 @@ class DimensionAnalysisEvaluator(StoryEvaluatorBase[DimensionAnalysis]):
         slices = [slice_lookup.get(name) for name in top_segment_names if slice_lookup.get(name)]
         total_share_percent = sum(s.current_share_of_volume_percent or 0 for s in slices)  # type: ignore
 
-        # Calculate streak length - if data is available use it, otherwise default to 1
-        # (since these segments are currently in top 4, they're above average for at least this period)
-        valid_streaks = [
-            s.consecutive_above_avg_streak
-            for s in slices
-            if s.consecutive_above_avg_streak is not None and s.consecutive_above_avg_streak > 0
-        ]  # type: ignore
-        streak_length = max(valid_streaks) if valid_streaks else 1
-
         context.update(
             {
                 "top_segments": formatted_names,
                 "min_diff_percent": min_diff_percent,
                 "max_diff_percent": max_diff_percent,
                 "total_share_percent": total_share_percent,
-                "streak_length": streak_length,
             }
         )
 
@@ -203,22 +193,12 @@ class DimensionAnalysisEvaluator(StoryEvaluatorBase[DimensionAnalysis]):
         slices = [slice_lookup.get(name) for name in bottom_segment_names if slice_lookup.get(name)]
         total_share_percent = sum(s.current_share_of_volume_percent or 0 for s in slices)  # type: ignore
 
-        # Calculate streak length for below-average performance - if data is available use it, otherwise default to 1
-        # (since these segments are currently in bottom 4, they're below average for at least this period)
-        valid_streaks = [
-            abs(s.consecutive_above_avg_streak)
-            for s in slices
-            if s.consecutive_above_avg_streak is not None and s.consecutive_above_avg_streak < 0
-        ]  # type: ignore
-        streak_length = max(valid_streaks) if valid_streaks else 1
-
         context.update(
             {
                 "bottom_segments": formatted_names,
                 "min_diff_percent": min_diff_percent,
                 "max_diff_percent": max_diff_percent,
                 "total_share_percent": total_share_percent,
-                "streak_length": streak_length,
             }
         )
 

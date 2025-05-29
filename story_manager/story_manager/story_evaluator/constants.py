@@ -142,16 +142,14 @@ STORY_TEMPLATES = {
         "detail": "The 4 strongest-performing segments for {{ metric.label }} are {{ top_segments }}, "
         "which collectively outperforming the average of {{ min_diff_percent|format_percent }}% to {{ "
         "max_diff_percent|format_percent }}%. These segments represent {{ "
-        "total_share_percent|format_percent }}% of total volume and have maintained above-average "
-        "performance for {{ streak_length }} consecutive {{ grain_label }}s.",
+        "total_share_percent|format_percent }}% of total volume.",
     },
     StoryType.BOTTOM_4_SEGMENTS: {
         "title": "Weakest segments",
         "detail": "The 4 weakest-performing segments for {{ metric.label }} are {{ bottom_segments }}, "
         "which collectively underperforming the average of {{ min_diff_percent|format_percent }}% to {{ "
         "max_diff_percent|format_percent }}%. These segments represent {{ "
-        "total_share_percent|format_percent }}% of total volume and have maintained below-average "
-        "performance for {{ streak_length }} consecutive {{ grain_label }}s.",
+        "total_share_percent|format_percent }}% of total volume.",
     },
     StoryType.SEGMENT_COMPARISONS: {
         "title": "{{ segment_a }} vs. {{ segment_b }}",
