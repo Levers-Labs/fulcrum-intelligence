@@ -615,7 +615,7 @@ def compute_top_bottom_slices(
     slice_col: str,
     value_col: str,
     dimension_name: str,
-    top_n: int = 3,
+    top_n: int = 4,
     include_avg_comparison: bool = True,
 ) -> tuple[list[SliceRanking], list[SliceRanking]]:
     """
