@@ -2,16 +2,20 @@
 Unit tests for historical performance pattern models.
 """
 
+from datetime import date
+
 import pytest
 from pydantic import ValidationError
 
 from levers.models import (
     AnalysisWindow,
+    ComparisonType,
     Granularity,
     TrendExceptionType,
     TrendType,
 )
 from levers.models.patterns import (
+    Benchmark,
     BenchmarkComparison,
     GrowthStats,
     HistoricalPerformance,
@@ -299,26 +303,42 @@ class TestSeasonality:
         assert result["deviation_percent"] == -0.5
 
 
-class TestBenchmarkComparison:
-    """Tests for the BenchmarkComparison class."""
+class TestBenchmark:
+    """Tests for the Benchmark class."""
 
     def test_valid_creation(self):
-        """Test creating a valid BenchmarkComparison object."""
+        """Test creating a valid Benchmark object."""
         # Arrange & Act
-        benchmark = BenchmarkComparison(reference_period="WTD", absolute_change=10.0, change_percent=5.0)
+        benchmark = Benchmark(
+            reference_value=100.0,
+            reference_date=date(2024, 1, 1),
+            reference_period="Last Week",
+            absolute_change=10.0,
+            change_percent=5.0,
+        )
 
         # Assert
-        assert benchmark.reference_period == "WTD"
+        assert benchmark.reference_value == 100.0
+        assert benchmark.reference_date == date(2024, 1, 1)
+        assert benchmark.reference_period == "Last Week"
         assert benchmark.absolute_change == 10.0
         assert benchmark.change_percent == 5.0
 
     def test_optional_fields(self):
         """Test creating an object with optional fields as None."""
         # Arrange & Act
-        benchmark = BenchmarkComparison(reference_period="WTD", absolute_change=10.0, change_percent=None)
+        benchmark = Benchmark(
+            reference_value=100.0,
+            reference_date=date(2024, 1, 1),
+            reference_period="Last Week",
+            absolute_change=10.0,
+            change_percent=None,
+        )
 
         # Assert
-        assert benchmark.reference_period == "WTD"
+        assert benchmark.reference_value == 100.0
+        assert benchmark.reference_date == date(2024, 1, 1)
+        assert benchmark.reference_period == "Last Week"
         assert benchmark.absolute_change == 10.0
         assert benchmark.change_percent is None
 
@@ -326,23 +346,138 @@ class TestBenchmarkComparison:
         """Test required fields validation."""
         # Act & Assert
         with pytest.raises(ValidationError):
-            BenchmarkComparison(
-                reference_period="WTD"
+            Benchmark(
+                reference_value=100.0,
+                reference_date=date(2024, 1, 1),
+                reference_period="Last Week",
                 # Missing absolute_change
             )
 
     def test_dict_conversion(self):
         """Test conversion to dictionary."""
         # Arrange
-        benchmark = BenchmarkComparison(reference_period="WTD", absolute_change=10.0, change_percent=5.0)
+        benchmark = Benchmark(
+            reference_value=100.0,
+            reference_date=date(2024, 1, 1),
+            reference_period="Last Week",
+            absolute_change=10.0,
+            change_percent=5.0,
+        )
 
         # Act
         result = benchmark.to_dict()
 
         # Assert
-        assert result["reference_period"] == "WTD"
+        assert result["reference_value"] == 100.0
+        assert result["reference_date"] == "2024-01-01"
+        assert result["reference_period"] == "Last Week"
         assert result["absolute_change"] == 10.0
         assert result["change_percent"] == 5.0
+
+
+class TestBenchmarkComparison:
+    """Tests for the BenchmarkComparison class."""
+
+    def test_valid_creation(self):
+        """Test creating a valid BenchmarkComparison object."""
+        # Arrange & Act
+        benchmark_comparison = BenchmarkComparison(current_value=110.0, current_period="This Week")
+
+        # Assert
+        assert benchmark_comparison.current_value == 110.0
+        assert benchmark_comparison.current_period == "This Week"
+        assert len(benchmark_comparison.benchmarks) == 0
+
+    def test_add_benchmark(self):
+        """Test adding a benchmark to the comparison."""
+        # Arrange
+        benchmark_comparison = BenchmarkComparison(current_value=110.0, current_period="This Week")
+        benchmark = Benchmark(
+            reference_value=100.0,
+            reference_date=date(2024, 1, 1),
+            reference_period="Last Week",
+            absolute_change=10.0,
+            change_percent=10.0,
+        )
+
+        # Act
+        benchmark_comparison.add_benchmark(ComparisonType.LAST_WEEK, benchmark)
+
+        # Assert
+        assert len(benchmark_comparison.benchmarks) == 1
+        assert benchmark_comparison.has_benchmark(ComparisonType.LAST_WEEK)
+        retrieved_benchmark = benchmark_comparison.get_benchmark(ComparisonType.LAST_WEEK)
+        assert retrieved_benchmark is not None
+        assert retrieved_benchmark.reference_value == 100.0
+
+    def test_get_benchmark_not_found(self):
+        """Test getting a benchmark that doesn't exist."""
+        # Arrange
+        benchmark_comparison = BenchmarkComparison(current_value=110.0, current_period="This Week")
+
+        # Act & Assert
+        assert benchmark_comparison.get_benchmark(ComparisonType.LAST_WEEK) is None
+        assert not benchmark_comparison.has_benchmark(ComparisonType.LAST_WEEK)
+
+    def test_get_all_benchmarks(self):
+        """Test getting all benchmarks."""
+        # Arrange
+        benchmark_comparison = BenchmarkComparison(current_value=110.0, current_period="This Week")
+        benchmark1 = Benchmark(
+            reference_value=100.0,
+            reference_date=date(2024, 1, 1),
+            reference_period="Last Week",
+            absolute_change=10.0,
+            change_percent=10.0,
+        )
+        benchmark2 = Benchmark(
+            reference_value=90.0,
+            reference_date=date(2023, 12, 1),
+            reference_period="Last Month",
+            absolute_change=20.0,
+            change_percent=22.2,
+        )
+
+        # Act
+        benchmark_comparison.add_benchmark(ComparisonType.LAST_WEEK, benchmark1)
+        benchmark_comparison.add_benchmark(ComparisonType.WEEK_IN_LAST_MONTH, benchmark2)
+        all_benchmarks = benchmark_comparison.get_all_benchmarks()
+
+        # Assert
+        assert len(all_benchmarks) == 2
+        assert ComparisonType.LAST_WEEK in all_benchmarks
+        assert ComparisonType.WEEK_IN_LAST_MONTH in all_benchmarks
+
+    def test_required_fields(self):
+        """Test required fields validation."""
+        # Act & Assert
+        with pytest.raises(ValidationError):
+            BenchmarkComparison(
+                current_value=110.0
+                # Missing current_period
+            )
+
+    def test_dict_conversion(self):
+        """Test conversion to dictionary."""
+        # Arrange
+        benchmark_comparison = BenchmarkComparison(current_value=110.0, current_period="This Week")
+        benchmark = Benchmark(
+            reference_value=100.0,
+            reference_date=date(2024, 1, 1),
+            reference_period="Last Week",
+            absolute_change=10.0,
+            change_percent=10.0,
+        )
+        benchmark_comparison.add_benchmark(ComparisonType.LAST_WEEK, benchmark)
+
+        # Act
+        result = benchmark_comparison.to_dict()
+
+        # Assert
+        assert result["current_value"] == 110.0
+        assert result["current_period"] == "This Week"
+        assert "benchmarks" in result
+        assert "last_week" in result["benchmarks"]
 
 
 class TestTrendInfo:
@@ -566,7 +701,18 @@ class TestHistoricalPerformance:
 
     def test_valid_creation(self):
         """Test creating a valid HistoricalPerformance object."""
-        # Arrange & Act
+        # Arrange
+        benchmark_comparison = BenchmarkComparison(current_value=110.0, current_period="This Week")
+        benchmark = Benchmark(
+            reference_value=100.0,
+            reference_date=date(2024, 1, 1),
+            reference_period="Last Week",
+            absolute_change=10.0,
+            change_percent=10.0,
+        )
+        benchmark_comparison.add_benchmark(ComparisonType.LAST_WEEK, benchmark)
+
+        # Act
         performance = HistoricalPerformance(
             pattern="historical_performance",
             metric_id="test_metric",
@@ -590,7 +736,7 @@ class TestHistoricalPerformance:
             ],
             high_rank=RankSummary(value=150.0, rank=1, duration_grains=31),
             low_rank=RankSummary(value=100.0, rank=31, duration_grains=31),
-            benchmark_comparison=BenchmarkComparison(reference_period="WTD", absolute_change=10.0, change_percent=5.0),
+            benchmark_comparison=benchmark_comparison,
             trend_exception=TrendException(
                 type=TrendExceptionType.SPIKE, current_value=150.0, normal_range_low=100.0, normal_range_high=130.0
             ),

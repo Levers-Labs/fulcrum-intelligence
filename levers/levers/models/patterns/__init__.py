@@ -10,6 +10,7 @@ from .dimension_analysis import DimensionAnalysis
 
 # Historical performance models
 from .historical_performance import (
+    Benchmark,
     BenchmarkComparison,
     GrowthStats,
     HistoricalPerformance,
@@ -36,6 +37,7 @@ __all__ = [
     "HoldSteady",
     "MetricPerformance",
     # Historical performance
+    "Benchmark",
     "BenchmarkComparison",
     "HistoricalPerformance",
     "PeriodMetrics",
