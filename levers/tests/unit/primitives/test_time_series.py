@@ -12,13 +12,11 @@ from levers.models import (
     CumulativeGrowthMethod,
     DataFillMethod,
     Granularity,
-    PartialInterval,
 )
-from levers.models.patterns import BenchmarkComparison
 from levers.primitives import (
     calculate_average_growth,
+    calculate_benchmark_comparisons,
     calculate_cumulative_growth,
-    calculate_period_benchmarks,
     calculate_pop_growth,
     calculate_rolling_averages,
     calculate_slope_of_time_series,
@@ -280,109 +278,6 @@ class TestCalculateAverageGrowth:
             calculate_average_growth(df, date_col="date", value_col="value", method="invalid_method")
 
 
-class TestCalculateToDateGrowthRates:
-    """Tests for the calculate_period_benchmarks function."""
-
-    def test_basic_growth_rates(self):
-        """Test basic period benchmark calculations."""
-        # Arrange
-        df = pd.DataFrame(
-            {
-                "date": ["2023-01-01", "2023-01-08", "2023-01-15", "2023-01-22", "2023-01-29"],
-                "value": [100, 110, 120, 130, 140],
-            }
-        )
-        df["date"] = pd.to_datetime(df["date"])
-
-        # Act
-        # Using the default WTD period which should work correctly
-        results = calculate_period_benchmarks(
-            df,
-            benchmark_period=PartialInterval.WTD,
-            date_col="date",
-            value_col="value",
-        )
-
-        # Assert
-        assert results is not None
-        assert isinstance(results, BenchmarkComparison)
-
-    def test_different_aggregator(self):
-        """Test with different aggregation methods."""
-        # Arrange
-        df = pd.DataFrame(
-            {
-                "date": ["2023-01-01", "2023-01-08", "2023-01-15", "2023-01-22", "2023-01-29"],
-                "value": [100, 110, 120, 130, 140],
-            }
-        )
-        df["date"] = pd.to_datetime(df["date"])
-
-        # Act
-        results_avg = calculate_period_benchmarks(
-            df, benchmark_period=PartialInterval.WTD, date_col="date", value_col="value", aggregator="mean"
-        )
-
-        # Assert
-        assert results_avg is not None
-        assert isinstance(results_avg, BenchmarkComparison)
-
-    def test_mtd_interval(self):
-        """Test with WTD interval as MTD has issues."""
-        # Arrange
-        df = pd.DataFrame(
-            {
-                "date": ["2023-01-01", "2023-01-08", "2023-01-15", "2023-01-22", "2023-01-29"],
-                "value": [100, 110, 120, 130, 140],
-            }
-        )
-        df["date"] = pd.to_datetime(df["date"])
-
-        # Act
-        results = calculate_period_benchmarks(
-            df, benchmark_period=PartialInterval.WTD, date_col="date", value_col="value"  # Use WTD instead of MTD
-        )
-
-        # Assert
-        assert results is not None
-        assert isinstance(results, BenchmarkComparison)
-
-    def test_invalid_aggregator(self):
-        """Test with invalid aggregator."""
-        # Arrange
-        dates = pd.date_range(start="2023-01-01", end="2023-01-31", freq="D")
-        values = range(100, 100 + len(dates))
-        df = pd.DataFrame({"date": dates, "value": values})
-
-        # Act & Assert
-        with pytest.raises(ValidationError):
-            calculate_period_benchmarks(
-                df,
-                benchmark_period=PartialInterval.WTD,
-                date_col="date",
-                value_col="value",
-                aggregator="invalid_aggregator",
-            )
-
-    def test_invalid_columns(self):
-        """Test with invalid column names."""
-        # Arrange
-        dates = pd.date_range(start="2023-01-01", end="2023-01-31", freq="D")
-        values = range(100, 100 + len(dates))
-        df = pd.DataFrame({"date": dates, "value": values})
-
-        # Act & Assert
-        with pytest.raises((ValidationError, KeyError)):
-            calculate_period_benchmarks(
-                df, benchmark_period=PartialInterval.WTD, date_col="non_existent", value_col="value"
-            )
-
-        with pytest.raises((ValidationError, KeyError)):
-            calculate_period_benchmarks(
-                df, benchmark_period=PartialInterval.WTD, date_col="date", value_col="non_existent"
-            )
-
-
 class TestCalculateRollingAverages:
     """Tests for the calculate_rolling_averages function."""
 
@@ -625,3 +520,91 @@ class TestCalculateSlopeOfTimeSeries:
 
         with pytest.raises((ValidationError, KeyError)):
             calculate_slope_of_time_series(df, date_col="date", value_col="non_existent")
+
+
+class TestCalculateBenchmarkComparisons:
+    """Tests for the calculate_benchmark_comparisons function."""
+
+    def test_week_grain_comparisons(self):
+        """Test benchmark comparisons for weekly grain."""
+        # Arrange - Create weekly data with enough history for comparisons
+        dates = pd.date_range(start="2023-01-01", periods=60, freq="W-MON")  # 60 weeks of data
+        values = [100 + i for i in range(60)]  # Increasing values
+        df = pd.DataFrame({"date": dates, "value": values})
+
+        # Act
+        result = calculate_benchmark_comparisons(df, Granularity.WEEK)
+
+        # Assert
+        assert result is not None
+        assert result.current_value == 159  # Last value (100 + 59)
+        assert result.current_period == "This Week"
+        assert len(result.benchmarks) > 0
+
+        # Check that we have the expected comparison types
+        from levers.models import ComparisonType
+
+        assert ComparisonType.LAST_WEEK in result.benchmarks
+
+        # Verify benchmark structure
+        last_week_benchmark = result.get_benchmark(ComparisonType.LAST_WEEK)
+        assert last_week_benchmark is not None
+        assert hasattr(last_week_benchmark, "reference_value")
+        assert hasattr(last_week_benchmark, "reference_date")
+        assert hasattr(last_week_benchmark, "reference_period")
+        assert hasattr(last_week_benchmark, "absolute_change")
+        assert hasattr(last_week_benchmark, "change_percent")
+
+    def test_month_grain_comparisons(self):
+        """Test benchmark comparisons for monthly grain."""
+        # Arrange - Create monthly data
+        dates = pd.date_range(start="2023-01-01", periods=24, freq="MS")  # 24 months of data
+        values = [100 + i * 5 for i in range(24)]  # Increasing values
+        df = pd.DataFrame({"date": dates, "value": values})
+
+        # Act
+        result = calculate_benchmark_comparisons(df, Granularity.MONTH)
+
+        # Assert
+        assert result is not None
+        assert result.current_value == 215  # Last value (100 + 23*5)
+        assert result.current_period == "This Month"
+        assert len(result.benchmarks) > 0
+
+    def test_day_grain_disabled(self):
+        """Test that day grain returns None (disabled)."""
+        # Arrange
+        dates = pd.date_range(start="2023-01-01", periods=30, freq="D")
+        values = [100 + i for i in range(30)]
+        df = pd.DataFrame({"date": dates, "value": values})
+
+        # Act
+        result = calculate_benchmark_comparisons(df, Granularity.DAY)
+
+        # Assert
+        assert result is None
+
+    def test_empty_dataframe(self):
+        """Test with empty dataframe."""
+        # Arrange
+        df = pd.DataFrame({"date": [], "value": []})
+
+        # Act
+        result = calculate_benchmark_comparisons(df, Granularity.WEEK)
+
+        # Assert
+        assert result is None
+
+    def test_insufficient_data(self):
+        """Test with insufficient data for comparisons."""
+        # Arrange - Only one data point
+        df = pd.DataFrame({"date": [pd.Timestamp("2023-01-01")], "value": [100]})
+
+        # Act
+        result = calculate_benchmark_comparisons(df, Granularity.WEEK)
+
+        # Assert
+        # Should return a result with current value but no benchmarks
+        assert result is not None
+        assert result.current_value == 100
+        assert len(result.benchmarks) == 0

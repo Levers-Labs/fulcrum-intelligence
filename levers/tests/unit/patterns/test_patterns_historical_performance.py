@@ -94,7 +94,7 @@ class TestHistoricalPerformancePattern:
         assert "detect_record_high" in pattern.required_primitives
         assert "detect_record_low" in pattern.required_primitives
         assert "detect_seasonality_pattern" in pattern.required_primitives
-        assert "calculate_period_benchmarks" in pattern.required_primitives
+        assert "calculate_benchmark_comparisons" in pattern.required_primitives
 
     def test_analyze_basic(self, pattern, sample_data, analysis_window):
         """Test the basic analyze method."""
@@ -282,11 +282,11 @@ class TestHistoricalPerformancePattern:
         # Arrange
         data = pd.DataFrame(
             {
-                "date": pd.date_range(start="2023-01-01", end="2023-01-31", freq="D"),
-                "value": [100 + i for i in range(31)],
+                "date": pd.date_range(start="2023-01-01", end="2023-12-31", freq="W-MON"),
+                "value": [100 + i for i in range(52)],  # 52 weeks of data
             }
         )
-        analysis_window = AnalysisWindow(start_date="2023-01-01", end_date="2023-01-31", grain=Granularity.DAY)
+        analysis_window = AnalysisWindow(start_date="2023-01-01", end_date="2023-12-31", grain=Granularity.WEEK)
 
         # Act
         result = pattern.analyze("test", data, analysis_window)
@@ -294,9 +294,10 @@ class TestHistoricalPerformancePattern:
         # Assert
         assert result is not None
         assert result.benchmark_comparison is not None
-        assert hasattr(result.benchmark_comparison, "reference_period")
-        assert hasattr(result.benchmark_comparison, "absolute_change")
-        assert hasattr(result.benchmark_comparison, "change_percent")
+        assert hasattr(result.benchmark_comparison, "current_value")
+        assert hasattr(result.benchmark_comparison, "current_period")
+        assert hasattr(result.benchmark_comparison, "benchmarks")
+        assert isinstance(result.benchmark_comparison.benchmarks, dict)
 
     def test_detect_trend_exceptions(self, pattern):
         """Test the trend exceptions detection functionality."""

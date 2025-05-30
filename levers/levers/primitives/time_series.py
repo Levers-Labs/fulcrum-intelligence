@@ -25,14 +25,14 @@ from levers.exceptions import ValidationError
 from levers.models import (
     AverageGrowth,
     AverageGrowthMethod,
+    ComparisonType,
     CumulativeGrowthMethod,
     DataFillMethod,
     Granularity,
-    PartialInterval,
     TimeSeriesSlope,
 )
-from levers.models.patterns import BenchmarkComparison
-from levers.primitives import calculate_difference, calculate_percentage_difference
+from levers.models.patterns import Benchmark, BenchmarkComparison
+from levers.primitives import calculate_difference, calculate_percentage_difference, get_prev_period_start_date
 
 logger = logging.getLogger(__name__)
 
@@ -439,124 +439,178 @@ def calculate_slope_of_time_series(
     )
 
 
-def calculate_period_benchmarks(
-    df: pd.DataFrame,
-    benchmark_period: PartialInterval,
+def _get_period_value(
+    df_sorted: pd.DataFrame,
+    reference_start: pd.Timestamp,
     date_col: str = "date",
     value_col: str = "value",
-    aggregator: str = "sum",
+) -> float | None:
+    """Get value for a specific period from time series data."""
+    reference_date = reference_start.date()
+    matching_row = df_sorted[df_sorted[date_col].dt.date == reference_date]
+
+    # If no matching row, return None
+    if matching_row.empty:
+        return None
+
+    # Return the value of the matching row
+    return matching_row[value_col].iloc[0]
+
+
+def _get_benchmark_configs(grain: str) -> list[dict]:
+    """Get benchmark configurations for a given grain."""
+    if grain == Granularity.WEEK:
+        return [
+            {
+                "comparison_type": ComparisonType.LAST_WEEK,
+                "label": "Last Week",
+                "periods_back": 1,
+                "grain": Granularity.WEEK,
+            },
+            {
+                "comparison_type": ComparisonType.WEEK_IN_LAST_MONTH,
+                "label": "Month Ago",
+                "periods_back": 1,
+                "grain": Granularity.MONTH,
+            },
+            {
+                "comparison_type": ComparisonType.WEEK_IN_LAST_QUARTER,
+                "label": "Quarter Ago",
+                "periods_back": 1,
+                "grain": Granularity.QUARTER,
+            },
+            {
+                "comparison_type": ComparisonType.WEEK_IN_LAST_YEAR,
+                "label": "Year Ago",
+                "periods_back": 1,
+                "grain": Granularity.YEAR,
+            },
+        ]
+    elif grain == Granularity.MONTH:
+        return [
+            {
+                "comparison_type": ComparisonType.LAST_MONTH,
+                "label": "Last Month",
+                "periods_back": 1,
+                "grain": Granularity.MONTH,
+            },
+            {
+                "comparison_type": ComparisonType.MONTH_IN_LAST_QUARTER,
+                "label": "Quarter Ago",
+                "periods_back": 1,
+                "grain": Granularity.QUARTER,
+            },
+            {
+                "comparison_type": ComparisonType.MONTH_IN_LAST_YEAR,
+                "label": "Year Ago",
+                "periods_back": 1,
+                "grain": Granularity.YEAR,
+            },
+        ]
+    return []
+
+
+def _calculate_benchmark(
+    df_sorted: pd.DataFrame,
+    config: dict,
+    current_value: float,
+    latest_date: pd.Timestamp,
+    date_col: str = "date",
+    value_col: str = "value",
+) -> Benchmark | None:
+    """Calculate a single benchmark comparison based on configuration."""
+    # Calculate reference period start date using period_grains primitive
+    reference_start_date = get_prev_period_start_date(
+        grain=Granularity(config["grain"]), period_count=config["periods_back"], latest_start_date=latest_date
+    )
+
+    # Convert to timestamp for consistency
+    reference_start = pd.Timestamp(reference_start_date)
+
+    # Get the reference value
+    reference_value = _get_period_value(df_sorted, reference_start, date_col, value_col)
+
+    # If no reference value, return None
+    if reference_value is None:
+        return None
+
+    # Calculate absolute and percentage change
+    absolute_change = calculate_difference(current_value, reference_value)
+    change_percent = calculate_percentage_difference(current_value, reference_value, handle_zero_reference=True)
+
+    # Create the benchmark object
+    return Benchmark(
+        reference_value=reference_value,
+        reference_date=reference_start.date(),
+        reference_period=config["label"],
+        absolute_change=absolute_change,
+        change_percent=change_percent,
+    )
+
+
+def calculate_benchmark_comparisons(
+    df: pd.DataFrame, grain: Granularity, date_col: str = "date", value_col: str = "value"
 ) -> BenchmarkComparison | None:
     """
-    Calculate benchmark comparisons between current and prior periods (WTD, MTD, QTD, YTD).
+    Calculate benchmark comparisons for a given grain and DataFrame.
 
     Family: time_series
     Version: 1.0
 
     Args:
-        df: DataFrame containing time series data
-        benchmark_period: The period type to compare (default: PartialInterval.WTD)
-        date_col: Column name containing dates
+        df: Time series data with period start dates
+        grain: Time grain for analysis (day, week, month)
+        date_col: Column name containing period start dates
         value_col: Column name containing values
-        aggregator: How to aggregate values: 'sum', 'mean', 'median', 'min', 'max'
 
     Returns:
-        BenchmarkComparison object containing benchmark comparison details,
-        - reference_period: str, the reference period
-        - absolute_change: float, the absolute change
-        - change_percent: float, the change percent
-        or None if there is no data to compare
-    """
+        BenchmarkComparison object containing benchmark comparison details with:
+        - current_value: The current period's value
+        - current_period: The current period's string representation
+        - benchmarks: A dictionary of Benchmark objects, keyed by ComparisonType
 
-    # Check aggregator is valid
-    valid_aggregators = {"sum", "mean", "median", "min", "max"}
-    if aggregator not in valid_aggregators:
-        raise ValidationError(f"Invalid aggregator: {aggregator}. Must be one of {valid_aggregators}")
+        Returns None if insufficient data or unsupported grain (day grain is disabled)
+    """
+    # Disable for day grain as it is not supported
+    if grain == Granularity.DAY:
+        return None
 
     # Ensure data is sorted by date
     df_sorted = validate_date_sorted(df, date_col)
 
-    # Get the last date in the dataset
-    last_date = df_sorted[date_col].max()
-
-    # Filter current period data based on period type
-    if benchmark_period == PartialInterval.WTD:
-        # Monday of current week (day 0 is Monday)
-        current_week_monday = last_date - pd.Timedelta(days=last_date.dayofweek)
-        c_start = current_week_monday
-        c_end = last_date
-
-        # Prior WTD - shift by 7 days
-        p_start = c_start - pd.Timedelta(days=7)
-        p_end = c_end - pd.Timedelta(days=7)
-
-    elif benchmark_period == PartialInterval.MTD:
-        # Current month-to-date
-        c_start = last_date.replace(day=1)
-        c_end = last_date
-
-        # Prior month
-        if c_start.month == 1:
-            p_start = pd.Timestamp(year=c_start.year - 1, month=12, day=1)
-        else:
-            p_start = pd.Timestamp(year=c_start.year, month=c_start.month - 1, day=1)
-
-        # Same day of month, or last day if prior month is shorter
-        day_of_month = min(last_date.day, (p_start + pd.Timedelta(days=31)).replace(day=1) - pd.Timedelta(days=1)).day
-        p_end = p_start.replace(day=day_of_month)
-
-    elif benchmark_period == PartialInterval.QTD:
-        # Current quarter-to-date
-        quarter_month = ((last_date.month - 1) // 3) * 3 + 1
-        c_start = pd.Timestamp(year=last_date.year, month=quarter_month, day=1)
-        c_end = last_date
-
-        # Days into quarter
-        days_into_quarter = (last_date - c_start).days
-
-        # Prior quarter
-        if quarter_month == 1:
-            p_start = pd.Timestamp(year=last_date.year - 1, month=10, day=1)
-        else:
-            p_start = pd.Timestamp(year=last_date.year, month=quarter_month - 3, day=1)
-
-        p_end = p_start + pd.Timedelta(days=days_into_quarter)
-
-    elif benchmark_period == PartialInterval.YTD:
-        # Current year-to-date
-        c_start = pd.Timestamp(year=last_date.year, month=1, day=1)
-        c_end = last_date
-
-        # Prior year, same day of year
-        p_start = pd.Timestamp(year=last_date.year - 1, month=1, day=1)
-        day_of_year = min(last_date.dayofyear, 366 if pd.Timestamp(last_date.year - 1, 12, 31).is_leap_year else 365)
-        p_end = p_start + pd.Timedelta(days=day_of_year - 1)
-
-    # Filter dataframes for current and prior periods
-    current_mask = (df_sorted[date_col] >= c_start) & (df_sorted[date_col] <= c_end)
-    prior_mask = (df_sorted[date_col] >= p_start) & (df_sorted[date_col] <= p_end)
-
-    current_df = df_sorted[current_mask]
-    prior_df = df_sorted[prior_mask]
-
-    # Skip if either period has no data
-    if current_df.empty or prior_df.empty:
+    if df_sorted.empty:
         return None
 
-    # Apply aggregation
-    agg_func = getattr(pd.Series, aggregator)
-    current_value = agg_func(current_df[value_col])
-    prior_value = agg_func(prior_df[value_col])
+    # Get the latest date in the dataset (should be a period start date)
+    latest_date = df_sorted[date_col].max().date()
 
-    # Calculate changes
-    absolute_change = calculate_difference(current_value, prior_value)
+    # Get the current value
+    current_value = _get_period_value(df_sorted, pd.Timestamp(latest_date), date_col, value_col)
+    if current_value is None:
+        return None
 
-    try:
-        change_percent = calculate_percentage_difference(current_value, prior_value, handle_zero_reference=True)
-    except Exception:
-        change_percent = None
+    # Determine current period description
+    if grain == Granularity.WEEK:
+        current_period = "This Week"
+    elif grain == Granularity.MONTH:
+        current_period = "This Month"
+    else:
+        current_period = f"This {grain.value.title()}"
 
-    return BenchmarkComparison(
-        reference_period=benchmark_period,
-        absolute_change=absolute_change,
-        change_percent=change_percent,
-    )
+    # Create the main comparison object
+    benchmark_comparison = BenchmarkComparison(current_value=current_value, current_period=current_period)
+
+    # Define benchmark configurations for each grain
+    benchmark_configs = _get_benchmark_configs(grain)
+    if not benchmark_configs:
+        return None
+
+    # Calculate all comparisons
+    for config in benchmark_configs:
+        benchmark = _calculate_benchmark(
+            df_sorted, config, current_value, pd.Timestamp(latest_date), date_col, value_col
+        )
+        if benchmark:
+            benchmark_comparison.add_benchmark(config["comparison_type"], benchmark)
+
+    return benchmark_comparison
