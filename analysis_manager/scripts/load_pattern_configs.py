@@ -52,42 +52,23 @@ async def load_pattern_configs_for_tenant(tenant_id: int) -> None:
         async with get_async_session() as session:
             pattern_manager = PatternManager(session)
 
-            # Check existing patterns
-            try:
-                existing_patterns = await pattern_manager.list_pattern_configs()
-                existing_pattern_names = (
-                    {config.pattern_name for config in existing_patterns} if existing_patterns else set()
-                )
-                logger.info(
-                    "Found %d existing pattern configurations for tenant %d", len(existing_pattern_names), tenant_id
-                )
-            except Exception as e:
-                logger.error("Error listing existing pattern configurations: %s", e)
-                existing_pattern_names = set()
-
-            # Load each configuration that doesn't already exist
-            loaded_count = 0
+            # Load each configuration (create or update)
+            processed_count = 0
             for config_data in configs:
                 pattern_name = config_data["pattern_name"]
-
-                if pattern_name in existing_pattern_names:
-                    logger.info(
-                        "Configuration for pattern '%s' already exists for tenant %d, skipping", pattern_name, tenant_id
-                    )
-                    continue
 
                 # Create PatternConfig from data
                 try:
                     config = PatternConfig.model_validate(config_data)
 
-                    # Store configuration for the tenant
-                    await pattern_manager.store_pattern_config(config)
-                    loaded_count += 1
-                    logger.info("Stored configuration for pattern '%s' for tenant %d", pattern_name, tenant_id)
+                    # Store configuration for the tenant (upsert operation)
+                    _ = await pattern_manager.store_pattern_config(config)
+                    processed_count += 1
+                    logger.info("Processed configuration for pattern '%s' for tenant %d", pattern_name, tenant_id)
                 except Exception as e:
                     logger.error("Failed to load configuration for pattern '%s': %s", pattern_name, e)
 
-            logger.info("Loaded %d new pattern configurations for tenant %d", loaded_count, tenant_id)
+            logger.info("Processed %d pattern configurations for tenant %d", processed_count, tenant_id)
 
             # Commit session to ensure changes are persisted
             await session.commit()
