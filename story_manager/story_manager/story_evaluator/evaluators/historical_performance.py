@@ -217,7 +217,7 @@ class HistoricalPerformanceEvaluator(StoryEvaluatorBase[HistoricalPerformance]):
 
         # Add benchmark info
         if "benchmark_comparison" in include and pattern_result.benchmark_comparison:
-            context["benchmark"] = self._prepare_benchmark_context(pattern_result.benchmark_comparison)
+            context["benchmark"] = self._prepare_benchmark_context(grain, pattern_result.benchmark_comparison)
         return context
 
     def _create_slowing_growth_story(
@@ -574,7 +574,9 @@ class HistoricalPerformanceEvaluator(StoryEvaluatorBase[HistoricalPerformance]):
             **context,
         )
 
-    def _prepare_benchmark_context(self, benchmark_comparison: BenchmarkComparison) -> dict[str, Any]:
+    def _prepare_benchmark_context(
+        self, grain: Granularity, benchmark_comparison: BenchmarkComparison
+    ) -> dict[str, Any]:
         """
         Prepare the benchmark context for template rendering.
 
@@ -588,9 +590,10 @@ class HistoricalPerformanceEvaluator(StoryEvaluatorBase[HistoricalPerformance]):
         all_benchmarks = benchmark_comparison.get_all_benchmarks()
 
         # create benchmark context dict
+        current_label_map = {Granularity.WEEK: "current week's", Granularity.MONTH: "current month's"}
         benchmark_context = {
             "current_value": benchmark_comparison.current_value,
-            "current_period": benchmark_comparison.current_period,
+            "current_period": current_label_map.get(grain, benchmark_comparison.current_period),
         }
 
         # Create lists for multiple comparisons
@@ -623,13 +626,16 @@ class HistoricalPerformanceEvaluator(StoryEvaluatorBase[HistoricalPerformance]):
             )
 
         # Sort comparison details by date from closest to furthest
-        comparison_details.sort(key=lambda x: x["date"])  # type: ignore
+        comparison_details.sort(key=lambda x: x["date"], reverse=True)  # type: ignore
+
+        # Convert date to string for template rendering
+        for comparison in comparison_details:
+            comparison["date"] = comparison["date"].strftime("%Y-%m-%d")  # type: ignore
 
         # Create summary text for each comparison
         for comparison in comparison_details:
             chg_pc = f"{comparison['change_percent']:.1f}%"
-            ref_val = f"{comparison['reference_value']:.1f}"
-            comparison_summaries.append(f"{chg_pc} {comparison['direction']} than {comparison['label']} ({ref_val})")
+            comparison_summaries.append(f"{chg_pc} {comparison['direction']} than {comparison['label']}")
 
         # Add context variables for template rendering
         benchmark_context["comparison_details"] = comparison_details
@@ -663,7 +669,8 @@ class HistoricalPerformanceEvaluator(StoryEvaluatorBase[HistoricalPerformance]):
         # Prepare series data for the chart visualization
         series_data = [
             {
-                "date": pattern_result.analysis_date,
+                # todo: change later to actual date of the data
+                "date": pattern_result.analysis_date.strftime("%Y-%m-%d"),
                 "value": benchmark_comparison.current_value,
                 # Textual representation of the current period e.g This Week, This Month
                 "label": benchmark_comparison.current_period,

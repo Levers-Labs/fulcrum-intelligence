@@ -1063,18 +1063,18 @@ def test_prepare_benchmark_context(evaluator):
     # Create mock benchmark comparison
     mock_benchmark_comparison = MagicMock(spec=BenchmarkComparison)
     mock_benchmark_comparison.current_value = 100.0
-    mock_benchmark_comparison.current_period = "This Month"
+    mock_benchmark_comparison.current_period = "current month's"
     mock_benchmark_comparison.get_all_benchmarks.return_value = {
         ComparisonType.LAST_MONTH: mock_benchmark_1,
         ComparisonType.MONTH_IN_LAST_YEAR: mock_benchmark_2,
     }
 
     # Test the method
-    context = evaluator._prepare_benchmark_context(mock_benchmark_comparison)
+    context = evaluator._prepare_benchmark_context(Granularity.MONTH, mock_benchmark_comparison)
 
     # Verify the structure
     assert context["current_value"] == 100.0
-    assert context["current_period"] == "This Month"
+    assert context["current_period"] == "current month's"
     assert "comparison_details" in context
     assert "comparison_summaries" in context
     assert "num_comparisons" in context
@@ -1083,22 +1083,22 @@ def test_prepare_benchmark_context(evaluator):
     # Verify comparison details (sorted by date, so year comes first)
     details = context["comparison_details"]
     assert len(details) == 2
-    # First item should be the one with earlier date (2022) - "the same month last year"
-    assert details[0]["label"] == "the same month last year"
-    assert details[0]["change_percent"] == 17.6
-    assert details[0]["direction"] == "higher"
-    assert details[0]["reference_value"] == 85.0
-    # Second item should be more recent (2023) - "last month"
-    assert details[1]["label"] == "last month"
-    assert details[1]["change_percent"] == 11.1
+    # Second item should be the one with earlier date (2022) - "the same month last year"
+    assert details[1]["label"] == "the same month last year"
+    assert details[1]["change_percent"] == 17.6
     assert details[1]["direction"] == "higher"
-    assert details[1]["reference_value"] == 90.0
+    assert details[1]["reference_value"] == 85.0
+    # First item should be more recent (2023) - "last month"
+    assert details[0]["label"] == "last month"
+    assert details[0]["change_percent"] == 11.1
+    assert details[0]["direction"] == "higher"
+    assert details[0]["reference_value"] == 90.0
 
     # Verify comparison summaries
     summaries = context["comparison_summaries"]
     assert len(summaries) == 2
-    assert "17.6% higher than the same month last year (85.0)" in summaries[0]
-    assert "11.1% higher than last month (90.0)" in summaries[1]
+    assert "17.6% higher than the same month last year" in summaries[1]
+    assert "11.1% higher than last month" in summaries[0]
 
 
 def test_has_valid_benchmarks(evaluator):
@@ -1148,7 +1148,7 @@ def test_create_benchmark_story(evaluator, mock_metric):
 
     # Create mock pattern result
     mock_pattern_result = MagicMock()
-    mock_pattern_result.analysis_date = "2024-01-01"
+    mock_pattern_result.analysis_date = datetime(2024, 1, 1)
     mock_pattern_result.benchmark_comparison = mock_benchmark_comparison
     mock_pattern_result.high_rank = MagicMock()
     mock_pattern_result.high_rank.rank = 1
