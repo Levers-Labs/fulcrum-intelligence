@@ -8,8 +8,8 @@ from typing import Any
 import pandas as pd
 
 from commons.models.enums import Granularity
-from levers.models import TrendExceptionType, TrendType
-from levers.models.patterns import HistoricalPerformance
+from levers.models import ComparisonType, TrendExceptionType, TrendType
+from levers.models.patterns import BenchmarkComparison, HistoricalPerformance
 from story_manager.core.enums import StoryGenre, StoryGroup, StoryType
 from story_manager.story_evaluator import StoryEvaluatorBase, render_story_text
 
@@ -87,8 +87,12 @@ class HistoricalPerformanceEvaluator(StoryEvaluatorBase[HistoricalPerformance]):
         elif pattern_result.low_rank and pattern_result.low_rank.rank <= 2:  # Consider bottom 2 as record low
             stories.append(self._create_record_low_story(pattern_result, metric_id, metric, grain))
 
-        # Benchmark Stories
-        if pattern_result.benchmark_comparison and pattern_result.high_rank:
+        # Benchmark Stories (only for week and month grains)
+        if (
+            pattern_result.high_rank
+            and grain in [Granularity.WEEK, Granularity.MONTH]
+            and self._has_valid_benchmarks(pattern_result.benchmark_comparison)  # Ensure we have benchmarks
+        ):
             stories.append(self._create_benchmark_story(pattern_result, metric_id, metric, grain))
 
         return stories
@@ -99,6 +103,21 @@ class HistoricalPerformanceEvaluator(StoryEvaluatorBase[HistoricalPerformance]):
             pattern_result.previous_trend is not None
             and pattern_result.current_trend.trend_type != pattern_result.previous_trend.trend_type  # type: ignore
         )
+
+    def _has_valid_benchmarks(self, benchmark_comparison) -> bool:
+        """Check if benchmark comparison has valid benchmark data."""
+        if not benchmark_comparison:
+            return False
+
+        # Check for new BenchmarkComparison model with get_all_benchmarks method
+        if hasattr(benchmark_comparison, "get_all_benchmarks"):
+            return bool(benchmark_comparison.get_all_benchmarks())
+
+        # Check for old BenchmarkComparison model with direct fields
+        if hasattr(benchmark_comparison, "change_percent"):
+            return benchmark_comparison.change_percent is not None
+
+        return False
 
     def _populate_template_context(
         self, pattern_result: HistoricalPerformance, metric: dict, grain: Granularity, **kwargs
@@ -198,27 +217,7 @@ class HistoricalPerformanceEvaluator(StoryEvaluatorBase[HistoricalPerformance]):
 
         # Add benchmark info
         if "benchmark_comparison" in include and pattern_result.benchmark_comparison:
-            # Map reference periods to more readable names for stories
-            period_display_names = {
-                "WTD": "Week to Date",
-                "MTD": "Month to Date",
-                "QTD": "Quarter to Date",
-                "YTD": "Year to Date",
-            }
-            reference_period_mapping = {"WTD": "week", "MTD": "month", "QTD": "quarter", "YTD": "year"}
-
-            # Get the benchmark data
-            benchmark = pattern_result.benchmark_comparison
-
-            # Add benchmark comparison info with direct mapping to template variables
-            context["partial_interval_label"] = period_display_names.get(benchmark.reference_period)
-            context["partial_interval"] = benchmark.reference_period
-            context["change_percent"] = abs(benchmark.change_percent or 0)
-            context["comparison_direction"] = (
-                "higher" if benchmark.change_percent and benchmark.change_percent > 0 else "lower"
-            )
-            context["reference_period"] = reference_period_mapping.get(benchmark.reference_period)
-
+            context["benchmark"] = self._prepare_benchmark_context(pattern_result.benchmark_comparison)
         return context
 
     def _create_slowing_growth_story(
@@ -575,28 +574,125 @@ class HistoricalPerformanceEvaluator(StoryEvaluatorBase[HistoricalPerformance]):
             **context,
         )
 
+    def _prepare_benchmark_context(self, benchmark_comparison: BenchmarkComparison) -> dict[str, Any]:
+        """
+        Prepare the benchmark context for template rendering.
+
+        Args:
+            benchmark_comparison: The benchmark comparison object.
+
+        Returns:
+            A dictionary containing the benchmark context.
+        """
+        # Get all available benchmarks
+        all_benchmarks = benchmark_comparison.get_all_benchmarks()
+
+        # create benchmark context dict
+        benchmark_context = {
+            "current_value": benchmark_comparison.current_value,
+            "current_period": benchmark_comparison.current_period,
+        }
+
+        # Create lists for multiple comparisons
+        comparison_details = []
+        comparison_summaries = []
+        # Process each benchmark comparison
+        for comparison_type, benchmark in all_benchmarks.items():
+            # Create readable labels for each comparison type
+            comparison_labels = {
+                ComparisonType.LAST_WEEK: "last week",
+                ComparisonType.WEEK_IN_LAST_MONTH: "the same week last month",
+                ComparisonType.WEEK_IN_LAST_QUARTER: "the same week last quarter",
+                ComparisonType.WEEK_IN_LAST_YEAR: "the same week last year",
+                ComparisonType.LAST_MONTH: "last month",
+                ComparisonType.MONTH_IN_LAST_QUARTER: "the same month last quarter",
+                ComparisonType.MONTH_IN_LAST_YEAR: "the same month last year",
+            }
+            comparison_label = comparison_labels.get(comparison_type, benchmark.reference_period)
+            change_direction = "higher" if benchmark.change_percent and benchmark.change_percent > 0 else "lower"
+            change_percent = abs(benchmark.change_percent or 0)
+            # Add to comparison details for the story
+            comparison_details.append(
+                {
+                    "label": comparison_label,
+                    "change_percent": change_percent,
+                    "direction": change_direction,
+                    "reference_value": benchmark.reference_value,
+                    "date": benchmark.reference_date,  # Add date field for sorting
+                }
+            )
+
+        # Sort comparison details by date from closest to furthest
+        comparison_details.sort(key=lambda x: x["date"])  # type: ignore
+
+        # Create summary text for each comparison
+        for comparison in comparison_details:
+            chg_pc = f"{comparison['change_percent']:.1f}%"
+            ref_val = f"{comparison['reference_value']:.1f}"
+            comparison_summaries.append(f"{chg_pc} {comparison['direction']} than {comparison['label']} ({ref_val})")
+
+        # Add context variables for template rendering
+        benchmark_context["comparison_details"] = comparison_details
+        benchmark_context["comparison_summaries"] = comparison_summaries
+        benchmark_context["num_comparisons"] = len(comparison_details)
+
+        return benchmark_context
+
     def _create_benchmark_story(
         self, pattern_result: HistoricalPerformance, metric_id: str, metric: dict, grain: Granularity
     ) -> dict[str, Any]:
         """Create a BENCHMARKS story."""
         story_group = StoryGroup.BENCHMARK_COMPARISONS
+        story_type = StoryType.BENCHMARKS
+        benchmark_comparison = pattern_result.benchmark_comparison
+
+        if not benchmark_comparison:
+            logger.warning(
+                "No benchmarks available for BENCHMARKS story. Skipping story creation for metric_id: %s", metric_id
+            )
+            raise ValueError("No benchmarks available for BENCHMARKS story. Ensure benchmark data is populated.")
+
         context = self._populate_template_context(
             pattern_result, metric, grain, include=["high_rank", "benchmark_comparison"]
         )
 
-        # Only generate story if we have both benchmark comparison and high rank data
-        title = render_story_text(StoryType.BENCHMARKS, "title", context)
-        detail = render_story_text(StoryType.BENCHMARKS, "detail", context)
+        # Generate story title and detail
+        title = render_story_text(story_type, "title", context)
+        detail = render_story_text(story_type, "detail", context)
+
+        # Prepare series data for the chart visualization
+        series_data = [
+            {
+                "date": pattern_result.analysis_date,
+                "value": benchmark_comparison.current_value,
+                # Textual representation of the current period e.g This Week, This Month
+                "label": benchmark_comparison.current_period,
+                "absolute_change": None,
+                "change_percent": None,
+            }
+        ]
+        for benchmark in benchmark_comparison.benchmarks.values():
+            series_data.append(
+                {
+                    "date": benchmark.reference_date.strftime("%Y-%m-%d"),
+                    "value": benchmark.reference_value,
+                    # Textual representation of the reference period e.g Week Ago, Month Ago, Quarter Ago, Year Ago
+                    "label": benchmark.reference_period,
+                    "absolute_change": benchmark.absolute_change,
+                    "change_percent": benchmark.change_percent,
+                }
+            )
 
         return self.prepare_story_model(
             genre=StoryGenre.TRENDS,
-            story_type=StoryType.BENCHMARKS,
+            story_type=story_type,
             story_group=story_group,
             metric_id=metric_id,
             pattern_result=pattern_result,
             title=title,
             detail=detail,
             grain=grain,  # type: ignore
+            series_data=series_data,
             **context,
         )
 

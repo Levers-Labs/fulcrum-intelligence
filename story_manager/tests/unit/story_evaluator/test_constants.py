@@ -133,5 +133,7 @@ def test_story_templates():
     assert "marks the" in benchmarks["detail"]
     assert "highest-performing" in benchmarks["detail"]
     assert "high_rank" in benchmarks["detail"]
-    assert "high_value" in benchmarks["detail"]
     assert "high_duration" in benchmarks["detail"]
+    assert "benchmark.current_period" in benchmarks["detail"]
+    assert "benchmark.current_value" in benchmarks["detail"]
+    assert "benchmark.comparison_summaries" in benchmarks["detail"]
