@@ -19,13 +19,10 @@ from levers.models import (
     AverageGrowthMethod,
     DataSource,
     DataSourceType,
-    Granularity,
-    PartialInterval,
     PatternConfig,
     WindowStrategy,
 )
 from levers.models.patterns import (
-    BenchmarkComparison,
     GrowthStats,
     HistoricalPerformance,
     PeriodMetrics,
@@ -39,7 +36,7 @@ from levers.patterns import Pattern
 from levers.primitives import (
     analyze_trend_using_spc_analysis,
     calculate_average_growth,
-    calculate_period_benchmarks,
+    calculate_benchmark_comparisons,
     calculate_pop_growth,
     detect_record_high,
     detect_record_low,
@@ -65,7 +62,7 @@ class HistoricalPerformancePattern(Pattern[HistoricalPerformance]):
         "detect_record_low",
         "detect_trend_exceptions_using_spc_analysis",
         "detect_seasonality_pattern",
-        "calculate_period_benchmarks",
+        "calculate_benchmark_comparisons",
         "process_control_analysis",
     ]
     output_model: type[HistoricalPerformance] = HistoricalPerformance
@@ -148,8 +145,10 @@ class HistoricalPerformancePattern(Pattern[HistoricalPerformance]):
             # Analyze seasonality using the new primitive
             seasonality_pattern = self._detect_seasonality_pattern(data_window, lookback_end)
 
-            # Calculate benchmark comparisons using the new primitive
-            benchmark_comparison = self._calculate_benchmark_comparisons(data_window, grain)
+            # Calculate benchmark comparisons using the optimized approach
+            benchmark_comparison = calculate_benchmark_comparisons(
+                data_window, grain, date_col="date", value_col="value"
+            )
 
             # Detect trend exception
             trend_exception = self._detect_trend_exceptions(trend_analysis_df)
@@ -518,41 +517,6 @@ class HistoricalPerformancePattern(Pattern[HistoricalPerformance]):
         """
         return detect_seasonality_pattern(data_window, lookback_end, "date", "value")
 
-    def _calculate_benchmark_comparisons(self, data_window: pd.DataFrame, grain: str) -> BenchmarkComparison | None:
-        """
-        Calculate benchmark comparison such as week-to-date vs. prior week-to-date.
-
-        Args:
-            data_window: DataFrame with date and value columns
-            grain: Time grain for analysis (day, week, month)
-
-        Returns:
-            BenchmarkComparison object containing benchmark comparison details,
-            - reference_period: str, the reference period
-            - absolute_change: float, the absolute change
-            - change_percent: float, the change percent
-            or None if no benchmarks can be calculated
-        """
-        # Don't process empty data
-        if data_window.empty:
-            return None
-
-        # Determine appropriate benchmark period based on grain
-        if grain == Granularity.DAY:
-            benchmark_period = PartialInterval.WTD  # week-to-date for daily data
-        elif grain == Granularity.WEEK:
-            benchmark_period = PartialInterval.MTD  # month-to-date for weekly data
-        elif grain == Granularity.MONTH:
-            benchmark_period = PartialInterval.QTD  # quarter-to-date for monthly data
-        else:
-            # For other grains, default to YTD
-            benchmark_period = PartialInterval.YTD
-
-        # Use the calculate_period_benchmarks function to get a single benchmark
-        return calculate_period_benchmarks(
-            data_window, benchmark_period=benchmark_period, date_col="date", value_col="value"
-        )
-
     def _detect_trend_exceptions(self, trend_analysis_df: pd.DataFrame) -> TrendException | None:
         """
         Detect anomalies (spikes or drops) in the time series.
@@ -595,6 +559,6 @@ class HistoricalPerformancePattern(Pattern[HistoricalPerformance]):
             version=cls.version,
             data_sources=[DataSource(source_type=DataSourceType.METRIC_TIME_SERIES, is_required=True, data_key="data")],
             analysis_window=AnalysisWindowConfig(
-                strategy=WindowStrategy.FIXED_TIME, days=180, min_days=30, max_days=365, include_today=True
+                strategy=WindowStrategy.FIXED_TIME, days=410, min_days=30, max_days=410, include_today=True
             ),
         )

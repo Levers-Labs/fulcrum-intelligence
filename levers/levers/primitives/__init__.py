@@ -38,8 +38,8 @@ from .period_grains import (
 # Time Series primitives
 from .time_series import (
     calculate_average_growth,
+    calculate_benchmark_comparisons,
     calculate_cumulative_growth,
-    calculate_period_benchmarks,
     calculate_pop_growth,
     calculate_rolling_averages,
     calculate_slope_of_time_series,
@@ -57,7 +57,7 @@ from .trend_analysis import (
     detect_trend_exceptions,
     process_control_analysis,
     detect_trend_exceptions_using_spc_analysis,
-    analyze_trend_using_spc_analysis
+    analyze_trend_using_spc_analysis,
 )
 
 # Dimensional Analysis primitives
@@ -108,12 +108,12 @@ _primitive_families = {
     ],
     "time_series": [
         calculate_average_growth,
+        calculate_benchmark_comparisons,
         calculate_cumulative_growth,
         calculate_pop_growth,
         calculate_rolling_averages,
         convert_grain_to_freq,
         validate_date_sorted,
-        calculate_period_benchmarks,
     ],
     "trend_analysis": [
         analyze_metric_trend,
@@ -124,7 +124,7 @@ _primitive_families = {
         process_control_analysis,
         detect_seasonality_pattern,
         detect_trend_exceptions_using_spc_analysis,
-        analyze_trend_using_spc_analysis
+        analyze_trend_using_spc_analysis,
     ],
     "dimensional_analysis": [
         # Slice Metrics & Shares
@@ -224,13 +224,13 @@ __all__ = [
     "get_date_range_from_window",
     # Time Series primitives
     "calculate_average_growth",
+    "calculate_benchmark_comparisons",
     "calculate_cumulative_growth",
     "calculate_pop_growth",
     "calculate_rolling_averages",
     "convert_grain_to_freq",
     "calculate_slope_of_time_series",
     "validate_date_sorted",
-    "calculate_period_benchmarks",
     # Trend Analysis primitives
     "analyze_metric_trend",
     "detect_performance_plateau",
