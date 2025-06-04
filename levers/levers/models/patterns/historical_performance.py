@@ -6,9 +6,14 @@ These models define the structure of the pattern output when analyzing
 a metric's historical performance over time.
 """
 
+from datetime import date
+
+from pydantic import Field
+
 from levers.models import (
     BaseModel,
     BasePattern,
+    ComparisonType,
     TrendExceptionType,
     TrendType,
 )
@@ -56,12 +61,47 @@ class Seasonality(BaseModel):
     deviation_percent: float | None = None
 
 
-class BenchmarkComparison(BaseModel):
+class Benchmark(BaseModel):
     """Benchmark comparison information."""
 
+    reference_value: float
+    # Date against which the current value is compared
+    reference_date: date
+    # string representation of the reference date
+    # e.g. Month Ago, Quarter Ago, Year Ago
     reference_period: str
+    # Difference between the current and reference values
     absolute_change: float
+    # Percentage change from the reference value to the current value
     change_percent: float | None = None
+
+
+class BenchmarkComparison(BaseModel):
+    """Dynamic benchmark comparison information using ComparisonType enum keys."""
+
+    # Current value of the metric
+    current_value: float
+    # String representation of the current period
+    # e.g. This Week, This Month, This Quarter, This Year
+    current_period: str
+    # Dictionary of comparisons, keyed by ComparisonType
+    benchmarks: dict[ComparisonType, Benchmark] = Field(default_factory=dict)
+
+    def get_benchmark(self, comparison_type: ComparisonType) -> Benchmark | None:
+        """Get a specific comparison by type."""
+        return self.benchmarks.get(comparison_type)
+
+    def add_benchmark(self, comparison_type: ComparisonType, comparison: Benchmark) -> None:
+        """Add a comparison for a specific type."""
+        self.benchmarks[comparison_type] = comparison
+
+    def get_all_benchmarks(self) -> dict[ComparisonType, Benchmark]:
+        """Get all comparisons."""
+        return self.benchmarks
+
+    def has_benchmark(self, comparison_type: ComparisonType) -> bool:
+        """Check if a specific comparison type exists."""
+        return comparison_type in self.benchmarks
 
 
 class TrendInfo(BaseModel):

@@ -130,12 +130,12 @@ STORY_TEMPLATES = {
         "low_rank|format_ordinal }} lowest value in {{ low_duration }} {{ grain_label }}s.",
     },
     StoryType.BENCHMARKS: {
-        "title": "Performance Against Historical Benchmarks",
+        "title": "{{ metric.label }} • Performance Against Historical Benchmarks",
         "detail": "This {{ grain_label }} marks the {{ high_rank|format_ordinal }} highest-performing "
-        "{{ grain_label }} in the past {{ high_duration }} {{ grain_label }}s, with the current {{ "
-        "partial_interval_label }} ({{ partial_interval }}) performance of {{ metric.label }} at {{ "
-        "high_value|format_number }}. Compared to last {{ reference_period }}, this is {{ "
-        "change_percent|format_percent }}% {{ comparison_direction }}.",
+        "{{ grain_label }} in the past {{ high_duration }} {{ grain_label }}s, with the {{ benchmark.current_period }} "
+        "performance of {{ metric.label }} at {{ benchmark.current_value|format_number }} coming in "
+        "{% for summary in benchmark.comparison_summaries %}{{ summary }}{% if not loop.last %}"
+        "{% if loop.index == benchmark.comparison_summaries|length - 1 %} and {% else %}, {% endif %}{% endif %}{% endfor %}.",  # noqa: E501
     },
     StoryType.TOP_4_SEGMENTS: {
         "title": "Strongest segments",
@@ -241,6 +241,11 @@ STORY_GROUP_TIME_DURATIONS: dict[str, Any] = {
         Granularity.DAY: {"output": 2},
         Granularity.WEEK: {"output": 2},
         Granularity.MONTH: {"output": 2},
+    },
+    StoryGroup.BENCHMARK_COMPARISONS: {
+        Granularity.DAY: {"output": 2},
+        Granularity.WEEK: {"output": 53},  # 53 weeks for week grain
+        Granularity.MONTH: {"output": 13},  # 13 months for month grain
     },
 }
 

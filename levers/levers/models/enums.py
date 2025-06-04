@@ -114,3 +114,18 @@ class ConcentrationMethod(str, Enum):
 
     GINI = "GINI"
     HHI = "HHI"
+
+
+class ComparisonType(str, Enum):
+    """Types of benchmark comparisons."""
+
+    # Week-based comparisons
+    LAST_WEEK = "last_week"
+    WEEK_IN_LAST_MONTH = "week_in_last_month"
+    WEEK_IN_LAST_QUARTER = "week_in_last_quarter"
+    WEEK_IN_LAST_YEAR = "week_in_last_year"
+
+    # Month-based comparisons
+    LAST_MONTH = "last_month"
+    MONTH_IN_LAST_QUARTER = "month_in_last_quarter"
+    MONTH_IN_LAST_YEAR = "month_in_last_year"

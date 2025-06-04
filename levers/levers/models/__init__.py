@@ -19,6 +19,7 @@ from .enums import (
     TrendType,
     WindowStrategy,
     ConcentrationMethod,
+    ComparisonType,
 )
 from .common import AnalysisWindow, BaseModel, BasePattern
 from .pattern_config import AnalysisWindowConfig, DataSource, PatternConfig
@@ -58,6 +59,7 @@ __all__ = [
     "DataSourceType",
     "WindowStrategy",
     "ConcentrationMethod",
+    "ComparisonType",
     # Common models
     "AnalysisWindow",
     "BaseModel",
