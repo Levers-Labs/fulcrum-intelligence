@@ -6,6 +6,7 @@ import logging
 from typing import Any
 
 from commons.models.enums import Granularity
+from levers.models.dimensional_analysis import SliceShare, SliceStrength
 from levers.models.patterns.dimension_analysis import DimensionAnalysis
 from story_manager.core.enums import StoryGenre, StoryGroup, StoryType
 from story_manager.story_evaluator import StoryEvaluatorBase, render_story_text
@@ -58,22 +59,37 @@ class DimensionAnalysisEvaluator(StoryEvaluatorBase[DimensionAnalysis]):
             stories.append(self._create_segment_comparison_story(pattern_result, metric_id, metric, grain))
 
         # Check for new strongest segment
-        if pattern_result.strongest_slice:
+        if pattern_result.strongest_slice and self._has_slice_changed(pattern_result.strongest_slice):
             stories.append(self._create_new_strongest_segment_story(pattern_result, metric_id, metric, grain))
 
         # Check for new weakest segment
-        if pattern_result.weakest_slice:
+        if pattern_result.weakest_slice and self._has_slice_changed(pattern_result.weakest_slice):
             stories.append(self._create_new_weakest_segment_story(pattern_result, metric_id, metric, grain))
 
         # Check for largest slice by share
-        if pattern_result.largest_slice:
+        if pattern_result.largest_slice and self._has_slice_changed(pattern_result.largest_slice):
             stories.append(self._create_largest_segment_story(pattern_result, metric_id, metric, grain))
 
         # Check for smallest slice by share
-        if pattern_result.smallest_slice:
+        if pattern_result.smallest_slice and self._has_slice_changed(pattern_result.smallest_slice):
             stories.append(self._create_smallest_segment_story(pattern_result, metric_id, metric, grain))
 
         return stories
+
+    def _has_slice_changed(self, slice_obj: SliceShare | SliceStrength) -> bool:
+        """
+        Check if the slice has changed from the previous period.
+
+        Args:
+            slice_obj: The slice object (SliceShare or SliceStrength)
+
+        Returns:
+            True if the current slice is different from the previous slice, False otherwise
+        """
+        current_slice = slice_obj.slice_value  # type: ignore
+        previous_slice = slice_obj.previous_slice_value  # type: ignore
+
+        return current_slice != previous_slice
 
     def _populate_template_context(
         self, pattern_result: DimensionAnalysis, metric: dict, grain: Granularity, **kwargs

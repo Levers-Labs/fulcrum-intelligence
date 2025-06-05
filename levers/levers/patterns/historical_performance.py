@@ -363,6 +363,14 @@ class HistoricalPerformancePattern(Pattern[HistoricalPerformance]):
                 "previous_trend": None,
             }
 
+        # Check if all SPC analysis results are null/None - if so, cannot analyze trends
+        spc_columns = ["central_line", "ucl", "lcl"]
+        if all(df[col].isna().all() for col in spc_columns if col in df.columns):
+            return {
+                "current_trend": None,
+                "previous_trend": None,
+            }
+
         analyzed_trend_df = analyze_trend_using_spc_analysis(df)
 
         # Get the most recent trend type from Trend Analysis

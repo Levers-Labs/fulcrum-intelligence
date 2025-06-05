@@ -10,6 +10,7 @@ import pandas as pd
 from commons.models.enums import Granularity
 from levers.models import ComparisonType, TrendExceptionType, TrendType
 from levers.models.patterns import BenchmarkComparison, HistoricalPerformance
+from levers.models.patterns.historical_performance import RankSummary
 from story_manager.core.enums import StoryGenre, StoryGroup, StoryType
 from story_manager.story_evaluator import StoryEvaluatorBase, render_story_text
 
@@ -82,9 +83,17 @@ class HistoricalPerformanceEvaluator(StoryEvaluatorBase[HistoricalPerformance]):
                 stories.append(self._create_drop_story(pattern_result, metric_id, metric, grain))
 
         # Record Value Stories
-        if pattern_result.high_rank and pattern_result.high_rank.rank <= 2:  # Consider top 2 as record high
+        if (
+            pattern_result.high_rank
+            and pattern_result.high_rank.rank <= 2
+            and self._is_valid_record_value(pattern_result.high_rank)
+        ):  # Consider top 2 as record high
             stories.append(self._create_record_high_story(pattern_result, metric_id, metric, grain))
-        elif pattern_result.low_rank and pattern_result.low_rank.rank <= 2:  # Consider bottom 2 as record low
+        elif (
+            pattern_result.low_rank
+            and pattern_result.low_rank.rank <= 2
+            and self._is_valid_record_value(pattern_result.low_rank)
+        ):  # Consider bottom 2 as record low
             stories.append(self._create_record_low_story(pattern_result, metric_id, metric, grain))
 
         # Benchmark Stories (only for week and month grains)
@@ -119,6 +128,11 @@ class HistoricalPerformanceEvaluator(StoryEvaluatorBase[HistoricalPerformance]):
 
         return False
 
+    def _is_valid_record_value(self, record_value: RankSummary) -> bool:
+        """Check if the current value is a record value."""
+
+        return record_value.value != record_value.prior_record_value
+
     def _populate_template_context(
         self, pattern_result: HistoricalPerformance, metric: dict, grain: Granularity, **kwargs
     ) -> dict[str, Any]:
@@ -143,9 +157,9 @@ class HistoricalPerformanceEvaluator(StoryEvaluatorBase[HistoricalPerformance]):
         if "growth_stats" in include and pattern_result.growth_stats:
             context.update(
                 {
-                    "current_growth": abs(pattern_result.growth_stats.current_pop_growth or 0),
-                    "average_growth": abs(pattern_result.growth_stats.average_pop_growth or 0),
-                    "growth_acceleration": abs(pattern_result.growth_stats.current_growth_acceleration or 0),
+                    "current_growth": pattern_result.growth_stats.current_pop_growth or 0,
+                    "average_growth": pattern_result.growth_stats.average_pop_growth or 0,
+                    "growth_acceleration": pattern_result.growth_stats.current_growth_acceleration or 0,
                     "num_periods_accelerating": pattern_result.growth_stats.num_periods_accelerating,
                     "num_periods_slowing": pattern_result.growth_stats.num_periods_slowing,
                 }
@@ -157,7 +171,7 @@ class HistoricalPerformanceEvaluator(StoryEvaluatorBase[HistoricalPerformance]):
                 {
                     "trend_start_date": pattern_result.current_trend.start_date,
                     "trend_duration": pattern_result.current_trend.duration_grains,
-                    "trend_avg_growth": abs(pattern_result.current_trend.average_pop_growth or 0),
+                    "trend_avg_growth": pattern_result.current_trend.average_pop_growth or 0,
                     "trend_direction": (
                         "increase"
                         if pattern_result.current_trend.average_pop_growth
@@ -172,7 +186,7 @@ class HistoricalPerformanceEvaluator(StoryEvaluatorBase[HistoricalPerformance]):
             context.update(
                 {
                     "prev_trend_duration": pattern_result.previous_trend.duration_grains,
-                    "prev_trend_avg_growth": abs(pattern_result.previous_trend.average_pop_growth or 0),
+                    "prev_trend_avg_growth": pattern_result.previous_trend.average_pop_growth or 0,
                 }
             )
 
@@ -210,8 +224,8 @@ class HistoricalPerformanceEvaluator(StoryEvaluatorBase[HistoricalPerformance]):
                     "exception_value": pattern_result.trend_exception.current_value,
                     "normal_low": pattern_result.trend_exception.normal_range_low,
                     "normal_high": pattern_result.trend_exception.normal_range_high,
-                    "deviation": abs(pattern_result.trend_exception.absolute_delta_from_normal_range or 0),
-                    "deviation_percent": abs(pattern_result.trend_exception.magnitude_percent or 0),
+                    "deviation": pattern_result.trend_exception.absolute_delta_from_normal_range or 0,
+                    "deviation_percent": pattern_result.trend_exception.magnitude_percent or 0,
                 }
             )
 
@@ -728,6 +742,9 @@ class HistoricalPerformanceEvaluator(StoryEvaluatorBase[HistoricalPerformance]):
             .merge(period_df[["date", "pop_growth_percent"]], on="date", how="left")
             .sort_values("date")
         )
+
+        # Fill null pop_growth_percent values with 0
+        merged_df["pop_growth_percent"] = merged_df["pop_growth_percent"].fillna(0)
 
         return merged_df
 
