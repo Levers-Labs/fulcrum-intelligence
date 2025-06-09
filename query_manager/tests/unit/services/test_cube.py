@@ -8,6 +8,7 @@ from commons.clients.base import HttpClientError
 from commons.models.enums import Granularity
 from query_manager.core.dependencies import get_cube_client
 from query_manager.core.models import (
+    CubeFilter,
     Dimension,
     Metric,
     SemanticMetaDimension,
@@ -287,6 +288,93 @@ def test_generate_query_for_metric_dimensions(metric, dimension):
         "dimensions": ["dim_opportunity.account_name"],
         "timeDimensions": [],
         "filters": [],
+    }
+
+
+def test_generate_query_for_metric_with_filters(metric):
+    # Prepare
+    metric = MetricDetail.parse_obj(metric)
+    metric.meta_data.semantic_meta = SemanticMetaMetric(
+        cube="dim_opportunity",
+        member="sqo_rate",
+        member_type="measure",
+        time_dimension={"cube": "dim_opportunity", "member": "sqo_date"},
+        filters=[
+            CubeFilter(dimension="dim_opportunity.region", operator="equals", values=["North America"]),
+            CubeFilter(dimension="dim_opportunity.status", operator="contains", values=["open", "qualified"]),
+        ],
+    )
+
+    # Execute
+    query = CubeClient.generate_query_for_metric(metric)
+
+    # Assert
+    assert query == {
+        "measures": ["dim_opportunity.sqo_rate"],
+        "dimensions": [],
+        "timeDimensions": [],
+        "filters": [
+            {"dimension": "dim_opportunity.region", "operator": "equals", "values": ["North America"]},
+            {"dimension": "dim_opportunity.status", "operator": "contains", "values": ["open", "qualified"]},
+        ],
+    }
+
+
+def test_generate_query_for_metric_with_filters_and_grain(metric):
+    # Prepare
+    metric = MetricDetail.parse_obj(metric)
+    metric.meta_data.semantic_meta = SemanticMetaMetric(
+        cube="dim_opportunity",
+        member="sqo_rate",
+        member_type="measure",
+        time_dimension={"cube": "dim_opportunity", "member": "sqo_date"},
+        filters=[CubeFilter(dimension="dim_opportunity.region", operator="equals", values=["North America"])],
+    )
+
+    # Execute
+    query = CubeClient.generate_query_for_metric(
+        metric, grain=Granularity.WEEK, start_date=date(2021, 1, 1), end_date=date(2021, 2, 1)
+    )
+
+    # Assert
+    assert query == {
+        "measures": ["dim_opportunity.sqo_rate"],
+        "dimensions": [],
+        "timeDimensions": [
+            {
+                "dimension": "dim_opportunity.sqo_date",
+                "granularity": "week",
+                "dateRange": [date(2021, 1, 1), date(2021, 2, 1)],
+            }
+        ],
+        "filters": [{"dimension": "dim_opportunity.region", "operator": "equals", "values": ["North America"]}],
+    }
+
+
+def test_generate_query_for_metric_with_filters_without_grain(metric):
+    # Prepare
+    metric = MetricDetail.parse_obj(metric)
+    metric.meta_data.semantic_meta = SemanticMetaMetric(
+        cube="dim_opportunity",
+        member="sqo_rate",
+        member_type="measure",
+        time_dimension={"cube": "dim_opportunity", "member": "sqo_date"},
+        filters=[CubeFilter(dimension="dim_opportunity.region", operator="equals", values=["North America"])],
+    )
+
+    # Execute
+    query = CubeClient.generate_query_for_metric(metric, start_date=date(2021, 1, 1), end_date=date(2021, 2, 1))
+
+    # Assert
+    assert query == {
+        "measures": ["dim_opportunity.sqo_rate"],
+        "dimensions": [],
+        "timeDimensions": [],
+        "filters": [
+            {"dimension": "dim_opportunity.region", "operator": "equals", "values": ["North America"]},
+            {"dimension": "dim_opportunity.sqo_date", "operator": "gte", "values": [date(2021, 1, 1)]},
+            {"dimension": "dim_opportunity.sqo_date", "operator": "lt", "values": [date(2021, 2, 1)]},
+        ],
     }
 
 

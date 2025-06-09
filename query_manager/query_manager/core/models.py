@@ -1,3 +1,4 @@
+from datetime import date
 from typing import (
     Any,
     Literal,
@@ -46,6 +47,24 @@ class Expression(BaseModel):
     operands: list[Union["MetricExpression", "Expression", "ConstantExpression"]]
 
 
+# Cube filter models
+class CubeFilter(BaseModel):
+    """
+    Represents a cube filter configuration that gets passed to the cube query.
+
+    Examples:
+    - Dimension filter: {"dimension": "dim_opportunity.region", "operator": "equals", "values": ["North America"]}
+    - Date range filter: {"dimension": "dim_opportunity.created_date", "operator": "inDateRange",
+    "values": ["2023-01-01", "2023-12-31"]}
+    - Multiple values filter: {"dimension": "dim_opportunity.status", "operator": "contains",
+    "values": ["open", "qualified"]}
+    """
+
+    dimension: str = Field(description="The cube dimension to filter on (e.g., 'dim_opportunity.region')")
+    operator: str = Field(description="Filter operator (e.g., 'equals', 'contains', 'gte', 'lt', 'inDateRange')")
+    values: list[str | int | float | date] = Field(description="List of values to filter by")
+
+
 # Metadata models
 class SemanticMetaBase(BaseModel):
     cube: str
@@ -60,6 +79,9 @@ class SemanticMetaTimeDimension(BaseModel):
 class SemanticMetaMetric(SemanticMetaBase):
     member_type: Literal[SemanticMemberType.MEASURE] = SemanticMemberType.MEASURE
     time_dimension: SemanticMetaTimeDimension
+    filters: list[CubeFilter] | None = Field(
+        None, description="Optional list of cube filters to apply when querying this metric"
+    )
 
 
 class MetricMetadata(BaseModel):
