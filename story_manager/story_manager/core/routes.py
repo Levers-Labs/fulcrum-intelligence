@@ -112,6 +112,7 @@ async def get_story_stats(
         digest=digest,
         section=section,
         is_heuristic=is_heuristic,
+        version=1,
     )
 
     # Get the stats and return
