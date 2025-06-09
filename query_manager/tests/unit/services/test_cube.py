@@ -299,7 +299,7 @@ def test_generate_query_for_metric_with_filters(metric):
         member="sqo_rate",
         member_type="measure",
         time_dimension={"cube": "dim_opportunity", "member": "sqo_date"},
-        filters=[
+        cube_filters=[
             CubeFilter(dimension="dim_opportunity.region", operator="equals", values=["North America"]),
             CubeFilter(dimension="dim_opportunity.status", operator="contains", values=["open", "qualified"]),
         ],
@@ -328,7 +328,7 @@ def test_generate_query_for_metric_with_filters_and_grain(metric):
         member="sqo_rate",
         member_type="measure",
         time_dimension={"cube": "dim_opportunity", "member": "sqo_date"},
-        filters=[CubeFilter(dimension="dim_opportunity.region", operator="equals", values=["North America"])],
+        cube_filters=[CubeFilter(dimension="dim_opportunity.region", operator="equals", values=["North America"])],
     )
 
     # Execute
@@ -359,7 +359,7 @@ def test_generate_query_for_metric_with_filters_without_grain(metric):
         member="sqo_rate",
         member_type="measure",
         time_dimension={"cube": "dim_opportunity", "member": "sqo_date"},
-        filters=[CubeFilter(dimension="dim_opportunity.region", operator="equals", values=["North America"])],
+        cube_filters=[CubeFilter(dimension="dim_opportunity.region", operator="equals", values=["North America"])],
     )
 
     # Execute

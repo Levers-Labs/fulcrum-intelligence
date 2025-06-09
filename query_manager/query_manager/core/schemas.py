@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import datetime
-from typing import Any, Literal
+from typing import Literal
 
 from pydantic import ConfigDict, Field, field_validator
 from sqlalchemy import select
@@ -320,35 +320,3 @@ class Cube(BaseModel):
 
 class DeleteResponse(BaseModel):
     message: str
-
-
-class CubeFilter(BaseModel):
-    """
-    Schema for cube filter configuration.
-
-    Examples:
-    - Dimension filter: {"dimension": "dim_opportunity.region", "operator": "equals", "values": ["North America"]}
-    - Date range filter: {"dimension": "dim_opportunity.created_date", "operator": "inDateRange",
-    "values": ["2023-01-01", "2023-12-31"]}
-    - Multiple values filter: {"dimension": "dim_opportunity.status", "operator": "contains",
-    "values": ["open", "qualified"]}
-    """
-
-    dimension: str = Field(description="The cube dimension to filter on (e.g., 'dim_opportunity.region')")
-    operator: str = Field(description="Filter operator (e.g., 'equals', 'contains', 'gte', 'lt', 'inDateRange')")
-    values: list[Any] = Field(description="List of values to filter by")
-
-    model_config = ConfigDict(
-        from_attributes=True,
-        json_schema_extra={
-            "examples": [
-                {"dimension": "dim_opportunity.region", "operator": "equals", "values": ["North America"]},
-                {
-                    "dimension": "dim_opportunity.created_date",
-                    "operator": "inDateRange",
-                    "values": ["2023-01-01", "2023-12-31"],
-                },
-                {"dimension": "dim_opportunity.status", "operator": "contains", "values": ["open", "qualified"]},
-            ]
-        },
-    )

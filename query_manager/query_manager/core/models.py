@@ -1,4 +1,3 @@
-from datetime import date
 from typing import (
     Any,
     Literal,
@@ -6,7 +5,7 @@ from typing import (
     Union,
 )
 
-from pydantic import TypeAdapter
+from pydantic import ConfigDict, TypeAdapter
 from sqlalchemy import (
     Column,
     Enum,
@@ -22,7 +21,12 @@ from sqlmodel import Field, Relationship, SQLModel
 from commons.db.models import BaseSQLModel, BaseTimeStampedTenantModel
 from commons.models import BaseModel
 from commons.models.enums import Granularity
-from query_manager.core.enums import Complexity, MetricAim, SemanticMemberType
+from query_manager.core.enums import (
+    Complexity,
+    CubeFilterOperator,
+    MetricAim,
+    SemanticMemberType,
+)
 
 
 # Expression models
@@ -47,24 +51,6 @@ class Expression(BaseModel):
     operands: list[Union["MetricExpression", "Expression", "ConstantExpression"]]
 
 
-# Cube filter models
-class CubeFilter(BaseModel):
-    """
-    Represents a cube filter configuration that gets passed to the cube query.
-
-    Examples:
-    - Dimension filter: {"dimension": "dim_opportunity.region", "operator": "equals", "values": ["North America"]}
-    - Date range filter: {"dimension": "dim_opportunity.created_date", "operator": "inDateRange",
-    "values": ["2023-01-01", "2023-12-31"]}
-    - Multiple values filter: {"dimension": "dim_opportunity.status", "operator": "contains",
-    "values": ["open", "qualified"]}
-    """
-
-    dimension: str = Field(description="The cube dimension to filter on (e.g., 'dim_opportunity.region')")
-    operator: str = Field(description="Filter operator (e.g., 'equals', 'contains', 'gte', 'lt', 'inDateRange')")
-    values: list[str | int | float | date] = Field(description="List of values to filter by")
-
-
 # Metadata models
 class SemanticMetaBase(BaseModel):
     cube: str
@@ -76,10 +62,46 @@ class SemanticMetaTimeDimension(BaseModel):
     member: str
 
 
+class CubeFilter(BaseModel):
+    """
+    Schema for cube filter configuration.
+
+    Examples:
+    - Dimension filter: {"dimension": "dim_opportunity.region", "operator": "equals", "values": ["North America"]}
+    - Date range filter: {"dimension": "dim_opportunity.created_date", "operator": "inDateRange",
+    "values": ["2023-01-01", "2023-12-31"]}
+    - Multiple values filter: {"dimension": "dim_opportunity.status", "operator": "contains",
+    "values": ["open", "qualified"]}
+    """
+
+    dimension: str = Field(description="The cube dimension to filter on (e.g., 'dim_opportunity.region')")
+    operator: CubeFilterOperator = Field(description="Filter operator from supported cube operations")
+    values: list[Any] = Field(description="List of values to filter by")
+
+    model_config = ConfigDict(
+        from_attributes=True,
+        json_schema_extra={
+            "examples": [
+                {"dimension": "DimContactLifecycleStages.is_mql", "operator": "equals", "values": [True]},
+                {
+                    "dimension": "DimContactLifecycleStages.enterprise_lifecycle_stage",
+                    "operator": "contains",
+                    "values": ["mql", "sal"],
+                },
+                {
+                    "dimension": "DimContactLifecycleStages.lastMqlOn",
+                    "operator": "inDateRange",
+                    "values": ["2023-01-01", "2023-12-31"],
+                },
+            ]
+        },
+    )
+
+
 class SemanticMetaMetric(SemanticMetaBase):
     member_type: Literal[SemanticMemberType.MEASURE] = SemanticMemberType.MEASURE
     time_dimension: SemanticMetaTimeDimension
-    filters: list[CubeFilter] | None = Field(
+    cube_filters: list["CubeFilter"] | None = Field(
         None, description="Optional list of cube filters to apply when querying this metric"
     )
 

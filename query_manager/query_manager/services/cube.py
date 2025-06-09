@@ -256,8 +256,8 @@ class CubeClient(AsyncHttpClient):
         query["measures"].append(f"{semantic_meta.cube}.{semantic_meta.member}")
 
         # add metadata filters if they exist
-        if semantic_meta.filters:
-            for cube_filter in semantic_meta.filters:
+        if semantic_meta.cube_filters:
+            for cube_filter in semantic_meta.cube_filters:
                 filter_dict = {
                     "dimension": cube_filter.dimension,
                     "operator": cube_filter.operator,
