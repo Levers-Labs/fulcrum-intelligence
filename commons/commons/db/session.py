@@ -17,14 +17,14 @@ logger = logging.getLogger(__name__)
 
 def get_session(database_url: str, options: dict[str, Any]) -> Generator[Session, None, None]:
     engine = get_engine(database_url, options)
-    with Session(engine) as session:
+    with Session(engine, expire_on_commit=False) as session:
         yield session
 
 
 async def get_async_session(database_url: str, options: dict[str, Any]) -> AsyncGenerator[AsyncSession, None]:
     engine = get_async_engine(database_url, options)
     async_session_factory = sessionmaker(
-        bind=engine, class_=AsyncSession, autoflush=False, autocommit=False
+        bind=engine, class_=AsyncSession, autoflush=False, autocommit=False, expire_on_commit=False
     )  # type: ignore[call-overload]
     async_session = async_scoped_session(async_session_factory, scopefunc=current_task)
     async with async_session() as session:
