@@ -2,6 +2,7 @@ from abc import ABC, abstractmethod
 from datetime import date
 from typing import Any, Generic, TypeVar
 
+import numpy as np
 import pandas as pd
 from pydantic import ValidationError as PydanticValidationError
 
@@ -276,11 +277,85 @@ class Pattern(ABC, Generic[T]):
         date_range = cls.extract_date_range(data, date_col)
         return AnalysisWindow(start_date=date_range["start_date"], end_date=date_range["end_date"], grain=grain)
 
+    def fill_missing_dates(
+        self, data: pd.DataFrame, grain: Granularity, date_col: str = "date", fill_value: float = 0.0
+    ) -> pd.DataFrame:
+        """
+        Fill missing dates in the time series data based on the specified grain.
+
+        Args:
+            data: DataFrame containing time series data
+            grain: Granularity to determine the appropriate date frequency
+            date_col: Column name containing dates (default: "date")
+            fill_value: Value to use for filling missing dates and null values (default: 0.0)
+
+        Returns:
+            DataFrame with missing dates filled and null values replaced
+
+        Raises:
+            MissingDataError: If date column is missing
+        """
+        if data is None or data.empty:
+            return data
+
+        if date_col not in data.columns:
+            raise MissingDataError(f"Date column '{date_col}' not found in data", [date_col])
+
+        # Make a copy to avoid modifying the original
+        data_filled = data.copy()
+
+        # Ensure date column is datetime
+        data_filled[date_col] = pd.to_datetime(data_filled[date_col])
+
+        # Replace inf, -inf, and NaN with fill_value in all numeric columns
+        numeric_columns = data_filled.select_dtypes(include=[np.number]).columns
+        data_filled[numeric_columns] = data_filled[numeric_columns].replace(
+            [float("inf"), float("-inf"), np.NaN], fill_value
+        )
+
+        # If we have at least 2 dates, fill missing dates in the range
+        if len(data_filled) >= 2:
+            # Sort by date
+            data_filled = data_filled.sort_values(date_col)
+
+            # Determine frequency based on grain
+            freq_map = {
+                Granularity.DAY: "D",  # Daily
+                Granularity.WEEK: "W-MON",  # Weekly, starting on Monday
+                Granularity.MONTH: "MS",  # Monthly, 1st of each month
+                Granularity.QUARTER: "QS",  # Quarterly, 1st of each quarter
+                Granularity.YEAR: "YS",  # Yearly, 1st of each year
+            }
+
+            freq = freq_map.get(grain, "D")  # Default to daily if grain not found
+
+            # Create date range from min to max date
+            date_range = pd.date_range(start=data_filled[date_col].min(), end=data_filled[date_col].max(), freq=freq)
+
+            # Create a complete date index
+            complete_df = pd.DataFrame({date_col: date_range})
+
+            # Merge with original data, filling missing values
+            data_filled = complete_df.merge(data_filled, on=date_col, how="left")
+
+            # Fill missing values with fill_value for all numeric columns
+            numeric_columns = data_filled.select_dtypes(include=[np.number]).columns
+            data_filled[numeric_columns] = data_filled[numeric_columns].fillna(fill_value)
+
+            # For categorical columns, forward fill then backward fill
+            categorical_columns = ["dimension_slice", "segment", "label", "dimension", "slice_value"]
+            for col in categorical_columns:
+                if col in data_filled.columns:
+                    data_filled[col] = data_filled[col].ffill().bfill()
+
+        return data_filled
+
     def preprocess_data(
         self, data: pd.DataFrame, analysis_window: AnalysisWindow, date_col: str = "date"
     ) -> pd.DataFrame:
         """
-        Preprocess data by validating, converting dates, and filtering to the analysis window.
+        Preprocess data by validating, converting dates, filtering to the analysis window,
+        and filling missing dates based on grain.
 
         Args:
             data: DataFrame containing the data
@@ -288,7 +363,7 @@ class Pattern(ABC, Generic[T]):
             date_col: Column name containing dates
 
         Returns:
-            Processed DataFrame
+            Processed DataFrame with missing dates filled
         """
         # Validate analysis window
         validated_window = self.validate_analysis_window(analysis_window)
@@ -308,7 +383,10 @@ class Pattern(ABC, Generic[T]):
 
         filtered_data = self.validate_time_window(processed_data, start_date, end_date, date_col)
 
-        return filtered_data
+        # Fill missing dates based on grain
+        processed_data = self.fill_missing_dates(filtered_data, validated_window.grain, date_col)
+
+        return processed_data
 
     @classmethod
     def get_info(cls) -> dict[str, Any]:

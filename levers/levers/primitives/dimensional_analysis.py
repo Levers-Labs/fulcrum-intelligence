@@ -581,9 +581,9 @@ def difference_from_average(df: pd.DataFrame, value_col: str) -> pd.DataFrame:
         )
 
     result_df = df.copy()
-    result_df["avg_other_slices_value"] = np.nan
-    result_df["absolute_diff_from_avg"] = np.nan
-    result_df["absolute_diff_percent_from_avg"] = np.nan
+    result_df["avg_other_slices_value"] = 0.0
+    result_df["absolute_diff_from_avg"] = 0.0
+    result_df["absolute_diff_percent_from_avg"] = 0.0
 
     if df.empty:
         return result_df
@@ -603,9 +603,9 @@ def difference_from_average(df: pd.DataFrame, value_col: str) -> pd.DataFrame:
             result_df.at[result_df.index[i], "absolute_diff_from_avg"] = abs_diff
             result_df.at[result_df.index[i], "absolute_diff_percent_from_avg"] = pct_diff
         else:
-            result_df.at[result_df.index[i], "avg_other_slices_value"] = np.nan
-            result_df.at[result_df.index[i], "absolute_diff_from_avg"] = np.nan
-            result_df.at[result_df.index[i], "absolute_diff_percent_from_avg"] = np.nan
+            result_df.at[result_df.index[i], "avg_other_slices_value"] = 0.0
+            result_df.at[result_df.index[i], "absolute_diff_from_avg"] = 0.0
+            result_df.at[result_df.index[i], "absolute_diff_percent_from_avg"] = 0.0
 
     return result_df
 
