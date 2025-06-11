@@ -5,6 +5,9 @@ Story evaluator for the dimension analysis pattern.
 import logging
 from typing import Any
 
+import numpy as np
+import pandas as pd
+
 from commons.models.enums import Granularity
 from levers.models.dimensional_analysis import SliceShare, SliceStrength
 from levers.models.patterns.dimension_analysis import DimensionAnalysis
@@ -165,7 +168,8 @@ class DimensionAnalysisEvaluator(StoryEvaluatorBase[DimensionAnalysis]):
         if not slices:
             return 0
 
-        total = sum(s.current_value for s in slices)  # type: ignore
+        # Handle null values by using 0 as default
+        total = sum((s.current_value or 0) for s in slices)  # type: ignore
         return total / float(len(slices)) if len(slices) > 0 else 0
 
     def _add_top_slices_context(self, pattern_result, context, **kwargs):
@@ -257,22 +261,24 @@ class DimensionAnalysisEvaluator(StoryEvaluatorBase[DimensionAnalysis]):
         slice_type = kwargs.get("slice_type")
         avg_value = kwargs.get("avg_value", 0)
 
+        # Get values with null handling
+        current_value = slice_obj.current_value or 0  # type: ignore
+        prior_value = slice_obj.prior_value or 0  # type: ignore
+
         # Determine trend direction
         trend_direction = "up"
-        if slice_obj.current_value < slice_obj.prior_value:  # type: ignore
+        if current_value < prior_value:
             trend_direction = "down"
 
         # Calculate change percentage
         change_percent = 0
-        if slice_obj.prior_value != 0:  # type: ignore
-            change_percent = abs(
-                (slice_obj.current_value - slice_obj.prior_value) / slice_obj.prior_value * 100  # type: ignore
-            )
+        if prior_value != 0:
+            change_percent = abs((current_value - prior_value) / prior_value * 100)
 
         # Calculate difference from average
         diff_from_avg_percent = 0
         if avg_value != 0:
-            diff_from_avg_percent = (slice_obj.current_value - avg_value) / avg_value * 100  # type: ignore
+            diff_from_avg_percent = (current_value - avg_value) / avg_value * 100
 
         # For weakest, we want absolute value
         if slice_type == "weakest":
@@ -281,9 +287,9 @@ class DimensionAnalysisEvaluator(StoryEvaluatorBase[DimensionAnalysis]):
         context.update(
             {
                 "segment_name": slice_obj.slice_value,  # type: ignore
-                "current_value": slice_obj.current_value,  # type: ignore
+                "current_value": current_value,
                 "previous_segment": slice_obj.previous_slice_value,  # type: ignore
-                "previous_value": slice_obj.prior_value,  # type: ignore
+                "previous_value": prior_value,
                 "trend_direction": trend_direction,
                 "change_percent": change_percent,
                 "avg_value": avg_value,
@@ -672,9 +678,16 @@ class DimensionAnalysisEvaluator(StoryEvaluatorBase[DimensionAnalysis]):
         for key, segment in segments.items():
             segment_df = filtered_df[filtered_df["dimension_slice"] == segment]
             if not segment_df.empty:
+                # Final cleanup: Replace any remaining NaN/inf values before converting to dict
+                segment_df = segment_df.replace([float("inf"), float("-inf"), np.NaN], 0.0)
                 result[key] = segment_df[["date", "dimension_slice", "value"]].to_dict(orient="records")
 
-        return [result]
+        # Synchronize dates across all series
+        synchronized_result = self._synchronize_multiple_series_dates(
+            result, grain=Granularity(pattern_result.analysis_window.grain)
+        )
+
+        return [synchronized_result]
 
     def _prepare_strongest_weakest_series_data(
         self, pattern_result: DimensionAnalysis, story_type: StoryType
@@ -708,20 +721,30 @@ class DimensionAnalysisEvaluator(StoryEvaluatorBase[DimensionAnalysis]):
         filtered_df = series_df[series_df["dimension_slice"].isin([current_slice, previous_slice])]
 
         # Group to compute average value per date across all slices
-        avg_df = series_df.groupby("date", as_index=False)["value"].mean().rename(columns={"value": "value"})  # type: ignore
+        avg_df = series_df.groupby("date", as_index=False)["value"].mean()
 
         # Build segment-wise data
         for key, segment in {"current": current_slice, "prior": previous_slice}.items():
             seg_df = filtered_df[filtered_df["dimension_slice"] == segment]
             if not seg_df.empty:
+                # Final cleanup: Replace any remaining NaN/inf values before converting to dict
+                seg_df = seg_df.replace([float("inf"), float("-inf"), np.NaN], 0.0)
                 result[key] = seg_df.rename(columns={"dimension_slice": "segment"})[
                     ["date", "segment", "value"]
                 ].to_dict(orient="records")
 
         # Build average data
-        result["average"] = avg_df.to_dict(orient="records")
+        if not avg_df.empty:
+            # Final cleanup: Replace any remaining NaN/inf values before converting to dict
+            avg_df = avg_df.replace([float("inf"), float("-inf"), np.NaN], 0.0)
+            result["average"] = avg_df.to_dict(orient="records")  # type: ignore
 
-        return [result]
+        # Synchronize dates across all series
+        synchronized_result = self._synchronize_multiple_series_dates(
+            result, grain=Granularity(pattern_result.analysis_window.grain)
+        )
+
+        return [synchronized_result]
 
     def _prepare_top_bottom_segment_series_data(
         self, pattern_result: DimensionAnalysis, story_type: StoryType, limit: int = 4
@@ -799,8 +822,102 @@ class DimensionAnalysisEvaluator(StoryEvaluatorBase[DimensionAnalysis]):
         for key, segment in {"current": current_slice, "prior": previous_slice}.items():
             seg_df = filtered_df[filtered_df["dimension_slice"] == segment]
             if not seg_df.empty:
+                # Final cleanup: Replace any remaining NaN/inf values before converting to dict
+                seg_df = seg_df.replace([float("inf"), float("-inf"), np.NaN], 0.0)
                 result[key] = seg_df.rename(columns={"dimension_slice": "segment"})[
                     ["date", "segment", "value"]
                 ].to_dict(orient="records")
 
-        return [result]
+        # Synchronize dates across all series
+        synchronized_result = self._synchronize_multiple_series_dates(
+            result, grain=Granularity(pattern_result.analysis_window.grain)
+        )
+
+        return [synchronized_result]
+
+    def _synchronize_multiple_series_dates(
+        self, series_data_dict: dict[str, list], grain: Granularity, fill_value: float = 0.0
+    ) -> dict[str, list]:
+        """
+        Synchronize dates across multiple series in a dictionary structure and fill missing values.
+
+        Args:
+            series_data_dict: Dictionary with series names as keys and list of records as values
+            grain: Granularity to determine the appropriate date frequency
+            fill_value: Value to use for filling missing dates and null values
+
+        Returns:
+            Dictionary with synchronized series data
+        """
+        if not series_data_dict:
+            return series_data_dict
+
+        # Convert each series to DataFrame, collect all dates
+        all_dates = set()
+        series_dfs = {}
+
+        for series_name, records in series_data_dict.items():
+            if not records:
+                continue
+
+            df = pd.DataFrame(records)
+            if "date" in df.columns:
+                df["date"] = pd.to_datetime(df["date"])
+                series_dfs[series_name] = df
+                all_dates.update(df["date"].tolist())
+
+        if not all_dates:
+            return series_data_dict
+
+        # Determine frequency based on grain
+        freq_map = {
+            Granularity.DAY: "D",  # Daily
+            Granularity.WEEK: "W-MON",  # Weekly, starting on Monday
+            Granularity.MONTH: "MS",  # Monthly, 1st of each month
+            Granularity.QUARTER: "QS",  # Quarterly, 1st of each quarter
+            Granularity.YEAR: "YS",  # Yearly, 1st of each year
+        }
+
+        freq = freq_map.get(grain, "D")  # Default to daily if grain not found
+
+        # Create complete date range
+        min_date = min(all_dates)
+        max_date = max(all_dates)
+        complete_date_range = pd.date_range(start=min_date, end=max_date, freq=freq)
+
+        # Synchronize each series
+        synchronized_data = {}
+        for series_name, df in series_dfs.items():
+            # Create complete date DataFrame
+            complete_df = pd.DataFrame({"date": complete_date_range})
+
+            # Merge with series data
+            merged_df = complete_df.merge(df, on="date", how="left")
+
+            # Fill missing values
+            numeric_columns = merged_df.select_dtypes(include=[np.number]).columns
+            merged_df[numeric_columns] = merged_df[numeric_columns].fillna(fill_value)
+
+            # Handle categorical columns
+            for col in merged_df.columns:
+                if col not in numeric_columns and col != "date":
+                    if col in ["segment", "dimension_slice", "label"]:
+                        merged_df[col] = merged_df[col].ffill().bfill()
+                    else:
+                        merged_df[col] = merged_df[col].fillna(fill_value)
+
+            # Convert back to records with proper date formatting
+            if "date" in merged_df.columns:
+                merged_df = format_date_column(merged_df)
+
+            # Final cleanup: Replace any remaining NaN/inf values before converting to dict
+            merged_df = merged_df.replace([float("inf"), float("-inf"), np.NaN], 0.0)
+
+            synchronized_data[series_name] = merged_df.to_dict(orient="records")
+
+        # Include any series that had no data
+        for series_name in series_data_dict:
+            if series_name not in synchronized_data:
+                synchronized_data[series_name] = series_data_dict[series_name]
+
+        return synchronized_data

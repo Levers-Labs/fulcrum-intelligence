@@ -743,9 +743,6 @@ class HistoricalPerformanceEvaluator(StoryEvaluatorBase[HistoricalPerformance]):
             .sort_values("date")
         )
 
-        # Fill null pop_growth_percent values with 0
-        merged_df["pop_growth_percent"] = merged_df["pop_growth_percent"].fillna(0)
-
         return merged_df
 
     def _prepare_trend_changes_series_data(self, pattern_result: HistoricalPerformance) -> pd.DataFrame:
