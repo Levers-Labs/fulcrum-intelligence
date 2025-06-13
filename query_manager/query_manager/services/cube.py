@@ -210,7 +210,14 @@ class CubeClient(AsyncHttpClient):
             "time_dimension": {
               "cube": "dim_opportunity",
               "member": "created_at"
-            }
+            },
+            "filters": [
+              {
+                "dimension": "dim_opportunity.region",
+                "operator": "equals",
+                "values": ["North America"]
+              }
+            ]
           }
         it will generate a query like
         {
@@ -223,7 +230,13 @@ class CubeClient(AsyncHttpClient):
                     "dateRange": ["2021-01-01", "2021-01-02"]
                 }
             ],
-            "filters": []
+            "filters": [
+                {
+                    "dimension": "dim_opportunity.region",
+                    "operator": "equals",
+                    "values": ["North America"]
+                }
+            ]
         }
         :param metric: The metric to fetch values for.
         :param grain: The granularity of the metric values.
@@ -241,6 +254,17 @@ class CubeClient(AsyncHttpClient):
         }
         # add metric to measures
         query["measures"].append(f"{semantic_meta.cube}.{semantic_meta.member}")
+
+        # add metadata filters if they exist
+        if semantic_meta.cube_filters:
+            for cube_filter in semantic_meta.cube_filters:
+                filter_dict = {
+                    "dimension": cube_filter.dimension,
+                    "operator": cube_filter.operator,
+                    "values": cube_filter.values,
+                }
+                query["filters"].append(filter_dict)
+
         # generate time series data if grain is provided
         if grain:
             time_series_dict: dict[str, Any] = {
