@@ -308,6 +308,7 @@ def load_mock_stories(
     grains: str = typer.Argument(None, help="Comma-separated list of granularities (e.g., DAY,WEEK,MONTH)"),
     start_date: str = typer.Argument(None, help="Start date for story generation in YYYY-MM-DD format"),
     end_date: str = typer.Argument(None, help="End date for story generation in YYYY-MM-DD format"),
+    version: str = typer.Option("v1", help="Story version to generate (v1 or v2)"),
 ):
     """
     Load mock stories for a specific tenant and metric.
@@ -322,6 +323,10 @@ def load_mock_stories(
     - Day: Any day
     - Week: Only Mondays
     - Month: Only the 1st day of the month
+
+    Version parameter:
+    - v1: Generate traditional v1 mock stories using story groups
+    - v2: Generate pattern-based v2 mock stories (ignores story_groups parameter)
     """
     from story_manager.scripts.load_mock_stories import main as load_stories
 
@@ -336,7 +341,9 @@ def load_mock_stories(
     )
     asyncio.run(validate_tenant(settings, tenant_id))
 
-    typer.secho(f"Starting mock story generation for tenant {tenant_id}, metric {metric_id}...", fg=typer.colors.BLUE)
+    typer.secho(
+        f"Starting {version} mock story generation for tenant {tenant_id}, metric {metric_id}...", fg=typer.colors.BLUE
+    )
     try:
         asyncio.run(
             load_stories(
@@ -346,11 +353,12 @@ def load_mock_stories(
                 grains=grains,
                 start_date_str=start_date,
                 end_date_str=end_date,
+                version=version,
             )
         )
-        typer.secho("Mock stories generated successfully 🎉", fg=typer.colors.GREEN)
+        typer.secho(f"{version} mock stories generated successfully 🎉", fg=typer.colors.GREEN)
     except Exception as e:
-        typer.secho(f"Error during mock story generation: {str(e)}", fg=typer.colors.RED)
+        typer.secho(f"Error during {version} mock story generation: {str(e)}", fg=typer.colors.RED)
         raise typer.Exit(code=1) from e
 
 
