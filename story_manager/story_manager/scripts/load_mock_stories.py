@@ -11,7 +11,6 @@ from story_manager.core.dependencies import get_query_manager_client
 from story_manager.core.enums import StoryGroup
 from story_manager.db.config import get_async_session
 from story_manager.mocks.services.story_loader import MockStoryLoader
-from story_manager.mocks.v2 import V2MockStoryService
 
 # Set up logging
 logger = logging.getLogger(__name__)
@@ -24,28 +23,22 @@ async def load_mock_stories(
     grains: list[Granularity] | None = None,
     start_date: date | None = None,
     end_date: date | None = None,
-    version: str = "v1",
 ):
     """
-    Load mock stories into the database for given parameters.
+    Load v1 mock stories into the database for given parameters using story groups.
 
     :param tenant_id: Tenant ID
     :param metric: Metric dictionary containing metric_id
-    :param story_groups: List of story groups to generate, defaults to all (ignored for v2)
+    :param story_groups: List of story groups to generate, defaults to all
     :param grains: List of granularity to generate, defaults to all
     :param start_date: Optional start date for story generation
     :param end_date: Optional end date for story generation, defaults to today if start_date is provided
-    :param version: Story version to generate ("v1" or "v2")
     :return: List of created Story objects
     """
-    logger.info(f"Loading {version} mock stories for tenant {tenant_id}, metric {metric['metric_id']}")
+    logger.info(f"Loading v1 mock stories for tenant {tenant_id}, metric {metric['metric_id']}")
 
-    # Validate version
-    if version not in ["v1", "v2"]:
-        raise ValueError(f"Invalid version: {version}. Must be 'v1' or 'v2'")
-
-    # Default to all story groups if not specified (only for v1)
-    if not story_groups and version == "v1":
+    # Default to all story groups if not specified
+    if not story_groups:
         story_groups = list(StoryGroup)
 
     # Default to all granularity if not specified
@@ -84,78 +77,31 @@ async def load_mock_stories(
                 else:
                     grain_dates[grain] = []
 
-        if version == "v1":
-            # V1 story generation using story groups
-            loader = MockStoryLoader(db_session)
+        # V1 story generation using story groups
+        loader = MockStoryLoader(db_session)
 
-            for story_group in story_groups:
-                for grain in grains:
-                    dates = grain_dates[grain]
-
-                    if not dates:
-                        logger.info(f"No applicable dates for {story_group}, {grain}")
-                        continue
-
-                    for story_date in dates:
-                        try:
-                            # Generate the stories
-                            stories = loader.prepare_stories(
-                                metric=metric, grain=grain, story_group=story_group, story_date=story_date  # type: ignore
-                            )
-                            if stories:
-                                await loader.persist_stories(stories)
-                                logger.info(
-                                    f"Generated and stored {len(stories)} v1 stories for {story_group}, {grain}, {story_date}"
-                                )
-                        except Exception as e:
-                            logger.error(
-                                f"Error generating v1 stories for {story_group}, {grain}, {story_date}: {str(e)}"
-                            )
-
-        elif version == "v2":
-            # V2 story generation using patterns
-            v2_service = V2MockStoryService()
-
+        for story_group in story_groups:
             for grain in grains:
                 dates = grain_dates[grain]
 
                 if not dates:
-                    logger.info(f"No applicable dates for {grain}")
+                    logger.info(f"No applicable dates for {story_group}, {grain}")
                     continue
 
                 for story_date in dates:
                     try:
-                        # Generate v2 stories from all patterns
-                        stories = await v2_service.generate_all_pattern_stories(
-                            metric=metric, grain=grain, story_date=story_date
+                        # Generate the stories
+                        stories = loader.prepare_stories(
+                            metric=metric, grain=grain, story_group=story_group, story_date=story_date  # type: ignore
                         )
-
                         if stories:
-                            # Convert to Story objects and persist
-                            from story_manager.core.models import Story
-
-                            story_objects = [Story(**story_dict) for story_dict in stories]
-
-                            # Add to database
-                            db_session.add_all(story_objects)
-                            await db_session.commit()
-
-                            # Refresh to get latest data
-                            for story in story_objects:
-                                await db_session.refresh(story)
-
-                            logger.info(f"Generated and stored {len(stories)} v2 stories for {grain}, {story_date}")
-
-                            # Log story types generated
-                            story_types = {}
-                            for story in stories:
-                                story_type = story.get("story_type", "Unknown")
-                                story_types[story_type] = story_types.get(story_type, 0) + 1
-
-                            logger.info(f"Story types generated: {story_types}")
-
+                            await loader.persist_stories(stories)
+                            logger.info(
+                                f"Generated and stored {len(stories)} v1 stories for {story_group}, {grain}, "
+                                f"{story_date}"
+                            )
                     except Exception as e:
-                        logger.error(f"Error generating v2 stories for {grain}, {story_date}: {str(e)}")
+                        logger.error(f"Error generating v1 stories for {story_group}, {grain}, {story_date}: {str(e)}")
 
 
 async def main(
@@ -165,18 +111,16 @@ async def main(
     grains: str | None = None,
     start_date_str: str | None = None,
     end_date_str: str | None = None,
-    version: str = "v1",
 ) -> None:
     """
-    Main function to run the mock story loading process.
+    Main function to run the v1 mock story loading process.
 
     :param tenant_id: The tenant ID
     :param metric_id: Metric ID to generate stories for
-    :param story_groups: Optional comma-separated list of story groups (ignored for v2)
+    :param story_groups: Optional comma-separated list of story groups
     :param grains: Optional comma-separated list of granularity
     :param start_date_str: Optional start date in YYYY-MM-DD format
     :param end_date_str: Optional end date in YYYY-MM-DD format
-    :param version: Story version to generate ("v1" or "v2")
     """
     # Set tenant context
     logger.info(f"Setting tenant context, Tenant ID: {tenant_id}")
@@ -229,7 +173,7 @@ async def main(
     if parsed_end_date and not parsed_start_date:
         raise ValueError("start_date must be provided when end_date is provided")
 
-    # Load mock stories
+    # Load v1 mock stories
     await load_mock_stories(
         tenant_id=tenant_id,
         metric=metric,
@@ -237,7 +181,6 @@ async def main(
         grains=parsed_grains,
         start_date=parsed_start_date,
         end_date=parsed_end_date,
-        version=version,
     )
 
     # Clean up
@@ -245,7 +188,7 @@ async def main(
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Load mock stories for a specific tenant.")
+    parser = argparse.ArgumentParser(description="Load v1 mock stories for a specific tenant.")
     parser.add_argument("tenant_id", type=int, help="The tenant ID")
     parser.add_argument("metric_id", type=str, help="Metric ID to generate stories for")
     parser.add_argument(
@@ -254,7 +197,6 @@ if __name__ == "__main__":
     parser.add_argument("--grains", type=str, help="Comma-separated list of granularities (e.g., DAY,WEEK,MONTH)")
     parser.add_argument("--start-date", type=str, help="Start date for story generation in YYYY-MM-DD format")
     parser.add_argument("--end-date", type=str, help="End date for story generation in YYYY-MM-DD format")
-    parser.add_argument("--version", type=str, default="v1", help="Story version to generate (v1 or v2)")
 
     args = parser.parse_args()
 
@@ -266,6 +208,5 @@ if __name__ == "__main__":
             grains=args.grains,
             start_date_str=args.start_date,
             end_date_str=args.end_date,
-            version=args.version,
         )
     )

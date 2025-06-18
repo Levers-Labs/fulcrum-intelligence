@@ -22,6 +22,7 @@ from commons.utilities.tenant_utils import validate_tenant
 from story_manager.config import get_settings
 from story_manager.core.enums import StoryGroup
 from story_manager.db.config import MODEL_PATHS
+from story_manager.scripts.load_v2_mock_stories import main as load_stories_v2
 from story_manager.story_builder.manager import StoryManager
 
 cli = typer.Typer()
@@ -308,13 +309,12 @@ def load_mock_stories(
     grains: str = typer.Argument(None, help="Comma-separated list of granularities (e.g., DAY,WEEK,MONTH)"),
     start_date: str = typer.Argument(None, help="Start date for story generation in YYYY-MM-DD format"),
     end_date: str = typer.Argument(None, help="End date for story generation in YYYY-MM-DD format"),
-    version: str = typer.Option("v1", help="Story version to generate (v1 or v2)"),
 ):
     """
-    Load mock stories for a specific tenant and metric.
+    Load v1 mock stories for a specific tenant and metric.
 
-    This command generates mock stories for the specified tenant and metric,
-    with optional filters for story groups, granularities, and date range.
+    This command generates v1 mock stories using story groups for the specified
+    tenant and metric, with optional filters for story groups, granularities, and date range.
     If start_date is provided without end_date, end_date defaults to today.
     If end_date is provided, start_date must also be provided.
 
@@ -323,10 +323,6 @@ def load_mock_stories(
     - Day: Any day
     - Week: Only Mondays
     - Month: Only the 1st day of the month
-
-    Version parameter:
-    - v1: Generate traditional v1 mock stories using story groups
-    - v2: Generate pattern-based v2 mock stories (ignores story_groups parameter)
     """
     from story_manager.scripts.load_mock_stories import main as load_stories
 
@@ -342,7 +338,7 @@ def load_mock_stories(
     asyncio.run(validate_tenant(settings, tenant_id))
 
     typer.secho(
-        f"Starting {version} mock story generation for tenant {tenant_id}, metric {metric_id}...", fg=typer.colors.BLUE
+        f"Starting v1 mock story generation for tenant {tenant_id}, metric {metric_id}...", fg=typer.colors.BLUE
     )
     try:
         asyncio.run(
@@ -353,12 +349,74 @@ def load_mock_stories(
                 grains=grains,
                 start_date_str=start_date,
                 end_date_str=end_date,
-                version=version,
             )
         )
-        typer.secho(f"{version} mock stories generated successfully 🎉", fg=typer.colors.GREEN)
+        typer.secho("v1 mock stories generated successfully 🎉", fg=typer.colors.GREEN)
     except Exception as e:
-        typer.secho(f"Error during {version} mock story generation: {str(e)}", fg=typer.colors.RED)
+        typer.secho(f"Error during v1 mock story generation: {str(e)}", fg=typer.colors.RED)
+        raise typer.Exit(code=1) from e
+
+
+@cli.command("load-mock-stories-v2")
+def load_mock_stories_v2(
+    tenant_id: int,
+    metric_id: str = typer.Argument(..., help="Metric ID to generate stories for"),
+    grain: str = typer.Argument(None, help="Comma-separated list of granularities (e.g., DAY,WEEK,MONTH)"),
+    pattern: str = typer.Argument(
+        None,
+        help="Comma-separated list of patterns (e.g., performance_status,historical_performance,dimension_analysis)",
+    ),
+    start_date: str = typer.Argument(None, help="Start date for story generation in YYYY-MM-DD format"),
+    end_date: str = typer.Argument(None, help="End date for story generation in YYYY-MM-DD format"),
+):
+    """
+    Load v2 mock stories for a specific tenant and metric.
+
+    This command generates v2 mock stories using patterns for the specified
+    tenant and metric, with optional filters for patterns, granularities, and date range.
+    If start_date is provided without end_date, end_date defaults to today.
+    If end_date is provided, start_date must also be provided.
+
+    For single date generation (no date range), stories will only be generated
+    for appropriate days based on granularity:
+    - Day: Any day
+    - Week: Only Mondays
+    - Month: Only the 1st day of the month
+
+    Available patterns:
+    - performance_status: Generate stories from performance vs target analysis
+    - historical_performance: Generate stories from historical trend analysis
+    - dimension_analysis: Generate stories from dimensional breakdown analysis
+    """
+
+    set_tenant_id(tenant_id)
+
+    # Retrieve settings for the application
+    settings = get_settings()
+    # Validate the tenant ID
+    typer.secho(
+        f"Validating Tenant ID: {tenant_id}",
+        fg=typer.colors.GREEN,
+    )
+    asyncio.run(validate_tenant(settings, tenant_id))
+
+    typer.secho(
+        f"Starting v2 mock story generation for tenant {tenant_id}, metric {metric_id}...", fg=typer.colors.BLUE
+    )
+    try:
+        asyncio.run(
+            load_stories_v2(
+                tenant_id=tenant_id,
+                metric_id=metric_id,
+                pattern=pattern,
+                grain=grain,
+                start_date_str=start_date,
+                end_date_str=end_date,
+            )
+        )
+        typer.secho("v2 mock stories generated successfully 🎉", fg=typer.colors.GREEN)
+    except Exception as e:
+        typer.secho(f"Error during v2 mock story generation: {str(e)}", fg=typer.colors.RED)
         raise typer.Exit(code=1) from e
 
 
