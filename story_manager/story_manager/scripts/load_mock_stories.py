@@ -25,7 +25,7 @@ async def load_mock_stories(
     end_date: date | None = None,
 ):
     """
-    Load mock stories into the database for given parameters.
+    Load v1 mock stories into the database for given parameters using story groups.
 
     :param tenant_id: Tenant ID
     :param metric: Metric dictionary containing metric_id
@@ -35,7 +35,7 @@ async def load_mock_stories(
     :param end_date: Optional end date for story generation, defaults to today if start_date is provided
     :return: List of created Story objects
     """
-    logger.info(f"Loading mock stories for tenant {tenant_id}, metric {metric['metric_id']}")
+    logger.info(f"Loading v1 mock stories for tenant {tenant_id}, metric {metric['metric_id']}")
 
     # Default to all story groups if not specified
     if not story_groups:
@@ -59,8 +59,6 @@ async def load_mock_stories(
     grain_dates = {}
 
     async with get_async_session() as db_session:
-        # Create the loader
-        loader = MockStoryLoader(db_session)
         # Pre-compute dates for each granularity outside the loops
         for grain in grains:
             if start_date is not None:
@@ -79,7 +77,9 @@ async def load_mock_stories(
                 else:
                     grain_dates[grain] = []
 
-        # Generate and load stories for each combination
+        # V1 story generation using story groups
+        loader = MockStoryLoader(db_session)
+
         for story_group in story_groups:
             for grain in grains:
                 dates = grain_dates[grain]
@@ -97,10 +97,11 @@ async def load_mock_stories(
                         if stories:
                             await loader.persist_stories(stories)
                             logger.info(
-                                f"Generated and stored {len(stories)} stories for {story_group}, {grain}, {story_date}"
+                                f"Generated and stored {len(stories)} v1 stories for {story_group}, {grain}, "
+                                f"{story_date}"
                             )
                     except Exception as e:
-                        logger.error(f"Error generating stories for {story_group}, {grain}, {story_date}: {str(e)}")
+                        logger.error(f"Error generating v1 stories for {story_group}, {grain}, {story_date}: {str(e)}")
 
 
 async def main(
@@ -112,7 +113,7 @@ async def main(
     end_date_str: str | None = None,
 ) -> None:
     """
-    Main function to run the mock story loading process.
+    Main function to run the v1 mock story loading process.
 
     :param tenant_id: The tenant ID
     :param metric_id: Metric ID to generate stories for
@@ -172,7 +173,7 @@ async def main(
     if parsed_end_date and not parsed_start_date:
         raise ValueError("start_date must be provided when end_date is provided")
 
-    # Load mock stories
+    # Load v1 mock stories
     await load_mock_stories(
         tenant_id=tenant_id,
         metric=metric,
@@ -187,7 +188,7 @@ async def main(
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Load mock stories for a specific tenant.")
+    parser = argparse.ArgumentParser(description="Load v1 mock stories for a specific tenant.")
     parser.add_argument("tenant_id", type=int, help="The tenant ID")
     parser.add_argument("metric_id", type=str, help="Metric ID to generate stories for")
     parser.add_argument(
