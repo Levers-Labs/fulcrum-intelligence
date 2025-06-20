@@ -20,6 +20,11 @@ class MockDimensionAnalysisGenerator(MockPatternGeneratorBase):
 
     pattern_name = "dimension_analysis"
 
+    def __init__(self):
+        """Initialize the generator with cache for pattern results."""
+        self._last_pattern_result = None
+        self._last_pattern_key = None
+
     def generate_pattern_results(
         self, metric: dict[str, Any], grain: Granularity, story_date: date
     ) -> list[DimensionAnalysis]:
@@ -29,6 +34,13 @@ class MockDimensionAnalysisGenerator(MockPatternGeneratorBase):
         Uses story groups approach to ensure comprehensive story coverage,
         similar to historical performance pattern.
         """
+        # Create cache key to avoid regenerating for the same parameters
+        cache_key = f"{metric.get('metric_id')}_{grain.value}_{story_date.isoformat()}"
+
+        # Return cached result if available and matches
+        if self._last_pattern_key == cache_key and self._last_pattern_result:
+            return self._last_pattern_result
+
         base_data = self._get_base_pattern_data(metric, grain, story_date)
 
         # Use "Region" dimension consistently to match series data
@@ -67,7 +79,13 @@ class MockDimensionAnalysisGenerator(MockPatternGeneratorBase):
 
         # Create the DimensionAnalysis instance
         result = DimensionAnalysis(**scenario_data)
-        return [result]  # Return single result
+        result_list = [result]  # Return single result
+
+        # Cache the result
+        self._last_pattern_result = result_list
+        self._last_pattern_key = cache_key
+
+        return result_list
 
     def generate_mock_series_data(
         self, metric: dict[str, Any], grain: Granularity, story_date: date, num_periods: int = 12
@@ -75,7 +93,8 @@ class MockDimensionAnalysisGenerator(MockPatternGeneratorBase):
         """
         Generate mock time series data that matches the pattern result.
 
-        Uses the same date range logic as historical performance for consistency.
+        IMPORTANT: This method needs to be called AFTER generate_pattern_results()
+        to ensure consistency between pattern results and series data.
 
         Args:
             metric: Metric dictionary
@@ -106,6 +125,134 @@ class MockDimensionAnalysisGenerator(MockPatternGeneratorBase):
         # Generate exactly num_periods data points ending at end_date
         date_range = pd.date_range(end=end_date, periods=num_periods, freq=freq)
 
+        # Generate pattern results to get consistent dimension values first
+        # This ensures the series data matches the pattern results
+        pattern_results = self.generate_pattern_results(metric, grain, story_date)
+        if not pattern_results:
+            # Fallback to basic generation if no pattern results
+            return self._generate_basic_series_data(date_range)
+
+        pattern_result = pattern_results[0]
+
+        # Extract dimension values from the pattern result slices
+        dimension_slices = [slice_obj.slice_value for slice_obj in pattern_result.slices]
+
+        # Create series data that reflects the pattern result performance relationships
+        series_data = []
+        base_value = random.uniform(800, 1500)  # noqa
+
+        # Create slice performance mapping based on pattern result data
+        slice_performance_map = {}
+        for slice_obj in pattern_result.slices:
+            slice_performance_map[slice_obj.slice_value] = {
+                "current_value": slice_obj.current_value,
+                "prior_value": slice_obj.prior_value,
+                "performance_level": self._get_performance_level(slice_obj, pattern_result.slices),
+            }
+
+        # Check if we have comparison highlights to create more realistic performance gaps
+        comparison_segments = {}
+        if hasattr(pattern_result, "comparison_highlights") and pattern_result.comparison_highlights:
+            comparison = pattern_result.comparison_highlights[0]  # Take the first comparison
+            comparison_segments = {comparison.slice_a: "higher", comparison.slice_b: "lower"}
+
+        # Calculate base values from pattern results to ensure realistic scaling
+        target_values = {
+            slice_name: slice_performance_map[slice_name]["current_value"]
+            for slice_name in dimension_slices
+            if slice_name in slice_performance_map
+        }
+
+        # Use the median target value as a better base_value to reduce dramatic scaling differences
+        if target_values:
+            median_target = sorted(target_values.values())[len(target_values) // 2]
+            base_value = median_target
+
+        for date_index, date_val in enumerate(date_range):
+            # Determine if this is the last data point (most recent)
+            is_last_date = date_index == len(date_range) - 1
+
+            # Add date-specific variation to make each time period different
+            date_variation = random.uniform(0.9, 1.1)  # noqa Smaller variation for consistency
+
+            for slice_name in dimension_slices:
+                if slice_name not in slice_performance_map:
+                    continue
+
+                slice_info = slice_performance_map[slice_name]
+                target_value = slice_info["current_value"]
+
+                # For the last data point only, use the exact current_value from pattern result
+                if is_last_date:
+                    value = target_value
+                else:
+                    # For all other points, use natural variation around target value
+                    # Calculate multiplier based on target value relative to base_value for more realistic scaling
+                    target_multiplier = target_value / base_value if base_value > 0 else 1.0
+
+                    # Add some variation around the target multiplier
+                    variation_range = 0.15  # 15% variation
+                    multiplier = target_multiplier * random.uniform(1 - variation_range, 1 + variation_range)  # noqa
+
+                    # Adjust multiplier based on comparison relationship if applicable
+                    if slice_name in comparison_segments:
+                        if comparison_segments[slice_name] == "higher":
+                            # Ensure this segment stays relatively higher
+                            multiplier = max(multiplier, target_multiplier * 0.9)
+                        else:  # 'lower'
+                            # Ensure this segment stays relatively lower
+                            multiplier = min(multiplier, target_multiplier * 1.1)
+
+                    # Add time-based variation that maintains relative performance
+                    time_factor = 1 + random.uniform(-0.08, 0.08)  # noqa Smaller time variation
+
+                    # Calculate value maintaining performance relationships
+                    value = base_value * multiplier * time_factor * date_variation
+
+                series_data.append(
+                    {
+                        "date": date_val.strftime("%Y-%m-%d"),
+                        "dimension_slice": slice_name,  # This is the key column name expected by evaluator
+                        "value": round(value, 2),
+                    }
+                )
+
+        return pd.DataFrame(series_data)
+
+    def _get_performance_level(self, slice_obj, all_slices) -> str:
+        """
+        Determine the performance level of a slice relative to others.
+
+        Args:
+            slice_obj: The slice to evaluate
+            all_slices: All slices for comparison
+
+        Returns:
+            'high', 'medium', or 'low' performance level
+        """
+        # Calculate average value across all slices
+        avg_value = sum(s.current_value for s in all_slices) / len(all_slices)
+
+        current_value = slice_obj.current_value
+
+        # Determine performance level based on distance from average
+        if current_value >= avg_value * 1.2:  # 20% above average
+            return "high"
+        elif current_value >= avg_value * 0.8:  # Within 20% of average
+            return "medium"
+        else:  # Below 80% of average
+            return "low"
+
+    def _generate_basic_series_data(self, date_range) -> pd.DataFrame:
+        """
+        Fallback method to generate basic series data if pattern results are not available.
+
+        Args:
+            date_range: Date range for the series
+
+        Returns:
+            DataFrame with basic series data
+        """
         # Use the same dimension values that will be used in pattern result
         dimension_slices = self._generate_mock_dimension_values("Region")
 
@@ -332,24 +479,26 @@ class MockDimensionAnalysisGenerator(MockPatternGeneratorBase):
                 }
             )
 
-        # Create comparison between growing and declining segments
+        # Create comparison between the highest and lowest performing segments for clearer contrast
         if len(slices) >= 2:
-            growing_slice = next((s for s in slices if s["slice_value"] == growing_segment), slices[0])
-            declining_slice = next((s for s in slices if s["slice_value"] != growing_segment), slices[1])
+            # Sort slices by current value to get the best and worst performers
+            sorted_slices = sorted(slices, key=lambda x: x["current_value"], reverse=True)  # type: ignore
+            top_slice = sorted_slices[0]
+            bottom_slice = sorted_slices[-1]
 
             # Calculate performance gap: (A - B) / B * 100
             performance_gap_percent = None
-            if declining_slice["current_value"] != 0:
+            if bottom_slice["current_value"] != 0:
                 performance_gap_percent = (
-                    (growing_slice["current_value"] - declining_slice["current_value"])  # type: ignore
-                    / declining_slice["current_value"]
+                    (top_slice["current_value"] - bottom_slice["current_value"])  # type: ignore
+                    / bottom_slice["current_value"]
                 ) * 100
 
             # Calculate prior gap: (A_prior - B_prior) / B_prior * 100
             gap_prior = None
-            if declining_slice["prior_value"] != 0:
+            if bottom_slice["prior_value"] != 0:
                 gap_prior = (
-                    (growing_slice["prior_value"] - declining_slice["prior_value"]) / declining_slice["prior_value"]  # type: ignore
+                    (top_slice["prior_value"] - bottom_slice["prior_value"]) / bottom_slice["prior_value"]  # type: ignore
                 ) * 100
 
             # Calculate gap change
@@ -359,12 +508,12 @@ class MockDimensionAnalysisGenerator(MockPatternGeneratorBase):
 
             comparison_highlights.append(
                 {
-                    "slice_a": growing_slice["slice_value"],
-                    "current_value_a": growing_slice["current_value"],
-                    "prior_value_a": growing_slice["prior_value"],
-                    "slice_b": declining_slice["slice_value"],
-                    "current_value_b": declining_slice["current_value"],
-                    "prior_value_b": declining_slice["prior_value"],
+                    "slice_a": top_slice["slice_value"],
+                    "current_value_a": top_slice["current_value"],
+                    "prior_value_a": top_slice["prior_value"],
+                    "slice_b": bottom_slice["slice_value"],
+                    "current_value_b": bottom_slice["current_value"],
+                    "prior_value_b": bottom_slice["prior_value"],
                     "performance_gap_percent": performance_gap_percent,
                     "gap_change_percent": gap_change_percent,
                 }
@@ -824,11 +973,12 @@ class MockDimensionAnalysisGenerator(MockPatternGeneratorBase):
                     }
                 )
 
-        # Generate comparison highlights for segment comparison stories with more variation
+        # Generate comparison highlights for segment comparison stories with clear contrast
         if len(slices) >= 2:
-            # Pick different pairs for more variety
-            slice_a = random.choice(slices[:3])  # noqa Pick from top 3
-            slice_b = random.choice(slices[3:])  # noqa Pick from bottom 3
+            # Sort slices by current value to get the best and worst performers
+            sorted_slices = sorted(slices, key=lambda x: x["current_value"], reverse=True)  # type: ignore
+            slice_a = sorted_slices[0]  # Top performer
+            slice_b = sorted_slices[-1]  # Bottom performer
 
             # Calculate performance gap: (A - B) / B * 100
             performance_gap_percent = None
@@ -1056,11 +1206,12 @@ class MockDimensionAnalysisGenerator(MockPatternGeneratorBase):
                     }
                 )
 
-        # Generate comparison highlights for segment comparison stories with more variation
+        # Generate comparison highlights for segment comparison stories with clear contrast
         if len(slices) >= 2:
-            # Pick different pairs for more variety
-            slice_a = random.choice(slices[:2])  # noqa Pick from top 2
-            slice_b = random.choice(slices[2:])  # noqa Pick from bottom 4
+            # Sort slices by current value to get the best and worst performers
+            sorted_slices = sorted(slices, key=lambda x: x["current_value"], reverse=True)  # type: ignore
+            slice_a = sorted_slices[0]  # Top performer
+            slice_b = sorted_slices[-1]  # Bottom performer
 
             # Calculate performance gap: (A - B) / B * 100
             performance_gap_percent = None

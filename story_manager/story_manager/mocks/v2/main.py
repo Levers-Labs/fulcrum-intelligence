@@ -81,13 +81,20 @@ class MockStoryServiceV2:
         stories = []
 
         try:
-            # Generate mock pattern results
-            pattern_results = generator.generate_pattern_results(metric=metric, grain=grain, story_date=story_date)
 
             # Generate mock series data if the generator supports it
             series_df = None
             if hasattr(generator, "generate_mock_series_data"):
                 series_df = generator.generate_mock_series_data(metric=metric, grain=grain, story_date=story_date)
+
+            # Generate mock pattern results
+            if pattern_name in ["performance_status", "historical_performance"] and series_df is not None:
+                # pass series_df for consistency
+                pattern_results = generator.generate_pattern_results(  # type: ignore
+                    metric=metric, grain=grain, story_date=story_date, series_df=series_df
+                )
+            else:
+                pattern_results = generator.generate_pattern_results(metric=metric, grain=grain, story_date=story_date)
 
             # For historical performance, add period_metrics and trend_analysis to pattern results
             if (

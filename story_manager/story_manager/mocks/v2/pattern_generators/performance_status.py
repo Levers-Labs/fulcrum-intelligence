@@ -21,40 +21,67 @@ class MockPerformanceStatusGenerator(MockPatternGeneratorBase):
     pattern_name = "performance_status"
 
     def generate_pattern_results(
-        self, metric: dict[str, Any], grain: Granularity, story_date: date
+        self, metric: dict[str, Any], grain: Granularity, story_date: date, series_df: pd.DataFrame | None = None
     ) -> list[MetricPerformance]:
         """
         Generate a single mock MetricPerformance pattern result.
 
-        Returns only one scenario instead of multiple scenarios to avoid
-        generating multiple stories of the same type.
+        Args:
+            metric: Metric dictionary
+            grain: Granularity for the pattern
+            story_date: Date for the story
+            series_df: Optional DataFrame with series data to ensure consistency
+
+        Returns:
+            List containing only one scenario to avoid generating multiple stories of the same type.
         """
         base_data = self._get_base_pattern_data(metric, grain, story_date)
 
-        # Randomly choose one scenario type to generate
-        # WEIGHTED scenario choices to ensure HOLD_STEADY appears more frequently
-        scenario_choices = [
-            "on_track",
-            "off_track",
-            "improving_status",
-            "worsening_status",
-            "hold_steady",
-            "hold_steady",  # Add one extra weight to hold_steady for ~33% frequency
-        ]
+        # If series_df is provided, derive values from it to ensure consistency
+        if series_df is not None and not series_df.empty:
+            # Use the last value as current_value and second-to-last as prior_value
+            current_value = float(series_df.iloc[-1]["value"])
+            target_value = float(series_df.iloc[-1]["target"])
+            prior_value = float(series_df.iloc[-2]["value"]) if len(series_df) > 1 else current_value * 0.95
 
-        chosen_scenario = random.choice(scenario_choices)  # noqa
+            # Determine scenario based on actual relationship between current_value and target_value
+            if current_value >= target_value:
+                # Choose between on_track, improving_status, or hold_steady scenarios
+                chosen_scenario = random.choice(["on_track", "improving_status", "hold_steady"])  # noqa
+            else:
+                # Choose between off_track, worsening_status scenarios
+                chosen_scenario = random.choice(["off_track", "worsening_status"])  # noqa
 
-        # Generate the chosen scenario
+        else:
+            # Fallback to original random scenario selection if no series data
+            scenario_choices = [
+                "on_track",
+                "off_track",
+                "improving_status",
+                "worsening_status",
+                "hold_steady",
+                "hold_steady",  # Add one extra weight to hold_steady for ~33% frequency
+            ]
+            chosen_scenario = random.choice(scenario_choices)  # noqa
+            current_value = None
+            target_value = None
+            prior_value = None
+
+        # Generate the chosen scenario with consistent values
         if chosen_scenario == "on_track":
-            scenario_data = self._generate_on_track_scenario(base_data)
+            scenario_data = self._generate_on_track_scenario(base_data, current_value, target_value, prior_value)  # type: ignore
         elif chosen_scenario == "off_track":
-            scenario_data = self._generate_off_track_scenario(base_data)
+            scenario_data = self._generate_off_track_scenario(base_data, current_value, target_value, prior_value)  # type: ignore
         elif chosen_scenario == "improving_status":
-            scenario_data = self._generate_improving_status_scenario(base_data)
+            scenario_data = self._generate_improving_status_scenario(
+                base_data, current_value, target_value, prior_value  # type: ignore
+            )
         elif chosen_scenario == "worsening_status":
-            scenario_data = self._generate_worsening_status_scenario(base_data)
+            scenario_data = self._generate_worsening_status_scenario(
+                base_data, current_value, target_value, prior_value  # type: ignore
+            )
         else:  # hold_steady
-            scenario_data = self._generate_hold_steady_scenario(base_data)
+            scenario_data = self._generate_hold_steady_scenario(base_data, current_value, target_value, prior_value)  # type: ignore
 
         try:
             result = MetricPerformance(**scenario_data)
@@ -149,15 +176,14 @@ class MockPerformanceStatusGenerator(MockPatternGeneratorBase):
             target_values.append(max(0, target))  # noqa
 
         # Create DataFrame
-        series_df = pd.DataFrame({"date": date_range, "value": values, "target_value": target_values})
+        series_df = pd.DataFrame({"date": date_range, "value": values, "target": target_values})
 
         return series_df
 
-    def _generate_on_track_scenario(self, base_data: dict[str, Any]) -> dict[str, Any]:
+    def _generate_on_track_scenario(
+        self, base_data: dict[str, Any], current_value: float, target_value: float, prior_value: float
+    ) -> dict[str, Any]:
         """Generate an on-track performance scenario."""
-        current_value = self._generate_mock_value(1000)
-        target_value = current_value * random.uniform(0.8, 0.95)  # noqa
-        prior_value = current_value * random.uniform(0.85, 0.98)  # noqa
 
         return {
             **base_data,
@@ -171,11 +197,10 @@ class MockPerformanceStatusGenerator(MockPatternGeneratorBase):
             "percent_over_performance": ((current_value - target_value) / target_value) * 100,
         }
 
-    def _generate_off_track_scenario(self, base_data: dict[str, Any]) -> dict[str, Any]:
+    def _generate_off_track_scenario(
+        self, base_data: dict[str, Any], current_value: float, target_value: float, prior_value: float
+    ) -> dict[str, Any]:
         """Generate an off-track performance scenario."""
-        current_value = self._generate_mock_value(800)
-        target_value = current_value * random.uniform(1.05, 1.3)  # noqa
-        prior_value = current_value * random.uniform(1.02, 1.15)  # noqa
 
         return {
             **base_data,
@@ -240,19 +265,10 @@ class MockPerformanceStatusGenerator(MockPatternGeneratorBase):
 
         return scenario
 
-    def _generate_improving_status_scenario(self, base_data: dict[str, Any]) -> dict[str, Any]:
+    def _generate_improving_status_scenario(
+        self, base_data: dict[str, Any], current_value: float, target_value: float, prior_value: float
+    ) -> dict[str, Any]:
         """Generate an improving status scenario."""
-        current_value = self._generate_mock_value(1100)
-        target_value = self._generate_mock_value(1000)
-        prior_value = current_value * random.uniform(0.85, 0.95)  # noqa
-
-        # Status changed from off_track to on_track
-        status_change = {
-            "has_flipped": True,
-            "old_status": "off_track",
-            "new_status": "on_track",
-            "old_status_duration_grains": random.randint(2, 8),  # noqa
-        }
 
         return {
             **base_data,
@@ -262,24 +278,20 @@ class MockPerformanceStatusGenerator(MockPatternGeneratorBase):
             "pop_change_percent": ((current_value - prior_value) / prior_value) * 100,
             "target_value": target_value,
             "status": "on_track",
-            "status_change": status_change,
+            "status_change": {
+                "has_flipped": True,
+                "old_status": "off_track",
+                "new_status": "on_track",
+                "old_status_duration_grains": random.randint(2, 8),  # noqa
+            },
             "absolute_over_performance": current_value - target_value,
             "percent_over_performance": ((current_value - target_value) / target_value) * 100,
         }
 
-    def _generate_worsening_status_scenario(self, base_data: dict[str, Any]) -> dict[str, Any]:
+    def _generate_worsening_status_scenario(
+        self, base_data: dict[str, Any], current_value: float, target_value: float, prior_value: float
+    ) -> dict[str, Any]:
         """Generate a worsening status scenario."""
-        current_value = self._generate_mock_value(800)
-        target_value = self._generate_mock_value(1000)
-        prior_value = current_value * random.uniform(1.05, 1.2)  # noqa
-
-        # Status changed from on_track to off_track
-        status_change = {
-            "has_flipped": True,
-            "old_status": "on_track",
-            "new_status": "off_track",
-            "old_status_duration_grains": random.randint(2, 8),  # noqa
-        }
 
         return {
             **base_data,
@@ -289,7 +301,12 @@ class MockPerformanceStatusGenerator(MockPatternGeneratorBase):
             "pop_change_percent": ((current_value - prior_value) / prior_value) * 100,
             "target_value": target_value,
             "status": "off_track",
-            "status_change": status_change,
+            "status_change": {
+                "has_flipped": True,
+                "old_status": "on_track",
+                "new_status": "off_track",
+                "old_status_duration_grains": random.randint(2, 8),  # noqa
+            },
             "absolute_gap": target_value - current_value,
             "percent_gap": ((target_value - current_value) / target_value) * 100,
         }
@@ -341,11 +358,10 @@ class MockPerformanceStatusGenerator(MockPatternGeneratorBase):
 
         return scenario
 
-    def _generate_hold_steady_scenario(self, base_data: dict[str, Any]) -> dict[str, Any]:
+    def _generate_hold_steady_scenario(
+        self, base_data: dict[str, Any], current_value: float, target_value: float, prior_value: float
+    ) -> dict[str, Any]:
         """Generate a hold steady scenario."""
-        current_value = self._generate_mock_value(1050)
-        target_value = self._generate_mock_value(1000)
-        prior_value = current_value * random.uniform(0.95, 1.02)  # noqa
 
         is_above_target = current_value >= target_value
 
