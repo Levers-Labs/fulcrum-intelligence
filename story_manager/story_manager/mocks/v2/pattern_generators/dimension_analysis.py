@@ -165,8 +165,8 @@ class MockDimensionAnalysisGenerator(MockPatternGeneratorBase):
 
         # Use the median target value as a better base_value to reduce dramatic scaling differences
         if target_values:
-            median_target = sorted(target_values.values())[len(target_values) // 2]
-            base_value = median_target
+            median_target = sorted(target_values.values())[len(target_values) // 2]  # type: ignore
+            base_value = median_target  # type: ignore
 
         for date_index, date_val in enumerate(date_range):
             # Determine if this is the last data point (most recent)
@@ -188,7 +188,7 @@ class MockDimensionAnalysisGenerator(MockPatternGeneratorBase):
                 else:
                     # For all other points, use natural variation around target value
                     # Calculate multiplier based on target value relative to base_value for more realistic scaling
-                    target_multiplier = target_value / base_value if base_value > 0 else 1.0
+                    target_multiplier = target_value / base_value if base_value > 0 else 1.0  # type: ignore
 
                     # Add some variation around the target multiplier
                     variation_range = 0.15  # 15% variation
@@ -213,7 +213,7 @@ class MockDimensionAnalysisGenerator(MockPatternGeneratorBase):
                     {
                         "date": date_val.strftime("%Y-%m-%d"),
                         "dimension_slice": slice_name,  # This is the key column name expected by evaluator
-                        "value": round(value, 2),
+                        "value": round(value, 2),  # type: ignore
                     }
                 )
 

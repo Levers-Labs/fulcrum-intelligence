@@ -104,7 +104,7 @@ class MockStoryServiceV2:
             ):
                 for pattern_result in pattern_results:
                     # Generate period metrics that align with series data
-                    period_metrics = generator.generate_mock_period_metrics(series_df, grain)
+                    period_metrics = generator.generate_mock_period_metrics(series_df)
                     # Update the pattern result with aligned period metrics
                     pattern_result.period_metrics = period_metrics
 
