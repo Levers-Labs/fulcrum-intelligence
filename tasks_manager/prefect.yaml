@@ -16,12 +16,16 @@ pull:
     repository: https://x-access-token:{{ get-github-token.stdout }}@github.com/Levers-Labs/fulcrum-intelligence.git
     branch: feat/prefect-worker
 - prefect.deployments.steps.run_shell_script:
+    id: list-directory
+    script: ls -la && pwd && echo "Git clone directory is {{ git-clone.directory }}"
+    stream_output: true
+- prefect.deployments.steps.run_shell_script:
     id: setup-environment
     directory: "{{ git-clone.directory }}"
     script: bash tasks_manager/scripts/setup_prefect_worker_environment.sh
     stream_output: true
 - prefect.deployments.steps.set_working_directory:
-    directory: "{{ git-clone.directory }}/tasks_manager"
+    directory: "{{ git-clone.directory }}"
 
 # Reusable definitions
 definitions:
