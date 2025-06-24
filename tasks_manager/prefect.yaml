@@ -10,7 +10,7 @@ push: null
 pull:
 - prefect.deployments.steps.run_shell_script:
     id: get-github-token
-    script: prefect cloud github token Levers-Labs/fulcrum-intelligence
+    script: uv tool run prefect-cloud github token Levers-Labs/fulcrum-intelligence
 - prefect.deployments.steps.git_clone:
     id: git-clone
     repository: https://x-access-token:{{ get-github-token.stdout }}@github.com/Levers-Labs/fulcrum-intelligence.git
