@@ -130,10 +130,12 @@ prefect work-pool create --type managed tasks-manager-managed-pool
 
 3. **Setup GitHub Integration:**
 
-Install the Prefect Cloud GitHub App:
+Follow the [Prefect Cloud GitHub Integration guide](https://docs.prefect.io/v3/how-to-guides/deployments/store-flow-code#prefect-cloud-github-integration) to set up GitHub access:
+
 - Go to your Prefect Cloud workspace
 - Navigate to Settings → Integrations → GitHub
 - Click "Install GitHub App" and authorize access to the `Levers-Labs/fulcrum-intelligence` repository
+- Ensure the integration has access to the repository containing your flow code
 
 4. **Setup Database Network Access (if required):**
 
