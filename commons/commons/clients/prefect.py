@@ -40,7 +40,7 @@ class PrefectDeployment(BaseModel):
         timezone: str | None = None,  # Timezone for the schedule (e.g. "America/New_York")
         is_active: bool = True,  # New parameter for schedule active status
         parameter_schema: type[BaseModel] | None = None,
-        work_pool_name: str = "tasks-manager-ecs-pool",
+        work_pool_name: str = "tasks-manager-managed-pool",
         pull_steps: list[dict[str, Any]] | None = None,
         parameters: dict[str, Any] | None = None,
         **kwargs: Any,

@@ -6,11 +6,7 @@ on:
       - main
     paths:
       - "tasks_manager/**"
-      - "commons/**"
-      - "core/**"
-      - "levers/**"
-      - "story_manager/**"
-      - "query_manager/**"
+      - ".github/workflows/tasks-manager-deployment.yml"
 
   workflow_dispatch:
     inputs:

@@ -14,7 +14,6 @@ pull:
 - prefect.deployments.steps.git_clone:
     id: git-clone
     repository: https://x-access-token:{{ get-github-token.stdout }}@github.com/Levers-Labs/fulcrum-intelligence.git
-    branch: feat/prefect-worker
 - prefect.deployments.steps.run_shell_script:
     id: setup-environment
     directory: "{{ git-clone.directory }}"
