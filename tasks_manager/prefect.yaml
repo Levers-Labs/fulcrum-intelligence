@@ -20,6 +20,8 @@ pull:
     directory: "{{ git-clone.directory }}"
     script: bash tasks_manager/scripts/setup_prefect_worker_environment.sh
     stream_output: true
+- prefect.deployments.steps.set_working_directory:
+    directory: "{{ git-clone.directory }}/tasks_manager"
 
 # Reusable definitions
 definitions:
