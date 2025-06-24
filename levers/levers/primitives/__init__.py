@@ -33,6 +33,7 @@ from .period_grains import (
     get_period_range_for_grain,
     get_prev_period_start_date,
     get_prior_period_range,
+    get_period_end_date,
 )
 
 # Time Series primitives
@@ -78,6 +79,14 @@ from .dimensional_analysis import (
     rank_metric_slices,
 )
 
+# Forecasting primitives
+from .forecasting import (
+    simple_forecast,
+    forecast_with_confidence_intervals,
+    calculate_forecast_accuracy,
+    generate_forecast_scenarios,
+)
+
 # Create a dictionary of primitives organized by family
 _primitive_families = {
     "numeric": [
@@ -105,6 +114,7 @@ _primitive_families = {
         get_prev_period_start_date,
         get_date_range_from_window,
         get_period_length_for_grain,
+        get_period_end_date,
     ],
     "time_series": [
         calculate_average_growth,
@@ -145,6 +155,12 @@ _primitive_families = {
         highlight_slice_comparisons,
         compute_historical_slice_rankings,
         build_slices_performance_list,
+    ],
+    "forecasting": [
+        simple_forecast,
+        forecast_with_confidence_intervals,
+        calculate_forecast_accuracy,
+        generate_forecast_scenarios,
     ],
 }
 
@@ -222,6 +238,7 @@ __all__ = [
     "get_prior_period_range",
     "get_prev_period_start_date",
     "get_date_range_from_window",
+    "get_period_end_date",
     # Time Series primitives
     "calculate_average_growth",
     "calculate_benchmark_comparisons",
@@ -240,7 +257,7 @@ __all__ = [
     "process_control_analysis",
     "detect_seasonality_pattern",
     "detect_trend_exceptions_using_spc_analysis",
-    "analyze_trend_using_spc_analysis"
+    "analyze_trend_using_spc_analysis",
     # Dimensional Analysis primitives
     "calculate_slice_metrics",
     "compute_slice_shares",
@@ -256,6 +273,11 @@ __all__ = [
     "highlight_slice_comparisons",
     "compute_historical_slice_rankings",
     "build_slices_performance_list",
+    # Forecasting primitives,
+    "simple_forecast",
+    "forecast_with_confidence_intervals",
+    "calculate_forecast_accuracy",
+    "generate_forecast_scenarios",
     # Utility functions
     "list_primitives_by_family",
     "get_primitive_metadata",

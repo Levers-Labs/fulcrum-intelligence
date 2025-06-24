@@ -19,6 +19,7 @@ import pandas as pd
 
 from levers.exceptions import ValidationError
 from levers.models import Granularity
+from levers.models.enums import PeriodType
 
 # Optional dictionary of grain metadata for reuse
 GRAIN_META: dict[str, Any] = {
@@ -402,3 +403,38 @@ def get_period_length_for_grain(grain: Granularity | str) -> int:
             f"Unsupported grain '{grain}'",
             invalid_fields={"grain": grain, "valid_grains": list(Granularity)},
         )
+
+
+def get_period_end_date(analysis_dt: pd.Timestamp, period_name: str | PeriodType) -> pd.Timestamp:
+    """
+    Calculate the end date for named periods relative to analysis_dt.
+
+    Args:
+        analysis_dt: The analysis timestamp
+        period_name: The period name (string or PeriodType enum)
+
+    Returns:
+        The end date of the specified period as a pandas Timestamp
+
+    Raises:
+        ValueError: If period_name is not recognized
+    """
+    # Convert string to enum if needed
+    if isinstance(period_name, str):
+        try:
+            period_name = PeriodType(period_name)
+        except ValueError as err:
+            raise ValueError(f"Unknown period_name: {period_name}") from err
+
+    if period_name == PeriodType.END_OF_WEEK:
+        return (analysis_dt + pd.offsets.Week(weekday=6)).normalize()  # Sunday
+    elif period_name == PeriodType.END_OF_MONTH:
+        return (analysis_dt + pd.offsets.MonthEnd(0)).normalize()
+    elif period_name == PeriodType.END_OF_QUARTER:
+        return (analysis_dt + pd.offsets.QuarterEnd(0)).normalize()
+    elif period_name == PeriodType.END_OF_YEAR:
+        return (analysis_dt + pd.offsets.YearEnd(0)).normalize()
+    elif period_name == PeriodType.END_OF_NEXT_MONTH:
+        return (analysis_dt + pd.offsets.MonthEnd(1)).normalize()
+    else:
+        raise ValueError(f"Unknown period_name: {period_name}")
