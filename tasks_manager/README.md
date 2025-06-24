@@ -7,47 +7,75 @@ this project ensures efficient task management, deployment, and scalability.
 
 - **Scalable Workflows:** Utilizes Prefect's orchestration capabilities to manage complex workflows efficiently.
 - **Asynchronous Operations:** Implements async functions for non-blocking I/O operations, ensuring optimal performance.
-- **Configurable Deployments:** Supports Docker and AWS ECS deployments for flexible infrastructure management.
+- **Managed Worker Deployments:** Uses Prefect managed workers with git-based code deployment for simplified infrastructure.
+- **Git-based Deployment:** Automatic code pulling and environment setup for seamless deployments.
 - **Robust Error Handling:** Includes comprehensive error handling and logging mechanisms for reliability.
 
 ## Local Development Setup
 
-1. Create and activate a virtual environment:
+### Prerequisites
+- Python 3.10 or higher
+- Poetry for dependency management
+- Git
+
+### Quick Start (Recommended)
+
+The project includes a **project-isolated Prefect setup** to avoid conflicts with other Prefect projects:
 
 ```bash
-python -m venv .venv
-source .venv/bin/activate
+cd tasks_manager
+
+# Complete setup in one command
+make setup-local
 ```
 
-2. Install the dependencies:
+This will:
+1. Install dependencies
+2. Initialize project-specific Prefect database
+3. Create work pools and queues
+4. Register configuration blocks
+5. Deploy flows for local development
+
+### Manual Setup Steps
+
+If you prefer to run each step manually:
+
+1. **Install dependencies:**
 
 ```bash
 cd tasks_manager
 poetry install
 ```
 
-3. Start the Prefect server:
+2. **Setup project-specific Prefect instance:**
 
 ```bash
-prefect server start
+make setup
+```
+
+This creates a local SQLite database at `./prefect_data/prefect.db` to avoid conflicts with other projects.
+
+3. **Start the Prefect server:**
+
+```bash
+make server
 ```
 
 This will start the server on port 4200. You can access the UI at http://localhost:4200.
 
-4. Configure Prefect API URL (in a new terminal):
+4. **Create work pool and queues (in a new terminal):**
 
 ```bash
-prefect config set PREFECT_API_URL=http://localhost:4200/api
+make create-pool
 ```
 
-5. Deploy the app config block to configure secrets used by the flows.
+5. **Register configuration blocks:**
 
 ```bash
-cd tasks_manager
-prefect blocks register --file tasks_manager/config.py
+make register-blocks
 ```
 
-6. Create a 'default' AppConfig block in the UI.
+6. **Create a 'default' AppConfig block in the UI:**
 
 - Open http://127.0.0.1:4200
 - Navigate to Blocks
@@ -57,48 +85,134 @@ prefect blocks register --file tasks_manager/config.py
 - Enter the required fields
 - Click "Create block"
 
-## Creating and Deploying Flows
+7. **Deploy flows for local development:**
 
-1. Deploy the flow using the CLI:
-   ```bash
-   prefect deployment build tasks_manager/stories.py:generate_stories -n story-generator
-   prefect deployment apply story-generator-deployment.yaml
-   ```
-2. Start a worker to execute flows:
-   ```bash
-   prefect worker start -p default-agent-pool
-   ```
+```bash
+make deploy-local
+```
 
-3. Run the flow in one of these ways:
+8. **Start a worker to execute flows:**
 
-   Via Python:
-   ```python
-   from tasks_manager.gen_stories import generate_stories
+```bash
+make worker
+```
 
-   # Run the flow with a specific group
-   await generate_stories(group="daily")
-   ```
+### Project Isolation Features
 
-   Via CLI:
-   ```bash
-   # Run with parameters
-   prefect deployment run 'Generate Stories/story-generator' -p group="daily"
-   ```
+This setup provides **complete project isolation**:
 
-   Via UI:
-    1. Open http://127.0.0.1:4200
-    2. Navigate to Deployments
-    3. Find "Generate Stories/story-generator"
-    4. Click "Run"
-    5. Enter parameters:
-        - group: "daily" (or other valid group value)
-    6. Click "Run deployment"
+- **Separate Database**: Uses `./prefect_data/prefect.db` (SQLite) specific to this project
+- **Custom Configuration**: `.prefectconfig` file loads project-specific settings
+- **No Global Conflicts**: Won't interfere with other Prefect projects on your machine
+- **Easy Cleanup**: `make clean-prefect` removes all local Prefect data
 
-## Adding new flows for Production
+## Production Deployment
+
+### Prerequisites for Production
+- Prefect Cloud account
+- GitHub repository access token
+- Prefect managed work pool
+
+### Setup Production Work Pool
+
+1. **Login to Prefect Cloud:**
+
+```bash
+# Login to Prefect Cloud
+prefect cloud login
+```
+
+2. **Create a managed work pool in Prefect Cloud:**
+
+```bash
+prefect work-pool create --type managed tasks-manager-managed-pool
+```
+
+3. **Setup GitHub Integration:**
+
+Install the Prefect Cloud GitHub App:
+- Go to your Prefect Cloud workspace
+- Navigate to Settings → Integrations → GitHub
+- Click "Install GitHub App" and authorize access to the `Levers-Labs/fulcrum-intelligence` repository
+
+4. **Setup Database Network Access (if required):**
+
+For Prefect Managed infrastructure to connect to your database, you may need to whitelist the static outbound IP addresses.
+
+**Static Outbound IP Addresses:**
+According to [Prefect documentation](https://docs.prefect.io/v3/how-to-guides/deployment_infra/managed), flows running on Prefect Managed infrastructure use these source addresses:
+- `184.73.85.134`
+- `52.4.218.198`
+- `44.217.117.74`
+
+**Database Service Configuration:**
+Add these IP addresses to your database service's allowlist/firewall rules:
+- **Supabase**: Add IPs to "Network Restrictions" in your project settings
+- **AWS RDS**: Add IPs to security group inbound rules
+- **Google Cloud SQL**: Add IPs to authorized networks
+- **Azure Database**: Add IPs to firewall rules
+- **Other services**: Consult your provider's documentation for IP allowlisting
+
+5. **Create Configuration Blocks:**
+
+Create the following blocks in Prefect Cloud (via UI or CLI):
+
+**Secret Blocks** (for sensitive data):
+- `app-config-default`: Your application configuration secrets
+
+**Variable Blocks** (for configuration):
+- Additional configuration variables as needed for your flows
+
+### Deployment Process
+
+Production deployments are handled automatically via GitHub Actions when code is pushed to the main branch. The workflow:
+
+1. **Triggers**: Automatically on push to main branch affecting relevant paths
+2. **Dependencies**: Installs Poetry and project dependencies
+3. **Block Registration**: Registers Prefect configuration blocks
+4. **Deployment**: Deploys all flows to Prefect Cloud using managed workers
+
+### Manual Deployment
+
+To deploy manually:
+
+```bash
+# Ensure you're connected to Prefect Cloud
+prefect cloud login
+
+# Deploy all flows
+prefect deploy --all
+```
+
+## Running Flows
+
+### Via Prefect UI
+1. Open your Prefect Cloud dashboard
+2. Navigate to Deployments
+3. Find the desired deployment (e.g., "generate-stories")
+4. Click "Run"
+5. Enter any required parameters
+6. Click "Run deployment"
+
+### Via CLI
+```bash
+# Run with parameters
+prefect deployment run 'generate-stories' --param group="daily"
+```
+
+### Via Python
+```python
+from tasks_manager.flows.stories import generate_stories
+
+# Run the flow with specific parameters
+await generate_stories(group="daily")
+```
+
+## Adding New Flows
 
 To add a new flow for production:
 
-1. Create flow and task definitions:
+1. **Create flow and task definitions:**
    ```python
    # tasks_manager/flows/your_flow.py
    from prefect import flow, task
@@ -115,44 +229,305 @@ To add a new flow for production:
        result = await your_task({"group": group})
    ```
 
-2. Add deployment configuration to `prefect.yaml`:
+2. **Add deployment configuration to `prefect.yaml`:**
    ```yaml
-   deployments:
-     - name: "Your Flow Name"
-       version: "1.0.0"
-       tags:
-         - daily
-       description: "Generate stories for Your Flow"
-       entrypoint: tasks_manager.flows.your_flow:your_flow
-       parameters:
-         group: "YOUR_GROUP"
-       work_pool: *ecs_work_pool
-       schedules: *daily_midnight
+   - name: "your-flow-name"
+     version: "1.0.0"
+     tags:
+       - daily
+     description: "Description of your flow"
+     entrypoint: tasks_manager.flows.your_flow:your_flow
+     parameters:
+       group: "YOUR_GROUP"
+     work_pool: *managed_work_pool
+     schedule: *daily_midnight
    ```
 
-3. Deploy the new flow (managed via Github Actions)
+3. **Test locally first:**
    ```bash
-   prefect deploy --all
+   # Update local configuration
+   prefect deploy --all --prefect-file prefect.local.yaml
+
+   # Test the flow
+   prefect deployment run 'your-flow-name' --param group="test"
    ```
 
-4. Verify the deployment in the Prefect UI at http://127.0.0.1:4200
+4. **Deploy to production:**
+   - Push changes to main branch
+   - GitHub Actions will automatically deploy
+   - Verify deployment in Prefect Cloud UI
 
-Best Practices:
+### Best Practices
 
-- Keep flow and task definitions in separate files under `flows/` directory
-- Follow consistent naming conventions for groups and flow names
-- Include appropriate tags for filtering and organization
-- Add comprehensive logging and error handling
-- Test flows locally before deploying to production
+- **Modular Design**: Keep flow and task definitions in separate files under `flows/` directory
+- **Naming Conventions**: Use consistent naming for flows, parameters, and deployments
+- **Tagging**: Include appropriate tags for filtering and organization
+- **Error Handling**: Add comprehensive logging and error handling
+- **Testing**: Always test flows locally before deploying to production
+- **Documentation**: Document flow parameters and expected behavior
+
+## Makefile Commands
+
+The project includes a comprehensive Makefile for common tasks:
+
+### Development Commands
+```bash
+make help           # Show all available commands
+make install        # Install dependencies using Poetry
+make format         # Format code with black and isort
+make lint           # Lint code with ruff and mypy
+make test           # Run tests with coverage
+make clean          # Clean up generated files and caches
+```
+
+### Local Development Setup
+```bash
+make setup-local    # Complete local development setup
+# This runs: install, setup, create-pool, register-blocks, deploy-local
+
+# Or run individual commands:
+make setup          # Initialize project-specific Prefect instance
+make server         # Start Prefect server with project configuration
+make config         # View Prefect configuration (loaded from .prefectconfig)
+make create-pool    # Create local process work pool and queues
+make register-blocks # Register Prefect blocks
+make deploy-local   # Deploy flows for local development
+make worker         # Start a Prefect worker
+make clean-prefect  # Clean Prefect data and reset local database
+```
+
+### Running Flows
+```bash
+# Run a specific deployment
+make run-flow DEPLOYMENT=generate-stories PARAMS='group="daily"'
+
+# Examples:
+make run-flow DEPLOYMENT=semantic-data-sync-daily
+make run-flow DEPLOYMENT=generate-stories PARAMS='group="weekly"'
+```
+
+### Production Deployment
+```bash
+make setup-prod     # Complete production deployment setup
+make deploy         # Deploy all flows to Prefect Cloud
+```
 
 ## Monitoring and Management
 
+### Local Development
 - **Dashboard:** Access the Prefect UI at http://127.0.0.1:4200
 - **API Docs:** View API documentation at http://127.0.0.1:4200/docs
 - **Logs:** Monitor flow runs and task execution in the UI
 
+### Production
+- **Prefect Cloud:** Access your Prefect Cloud dashboard
+- **Work Pools:** Monitor managed worker pools and queues
+- **Deployments:** View and manage all deployed flows
+- **Flow Runs:** Track execution history and performance
+
+## Migration from ECS Workers
+
+This project has been migrated from ECS workers to Prefect managed workers. Key changes include:
+
+### What Changed
+- **Infrastructure**: Removed Docker/ECS dependencies
+- **Deployment**: Git-based code pulling instead of Docker images
+- **Work Pools**: Using managed workers instead of ECS tasks
+- **Environment Setup**: Automatic dependency installation via script
+
+### Benefits
+- **Simplified Deployment**: No Docker image building required
+- **Faster Deployments**: Direct git-based code pulling
+- **Reduced Costs**: No ECS infrastructure to maintain
+- **Better Developer Experience**: Consistent local/production environments
+
 ## Troubleshooting
 
-- If the server doesn't start, check if port 4200 is available
-- Ensure your Python environment has all required dependencies
-- Check the Prefect logs for detailed error messages
+### Local Development Issues
+
+**Server won't start:**
+```bash
+# Check if port 4200 is available
+lsof -i :4200
+
+# Kill existing Prefect processes
+pkill -f "prefect server"
+
+# Clean and restart with project isolation
+make clean-prefect
+make setup
+make server
+```
+
+**Worker not processing tasks:**
+```bash
+# Check work pool status
+prefect work-pool ls
+
+# Verify worker is running
+prefect worker ls
+
+# Restart worker
+make worker
+```
+
+**Deployment not found:**
+```bash
+# List available deployments
+prefect deployment ls
+
+# Redeploy if missing
+make deploy-local
+```
+
+**Import errors or dependency issues:**
+```bash
+# Reinstall dependencies
+make install
+
+# Check Python path
+python -c "import tasks_manager; print('✓ Module loaded successfully')"
+```
+
+### Production Issues
+
+**GitHub Integration not working:**
+```bash
+# Verify GitHub App installation in Prefect Cloud settings
+# Check repository access permissions
+# Ensure correct repository name in prefect.yaml pull steps
+```
+
+**Blocks not found:**
+```bash
+# List all blocks
+prefect block ls
+
+# Create missing blocks through Prefect Cloud UI
+# Verify block names match those referenced in flows
+```
+
+**Worker not connecting (Managed Pools):**
+```bash
+# Check work pool exists and is managed type
+prefect work-pool ls
+
+# For managed pools, workers are handled automatically by Prefect Cloud
+# Check work pool status in Prefect Cloud UI
+```
+
+**Database connection issues:**
+```bash
+# Verify database service allows Prefect managed IPs (Supabase, RDS, etc.)
+# Check database credentials in Secret blocks
+# Test database connectivity from a known working environment
+# For Supabase: Check "Network Restrictions" in project settings
+```
+
+### Debug Commands
+
+**Check Prefect configuration:**
+```bash
+# View current Prefect configuration
+prefect config view
+
+# Check API connection
+prefect cloud workspace ls
+```
+
+**Test flow execution locally:**
+```bash
+# Test a specific flow without scheduling
+cd tasks_manager
+python -c "
+import asyncio
+from tasks_manager.flows.stories import generate_stories
+asyncio.run(generate_stories(group='test'))
+"
+```
+
+**Monitor flow runs:**
+```bash
+# List recent flow runs
+prefect flow-run ls --limit 10
+
+# View specific flow run logs
+prefect flow-run logs <flow-run-id>
+
+# Watch flow runs in real-time
+prefect flow-run ls --watch
+```
+
+**Debug deployment issues:**
+```bash
+# Check deployment status
+prefect deployment ls
+
+# Inspect specific deployment
+prefect deployment inspect <deployment-name>
+
+# Test deployment trigger
+prefect deployment run <deployment-name> --param key=value
+```
+
+**Check work pool and worker status:**
+```bash
+# List work pools
+prefect work-pool ls
+
+# Inspect work pool details
+prefect work-pool inspect <pool-name>
+
+# For local development, check worker status
+prefect worker ls
+```
+
+**Debug GitHub integration:**
+```bash
+# Test git clone step manually
+git clone https://github.com/Levers-Labs/fulcrum-intelligence.git test-clone
+cd test-clone/tasks_manager
+poetry install --no-dev --no-interaction
+```
+
+### Environment-Specific Issues
+
+**Local Development:**
+- **Port conflicts**: Change Prefect server port if 4200 is occupied
+- **Path issues**: Ensure you're running commands from the correct directory
+- **Permission errors**: Check file permissions for scripts and config files
+- **Database conflicts**: Use `make clean-prefect` to reset project-specific database
+- **Configuration issues**: Verify `.prefectconfig` file exists and is properly formatted
+
+**Production:**
+- **API rate limits**: Monitor GitHub API usage and tokens
+- **Network access**: Verify database service network configurations and IP allowlists
+- **Resource limits**: Check Prefect Cloud usage and quotas
+- **Deployment conflicts**: Ensure no concurrent deployments are running
+
+### Getting Help
+
+**Debug information to collect:**
+```bash
+# System information
+python --version
+poetry --version
+prefect version
+
+# Prefect configuration
+prefect config view
+
+# Recent logs
+prefect flow-run ls --limit 5
+```
+
+**Log locations:**
+- **Local**: Check Prefect UI logs at http://localhost:4200
+- **Production**: View logs in Prefect Cloud dashboard
+- **GitHub Actions**: Check workflow run logs in GitHub
+
+**Common error patterns:**
+- **ModuleNotFoundError**: Run `make install` and verify Python path
+- **Connection refused**: Check API URLs and network connectivity
+- **Authentication failed**: Verify API keys and login status
+- **Block not found**: Create missing blocks in Prefect Cloud UI

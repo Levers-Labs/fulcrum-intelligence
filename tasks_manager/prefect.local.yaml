@@ -1,49 +1,30 @@
-# Generic metadata about this project
+# Prefect local development configuration for Tasks Manager
 name: tasks_manager
 prefect-version: 3.1.7
 
-# Build, push, and pull configuration for Git-based storage
-build: null
+# Shared work pool configuration for local development
+work_pool: &default_work_pool
+  name: tasks-manager-local-pool
 
-push: null
+# Shared schedule configurations
+schedules:
+  daily_midnight: &daily_midnight
+    cron: "0 0 * * *"
+    timezone: "America/Los_Angeles"
+  daily_2am_pst: &daily_2am_pst
+    cron: "0 2 * * *"
+    timezone: "America/Los_Angeles"
+  daily_5am_pst: &daily_5am_pst
+    cron: "0 5 * * *"
+    timezone: "America/Los_Angeles"
+  weekly_monday_230am_pst: &weekly_monday_230am_pst
+    cron: "30 2 * * 1" # Monday at 2:30 AM
+    timezone: "America/Los_Angeles"
+  monthly_3am_pst: &monthly_3am_pst
+    cron: "0 3 1 * *" # 1st of every month at 3 AM
+    timezone: "America/Los_Angeles"
 
-pull:
-- prefect.deployments.steps.run_shell_script:
-    id: get-github-token
-    script: prefect cloud github token Levers-Labs/fulcrum-intelligence
-- prefect.deployments.steps.git_clone:
-    id: git-clone
-    repository: https://x-access-token:{{ get-github-token.stdout }}@github.com/Levers-Labs/fulcrum-intelligence.git
-- prefect.deployments.steps.run_shell_script:
-    id: setup-environment
-    directory: "{{ git-clone.directory }}"
-    script: bash tasks_manager/scripts/setup_prefect_worker_environment.sh
-    stream_output: true
-
-# Reusable definitions
-definitions:
-  work_pools:
-    managed_work_pool: &managed_work_pool
-      name: tasks-manager-managed-pool
-      work_queue_name: default
-  schedules:
-    daily_midnight: &daily_midnight
-      - cron: "0 0 * * *"
-        timezone: "America/Los_Angeles"
-    daily_2am_pst: &daily_2am_pst
-      - cron: "0 2 * * *"
-        timezone: "America/Los_Angeles"
-    daily_5am_pst: &daily_5am_pst
-      - cron: "0 5 * * *"
-        timezone: "America/Los_Angeles"
-    weekly_monday_230am_pst: &weekly_monday_230am_pst
-      - cron: "30 2 * * 1" # Monday at 2:30 AM
-        timezone: "America/Los_Angeles"
-    monthly_3am_pst: &monthly_3am_pst
-      - cron: "0 3 1 * *" # 1st of every month at 3 AM
-        timezone: "America/Los_Angeles"
-
-# Deployments configuration
+# Deployment configurations
 deployments:
   - name: "generate-stories"
     version: "1.0.0"
@@ -51,14 +32,14 @@ deployments:
       - daily
     description: "Generate stories for all tenants, metrics and groups"
     entrypoint: tasks_manager.flows.stories:generate_stories
-    work_pool: *managed_work_pool
-    schedules: *daily_midnight
+    work_pool: *default_work_pool
+    schedule: *daily_midnight
 
   - name: "process-metric-pattern-stories"
     version: "1.0.0"
     description: "Create relevant stories for a metric pattern run by analyzing the pattern result"
     entrypoint: tasks_manager.flows.stories:process_metric_pattern_stories
-    work_pool: *managed_work_pool
+    work_pool: *default_work_pool
     triggers:
       - type: event
         name: "process-metric-pattern-stories-trigger"
@@ -77,7 +58,7 @@ deployments:
     version: "1.0.0"
     description: "Process stories and trigger relevant alerts"
     entrypoint: tasks_manager.flows.alerts:process_story_alerts
-    work_pool: *managed_work_pool
+    work_pool: *default_work_pool
     triggers:
       - type: event
         name: "story-generated-trigger"
@@ -95,7 +76,7 @@ deployments:
     version: "1.0.0"
     description: "Run pattern analysis for a specific metric"
     entrypoint: tasks_manager.flows.pattern_analysis:analyze_metric_patterns
-    work_pool: *managed_work_pool
+    work_pool: *default_work_pool
     triggers:
       - type: event
         name: "metric-sync-success-trigger"
@@ -113,7 +94,7 @@ deployments:
     version: "1.0.0"
     description: "Execute a single alert"
     entrypoint: tasks_manager.flows.alerts:execute_alert
-    work_pool: *managed_work_pool
+    work_pool: *default_work_pool
     triggers:
       - type: event
         name: "alert-execution-trigger"
@@ -130,8 +111,8 @@ deployments:
     version: "1.0.0"
     description: "Sync semantic data for all tenants - Daily Grain"
     entrypoint: tasks_manager.flows.semantic_sync:semantic_data_sync
-    work_pool: *managed_work_pool
-    schedules: *daily_2am_pst
+    work_pool: *default_work_pool
+    schedule: *daily_2am_pst
     parameters:
       grain: "day"
 
@@ -139,8 +120,8 @@ deployments:
     version: "1.0.0"
     description: "Sync semantic data for all tenants - Weekly Grain"
     entrypoint: tasks_manager.flows.semantic_sync:semantic_data_sync
-    work_pool: *managed_work_pool
-    schedules: *weekly_monday_230am_pst
+    work_pool: *default_work_pool
+    schedule: *weekly_monday_230am_pst
     parameters:
       grain: "week"
 
@@ -148,8 +129,8 @@ deployments:
     version: "1.0.0"
     description: "Sync semantic data for all tenants - Monthly Grain"
     entrypoint: tasks_manager.flows.semantic_sync:semantic_data_sync
-    work_pool: *managed_work_pool
-    schedules: *monthly_3am_pst
+    work_pool: *default_work_pool
+    schedule: *monthly_3am_pst
     parameters:
       grain: "month"
 
@@ -157,7 +138,7 @@ deployments:
     version: "1.0.0"
     description: "Sync semantic data for a specific tenant"
     entrypoint: tasks_manager.flows.semantic_sync:semantic_data_sync_tenant
-    work_pool: *managed_work_pool
+    work_pool: *default_work_pool
     triggers:
       - type: event
         name: "tenant-semantic-sync-trigger"
@@ -173,7 +154,7 @@ deployments:
     version: "1.0.0"
     description: "Sync semantic data for a specific metric"
     entrypoint: tasks_manager.flows.semantic_sync:semantic_data_sync_metric
-    work_pool: *managed_work_pool
+    work_pool: *default_work_pool
     triggers:
       - type: event
         name: "metric-semantic-sync-trigger"
@@ -192,7 +173,7 @@ deployments:
     entrypoint: tasks_manager.flows.stories:update_demo_stories
     tags:
       - daily
-    work_pool: *managed_work_pool
-    schedules: *daily_5am_pst
+    work_pool: *default_work_pool
+    schedule: *daily_5am_pst
     parameters:
       tenant_identifier: "leversdemo"
