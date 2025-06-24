@@ -125,7 +125,7 @@ prefect cloud login
 2. **Create a managed work pool in Prefect Cloud:**
 
 ```bash
-prefect work-pool create --type managed tasks-manager-managed-pool
+prefect work-pool create --type prefect:managed tasks-manager-managed-pool
 ```
 
 3. **Setup GitHub Integration:**
