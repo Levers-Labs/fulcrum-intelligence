@@ -1,0 +1,179 @@
+# Prefect local development configuration for Tasks Manager
+name: tasks_manager
+prefect-version: 3.1.7
+
+# Shared work pool configuration for local development
+work_pool: &default_work_pool
+  name: tasks-manager-local-pool
+
+# Shared schedule configurations
+schedules:
+  daily_midnight: &daily_midnight
+    cron: "0 0 * * *"
+    timezone: "America/Los_Angeles"
+  daily_2am_pst: &daily_2am_pst
+    cron: "0 2 * * *"
+    timezone: "America/Los_Angeles"
+  daily_5am_pst: &daily_5am_pst
+    cron: "0 5 * * *"
+    timezone: "America/Los_Angeles"
+  weekly_monday_230am_pst: &weekly_monday_230am_pst
+    cron: "30 2 * * 1" # Monday at 2:30 AM
+    timezone: "America/Los_Angeles"
+  monthly_3am_pst: &monthly_3am_pst
+    cron: "0 3 1 * *" # 1st of every month at 3 AM
+    timezone: "America/Los_Angeles"
+
+# Deployment configurations
+deployments:
+  - name: "generate-stories"
+    version: "1.0.0"
+    tags:
+      - daily
+    description: "Generate stories for all tenants, metrics and groups"
+    entrypoint: tasks_manager.flows.stories:generate_stories
+    work_pool: *default_work_pool
+    schedule: *daily_midnight
+
+  - name: "process-metric-pattern-stories"
+    version: "1.0.0"
+    description: "Create relevant stories for a metric pattern run by analyzing the pattern result"
+    entrypoint: tasks_manager.flows.stories:process_metric_pattern_stories
+    work_pool: *default_work_pool
+    triggers:
+      - type: event
+        name: "process-metric-pattern-stories-trigger"
+        description: "Triggered when a pattern run is successful"
+        enabled: true
+        expect:
+          - pattern.run.success
+        parameters:
+          pattern: "{{ event.resource.pattern }}"
+          tenant_id_str: "{{ event.resource.tenant_id }}"
+          metric_id: "{{ event.resource.metric_id }}"
+          grain: "{{ event.resource.grain }}"
+          pattern_run_str: "{{ event.payload }}"
+
+  - name: "process-story-alerts"
+    version: "1.0.0"
+    description: "Process stories and trigger relevant alerts"
+    entrypoint: tasks_manager.flows.alerts:process_story_alerts
+    work_pool: *default_work_pool
+    triggers:
+      - type: event
+        name: "story-generated-trigger"
+        description: "Triggered when stories are generated for a metric"
+        enabled: true
+        expect:
+          - metric.story.generated
+        parameters:
+          metric_id: "{{ event.resource.metric_id }}"
+          tenant_id: "{{ event.resource.tenant_id }}"
+          story_date: "{{ event.resource.story_date }}"
+          stories_str: "{{ event.payload.stories }}"
+
+  - name: "pattern-analysis-metric"
+    version: "1.0.0"
+    description: "Run pattern analysis for a specific metric"
+    entrypoint: tasks_manager.flows.pattern_analysis:analyze_metric_patterns
+    work_pool: *default_work_pool
+    triggers:
+      - type: event
+        name: "metric-sync-success-trigger"
+        description: "Triggered when metric semantic sync is successful"
+        enabled: true
+        expect:
+          - metric.semantic.sync.success
+          - metric.semantic.sync.partial_success
+        parameters:
+          tenant_id_str: "{{ event.resource.tenant_id }}"
+          metric_id: "{{ event.resource.metric_id }}"
+          grain: "{{ event.resource.grain }}"
+
+  - name: "execute-alert"
+    version: "1.0.0"
+    description: "Execute a single alert"
+    entrypoint: tasks_manager.flows.alerts:execute_alert
+    work_pool: *default_work_pool
+    triggers:
+      - type: event
+        name: "alert-execution-trigger"
+        description: "Triggered when an alert needs to be executed"
+        enabled: true
+        expect:
+          - alert.execution.requested
+        parameters:
+          tenant_id: "{{ event.resource.tenant_id }}"
+          alert_id: "{{ event.resource.alert_id }}"
+          trigger_params_str: "{{ event.payload.trigger_params }}"
+
+  - name: "semantic-data-sync-daily"
+    version: "1.0.0"
+    description: "Sync semantic data for all tenants - Daily Grain"
+    entrypoint: tasks_manager.flows.semantic_sync:semantic_data_sync
+    work_pool: *default_work_pool
+    schedule: *daily_2am_pst
+    parameters:
+      grain: "day"
+
+  - name: "semantic-data-sync-weekly"
+    version: "1.0.0"
+    description: "Sync semantic data for all tenants - Weekly Grain"
+    entrypoint: tasks_manager.flows.semantic_sync:semantic_data_sync
+    work_pool: *default_work_pool
+    schedule: *weekly_monday_230am_pst
+    parameters:
+      grain: "week"
+
+  - name: "semantic-data-sync-monthly"
+    version: "1.0.0"
+    description: "Sync semantic data for all tenants - Monthly Grain"
+    entrypoint: tasks_manager.flows.semantic_sync:semantic_data_sync
+    work_pool: *default_work_pool
+    schedule: *monthly_3am_pst
+    parameters:
+      grain: "month"
+
+  - name: "semantic-data-sync-tenant"
+    version: "1.0.0"
+    description: "Sync semantic data for a specific tenant"
+    entrypoint: tasks_manager.flows.semantic_sync:semantic_data_sync_tenant
+    work_pool: *default_work_pool
+    triggers:
+      - type: event
+        name: "tenant-semantic-sync-trigger"
+        description: "Triggered when tenant sync is requested"
+        enabled: true
+        expect:
+          - tenant.semantic.sync.requested
+        parameters:
+          tenant_id_str: "{{ event.resource.tenant_id }}"
+          grain: "{{ event.resource.grain }}"
+
+  - name: "semantic-data-sync-metric"
+    version: "1.0.0"
+    description: "Sync semantic data for a specific metric"
+    entrypoint: tasks_manager.flows.semantic_sync:semantic_data_sync_metric
+    work_pool: *default_work_pool
+    triggers:
+      - type: event
+        name: "metric-semantic-sync-trigger"
+        description: "Triggered when metric sync is requested"
+        enabled: true
+        expect:
+          - metric.semantic.sync.requested
+        parameters:
+          tenant_id_str: "{{ event.resource.tenant_id }}"
+          metric_id: "{{ event.resource.metric_id }}"
+          grain: "{{ event.resource.grain }}"
+
+  - name: "update-demo-stories"
+    version: "1.0.0"
+    description: "Update demo stories dates for demo tenant based on granularity"
+    entrypoint: tasks_manager.flows.stories:update_demo_stories
+    tags:
+      - daily
+    work_pool: *default_work_pool
+    schedule: *daily_5am_pst
+    parameters:
+      tenant_identifier: "leversdemo"

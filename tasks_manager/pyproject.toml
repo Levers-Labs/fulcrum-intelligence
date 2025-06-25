@@ -8,7 +8,7 @@ package-mode = false
 
 [tool.poetry.dependencies]
 python = ">=3.10,<3.12"
-prefect = "^3.1.7"
+prefect = "^3.4.6"
 story-manager = { path = "../story_manager"}
 query-manager = { path = "../query_manager"}
 analysis-manager = { path = "../analysis_manager"}

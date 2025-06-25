@@ -141,3 +141,6 @@ dmypy.json
 # VSCode launch configuration
 .vscode/*
 /aenv/
+
+# Prefect data
+tasks_manager/prefect_data/**
