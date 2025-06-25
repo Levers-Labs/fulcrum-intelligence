@@ -28,6 +28,7 @@ from statsmodels.tsa.holtwinters import ExponentialSmoothing, SimpleExpSmoothing
 
 from levers.exceptions import PrimitiveError, ValidationError
 from levers.models import Granularity
+from levers.models.enums import ForecastMethod
 from levers.primitives import convert_grain_to_freq
 
 
@@ -35,7 +36,7 @@ def simple_forecast(
     df: pd.DataFrame,
     value_col: str = "value",
     periods: int = 7,
-    method: str = "ses",
+    method: ForecastMethod = ForecastMethod.SES,
     seasonal_periods: int | None = None,
     date_col: str | None = None,
     freq: str | None = None,
@@ -56,8 +57,9 @@ def simple_forecast(
         Column containing values to forecast
     periods : int, default=7
         Number of periods to forecast
-    method : str, default="ses"
-        Forecasting method: 'naive', 'ses', 'holtwinters', or 'auto_arima'
+    method : ForecastMethod, default=ForecastMethod.SES
+        Forecasting method: ForecastMethod.NAIVE, ForecastMethod.SES, ForecastMethod.HOLT_WINTERS,
+         or ForecastMethod.AUTO_ARIMA
     seasonal_periods : int | None, default=None
         Number of periods in a seasonal cycle (e.g., 7 for weekly, 12 for monthly)
     date_col : str | None, default=None
@@ -80,7 +82,7 @@ def simple_forecast(
     if date_col is not None and date_col not in df.columns:
         raise ValidationError(f"date_col '{date_col}' not found in DataFrame")
 
-    valid_methods = ["naive", "ses", "holtwinters", "auto_arima"]
+    valid_methods = [ForecastMethod.NAIVE, ForecastMethod.SES, ForecastMethod.HOLT_WINTERS, ForecastMethod.AUTO_ARIMA]
     if method not in valid_methods:
         raise PrimitiveError(f"method '{method}' not recognized. Use one of {valid_methods}", "simple_forecast")
 
@@ -91,8 +93,8 @@ def simple_forecast(
     if date_col is None:
         # No date column provided, use index as time
         series = dff[value_col].dropna()
-        if len(series) < 2 and method != "naive":
-            method = "naive"  # Fallback to naive if not enough data
+        if len(series) < 2 and method != ForecastMethod.NAIVE:
+            method = ForecastMethod.NAIVE  # Fallback to naive if not enough data
     else:
         # Convert date column to datetime
         dff[date_col] = pd.to_datetime(dff[date_col])
@@ -111,11 +113,11 @@ def simple_forecast(
         else:
             series = dff[value_col].dropna()
 
-        if len(series) < 2 and method != "naive":
-            method = "naive"  # Fallback to naive if not enough data
+        if len(series) < 2 and method != ForecastMethod.NAIVE:
+            method = ForecastMethod.NAIVE  # Fallback to naive if not enough data
 
     # Execute forecasting method
-    if method == "naive":
+    if method == ForecastMethod.NAIVE:
         # Naive forecast: use the last observed value
         last_val = series.iloc[-1]
 
@@ -131,7 +133,7 @@ def simple_forecast(
             fc_vals = [last_val] * periods
             return pd.DataFrame({"date": idx_future, "forecast": fc_vals})
 
-    elif method == "ses":
+    elif method == ForecastMethod.SES:
         # Simple Exponential Smoothing
         smoothing_level = kwargs.get("smoothing_level", 0.2)
         # Default to estimated initialization for better results
@@ -139,7 +141,7 @@ def simple_forecast(
         fit = model.fit(smoothing_level=smoothing_level, **{k: v for k, v in kwargs.items() if k != "smoothing_level"})
         fc_vals = fit.forecast(periods)
 
-    elif method == "holtwinters":
+    elif method == ForecastMethod.HOLT_WINTERS:
         # Holt-Winters Exponential Smoothing
         trend = kwargs.pop("trend", None)
         seasonal = kwargs.pop("seasonal", None)
@@ -154,7 +156,7 @@ def simple_forecast(
         fit = model.fit(**kwargs)
         fc_vals = fit.forecast(periods)
 
-    elif method == "auto_arima":
+    elif method == ForecastMethod.AUTO_ARIMA:
         # ARIMA model selection with pmdarima
         do_seasonal = seasonal_periods is not None and seasonal_periods > 1
 
@@ -200,7 +202,7 @@ def forecast_with_confidence_intervals(
     value_col: str = "value",
     periods: int = 7,
     confidence_level: float = 0.95,
-    method: str = "ses",
+    method: ForecastMethod = ForecastMethod.SES,
     date_col: str | None = None,
     freq: str | None = None,
     grain: Granularity | None = None,
@@ -222,8 +224,9 @@ def forecast_with_confidence_intervals(
         Number of periods to forecast
     confidence_level : float, default=0.95
         Confidence level for prediction intervals
-    method : str, default="ses"
-        Forecasting method
+    method : ForecastMethod, default=ForecastMethod.SES
+        Forecasting method: ForecastMethod.NAIVE, ForecastMethod.SES, ForecastMethod.HOLT_WINTERS,
+         or ForecastMethod.AUTO_ARIMA
     date_col : str | None, default=None
         Column containing dates
     freq : str | None, default=None
@@ -236,7 +239,7 @@ def forecast_with_confidence_intervals(
     Returns
     -------
     pd.DataFrame
-        DataFrame with columns ['date', 'forecast', 'lower_bound', 'upper_bound']
+        DataFrame with columns ['date', 'forecast', 'lower_bound', 'upper_bound', 'confidence_level']
     """
     # Get basic forecast
     forecast_df = simple_forecast(

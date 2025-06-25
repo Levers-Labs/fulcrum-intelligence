@@ -43,10 +43,10 @@ from .dimensional_analysis import (
     HistoricalPeriodRanking,
 )
 from .forecasting import (
-    StatisticalForecast,
+    ForecastVsTargetStats,
     PacingProjection,
     RequiredPerformance,
-    DailyForecast,
+    Forecast,
 )
 
 
@@ -94,8 +94,8 @@ __all__ = [
     "TopSlice",
     "HistoricalPeriodRanking",
     # Forecasting models
-    "StatisticalForecast",
+    "ForecastVsTargetStats",
     "PacingProjection",
     "RequiredPerformance",
-    "DailyForecast",
+    "Forecast",
 ]

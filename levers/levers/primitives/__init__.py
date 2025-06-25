@@ -34,6 +34,7 @@ from .period_grains import (
     get_prev_period_start_date,
     get_prior_period_range,
     get_period_end_date,
+    calculate_remaining_periods,
 )
 
 # Time Series primitives
@@ -115,6 +116,7 @@ _primitive_families = {
         get_date_range_from_window,
         get_period_length_for_grain,
         get_period_end_date,
+        calculate_remaining_periods,
     ],
     "time_series": [
         calculate_average_growth,
@@ -239,6 +241,7 @@ __all__ = [
     "get_prev_period_start_date",
     "get_date_range_from_window",
     "get_period_end_date",
+    "calculate_remaining_periods",
     # Time Series primitives
     "calculate_average_growth",
     "calculate_benchmark_comparisons",

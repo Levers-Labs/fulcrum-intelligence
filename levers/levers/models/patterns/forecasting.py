@@ -1,10 +1,11 @@
 from levers.models import (
     BasePattern,
-    DailyForecast,
+    Forecast,
+    ForecastVsTargetStats,
     PacingProjection,
     RequiredPerformance,
-    StatisticalForecast,
 )
+from levers.models.enums import PeriodType
 
 
 class Forecasting(BasePattern):
@@ -12,9 +13,9 @@ class Forecasting(BasePattern):
 
     pattern: str = "forecasting"
 
-    period_name: str
+    period_type: PeriodType
     # Forecast results
-    statistical: StatisticalForecast | None = None
+    forecast_vs_target_stats: ForecastVsTargetStats | None = None
     pacing: PacingProjection | None = None
     required_performance: RequiredPerformance | None = None
-    daily_forecast: list[DailyForecast] = []
+    period_forecast: list[Forecast] | None = None

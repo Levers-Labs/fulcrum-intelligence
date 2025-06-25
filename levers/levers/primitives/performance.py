@@ -318,7 +318,7 @@ def monitor_threshold_proximity(
 
 
 def calculate_required_growth(
-    current_value: float, target_value: float, periods_remaining: int, allow_negative: bool = False
+    current_value: float, target_value: float, remaining_periods: int, allow_negative: bool = False
 ) -> float:
     """
     Determine the compound per-period growth rate needed to reach target from current value.
@@ -329,7 +329,7 @@ def calculate_required_growth(
     Args:
         current_value: Current metric value
         target_value: Target metric value
-        periods_remaining: Number of periods over which growth occurs
+        remaining_periods: Number of periods over which growth occurs
         allow_negative: Whether to allow negative or zero values in the computation
 
     Returns:
@@ -345,8 +345,8 @@ def calculate_required_growth(
         CalculationError: If the growth rate cannot be calculated due to incompatible values
     """
     # Input validation
-    if periods_remaining <= 0:
-        raise ValidationError("Periods remaining must be positive", {"field": "periods_remaining"})
+    if remaining_periods <= 0:
+        raise ValidationError("Periods remaining must be positive", {"field": "remaining_periods"})
 
     if not isinstance(current_value, (int, float)) or pd.isna(current_value):
         raise ValidationError("Current value must be a valid number", {"field": "current_value"})
@@ -379,7 +379,7 @@ def calculate_required_growth(
             {"current_value": current_value, "target_value": target_value},
         )
 
-    rate = ratio ** (1.0 / periods_remaining) - 1.0
+    rate = ratio ** (1.0 / remaining_periods) - 1.0
     return rate
 
 

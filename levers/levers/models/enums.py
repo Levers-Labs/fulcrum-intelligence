@@ -139,3 +139,12 @@ class PeriodType(str, Enum):
     END_OF_QUARTER = "endOfQuarter"
     END_OF_YEAR = "endOfYear"
     END_OF_NEXT_MONTH = "endOfNextMonth"
+
+
+class ForecastMethod(str, Enum):
+    """Methods for forecasting."""
+
+    NAIVE = "naive"
+    SES = "ses"
+    HOLT_WINTERS = "holtwinters"
+    AUTO_ARIMA = "auto_arima"
