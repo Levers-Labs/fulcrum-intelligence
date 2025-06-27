@@ -88,7 +88,6 @@
       "include_today": false
     },
     "settings": {
-      "forecast_horizon_days": 90,
       "confidence_level": 0.95,
       "pacing_status_threshold_pct": 5.0,
       "num_past_periods_for_growth": 4

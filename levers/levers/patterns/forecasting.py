@@ -16,6 +16,7 @@ from levers.models import (
     AnalysisWindowConfig,
     DataSource,
     DataSourceType,
+    Forecast,
     ForecastVsTargetStats,
     Granularity,
     PacingProjection,
@@ -23,8 +24,7 @@ from levers.models import (
     RequiredPerformance,
     WindowStrategy,
 )
-from levers.models.enums import PeriodType
-from levers.models.forecasting import Forecast
+from levers.models.enums import ForecastMethod, PeriodType
 from levers.models.patterns import Forecasting
 from levers.patterns import Pattern
 from levers.primitives import (
@@ -74,7 +74,6 @@ class ForecastingPattern(Pattern[Forecasting]):
                 strategy=WindowStrategy.FIXED_TIME, days=365, min_days=90, max_days=730, include_today=False
             ),
             settings={
-                "forecast_horizon_days": 90,
                 "confidence_level": 0.95,
                 "pacing_status_threshold_pct": 5.0,
                 "num_past_periods_for_growth": 4,
@@ -87,7 +86,6 @@ class ForecastingPattern(Pattern[Forecasting]):
         data: pd.DataFrame,
         analysis_window: AnalysisWindow,
         analysis_date: date | None = None,
-        forecast_horizon_days: int = 90,
         confidence_level: float = 0.95,
         pacing_status_threshold_pct: float = 5.0,
         num_past_periods_for_growth: int = 4,
@@ -100,7 +98,6 @@ class ForecastingPattern(Pattern[Forecasting]):
             data: DataFrame containing columns: date, value, grain, and target_value, target_date, etc.
             analysis_window: AnalysisWindow object specifying the analysis time window
             analysis_date: Date from which forecasts are made (defaults to today)
-            forecast_horizon_days: Number of days to forecast ahead
             confidence_level: Confidence level for prediction intervals
             pacing_status_threshold_pct: Threshold percentage for pacing status
             num_past_periods_for_growth: Number of past periods for historical growth calculation
@@ -132,26 +129,27 @@ class ForecastingPattern(Pattern[Forecasting]):
 
             # Process single forecast period (defaulting to end of month)
             period = self._get_period_for_grain(grain)
+
             forecast_df = forecast_with_confidence_intervals(
                 df=df,
                 value_col="value",
-                periods=forecast_horizon_days,
                 confidence_level=confidence_level,
                 date_col="date",
                 grain=grain,
+                method=ForecastMethod.PROPHET,
             )
             if forecast_df.empty:
                 return self.handle_empty_data(metric_id, analysis_window)
 
             # Get latest actual value for required growth calculations
-            latest_actual_value = df["value"].iloc[-1] if not df.empty else 0
+            latest_actual_value = float(df["value"].iloc[-1])
             period_target_date = get_period_end_date(analysis_dt, period)
             # Get target value if available
             current_target_value = None
 
             # Check if data has target information and it's not all NaN/zero
             if "target_value" in df.columns:
-                # Filter target data for the forecast target date
+                # First try to find target for the specific period target date
                 target_row = df[
                     (pd.to_datetime(df["date"]) == period_target_date)
                     & (df["target_value"].notna())
@@ -161,11 +159,13 @@ class ForecastingPattern(Pattern[Forecasting]):
                 if not target_row.empty:
                     current_target_value = float(target_row["target_value"].iloc[0])
 
-            forecast_vs_target_stats = self._get_forecast_vs_target_stats(
-                forecast_df, period_target_date, current_target_value, confidence_level
-            )
+            # Forecast vs Target Stats - only calculate if we have targets
+            forecast_vs_target_stats = None
+            if current_target_value is not None:
+                forecast_vs_target_stats = self._get_forecast_vs_target_stats(
+                    forecast_df, period_target_date, current_target_value, confidence_level
+                )
 
-            # TODO: we can move this to the performance status pattern, confirm with abhi
             # Pacing Projection - only calculate if we have targets
             pacing = None
             if current_target_value is not None:
@@ -173,7 +173,6 @@ class ForecastingPattern(Pattern[Forecasting]):
                     df, analysis_dt, period, current_target_value, pacing_status_threshold_pct
                 )
 
-            # TODO: we can move this to the performance status pattern, confirm with abhi
             # Required Performance - only calculate if we have targets
             required_performance = None
             if current_target_value is not None:
@@ -198,6 +197,7 @@ class ForecastingPattern(Pattern[Forecasting]):
                 evaluation_time=datetime.now(),
                 analysis_window=analysis_window,
                 period_type=period,
+                num_periods=len(period_forecast),
                 forecast_vs_target_stats=forecast_vs_target_stats,
                 pacing=pacing,
                 required_performance=required_performance,
@@ -247,27 +247,34 @@ class ForecastingPattern(Pattern[Forecasting]):
         stats = ForecastVsTargetStats()
 
         # Statistical Forecast Section
-        fc_row = None
-        # Find forecast for the target date
         target_date_str = target_date.strftime("%Y-%m-%d")
-        forecast_df.set_index("date", inplace=True)
-        fc_row = next((item for item in forecast_df if item == target_date_str), None)
 
-        if fc_row:
-            stats.forecasted_value = fc_row.get("forecast", None)  # type: ignore
-            stats.lower_bound = fc_row.get("lower_bound", None)  # type: ignore
-            stats.upper_bound = fc_row.get("upper_bound", None)  # type: ignore
+        # Create a copy to avoid modifying the original DataFrame
+        forecast_df_copy = forecast_df.copy()
+
+        # Convert date column to string format for comparison
+        forecast_df_copy["date_str"] = pd.to_datetime(forecast_df_copy["date"]).dt.strftime("%Y-%m-%d")
+
+        # Find the row matching the target date
+        target_rows = forecast_df_copy[forecast_df_copy["date_str"] == target_date_str]
+
+        if not target_rows.empty:
+            fc_row = target_rows.iloc[0]
+            stats.forecasted_value = round(fc_row.get("forecast", 0), 2) if pd.notna(fc_row.get("forecast")) else None
+            stats.lower_bound = round(fc_row.get("lower_bound", 0), 2) if pd.notna(fc_row.get("lower_bound")) else None
+            stats.upper_bound = round(fc_row.get("upper_bound", 0), 2) if pd.notna(fc_row.get("upper_bound")) else None
 
         stats.confidence_level = confidence_level
         stats.target_date = target_date_str
         stats.target_value = current_target_value
 
         # Calculate gap and status only if we have both forecast and target
-        if stats.forecasted_value is not None and current_target_value is not None:
+        if stats.forecasted_value is not None and current_target_value is not None and current_target_value != 0:
             gap_pct = (stats.forecasted_value / current_target_value - 1) * 100
             stats.forecasted_gap_percent = round(gap_pct, 2)
 
             stats.forecast_status = classify_metric_status(stats.forecasted_value, current_target_value)
+
         return stats
 
     def _calculate_pacing_projection(
@@ -440,10 +447,10 @@ class ForecastingPattern(Pattern[Forecasting]):
                 - Confidence level
         """
         period_forecast = []
-        for date_index, row in forecast_df.iterrows():
+        for _, row in forecast_df.iterrows():
             period_forecast.append(
                 Forecast(
-                    date=pd.to_datetime(date_index).strftime("%Y-%m-%d"),  # type: ignore
+                    date=pd.to_datetime(row["date"]).strftime("%Y-%m-%d"),  # Use the date column instead of index
                     forecasted_value=round(row["forecast"], 2) if pd.notna(row["forecast"]) else None,
                     lower_bound=round(row["lower_bound"], 2) if pd.notna(row["lower_bound"]) else None,
                     upper_bound=round(row["upper_bound"], 2) if pd.notna(row["upper_bound"]) else None,

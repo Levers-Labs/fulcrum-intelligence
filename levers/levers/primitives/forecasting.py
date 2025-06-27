@@ -24,6 +24,7 @@ from typing import Any
 import numpy as np
 import pandas as pd
 from pmdarima import arima as pmd_arima
+from prophet import Prophet
 from statsmodels.tsa.holtwinters import ExponentialSmoothing, SimpleExpSmoothing
 
 from levers.exceptions import PrimitiveError, ValidationError
@@ -34,13 +35,13 @@ from levers.primitives import convert_grain_to_freq
 
 def simple_forecast(
     df: pd.DataFrame,
+    grain: Granularity,
     value_col: str = "value",
     periods: int = 7,
     method: ForecastMethod = ForecastMethod.SES,
     seasonal_periods: int | None = None,
     date_col: str | None = None,
     freq: str | None = None,
-    grain: Granularity | None = None,
     **kwargs,
 ) -> pd.DataFrame:
     """
@@ -79,42 +80,33 @@ def simple_forecast(
     # Validate inputs
     if value_col not in df.columns:
         raise ValidationError(f"value_col '{value_col}' not found in DataFrame")
-    if date_col is not None and date_col not in df.columns:
+    if date_col not in df.columns or date_col is None:
         raise ValidationError(f"date_col '{date_col}' not found in DataFrame")
 
-    valid_methods = [ForecastMethod.NAIVE, ForecastMethod.SES, ForecastMethod.HOLT_WINTERS, ForecastMethod.AUTO_ARIMA]
+    valid_methods = [
+        ForecastMethod.NAIVE,
+        ForecastMethod.SES,
+        ForecastMethod.HOLT_WINTERS,
+        ForecastMethod.AUTO_ARIMA,
+        ForecastMethod.PROPHET,
+    ]
     if method not in valid_methods:
         raise PrimitiveError(f"method '{method}' not recognized. Use one of {valid_methods}", "simple_forecast")
 
     # Create a copy of the DataFrame
     dff = df.copy()
 
-    # Time series preparation
-    if date_col is None:
-        # No date column provided, use index as time
-        series = dff[value_col].dropna()
-        if len(series) < 2 and method != ForecastMethod.NAIVE:
-            method = ForecastMethod.NAIVE  # Fallback to naive if not enough data
-    else:
-        # Convert date column to datetime
-        dff[date_col] = pd.to_datetime(dff[date_col])
-        dff.sort_values(date_col, inplace=True)
-        dff.set_index(date_col, inplace=True)
+    # Convert date column to datetime
+    dff[date_col] = pd.to_datetime(dff[date_col])
+    dff.sort_values(date_col, inplace=True)
+    dff.set_index(date_col, inplace=True)
 
-        # If grain is provided, convert to frequency string
-        if grain is not None:
-            freq = convert_grain_to_freq(grain)
+    # convert grain to frequency string
+    freq = convert_grain_to_freq(grain)
 
-        # Resample if frequency is specified
-        if freq is not None:
-            # Resample to regular frequency
-            dff = dff[value_col].resample(freq).mean()  # type: ignore
-            series = dff.ffill()  # type: ignore  # Forward fill gaps
-        else:
-            series = dff[value_col].dropna()
-
-        if len(series) < 2 and method != ForecastMethod.NAIVE:
-            method = ForecastMethod.NAIVE  # Fallback to naive if not enough data
+    # Resample to regular frequency
+    dff = dff[value_col].resample(freq).mean()  # type: ignore
+    series = dff.ffill()  # type: ignore  # Forward fill gaps
 
     # Execute forecasting method
     if method == ForecastMethod.NAIVE:
@@ -142,9 +134,13 @@ def simple_forecast(
         fc_vals = fit.forecast(periods)
 
     elif method == ForecastMethod.HOLT_WINTERS:
-        # Holt-Winters Exponential Smoothing
+        # Holt-Winters Exponential Smoothing with intelligent trend detection
         trend = kwargs.pop("trend", None)
         seasonal = kwargs.pop("seasonal", None)
+
+        # Auto-detect trend if not specified
+        if trend is None:
+            trend = _detect_trend_type(series)  # type: ignore
 
         model = ExponentialSmoothing(
             series,
@@ -179,33 +175,55 @@ def simple_forecast(
         model = pmd_arima.auto_arima(series, **kwargs)
         fc_vals = model.predict(n_periods=periods)
 
+    elif method == ForecastMethod.PROPHET:
+        # Prophet model requires specific data format: DataFrame with 'ds' (dates) and 'y' (values) columns
+        if series.index.empty:
+            raise PrimitiveError("Prophet requires non-empty time series with datetime index", "simple_forecast")
+
+        # Prepare data for Prophet
+        prophet_df = pd.DataFrame({"ds": series.index, "y": series.values})
+
+        # Initialize Prophet model with optional parameters
+        prophet_kwargs = {
+            "daily_seasonality": kwargs.get("daily_seasonality", "auto"),
+            "weekly_seasonality": kwargs.get("weekly_seasonality", "auto"),
+            "yearly_seasonality": kwargs.get("yearly_seasonality", "auto"),
+            "seasonality_mode": kwargs.get("seasonality_mode", "additive"),
+            "interval_width": kwargs.get("interval_width", 0.8),
+        }
+
+        # Remove None values
+        prophet_kwargs = {k: v for k, v in prophet_kwargs.items() if v is not None}
+
+        model = Prophet(**prophet_kwargs)
+
+        # Fit the model
+        model.fit(prophet_df)
+
+        # Create future dataframe for prediction
+        future = model.make_future_dataframe(periods=periods, freq=freq)
+
+        # Generate forecast
+        forecast = model.predict(future)
+
+        # Extract only the forecast values for the future periods (last 'periods' rows)
+        fc_vals = forecast["yhat"].tail(periods).values
+
     # Generate output DataFrame with dates
-    if date_col:
-        # Future dates based on frequency
-        if freq is None:
-            # Fallback to numeric indices
-            idx_future = np.arange(len(series), len(series) + periods)
-            return pd.DataFrame({"date": idx_future, "forecast": fc_vals}).reset_index(drop=True)
-        else:
-            # Generate proper date range
-            last_idx = series.index[-1]
-            future_idx = pd.date_range(last_idx, periods=periods + 1, freq=freq)[1:]
-            return pd.DataFrame({"date": future_idx, "forecast": fc_vals}).reset_index(drop=True)
-    else:
-        # Use numeric indices
-        idx_future = np.arange(len(series), len(series) + periods)
-        return pd.DataFrame({"date": idx_future, "forecast": fc_vals}).reset_index(drop=True)
+    last_idx = series.index[-1]
+    future_idx = pd.date_range(last_idx, periods=periods + 1, freq=freq)[1:]
+    return pd.DataFrame({"date": future_idx, "forecast": fc_vals}).reset_index(drop=True)
 
 
 def forecast_with_confidence_intervals(
     df: pd.DataFrame,
+    grain: Granularity,
     value_col: str = "value",
     periods: int = 7,
     confidence_level: float = 0.95,
     method: ForecastMethod = ForecastMethod.SES,
     date_col: str | None = None,
     freq: str | None = None,
-    grain: Granularity | None = None,
     **kwargs,
 ) -> pd.DataFrame:
     """
@@ -402,3 +420,42 @@ def generate_forecast_scenarios(
     result_df[worst_case_col] = result_df[forecast_col] * (1.0 - buffer_factor)
 
     return result_df
+
+
+def _detect_trend_type(series: pd.Series) -> str | None:  # type: ignore
+    """
+    Automatically detect the appropriate trend type for Holt-Winters.
+
+    Returns:
+        - None: No significant trend detected
+        - "add": Additive (linear) trend detected
+        - "mul": Multiplicative (exponential) trend detected
+    """
+    if len(series) < 3:
+        return None
+
+    # Calculate linear trend strength using correlation
+    x = pd.Series(range(len(series)))
+    linear_corr = abs(series.corr(x))
+
+    # Calculate exponential trend strength
+    if (series > 0).all():  # Only for positive values
+        log_series = np.log(series)
+        exp_corr = abs(log_series.corr(x))
+    else:
+        exp_corr = 0
+
+    # Thresholds for trend detection
+    min_trend_strength = 0.5  # Minimum correlation to consider trend
+
+    # No significant trend
+    if linear_corr < min_trend_strength and exp_corr < min_trend_strength:
+        return None
+
+    # Choose between additive and multiplicative trend
+    if exp_corr > linear_corr and exp_corr > 0.7:
+        return "mul"  # Strong exponential trend
+    elif linear_corr > min_trend_strength:
+        return "add"  # Linear trend
+    else:
+        return None

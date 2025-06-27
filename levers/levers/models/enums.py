@@ -148,3 +148,4 @@ class ForecastMethod(str, Enum):
     SES = "ses"
     HOLT_WINTERS = "holtwinters"
     AUTO_ARIMA = "auto_arima"
+    PROPHET = "prophet"

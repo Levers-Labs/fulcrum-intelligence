@@ -189,6 +189,42 @@ STORY_TEMPLATES = {
         "}} now comprises {{ previous_share_percent|format_percent }}% of {{ dimension_name }}, up from {{ "
         "previous_prior_share_percent|format_percent }}%.",
     },
+    StoryType.FORECASTED_ON_TRACK: {
+        "title": "Forecasted to beat end of {{ period_type }} target",
+        "detail": "{{ metric.label }} is forecasted to end the {{ period_type }} at {{ forecasted_value|format_number "
+        "}}"
+        "and beat its target of {{ target_value|format_number }} by {{ gap_percent|format_percent }}%",
+    },
+    StoryType.FORECASTED_OFF_TRACK: {
+        "title": "Forecasted to miss end of {{ period_type }} target by {{ gap_percent|format_percent }}%",
+        "detail": "{{ metric.label }} is forecasted to end the {{ period_type }} at {{ forecasted_value|format_number "
+        "}}"
+        "and miss its target of {{ target_value|format_number }} by {{ gap_percent|format_percent }}%",
+    },
+    StoryType.PACING_ON_TRACK: {
+        "title": "Pacing to beat end of {{ period_type }} target",
+        "detail": "{{ percent_elapsed|format_percent }}% through the {{ period_type }}, {{ metric.label }} is pacing "
+        "to end this {{ period_type }}"
+        "at {{ projected_value|format_number }}, beating the target of {{ target_value|format_number }} "
+        "by {{ gap_percent|format_percent }}% if the current trajectory holds.",
+    },
+    StoryType.PACING_OFF_TRACK: {
+        "title": "Pacing to miss end of {{ period_type }} target by {{ gap_percent|format_percent }}%",
+        "detail": "{{ percent_elapsed|format_percent }}% through the {{ period_type }}, {{ metric.label }} is pacing "
+        "to end this {{ period_type }}"
+        "at {{ projected_value|format_number }}, missing the target of {{ target_value|format_number }} "
+        "by {{ gap_percent|format_percent }}% if the current trajectory holds.",
+    },
+    StoryType.REQUIRED_PERFORMANCE: {
+        "title": "Must grow {{ required_growth|format_percent }}% {{ pop }} to meet end of {{ period_type }} target",
+        "detail": "{{ metric.label }} must average a {{ required_growth|format_percent }}% {{ pop }} growth rate over "
+        "the next"
+        "{{ remaining_periods }} {{ grain_label }}s to meet its end of {{ period_type }} target of {{ "
+        "target_value|format_number }}."
+        "This is a {{ delta_growth|format_percent }}% {{ trend_direction }} over the {{ past_growth|format_percent "
+        "}}% {{ pop }}"
+        "growth over the past {{ past_periods }} {{ grain_label }}s.",
+    },
 }
 
 STORY_GROUP_TIME_DURATIONS: dict[str, Any] = {
