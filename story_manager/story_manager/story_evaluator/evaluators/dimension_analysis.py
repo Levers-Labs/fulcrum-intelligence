@@ -5,7 +5,10 @@ Story evaluator for the dimension analysis pattern.
 import logging
 from typing import Any
 
+import numpy as np
+
 from commons.models.enums import Granularity
+from levers.models.dimensional_analysis import SliceShare, SliceStrength
 from levers.models.patterns.dimension_analysis import DimensionAnalysis
 from story_manager.core.enums import StoryGenre, StoryGroup, StoryType
 from story_manager.story_evaluator import StoryEvaluatorBase, render_story_text
@@ -58,22 +61,37 @@ class DimensionAnalysisEvaluator(StoryEvaluatorBase[DimensionAnalysis]):
             stories.append(self._create_segment_comparison_story(pattern_result, metric_id, metric, grain))
 
         # Check for new strongest segment
-        if pattern_result.strongest_slice:
+        if pattern_result.strongest_slice and self._has_slice_changed(pattern_result.strongest_slice):
             stories.append(self._create_new_strongest_segment_story(pattern_result, metric_id, metric, grain))
 
         # Check for new weakest segment
-        if pattern_result.weakest_slice:
+        if pattern_result.weakest_slice and self._has_slice_changed(pattern_result.weakest_slice):
             stories.append(self._create_new_weakest_segment_story(pattern_result, metric_id, metric, grain))
 
         # Check for largest slice by share
-        if pattern_result.largest_slice:
+        if pattern_result.largest_slice and self._has_slice_changed(pattern_result.largest_slice):
             stories.append(self._create_largest_segment_story(pattern_result, metric_id, metric, grain))
 
         # Check for smallest slice by share
-        if pattern_result.smallest_slice:
+        if pattern_result.smallest_slice and self._has_slice_changed(pattern_result.smallest_slice):
             stories.append(self._create_smallest_segment_story(pattern_result, metric_id, metric, grain))
 
         return stories
+
+    def _has_slice_changed(self, slice_obj: SliceShare | SliceStrength) -> bool:
+        """
+        Check if the slice has changed from the previous period.
+
+        Args:
+            slice_obj: The slice object (SliceShare or SliceStrength)
+
+        Returns:
+            True if the current slice is different from the previous slice, False otherwise
+        """
+        current_slice = slice_obj.slice_value  # type: ignore
+        previous_slice = slice_obj.previous_slice_value  # type: ignore
+
+        return current_slice != previous_slice
 
     def _populate_template_context(
         self, pattern_result: DimensionAnalysis, metric: dict, grain: Granularity, **kwargs
@@ -149,7 +167,8 @@ class DimensionAnalysisEvaluator(StoryEvaluatorBase[DimensionAnalysis]):
         if not slices:
             return 0
 
-        total = sum(s.current_value for s in slices)  # type: ignore
+        # Handle null values by using 0 as default
+        total = sum((s.current_value or 0) for s in slices)  # type: ignore
         return total / float(len(slices)) if len(slices) > 0 else 0
 
     def _add_top_slices_context(self, pattern_result, context, **kwargs):
@@ -241,22 +260,24 @@ class DimensionAnalysisEvaluator(StoryEvaluatorBase[DimensionAnalysis]):
         slice_type = kwargs.get("slice_type")
         avg_value = kwargs.get("avg_value", 0)
 
+        # Get values with null handling
+        current_value = slice_obj.current_value or 0  # type: ignore
+        prior_value = slice_obj.prior_value or 0  # type: ignore
+
         # Determine trend direction
         trend_direction = "up"
-        if slice_obj.current_value < slice_obj.prior_value:  # type: ignore
+        if current_value < prior_value:
             trend_direction = "down"
 
         # Calculate change percentage
         change_percent = 0
-        if slice_obj.prior_value != 0:  # type: ignore
-            change_percent = abs(
-                (slice_obj.current_value - slice_obj.prior_value) / slice_obj.prior_value * 100  # type: ignore
-            )
+        if prior_value != 0:
+            change_percent = abs((current_value - prior_value) / prior_value * 100)
 
         # Calculate difference from average
         diff_from_avg_percent = 0
         if avg_value != 0:
-            diff_from_avg_percent = (slice_obj.current_value - avg_value) / avg_value * 100  # type: ignore
+            diff_from_avg_percent = (current_value - avg_value) / avg_value * 100
 
         # For weakest, we want absolute value
         if slice_type == "weakest":
@@ -265,9 +286,9 @@ class DimensionAnalysisEvaluator(StoryEvaluatorBase[DimensionAnalysis]):
         context.update(
             {
                 "segment_name": slice_obj.slice_value,  # type: ignore
-                "current_value": slice_obj.current_value,  # type: ignore
+                "current_value": current_value,
                 "previous_segment": slice_obj.previous_slice_value,  # type: ignore
-                "previous_value": slice_obj.prior_value,  # type: ignore
+                "previous_value": prior_value,
                 "trend_direction": trend_direction,
                 "change_percent": change_percent,
                 "avg_value": avg_value,
@@ -656,6 +677,8 @@ class DimensionAnalysisEvaluator(StoryEvaluatorBase[DimensionAnalysis]):
         for key, segment in segments.items():
             segment_df = filtered_df[filtered_df["dimension_slice"] == segment]
             if not segment_df.empty:
+                # Final cleanup: Replace any remaining NaN/inf values before converting to dict
+                segment_df = segment_df.replace([float("inf"), float("-inf"), np.NaN], 0.0)
                 result[key] = segment_df[["date", "dimension_slice", "value"]].to_dict(orient="records")
 
         return [result]
@@ -692,18 +715,23 @@ class DimensionAnalysisEvaluator(StoryEvaluatorBase[DimensionAnalysis]):
         filtered_df = series_df[series_df["dimension_slice"].isin([current_slice, previous_slice])]
 
         # Group to compute average value per date across all slices
-        avg_df = series_df.groupby("date", as_index=False)["value"].mean().rename(columns={"value": "value"})  # type: ignore
+        avg_df = series_df.groupby("date", as_index=False)["value"].mean()
 
         # Build segment-wise data
         for key, segment in {"current": current_slice, "prior": previous_slice}.items():
             seg_df = filtered_df[filtered_df["dimension_slice"] == segment]
             if not seg_df.empty:
+                # Final cleanup: Replace any remaining NaN/inf values before converting to dict
+                seg_df = seg_df.replace([float("inf"), float("-inf"), np.NaN], 0.0)
                 result[key] = seg_df.rename(columns={"dimension_slice": "segment"})[
                     ["date", "segment", "value"]
                 ].to_dict(orient="records")
 
         # Build average data
-        result["average"] = avg_df.to_dict(orient="records")
+        if not avg_df.empty:
+            # Final cleanup: Replace any remaining NaN/inf values before converting to dict
+            avg_df = avg_df.replace([float("inf"), float("-inf"), np.NaN], 0.0)
+            result["average"] = avg_df.to_dict(orient="records")  # type: ignore
 
         return [result]
 
@@ -783,6 +811,8 @@ class DimensionAnalysisEvaluator(StoryEvaluatorBase[DimensionAnalysis]):
         for key, segment in {"current": current_slice, "prior": previous_slice}.items():
             seg_df = filtered_df[filtered_df["dimension_slice"] == segment]
             if not seg_df.empty:
+                # Final cleanup: Replace any remaining NaN/inf values before converting to dict
+                seg_df = seg_df.replace([float("inf"), float("-inf"), np.NaN], 0.0)
                 result[key] = seg_df.rename(columns={"dimension_slice": "segment"})[
                     ["date", "segment", "value"]
                 ].to_dict(orient="records")
