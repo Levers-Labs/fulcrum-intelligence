@@ -129,3 +129,23 @@ class ComparisonType(str, Enum):
     LAST_MONTH = "last_month"
     MONTH_IN_LAST_QUARTER = "month_in_last_quarter"
     MONTH_IN_LAST_YEAR = "month_in_last_year"
+
+
+class PeriodType(str, Enum):
+    """Names of periods."""
+
+    END_OF_WEEK = "endOfWeek"
+    END_OF_MONTH = "endOfMonth"
+    END_OF_QUARTER = "endOfQuarter"
+    END_OF_YEAR = "endOfYear"
+    END_OF_NEXT_MONTH = "endOfNextMonth"
+
+
+class ForecastMethod(str, Enum):
+    """Methods for forecasting."""
+
+    NAIVE = "naive"
+    SES = "ses"
+    HOLT_WINTERS = "holtwinters"
+    AUTO_ARIMA = "auto_arima"
+    PROPHET = "prophet"
