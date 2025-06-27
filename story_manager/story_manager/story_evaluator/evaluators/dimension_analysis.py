@@ -6,7 +6,6 @@ import logging
 from typing import Any
 
 import numpy as np
-import pandas as pd
 
 from commons.models.enums import Granularity
 from levers.models.dimensional_analysis import SliceShare, SliceStrength
@@ -682,12 +681,7 @@ class DimensionAnalysisEvaluator(StoryEvaluatorBase[DimensionAnalysis]):
                 segment_df = segment_df.replace([float("inf"), float("-inf"), np.NaN], 0.0)
                 result[key] = segment_df[["date", "dimension_slice", "value"]].to_dict(orient="records")
 
-        # Synchronize dates across all series
-        synchronized_result = self._synchronize_multiple_series_dates(
-            result, grain=Granularity(pattern_result.analysis_window.grain)
-        )
-
-        return [synchronized_result]
+        return [result]
 
     def _prepare_strongest_weakest_series_data(
         self, pattern_result: DimensionAnalysis, story_type: StoryType
@@ -739,12 +733,7 @@ class DimensionAnalysisEvaluator(StoryEvaluatorBase[DimensionAnalysis]):
             avg_df = avg_df.replace([float("inf"), float("-inf"), np.NaN], 0.0)
             result["average"] = avg_df.to_dict(orient="records")  # type: ignore
 
-        # Synchronize dates across all series
-        synchronized_result = self._synchronize_multiple_series_dates(
-            result, grain=Granularity(pattern_result.analysis_window.grain)
-        )
-
-        return [synchronized_result]
+        return [result]
 
     def _prepare_top_bottom_segment_series_data(
         self, pattern_result: DimensionAnalysis, story_type: StoryType, limit: int = 4
@@ -828,96 +817,4 @@ class DimensionAnalysisEvaluator(StoryEvaluatorBase[DimensionAnalysis]):
                     ["date", "segment", "value"]
                 ].to_dict(orient="records")
 
-        # Synchronize dates across all series
-        synchronized_result = self._synchronize_multiple_series_dates(
-            result, grain=Granularity(pattern_result.analysis_window.grain)
-        )
-
-        return [synchronized_result]
-
-    def _synchronize_multiple_series_dates(
-        self, series_data_dict: dict[str, list], grain: Granularity, fill_value: float = 0.0
-    ) -> dict[str, list]:
-        """
-        Synchronize dates across multiple series in a dictionary structure and fill missing values.
-
-        Args:
-            series_data_dict: Dictionary with series names as keys and list of records as values
-            grain: Granularity to determine the appropriate date frequency
-            fill_value: Value to use for filling missing dates and null values
-
-        Returns:
-            Dictionary with synchronized series data
-        """
-        if not series_data_dict:
-            return series_data_dict
-
-        # Convert each series to DataFrame, collect all dates
-        all_dates = set()
-        series_dfs = {}
-
-        for series_name, records in series_data_dict.items():
-            if not records:
-                continue
-
-            df = pd.DataFrame(records)
-            if "date" in df.columns:
-                df["date"] = pd.to_datetime(df["date"])
-                series_dfs[series_name] = df
-                all_dates.update(df["date"].tolist())
-
-        if not all_dates:
-            return series_data_dict
-
-        # Determine frequency based on grain
-        freq_map = {
-            Granularity.DAY: "D",  # Daily
-            Granularity.WEEK: "W-MON",  # Weekly, starting on Monday
-            Granularity.MONTH: "MS",  # Monthly, 1st of each month
-            Granularity.QUARTER: "QS",  # Quarterly, 1st of each quarter
-            Granularity.YEAR: "YS",  # Yearly, 1st of each year
-        }
-
-        freq = freq_map.get(grain, "D")  # Default to daily if grain not found
-
-        # Create complete date range
-        min_date = min(all_dates)
-        max_date = max(all_dates)
-        complete_date_range = pd.date_range(start=min_date, end=max_date, freq=freq)
-
-        # Synchronize each series
-        synchronized_data = {}
-        for series_name, df in series_dfs.items():
-            # Create complete date DataFrame
-            complete_df = pd.DataFrame({"date": complete_date_range})
-
-            # Merge with series data
-            merged_df = complete_df.merge(df, on="date", how="left")
-
-            # Fill missing values
-            numeric_columns = merged_df.select_dtypes(include=[np.number]).columns
-            merged_df[numeric_columns] = merged_df[numeric_columns].fillna(fill_value)
-
-            # Handle categorical columns
-            for col in merged_df.columns:
-                if col not in numeric_columns and col != "date":
-                    if col in ["segment", "dimension_slice", "label"]:
-                        merged_df[col] = merged_df[col].ffill().bfill()
-                    else:
-                        merged_df[col] = merged_df[col].fillna(fill_value)
-
-            # Convert back to records with proper date formatting
-            if "date" in merged_df.columns:
-                merged_df = format_date_column(merged_df)
-
-            # Final cleanup: Replace any remaining NaN/inf values before converting to dict
-            merged_df = merged_df.replace([float("inf"), float("-inf"), np.NaN], 0.0)
-
-            synchronized_data[series_name] = merged_df.to_dict(orient="records")
-
-        # Include any series that had no data
-        for series_name in series_data_dict:
-            if series_name not in synchronized_data:
-                synchronized_data[series_name] = series_data_dict[series_name]
-
-        return synchronized_data
+        return [result]

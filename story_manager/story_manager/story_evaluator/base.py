@@ -60,70 +60,6 @@ class StoryEvaluatorBase(Generic[T], ABC):
         """
         pass
 
-    def fill_missing_dates(self, df: pd.DataFrame, grain: Granularity, fill_value: float = 0.0) -> pd.DataFrame:
-        """
-        Fill missing dates in the series.
-
-        Args:
-            df: DataFrame with time series data containing 'date' and 'value' columns
-            grain: Granularity to determine the appropriate date frequency
-            fill_value: Value to use for filling missing dates and null values (default: 0.0)
-
-        Returns:
-            DataFrame with missing dates filled
-        """
-        if df is None or df.empty or "date" not in df.columns:
-            return df
-
-        # Make a copy to avoid modifying the original
-        df_filled = df.copy()
-
-        # Ensure date column is datetime
-        df_filled["date"] = pd.to_datetime(df_filled["date"])
-
-        # Replace inf, -inf, and NaN with fill_value in all numeric columns
-        numeric_columns = df_filled.select_dtypes(include=[np.number]).columns
-        df_filled[numeric_columns] = df_filled[numeric_columns].replace(
-            [float("inf"), float("-inf"), np.NaN], fill_value
-        )
-
-        # If we have at least 2 dates, fill missing dates in the range
-        if len(df_filled) >= 2:
-            # Sort by date
-            df_filled = df_filled.sort_values("date")
-
-            # Determine frequency based on grain
-            freq_map = {
-                Granularity.DAY: "D",  # Daily
-                Granularity.WEEK: "W-MON",  # Weekly, starting on Monday
-                Granularity.MONTH: "MS",  # Monthly, 1st of each month
-                Granularity.QUARTER: "QS",  # Quarterly, 1st of each quarter
-                Granularity.YEAR: "YS",  # Yearly, 1st of each year
-            }
-
-            freq = freq_map.get(grain, "D")  # Default to daily if grain not found
-
-            # Create date range from min to max date
-            date_range = pd.date_range(start=df_filled["date"].min(), end=df_filled["date"].max(), freq=freq)
-
-            # Create a complete date index
-            complete_df = pd.DataFrame({"date": date_range})
-
-            # Merge with original data, filling missing values
-            df_filled = complete_df.merge(df_filled, on="date", how="left")
-
-            # Fill missing values with fill_value for all numeric columns
-            numeric_columns = df_filled.select_dtypes(include=[np.number]).columns
-            df_filled[numeric_columns] = df_filled[numeric_columns].fillna(fill_value)
-
-            # For categorical columns like dimension_slice, forward fill
-            categorical_columns = ["dimension_slice", "segment", "label"]
-            for col in categorical_columns:
-                if col in df_filled.columns:
-                    df_filled[col] = df_filled[col].ffill().bfill()
-
-        return df_filled
-
     def prepare_story_model(
         self,
         genre: StoryGenre,
@@ -216,9 +152,6 @@ class StoryEvaluatorBase(Generic[T], ABC):
         """
         if series_df is None or series_df.empty:
             return []
-
-        # Fill missing dates
-        series_df = self.fill_missing_dates(series_df, grain)
 
         # Figure out the length of the series to export
         series_length = self.get_output_length(story_type, story_group, grain)
