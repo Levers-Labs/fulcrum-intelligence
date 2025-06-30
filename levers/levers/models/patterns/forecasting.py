@@ -5,7 +5,8 @@ from levers.models import (
     PacingProjection,
     RequiredPerformance,
 )
-from levers.models.enums import PeriodType
+from levers.models.enums import Granularity
+from levers.models.forecasting import ForecastWindow
 
 
 class Forecasting(BasePattern):
@@ -13,8 +14,9 @@ class Forecasting(BasePattern):
 
     pattern: str = "forecasting"
 
-    period_type: PeriodType
+    forecast_period_grain: Granularity
     # Forecast results
+    forecast_window: ForecastWindow | None = None
     forecast_vs_target_stats: ForecastVsTargetStats | None = None
     pacing: PacingProjection | None = None
     required_performance: RequiredPerformance | None = None

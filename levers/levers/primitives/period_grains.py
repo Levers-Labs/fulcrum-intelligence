@@ -440,13 +440,13 @@ def get_period_end_date(analysis_dt: pd.Timestamp, period: str | PeriodType) -> 
         raise ValueError(f"Unknown period: {period}")
 
 
-def calculate_remaining_periods(current_date: pd.Timestamp, target_date: pd.Timestamp, grain: Granularity) -> int:
+def calculate_remaining_periods(current_date: pd.Timestamp, end_date: pd.Timestamp, grain: Granularity) -> int:
     """
     Calculate remaining periods count based on the grain.
 
     Args:
         current_date: The current date
-        target_date: The target date
+        end_date: The end date
         grain: The grain to use for the calculation
 
     Returns:
@@ -459,21 +459,21 @@ def calculate_remaining_periods(current_date: pd.Timestamp, target_date: pd.Time
 
     try:
         if grain == Granularity.DAY:
-            remaining_periods_count = (target_date - current_date).days
+            remaining_periods_count = (end_date - current_date).days
         elif grain == Granularity.WEEK:
             # Count weeks from next week start to target date's week
             next_week_start = (current_date + pd.offsets.Week(weekday=0) + pd.Timedelta(weeks=1)).normalize()
-            if next_week_start <= target_date:
+            if next_week_start <= end_date:
                 temp_date = next_week_start
-                while temp_date <= target_date:
+                while temp_date <= end_date:
                     remaining_periods_count += 1
                     temp_date += pd.Timedelta(weeks=1)
         elif grain == Granularity.MONTH:
             # Count months from next month start to target date's month
             next_month_start = (current_date.replace(day=1) + pd.offsets.MonthBegin(1)).normalize()
-            if next_month_start <= target_date:
+            if next_month_start <= end_date:
                 temp_date = next_month_start
-                while temp_date <= target_date:
+                while temp_date <= end_date:
                     remaining_periods_count += 1
                     temp_date = (temp_date.replace(day=1) + pd.offsets.MonthBegin(1)).normalize()
         elif grain == Granularity.QUARTER:
@@ -481,23 +481,23 @@ def calculate_remaining_periods(current_date: pd.Timestamp, target_date: pd.Time
             next_quarter_start = (
                 current_date.replace(day=1, month=((current_date.month - 1) // 3) * 3 + 1)
             ).normalize()
-            if next_quarter_start <= target_date:
+            if next_quarter_start <= end_date:
                 temp_date = next_quarter_start
-                while temp_date <= target_date:
+                while temp_date <= end_date:
                     remaining_periods_count += 1
                     temp_date = (temp_date.replace(day=1, month=((temp_date.month - 1) // 3) * 3 + 1)).normalize()
         elif grain == Granularity.YEAR:
             # Count years from next year start to target date's year
             next_year_start = (current_date.replace(day=1, month=1)).normalize()
-            if next_year_start <= target_date:
+            if next_year_start <= end_date:
                 temp_date = next_year_start
-                while temp_date <= target_date:
+                while temp_date <= end_date:
                     remaining_periods_count += 1
                     temp_date = (temp_date.replace(day=1, month=1)).normalize()
     except Exception as e:
         raise ValidationError(
             f"Error calculating remaining periods count: {str(e)}",
-            invalid_fields={"current_date": current_date, "target_date": target_date, "grain": grain},
+            invalid_fields={"current_date": current_date, "end_date": end_date, "grain": grain},
         ) from e
 
     return max(0, remaining_periods_count)

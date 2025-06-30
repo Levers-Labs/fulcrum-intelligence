@@ -30,7 +30,8 @@
       {
         "source_type": "metric_time_series",
         "is_required": true,
-        "data_key": "data"
+        "data_key": "data",
+        "lookahead": false
       }
     ],
     "analysis_window": {
@@ -40,8 +41,7 @@
       "max_days": 365,
       "include_today": false
     },
-    "settings": {
-    },
+    "settings": {},
     "meta": {}
   },
   {
@@ -52,7 +52,8 @@
       {
         "source_type": "dimensional_time_series",
         "is_required": true,
-        "data_key": "data"
+        "data_key": "data",
+        "lookahead": false
       }
     ],
     "analysis_window": {
@@ -75,9 +76,16 @@
     "description": "Generates forecasts for a given metric, including projections for specific future period end-dates and a detailed daily forecast",
     "data_sources": [
       {
-        "source_type": "metric_with_targets",
+        "source_type": "metric_time_series",
         "is_required": true,
-        "data_key": "data"
+        "data_key": "data",
+        "lookahead": false
+      },
+      {
+        "source_type": "metric_targets",
+        "is_required": true,
+        "data_key": "target",
+        "lookahead": true
       }
     ],
     "analysis_window": {

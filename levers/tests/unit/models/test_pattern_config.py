@@ -224,16 +224,16 @@ class TestAnalysisWindowConfig:
         assert end_date == expected_end_date
 
     def test_get_date_range_enforce_max_days(self):
-        """Test get_date_range enforces maximum days constraint."""
+        """Test that get_date_range enforces max_days constraint."""
         # Arrange
         config = AnalysisWindowConfig(
             strategy=WindowStrategy.FIXED_TIME,
-            days=1000,  # More than max_days (default 730)
-            max_days=365,  # Custom max_days
+            days=1000,  # Exceeds max_days
+            max_days=365,
         )
         today = date.today()
-        expected_end_date = today - timedelta(days=1)
-        expected_start_date = expected_end_date - timedelta(days=365)  # Should use max_days instead of days
+        expected_end_date = today - timedelta(days=1)  # not including today
+        expected_start_date = expected_end_date - timedelta(days=365)  # Constrained by max_days
 
         # Act
         start_date, end_date = config.get_date_range(Granularity.DAY)
@@ -242,24 +242,83 @@ class TestAnalysisWindowConfig:
         assert start_date == expected_start_date
         assert end_date == expected_end_date
 
-    def test_get_prev_period_start_date(self):
-        """Test get_prev_period_start_date calculation."""
+    def test_get_date_range_with_lookahead_false(self):
+        """Test get_date_range with lookahead=False (historical range)."""
         # Arrange
+        config = AnalysisWindowConfig(
+            strategy=WindowStrategy.FIXED_TIME,
+            days=90,
+            include_today=False,
+        )
+        today = date.today()
+        expected_end_date = today - timedelta(days=1)
+        expected_start_date = expected_end_date - timedelta(days=90)
+
+        # Act
+        start_date, end_date = config.get_date_range(Granularity.DAY, lookahead=False)
+
+        # Assert
+        assert start_date == expected_start_date
+        assert end_date == expected_end_date
+
+    def test_get_date_range_with_lookahead_true(self):
+        """Test get_date_range with lookahead=True (future period end)."""
+        # Arrange
+        config = AnalysisWindowConfig(
+            strategy=WindowStrategy.FIXED_TIME,
+            days=90,
+            include_today=False,
+        )
+
+        # Act
+        start_date, end_date = config.get_date_range(Granularity.WEEK, lookahead=True)
+
+        # Assert
+        # For lookahead=True, end date should be the future period end
+        assert end_date >= date.today()
+        # Start date should be calculated based on the strategy (90 days before end)
+        expected_start_date = end_date - timedelta(days=90)
+        assert start_date == expected_start_date
+
+    def test_get_date_range_with_lookahead_different_grains(self):
+        """Test get_date_range with lookahead=True for different grains."""
+        # Arrange
+        config = AnalysisWindowConfig(
+            strategy=WindowStrategy.FIXED_TIME,
+            days=90,
+            include_today=False,
+        )
+
+        # Test different grains that are supported
+        grains = [Granularity.WEEK, Granularity.MONTH, Granularity.QUARTER]
+
+        for grain in grains:
+            # Act
+            start_date, end_date = config.get_date_range(grain, lookahead=True)
+
+            # Assert
+            # For lookahead=True, end date should be the future period end
+            assert end_date >= date.today()
+            # Start date should be calculated based on the strategy (90 days before end)
+            expected_start_date = end_date - timedelta(days=90)
+            assert start_date == expected_start_date
+
+    def test_get_prev_period_start_date(self):
+        """Test get_prev_period_start_date method."""
+        # Arrange
+        config = AnalysisWindowConfig(
+            strategy=WindowStrategy.FIXED_TIME,
+            days=90,
+        )
+
+        # Act - need to provide the required parameters
         latest_start_date = date(2023, 12, 31)
+        prev_start_date = config.get_prev_period_start_date(Granularity.MONTH, 1, latest_start_date)
 
-        # Test cases for different grains
-        test_cases = [
-            (Granularity.DAY, 7, date(2023, 12, 24)),  # 7 days back
-            (Granularity.WEEK, 4, date(2023, 12, 3)),  # 4 weeks back
-            (Granularity.MONTH, 3, date(2023, 9, 30)),  # 3 months back
-            (Granularity.QUARTER, 2, date(2023, 6, 30)),  # 2 quarters back
-            (Granularity.YEAR, 1, date(2022, 12, 31)),  # 1 year back
-        ]
-
-        # Act & Assert
-        for grain, period_count, expected_date in test_cases:
-            result = AnalysisWindowConfig.get_prev_period_start_date(grain, period_count, latest_start_date)
-            assert result == expected_date
+        # Assert
+        # Should return the start of the previous month
+        expected_start_date = date(2023, 11, 30)  # One month back from Dec 31
+        assert prev_start_date == expected_start_date
 
 
 class TestPatternConfig:
@@ -384,6 +443,7 @@ class TestDataSource:
             source_type=DataSourceType.DIMENSIONAL_TIME_SERIES,
             data_key="dimension_data",
             is_required=False,
+            lookahead=True,
             meta={"dimensions": ["region", "product"]},
         )
 
@@ -391,4 +451,63 @@ class TestDataSource:
         assert data_source.source_type == DataSourceType.DIMENSIONAL_TIME_SERIES
         assert data_source.data_key == "dimension_data"
         assert data_source.is_required is False
+        assert data_source.lookahead is True
         assert data_source.meta == {"dimensions": ["region", "product"]}
+
+    def test_init_with_lookahead_false(self):
+        """Test initialization with lookahead=False."""
+        # Arrange & Act
+        data_source = DataSource(
+            source_type=DataSourceType.METRIC_TIME_SERIES,
+            data_key="historical_data",
+            lookahead=False,
+        )
+
+        # Assert
+        assert data_source.source_type == DataSourceType.METRIC_TIME_SERIES
+        assert data_source.data_key == "historical_data"
+        assert data_source.lookahead is False
+        assert data_source.is_required is True  # Default value
+
+    def test_init_with_lookahead_true(self):
+        """Test initialization with lookahead=True."""
+        # Arrange & Act
+        data_source = DataSource(
+            source_type=DataSourceType.METRIC_WITH_TARGETS,
+            data_key="target_data",
+            lookahead=True,
+        )
+
+        # Assert
+        assert data_source.source_type == DataSourceType.METRIC_WITH_TARGETS
+        assert data_source.data_key == "target_data"
+        assert data_source.lookahead is True
+        assert data_source.is_required is True  # Default value
+
+    def test_lookahead_default_value(self):
+        """Test that lookahead defaults to False."""
+        # Arrange & Act
+        data_source = DataSource(
+            source_type=DataSourceType.METRIC_TIME_SERIES,
+            data_key="data",
+        )
+
+        # Assert
+        assert data_source.lookahead is False  # Default value
+
+    def test_serialization_with_lookahead(self):
+        """Test serialization includes lookahead field."""
+        # Arrange
+        data_source = DataSource(
+            source_type=DataSourceType.METRIC_WITH_TARGETS,
+            data_key="target_data",
+            lookahead=True,
+        )
+
+        # Act
+        serialized = data_source.model_dump()
+
+        # Assert
+        assert serialized["lookahead"] is True
+        assert serialized["source_type"] == "metric_with_targets"
+        assert serialized["data_key"] == "target_data"

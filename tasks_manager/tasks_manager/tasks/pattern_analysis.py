@@ -236,6 +236,7 @@ async def run_pattern(
             data_args[key] = _key_data
 
         logger.info("Running pattern %s for metric %s%s", pattern, metric_id, dimension_suffix)
+
         # Run pattern analysis
         result = levers.execute_pattern(
             pattern_name=pattern, analysis_window=analysis_window, config=pattern_config, **data_args

@@ -25,6 +25,7 @@ from levers.models import (
     WindowStrategy,
 )
 from levers.models.enums import ForecastMethod, PeriodType
+from levers.models.forecasting import ForecastWindow
 from levers.models.patterns import Forecasting
 from levers.patterns import Pattern
 from levers.primitives import (
@@ -68,7 +69,12 @@ class ForecastingPattern(Pattern[Forecasting]):
             description=cls.description,
             version=cls.version,
             data_sources=[
-                DataSource(source_type=DataSourceType.METRIC_WITH_TARGETS, is_required=True, data_key="data"),
+                DataSource(
+                    source_type=DataSourceType.METRIC_TIME_SERIES, is_required=True, data_key="data", lookahead=False
+                ),
+                DataSource(
+                    source_type=DataSourceType.METRIC_WITH_TARGETS, is_required=True, data_key="target", lookahead=True
+                ),
             ],
             analysis_window=AnalysisWindowConfig(
                 strategy=WindowStrategy.FIXED_TIME, days=365, min_days=90, max_days=730, include_today=False
@@ -84,6 +90,7 @@ class ForecastingPattern(Pattern[Forecasting]):
         self,
         metric_id: str,
         data: pd.DataFrame,
+        target: pd.DataFrame,
         analysis_window: AnalysisWindow,
         analysis_date: date | None = None,
         confidence_level: float = 0.95,
@@ -96,6 +103,7 @@ class ForecastingPattern(Pattern[Forecasting]):
         Args:
             metric_id: The ID of the metric being analyzed
             data: DataFrame containing columns: date, value, grain, and target_value, target_date, etc.
+            target: DataFrame containing columns: date, target_value, target_date, etc.
             analysis_window: AnalysisWindow object specifying the analysis time window
             analysis_date: Date from which forecasts are made (defaults to today)
             confidence_level: Confidence level for prediction intervals
@@ -127,8 +135,10 @@ class ForecastingPattern(Pattern[Forecasting]):
             if df.empty:
                 return self.handle_empty_data(metric_id, analysis_window)
 
-            # Process single forecast period (defaulting to end of month)
+            # Process single forecast period
             period = self._get_period_for_grain(grain)
+            # Get the grain for the period
+            period_grain = self._get_grain_for_period(period)
 
             forecast_df = forecast_with_confidence_intervals(
                 df=df,
@@ -145,48 +155,55 @@ class ForecastingPattern(Pattern[Forecasting]):
             latest_actual_value = float(df["value"].iloc[-1])
             period_target_date = get_period_end_date(analysis_dt, period)
             # Get target value if available
-            current_target_value = None
+            target_value = None
 
             # Check if data has target information and it's not all NaN/zero
-            if "target_value" in df.columns:
+            if not target.empty and "target_value" in target.columns and "date" in target.columns:
                 # First try to find target for the specific period target date
-                target_row = df[
-                    (pd.to_datetime(df["date"]) == period_target_date)
-                    & (df["target_value"].notna())
-                    & (df["target_value"] != 0)
+                target_row = target[
+                    (pd.to_datetime(target["date"]) == period_target_date)
+                    & (target["target_value"].notna())
+                    & (target["target_value"] != 0)
                 ]
 
                 if not target_row.empty:
-                    current_target_value = float(target_row["target_value"].iloc[0])
+                    target_value = float(target_row["target_value"].iloc[0])
 
             # Forecast vs Target Stats - only calculate if we have targets
-            forecast_vs_target_stats = None
-            if current_target_value is not None:
-                forecast_vs_target_stats = self._get_forecast_vs_target_stats(
-                    forecast_df, period_target_date, current_target_value, confidence_level
-                )
+            forecast_vs_target_stats = (
+                None
+                if target_value is None
+                else self._get_forecast_vs_target_stats(forecast_df, period_target_date, target_value, confidence_level)
+            )
 
             # Pacing Projection - only calculate if we have targets
-            pacing = None
-            if current_target_value is not None:
-                pacing = self._calculate_pacing_projection(
-                    df, analysis_dt, period, current_target_value, pacing_status_threshold_pct
+            pacing = (
+                None
+                if target_value is None
+                else self._calculate_pacing_projection(
+                    df, analysis_dt, period_grain, target_value, pacing_status_threshold_pct
                 )
+            )
 
             # Required Performance - only calculate if we have targets
-            required_performance = None
-            if current_target_value is not None:
-                required_performance = self._calculate_required_performance(
+            required_performance = (
+                None
+                if target_value is None
+                else self._calculate_required_performance(
                     df=df,
                     analysis_dt=analysis_dt,
                     grain=grain,
                     latest_actual_value=latest_actual_value,
                     target_date=period_target_date,
-                    current_target_value=current_target_value,
+                    target_value=target_value,
                     num_past_periods_for_growth=num_past_periods_for_growth,
                 )
+            )
 
             period_forecast = self._prepare_period_forecast_data(forecast_df, confidence_level)
+
+            # Get the forecast window
+            forecast_window = self._get_forecast_window(forecast_df)
 
             # Create result
             result = Forecasting(
@@ -196,12 +213,13 @@ class ForecastingPattern(Pattern[Forecasting]):
                 analysis_date=analysis_date,
                 evaluation_time=datetime.now(),
                 analysis_window=analysis_window,
-                period_type=period,
-                num_periods=len(period_forecast),
+                forecast_period_grain=period_grain,
+                num_periods=len(df),
                 forecast_vs_target_stats=forecast_vs_target_stats,
                 pacing=pacing,
                 required_performance=required_performance,
                 period_forecast=period_forecast,
+                forecast_window=forecast_window,
             )
 
             return self.validate_output(result)
@@ -216,7 +234,7 @@ class ForecastingPattern(Pattern[Forecasting]):
         self,
         forecast_df: pd.DataFrame,
         target_date: pd.Timestamp,
-        current_target_value: float | None,
+        target_value: float | None,
         confidence_level: float,
     ) -> ForecastVsTargetStats:
         """
@@ -229,19 +247,17 @@ class ForecastingPattern(Pattern[Forecasting]):
             forecast_df: DataFrame containing forecasted values and confidence intervals.
             target_date: Target date for the forecast.
             confidence_level: Confidence level for the forecast.
-            current_target_value: Current target value.
+            target_value: Target value.
 
         Returns:
             ForecastVsTargetStats: Forecast vs target stats.
             The forecast vs target stats include:
                 - Forecasted value
-                - Lower bound
-                - Upper bound
                 - Confidence level
                 - Target date
                 - Target value
-                - Forecasted gap percent
-                - Forecast status
+                - gap percent
+                - status
         """
         # Initialize sections
         stats = ForecastVsTargetStats()
@@ -261,19 +277,16 @@ class ForecastingPattern(Pattern[Forecasting]):
         if not target_rows.empty:
             fc_row = target_rows.iloc[0]
             stats.forecasted_value = round(fc_row.get("forecast", 0), 2) if pd.notna(fc_row.get("forecast")) else None
-            stats.lower_bound = round(fc_row.get("lower_bound", 0), 2) if pd.notna(fc_row.get("lower_bound")) else None
-            stats.upper_bound = round(fc_row.get("upper_bound", 0), 2) if pd.notna(fc_row.get("upper_bound")) else None
 
-        stats.confidence_level = confidence_level
         stats.target_date = target_date_str
-        stats.target_value = current_target_value
+        stats.target_value = target_value
 
         # Calculate gap and status only if we have both forecast and target
-        if stats.forecasted_value is not None and current_target_value is not None and current_target_value != 0:
-            gap_pct = (stats.forecasted_value / current_target_value - 1) * 100
-            stats.forecasted_gap_percent = round(gap_pct, 2)
+        if stats.forecasted_value is not None and target_value is not None and target_value != 0:
+            gap_pct = (target_value - stats.forecasted_value) / target_value * 100
+            stats.gap_percent = abs(round(gap_pct, 2))
 
-            stats.forecast_status = classify_metric_status(stats.forecasted_value, current_target_value)
+            stats.status = classify_metric_status(stats.forecasted_value, target_value)
 
         return stats
 
@@ -281,7 +294,7 @@ class ForecastingPattern(Pattern[Forecasting]):
         self,
         df: pd.DataFrame,
         analysis_dt: pd.Timestamp,
-        period_type: PeriodType,
+        period_grain: Granularity,
         target_value: float | None,
         pacing_status_threshold_pct: float,
     ) -> PacingProjection:
@@ -296,7 +309,7 @@ class ForecastingPattern(Pattern[Forecasting]):
         Args:
             df: DataFrame containing the data.
             analysis_dt: Analysis date.
-            period_type: Period type.
+            period_grain: Period grain.
             target_value: Target value.
             pacing_status_threshold_pct: Pacing status threshold percentage.
 
@@ -310,13 +323,13 @@ class ForecastingPattern(Pattern[Forecasting]):
                 - Status
         """
         # Initialize result
-        result = PacingProjection()
-
-        # Get the grain for the period
-        period_grain = self._get_grain_for_period(period_type)
+        result = PacingProjection(target_value=target_value)
 
         # Get the start and end dates for the pacing period
-        pacing_period_start, pacing_period_end = get_period_range_for_grain(analysis_dt, period_grain)
+        # Use include_today=True to get the current active period (not the previous completed period)
+        pacing_period_start, pacing_period_end = get_period_range_for_grain(
+            analysis_dt, period_grain, include_today=True
+        )
 
         # Check if analysis date is within the pacing period
         if not analysis_dt >= pacing_period_start:
@@ -325,7 +338,7 @@ class ForecastingPattern(Pattern[Forecasting]):
         total_days = (pacing_period_end - pacing_period_start).days + 1
 
         # Percent of period elapsed
-        result.percent_of_period_elapsed = round((elapsed_days / total_days) * 100.0, 2) if total_days > 0 else 0.0
+        result.period_elapsed_percent = round((elapsed_days / total_days) * 100.0, 2) if total_days > 0 else 0.0
 
         # Cumulative value from df
         pacing_period_actuals = df[
@@ -335,17 +348,15 @@ class ForecastingPattern(Pattern[Forecasting]):
         result.cumulative_value = round(pacing_period_cumulative_value, 2)
 
         # Projected value
-        if 0 < result.percent_of_period_elapsed < 100:
-            result.projected_value = round(
-                (pacing_period_cumulative_value / result.percent_of_period_elapsed) * 100.0, 2
-            )
-        elif result.percent_of_period_elapsed >= 100:
+        if 0 < result.period_elapsed_percent < 100:
+            result.projected_value = round((pacing_period_cumulative_value / result.period_elapsed_percent) * 100.0, 2)
+        elif result.period_elapsed_percent >= 100:
             result.projected_value = round(pacing_period_cumulative_value, 2)
 
         # Calculate pacing status
         if result.projected_value is not None and target_value is not None and target_value != 0:
             pacing_gap_pct = (result.projected_value / target_value - 1) * 100
-            result.gap_percent = round(pacing_gap_pct, 2)
+            result.gap_percent = abs(round(pacing_gap_pct, 2))
             result.status = classify_metric_status(
                 result.projected_value, target_value, threshold_ratio=pacing_status_threshold_pct / 100.0
             )
@@ -370,7 +381,7 @@ class ForecastingPattern(Pattern[Forecasting]):
             **kwargs: Additional keyword arguments.
                 - latest_actual_value: Latest actual value.
                 - target_date: Target date.
-                - current_target_value: Current target value.
+                - target_value: Target value.
                 - num_past_periods_for_growth: Number of past periods for growth calculation.
 
         Returns:
@@ -378,28 +389,28 @@ class ForecastingPattern(Pattern[Forecasting]):
             The required performance includes:
                 - Remaining periods count
                 - Required pop growth percent
-                - Past pop growth percent
-                - Delta from historical growth
+                - Previous pop growth percent
+                - Growth difference
         """
 
         # Get the forecast target date
         target_date = kwargs.get("target_date")
         # Get the current target value
-        current_target_value = kwargs.get("current_target_value", 0)
+        target_value = kwargs.get("target_value", 0)
         # Get the number of past periods for growth calculation
         num_past_periods_for_growth = kwargs.get("num_past_periods_for_growth", 4)
         # Get the latest actual value
         latest_actual_value = kwargs.get("latest_actual_value", 0)
 
-        # Get the remaining periods count
+        # For forecasting, calculate remaining periods based on target date
         remaining_periods_count = calculate_remaining_periods(analysis_dt, target_date, grain)  # type: ignore
 
-        required_performance = RequiredPerformance(remaining_periods_count=remaining_periods_count)
+        required_performance = RequiredPerformance(remaining_periods=remaining_periods_count)
 
         if remaining_periods_count > 0:
             req_growth = calculate_required_growth(
                 current_value=latest_actual_value,
-                target_value=current_target_value,
+                target_value=target_value,
                 remaining_periods=remaining_periods_count,
             )
             required_performance.required_pop_growth_percent = (
@@ -411,19 +422,21 @@ class ForecastingPattern(Pattern[Forecasting]):
             past_df = df.tail(num_past_periods_for_growth + 1).copy()
             past_df_growth = calculate_pop_growth(past_df, date_col="date", value_col="value", periods=1)
             avg_past_growth = past_df_growth["pop_growth"].mean()
-            required_performance.past_pop_growth_percent = (
+            required_performance.previous_pop_growth_percent = (
                 round(avg_past_growth, 2) if pd.notna(avg_past_growth) else None
             )
 
         # Calculate delta from historical growth
         if (
             required_performance.required_pop_growth_percent is not None
-            and required_performance.past_pop_growth_percent is not None
+            and required_performance.previous_pop_growth_percent is not None
         ):
-            required_performance.delta_from_historical_growth = round(
-                required_performance.required_pop_growth_percent - required_performance.past_pop_growth_percent,
+            required_performance.growth_difference = round(
+                required_performance.required_pop_growth_percent - required_performance.previous_pop_growth_percent,
                 2,
             )
+        required_performance.num_periods = len(df)
+        required_performance.previous_num_periods = num_past_periods_for_growth
 
         return required_performance
 
@@ -454,7 +467,6 @@ class ForecastingPattern(Pattern[Forecasting]):
                     forecasted_value=round(row["forecast"], 2) if pd.notna(row["forecast"]) else None,
                     lower_bound=round(row["lower_bound"], 2) if pd.notna(row["lower_bound"]) else None,
                     upper_bound=round(row["upper_bound"], 2) if pd.notna(row["upper_bound"]) else None,
-                    confidence_level=confidence_level,
                 )
             )
         return period_forecast
@@ -504,3 +516,85 @@ class ForecastingPattern(Pattern[Forecasting]):
         #  confirm with abhi
         else:
             raise ValueError(f"Invalid period: {period}")
+
+    def _extract_period_targets(
+        self, targets_data: pd.DataFrame, analysis_window: AnalysisWindow, analysis_date: date | None = None
+    ) -> pd.DataFrame:
+        """
+        Extract targets for specific period end dates from the combined targets_data.
+
+        This method looks for targets that fall exactly on period boundaries (end of week, month, quarter, etc.)
+        and returns them in a format expected by the rest of the forecasting logic.
+
+        Args:
+            targets_data: Combined DataFrame with date, value, and target columns
+            analysis_window: Analysis window containing grain information
+            analysis_date: Date from which to calculate period end dates
+
+        Returns:
+            DataFrame with columns: date, target_value for exact period end dates only
+        """
+        if analysis_date is None:
+            analysis_date = date.today()
+
+        analysis_dt = pd.to_datetime(analysis_date)
+
+        # Define the period types we want to extract targets for
+        period_types = [
+            PeriodType.END_OF_WEEK,
+            PeriodType.END_OF_MONTH,
+            PeriodType.END_OF_QUARTER,
+            # Could add PeriodType.END_OF_NEXT_MONTH if needed
+        ]
+
+        targets_list = []
+
+        for period_type in period_types:
+            try:
+                # Get the exact period end date
+                period_end_date = get_period_end_date(analysis_dt, period_type)
+
+                # Find exact match for this period end date in targets_data
+                target_rows = targets_data[
+                    (pd.to_datetime(targets_data["date"]) == period_end_date)
+                    & (targets_data.get("target", pd.Series()).notna())
+                    & (targets_data.get("target", pd.Series()) != 0)
+                ]
+
+                if not target_rows.empty:
+                    targets_list.append({"date": period_end_date, "target_value": float(target_rows["target"].iloc[0])})
+                    logger.debug(
+                        "Found target for %s: %s = %s",
+                        period_type.value,
+                        period_end_date,
+                        target_rows["target"].iloc[0],
+                    )
+                else:
+                    logger.debug("No target found for %s: %s", period_type.value, period_end_date)
+
+            except Exception as e:
+                logger.warning("Error extracting target for period %s: %s", period_type.value, str(e))
+                continue
+
+        # Return DataFrame in expected format
+        if targets_list:
+            result_df = pd.DataFrame(targets_list)
+            logger.info("Extracted %d period-specific targets", len(result_df))
+            return result_df
+        else:
+            logger.warning("No period-specific targets found in targets_data")
+            return pd.DataFrame(columns=["date", "target_value"])
+
+    def _get_forecast_window(self, forecast_df: pd.DataFrame) -> ForecastWindow:
+        """
+        Get the forecast window.
+
+        Args:
+            forecast_df: DataFrame containing the forecast data.
+            period_grain: Period grain.
+        """
+        return ForecastWindow(
+            start_date=forecast_df["date"].min().strftime("%Y-%m-%d"),
+            end_date=forecast_df["date"].max().strftime("%Y-%m-%d"),
+            num_periods=len(forecast_df),
+        )

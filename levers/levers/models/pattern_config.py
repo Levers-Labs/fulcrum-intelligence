@@ -27,6 +27,10 @@ class DataSource(BaseModel):
     source_type: DataSourceType
     is_required: bool = True
     data_key: str = Field(..., description="Standardized name for accessing the data in the pattern")
+    lookahead: bool = Field(
+        default=False,
+        description="Whether this data source needs future period end dates " "instead of historical range",
+    )
     meta: dict[str, Any] = Field(default_factory=dict)
 
 
@@ -109,7 +113,7 @@ class AnalysisWindowConfig(BaseModel):
 
         return start_date
 
-    def get_date_range(self, grain: Granularity) -> tuple[date, date]:
+    def get_date_range(self, grain: Granularity, lookahead: bool = False) -> tuple[date, date]:
         """
         Get the date range for analysis based on the configured strategy.
 
@@ -122,6 +126,8 @@ class AnalysisWindowConfig(BaseModel):
 
         if self.include_today:
             end_date = date.today()
+        elif lookahead:
+            end_date = self.get_period_end_date(grain)
         else:
             if grain == Granularity.DAY:
                 end_date = date.today() - timedelta(days=1)
@@ -166,6 +172,41 @@ class AnalysisWindowConfig(BaseModel):
             start_date = max_start_date
 
         return start_date, end_date
+
+    def get_period_end_date(self, grain: Granularity) -> date:
+        """
+        Get the end date for analysis period based on the grain.
+
+        Args:
+            grain: The data granularity (day, week, month, quarter, year)
+
+        Returns:
+            The end date of the analysis period
+        """
+        base_date = date.today()
+
+        if grain == Granularity.WEEK:
+            # Get end of week (Sunday)
+            base_dt = pd.Timestamp(base_date)
+            period_end = (base_dt + pd.offsets.Week(weekday=6)).normalize()
+            return period_end.date()  # Convert to date
+        elif grain == Granularity.MONTH:
+            # Get end of month
+            base_dt = pd.Timestamp(base_date)
+            period_end = (base_dt + pd.offsets.MonthEnd(0)).normalize()
+            return period_end.date()  # Convert to date
+        elif grain == Granularity.QUARTER:
+            # Get end of quarter
+            base_dt = pd.Timestamp(base_date)
+            period_end = (base_dt + pd.offsets.QuarterEnd(0)).normalize()
+            return period_end.date()  # Convert to date
+        elif grain == Granularity.YEAR:
+            # Get end of year
+            base_dt = pd.Timestamp(base_date)
+            period_end = (base_dt + pd.offsets.YearEnd(0)).normalize()
+            return period_end.date()  # Convert to date
+        else:
+            raise ValueError(f"Unknown grain: {grain}")
 
 
 class PatternConfig(BaseModel):
@@ -213,6 +254,7 @@ class PatternConfig(BaseModel):
                     "min_days": 30,
                     "max_days": 365,
                     "include_today": False,
+                    "lookahead": False,
                 },
                 "settings": {"threshold_ratio": 0.05},
                 "needs_dimension_analysis": False,

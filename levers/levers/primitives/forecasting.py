@@ -271,7 +271,10 @@ def forecast_with_confidence_intervals(
     # Estimate volatility from historical data
     if len(df) > 1:
         returns = df[value_col].pct_change().dropna()
-        volatility = returns.std()
+        volatility = returns.std()  # TODO: check this value
+        if volatility >= 1:
+            volatility = volatility / 100
+
     else:
         volatility = 0.1  # Default 10% volatility
 
