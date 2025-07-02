@@ -405,7 +405,7 @@ def get_period_length_for_grain(grain: Granularity | str) -> int:
         )
 
 
-def get_period_end_date(analysis_dt: pd.Timestamp, period: str | PeriodType) -> pd.Timestamp:
+def get_period_end_date(analysis_dt: pd.Timestamp, period: str | PeriodType) -> date:
     """
     Calculate the end date for named periods relative to analysis_dt.
 
@@ -414,7 +414,7 @@ def get_period_end_date(analysis_dt: pd.Timestamp, period: str | PeriodType) -> 
         period_name: The period name (string or PeriodType enum)
 
     Returns:
-        The end date of the specified period as a pandas Timestamp
+        The end date of the specified period as a date
 
     Raises:
         ValueError: If period_name is not recognized
@@ -427,15 +427,15 @@ def get_period_end_date(analysis_dt: pd.Timestamp, period: str | PeriodType) -> 
             raise ValueError(f"Unknown period: {period}") from err
 
     if period == PeriodType.END_OF_WEEK:
-        return (analysis_dt + pd.offsets.Week(weekday=6)).normalize()  # Sunday
+        return (analysis_dt + pd.offsets.Week(weekday=6)).date()  # Sunday
     elif period == PeriodType.END_OF_MONTH:
-        return (analysis_dt + pd.offsets.MonthEnd(0)).normalize()
+        return (analysis_dt + pd.offsets.MonthEnd(0)).date()
     elif period == PeriodType.END_OF_QUARTER:
-        return (analysis_dt + pd.offsets.QuarterEnd(0)).normalize()
+        return (analysis_dt + pd.offsets.QuarterEnd(0)).date()
     elif period == PeriodType.END_OF_YEAR:
-        return (analysis_dt + pd.offsets.YearEnd(0)).normalize()
+        return (analysis_dt + pd.offsets.YearEnd(0)).date()
     elif period == PeriodType.END_OF_NEXT_MONTH:
-        return (analysis_dt + pd.offsets.MonthEnd(1)).normalize()
+        return (analysis_dt + pd.offsets.MonthEnd(1)).date()
     else:
         raise ValueError(f"Unknown period: {period}")
 
@@ -462,12 +462,17 @@ def calculate_remaining_periods(current_date: pd.Timestamp, end_date: pd.Timesta
             remaining_periods_count = (end_date - current_date).days
         elif grain == Granularity.WEEK:
             # Count weeks from next week start to target date's week
-            next_week_start = (current_date + pd.offsets.Week(weekday=0) + pd.Timedelta(weeks=1)).normalize()
+            # Find Monday of current week, then add 1 week to get next Monday
+            days_since_monday = current_date.weekday()  # Monday=0, Sunday=6
+            current_week_monday = current_date - pd.Timedelta(days=days_since_monday)
+            next_week_start = (current_week_monday + pd.Timedelta(weeks=1)).normalize()
+
             if next_week_start <= end_date:
                 temp_date = next_week_start
                 while temp_date <= end_date:
                     remaining_periods_count += 1
                     temp_date += pd.Timedelta(weeks=1)
+
         elif grain == Granularity.MONTH:
             # Count months from next month start to target date's month
             next_month_start = (current_date.replace(day=1) + pd.offsets.MonthBegin(1)).normalize()

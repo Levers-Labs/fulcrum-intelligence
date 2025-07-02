@@ -18,7 +18,7 @@ class DataSourceType(str, Enum):
     METRIC_WITH_TARGETS = "metric_with_targets"
     DIMENSIONAL_TIME_SERIES = "dimensional_time_series"
     MULTI_METRIC = "multi_metric"
-    METRIC_TARGETS = "metric_targets"
+    METRIC_TARGETS_ONLY = "metric_targets_only"
 
 
 class WindowStrategy(str, Enum):
@@ -150,10 +150,3 @@ class ForecastMethod(str, Enum):
     HOLT_WINTERS = "holtwinters"
     AUTO_ARIMA = "auto_arima"
     PROPHET = "prophet"
-
-
-class SeriesScope(str, Enum):
-    """Scopes of series."""
-
-    FULL_PERIOD = "full_period"
-    END_OF_PERIOD = "end_of_period"

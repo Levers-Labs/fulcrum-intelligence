@@ -43,7 +43,7 @@ class PatternDataOrganiser:
             DataSourceType.METRIC_WITH_TARGETS: self._fetch_metric_with_targets,
             DataSourceType.DIMENSIONAL_TIME_SERIES: self._fetch_dimensional_time_series,
             DataSourceType.MULTI_METRIC: self._fetch_multi_metric,
-            DataSourceType.METRIC_TARGETS: self._fetch_metric_targets,
+            DataSourceType.METRIC_TARGETS_ONLY: self._fetch_metric_targets,
         }
 
     async def fetch_data_for_pattern(
@@ -117,7 +117,9 @@ class PatternDataOrganiser:
             source_type = data_source.source_type
 
             # Calculate date range using the centralized method in AnalysisWindowConfig
-            start_date, end_date = config.analysis_window.get_date_range(grain=grain, lookahead=data_source.lookahead)
+            start_date, end_date = config.analysis_window.get_date_range(
+                grain=grain, look_forward=data_source.look_forward
+            )
 
             logger.debug(
                 "Fetching %s data for pattern %s, date range %s to %s",
@@ -239,70 +241,21 @@ class PatternDataOrganiser:
         )
         return [dict(date=item.date, value=item.value, metric_id=item.metric_id) for item in result]
 
-    def _get_target_grain_for_pattern(self, pattern_name: str | None, data_grain: Granularity) -> Granularity:
-        """
-        Get the appropriate target grain for a given pattern and data grain.
-
-        For forecasting pattern, targets are typically at a higher grain level:
-        - Daily data -> Weekly targets
-        - Weekly data -> Monthly targets
-        - Monthly data -> Quarterly targets
-        - Quarterly data -> Yearly targets
-
-        For other patterns, defaults to the same grain as data.
-        """
-        if pattern_name == "forecasting":
-            if data_grain == Granularity.DAY:
-                return Granularity.WEEK
-            elif data_grain == Granularity.WEEK:
-                return Granularity.MONTH
-            elif data_grain == Granularity.MONTH:
-                return Granularity.QUARTER
-            elif data_grain == Granularity.QUARTER:
-                return Granularity.YEAR
-            elif data_grain == Granularity.YEAR:
-                return Granularity.YEAR
-        else:
-            # For other patterns, use the same grain as data
-            return data_grain
-
     async def _fetch_metric_targets(
         self, metric_id: str, grain: Granularity, start_date: date, end_date: date, **kwargs
     ) -> list[dict[str, Any]]:
-        """Fetch metric targets with pattern-aware grain selection."""
-        # Get pattern name from context if available
-        pattern_name = getattr(self, "_current_pattern_name", None)
+        """Fetch metric targets only no."""
 
-        # Determine the appropriate target grain
-        target_grain = self._get_target_grain_for_pattern(pattern_name, grain)
-
-        logger.debug(
-            "Fetching targets for pattern %s: data_grain=%s -> target_grain=%s",
-            pattern_name or "default",
-            grain.value,
-            target_grain.value,
-        )
-
-        targets = await self.semantic_manager.get_targets(
-            metric_id=metric_id, grain=target_grain, start_date=start_date, end_date=end_date
-        )
-
-        # Convert MetricTarget objects to list of dicts format expected by patterns
-        result = []
-        for target in targets:
-            result.append(
-                {
-                    "date": target.target_date,
-                    "target_value": target.target_value,
-                    "metric_id": target.metric_id,
-                    "grain": target.grain.value,
-                    "target_upper_bound": target.target_upper_bound,
-                    "target_lower_bound": target.target_lower_bound,
-                    "yellow_buffer": target.yellow_buffer,
-                    "red_buffer": target.red_buffer,
-                }
+        targets = await self.semantic_manager.get_targets(metric_id=metric_id, start_date=start_date, end_date=end_date)
+        return [
+            dict(
+                date=target.target_date,
+                target_value=target.target_value,
+                metric_id=target.metric_id,
+                grain=target.grain.value,
             )
-        return result
+            for target in targets
+        ]
 
     async def _handle_multi_metric_fetch(
         self,
@@ -382,7 +335,9 @@ class PatternDataOrganiser:
             source_type = data_source.source_type
 
             # Calculate date range using the centralized method
-            start_date, end_date = config.analysis_window.get_date_range(grain=grain, lookahead=data_source.lookahead)
+            start_date, end_date = config.analysis_window.get_date_range(
+                grain=grain, look_forward=data_source.look_forward
+            )
 
             try:
                 has_data = await self._check_data_availability(

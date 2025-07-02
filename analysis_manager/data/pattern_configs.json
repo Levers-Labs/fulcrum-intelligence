@@ -31,7 +31,7 @@
         "source_type": "metric_time_series",
         "is_required": true,
         "data_key": "data",
-        "lookahead": false
+        "look_forward": false
       }
     ],
     "analysis_window": {
@@ -53,7 +53,7 @@
         "source_type": "dimensional_time_series",
         "is_required": true,
         "data_key": "data",
-        "lookahead": false
+        "look_forward": false
       }
     ],
     "analysis_window": {
@@ -79,13 +79,13 @@
         "source_type": "metric_time_series",
         "is_required": true,
         "data_key": "data",
-        "lookahead": false
+        "look_forward": false
       },
       {
-        "source_type": "metric_targets",
+        "source_type": "metric_targets_only",
         "is_required": true,
         "data_key": "target",
-        "lookahead": true
+        "look_forward": true
       }
     ],
     "analysis_window": {

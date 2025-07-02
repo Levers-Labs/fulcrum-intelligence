@@ -23,7 +23,7 @@ class TestForecastVsTargetStats:
         stats = ForecastVsTargetStats()
 
         assert stats.forecasted_value is None
-        assert stats.target_date is None
+        assert stats.period is None
         assert stats.target_value is None
         assert stats.gap_percent is None
         assert stats.status is None
@@ -32,14 +32,14 @@ class TestForecastVsTargetStats:
         """Test creating a populated forecast vs target stats."""
         stats = ForecastVsTargetStats(
             forecasted_value=150.5,
-            target_date="2023-01-31",
+            period=PeriodType.END_OF_MONTH,
             target_value=155.0,
             gap_percent=-3.0,
             status=MetricGVAStatus.OFF_TRACK,
         )
 
         assert stats.forecasted_value == 150.5
-        assert stats.target_date == "2023-01-31"
+        assert stats.period == PeriodType.END_OF_MONTH
         assert stats.target_value == 155.0
         assert stats.gap_percent == -3.0
         assert stats.status == MetricGVAStatus.OFF_TRACK
@@ -182,15 +182,13 @@ class TestForecasting:
         """Test creating a minimal forecasting result."""
         analysis_window = AnalysisWindow(start_date="2023-01-01", end_date="2023-01-31", grain=Granularity.DAY)
 
-        forecasting = Forecasting(
-            metric_id="test_metric", analysis_window=analysis_window, forecast_period_grain=Granularity.DAY
-        )
+        forecasting = Forecasting(metric_id="test_metric", analysis_window=analysis_window)
 
         assert forecasting.pattern == "forecasting"
         assert forecasting.metric_id == "test_metric"
         assert forecasting.analysis_window == analysis_window
-        assert forecasting.forecast_period_grain == Granularity.DAY
-        assert forecasting.forecast_vs_target_stats is None
+        assert forecasting.forecast_vs_target_stats == []
+        assert isinstance(forecasting.forecast_vs_target_stats, list)
 
     def test_full_forecasting(self):
         """Test creating a full forecasting result."""
@@ -199,27 +197,32 @@ class TestForecasting:
         forecasting = Forecasting(
             metric_id="test_metric",
             analysis_window=analysis_window,
-            forecast_period_grain=Granularity.WEEK,
-            forecast_vs_target_stats=ForecastVsTargetStats(
-                forecasted_value=150.0,
-                target_value=155.0,
-                gap_percent=-3.2,
-                status=MetricGVAStatus.OFF_TRACK,
-            ),
-            pacing=PacingProjection(
-                period_elapsed_percent=75.0,
-                cumulative_value=100.0,
-                projected_value=133.33,
-                gap_percent=5.0,
-                status="on_track",
-            ),
-            required_performance=RequiredPerformance(
-                remaining_periods=15,
-                required_pop_growth_percent=10.5,
-                previous_pop_growth_percent=8.0,
-                growth_difference=2.5,
-            ),
-            period_forecast=[
+            forecast_vs_target_stats=[
+                ForecastVsTargetStats(
+                    forecasted_value=150.0,
+                    target_value=155.0,
+                    gap_percent=-3.2,
+                    status=MetricGVAStatus.OFF_TRACK,
+                )
+            ],
+            pacing=[
+                PacingProjection(
+                    period_elapsed_percent=75.0,
+                    cumulative_value=100.0,
+                    projected_value=133.33,
+                    gap_percent=5.0,
+                    status="on_track",
+                )
+            ],
+            required_performance=[
+                RequiredPerformance(
+                    remaining_periods=15,
+                    required_pop_growth_percent=10.5,
+                    previous_pop_growth_percent=8.0,
+                    growth_difference=2.5,
+                )
+            ],
+            forecast=[
                 Forecast(date="2023-02-01", forecasted_value=130.0),
                 Forecast(date="2023-02-02", forecasted_value=131.0),
             ],
@@ -228,41 +231,209 @@ class TestForecasting:
 
         assert forecasting.pattern == "forecasting"
         assert forecasting.metric_id == "test_metric"
-        assert forecasting.forecast_period_grain == Granularity.WEEK
         assert forecasting.forecast_vs_target_stats is not None
+        assert isinstance(forecasting.forecast_vs_target_stats, list)
+        assert len(forecasting.forecast_vs_target_stats) == 1
         assert forecasting.pacing is not None
+        assert isinstance(forecasting.pacing, list)
+        assert len(forecasting.pacing) == 1
         assert forecasting.required_performance is not None
-        assert len(forecasting.period_forecast) == 2
+        assert isinstance(forecasting.required_performance, list)
+        assert len(forecasting.required_performance) == 1
+        assert len(forecasting.forecast) == 2
 
     def test_forecasting_serialization(self):
         """Test forecasting serialization and deserialization."""
         analysis_window = AnalysisWindow(start_date="2023-01-01", end_date="2023-01-31", grain=Granularity.DAY)
 
-        forecasting = Forecasting(
-            metric_id="test_metric", analysis_window=analysis_window, forecast_period_grain=Granularity.MONTH
-        )
+        forecasting = Forecasting(metric_id="test_metric", analysis_window=analysis_window)
 
         # Test serialization
         data = forecasting.model_dump()
         assert data["pattern"] == "forecasting"
         assert data["metric_id"] == "test_metric"
-        assert data["forecast_period_grain"] == "month"
+        assert "forecast_vs_target_stats" in data
 
         # Test deserialization
         reconstructed = Forecasting(**data)
         assert reconstructed.pattern == "forecasting"
         assert reconstructed.metric_id == "test_metric"
-        assert reconstructed.forecast_period_grain == Granularity.MONTH
+        assert isinstance(reconstructed.forecast_vs_target_stats, list)
 
     def test_forecasting_with_string_period_type(self):
         """Test forecasting with string period type."""
         analysis_window = AnalysisWindow(start_date="2023-01-01", end_date="2023-01-31", grain=Granularity.DAY)
 
+        forecasting = Forecasting(metric_id="test_metric", analysis_window=analysis_window)
+
+        assert forecasting.pattern == "forecasting"
+        assert isinstance(forecasting.forecast_vs_target_stats, list)
+
+    def test_forecasting_with_multiple_entries(self):
+        """Test forecasting with multiple entries in list fields."""
+        analysis_window = AnalysisWindow(start_date="2023-01-01", end_date="2023-01-31", grain=Granularity.DAY)
+
+        # Create multiple entries for each list field
+        multiple_stats = [
+            ForecastVsTargetStats(
+                forecasted_value=150.0,
+                target_value=155.0,
+                gap_percent=-3.2,
+                status=MetricGVAStatus.OFF_TRACK,
+            ),
+            ForecastVsTargetStats(
+                forecasted_value=180.0,
+                target_value=175.0,
+                gap_percent=2.9,
+                status=MetricGVAStatus.ON_TRACK,
+            ),
+        ]
+
+        multiple_pacing = [
+            PacingProjection(
+                period_elapsed_percent=50.0,
+                cumulative_value=80.0,
+                projected_value=160.0,
+                gap_percent=3.0,
+                status="on_track",
+            ),
+            PacingProjection(
+                period_elapsed_percent=75.0,
+                cumulative_value=120.0,
+                projected_value=160.0,
+                gap_percent=0.0,
+                status="on_track",
+            ),
+        ]
+
+        multiple_required = [
+            RequiredPerformance(
+                remaining_periods=10,
+                required_pop_growth_percent=8.0,
+                previous_pop_growth_percent=5.0,
+                growth_difference=3.0,
+            ),
+            RequiredPerformance(
+                remaining_periods=5,
+                required_pop_growth_percent=12.0,
+                previous_pop_growth_percent=10.0,
+                growth_difference=2.0,
+            ),
+        ]
+
         forecasting = Forecasting(
-            metric_id="test_metric", analysis_window=analysis_window, forecast_period_grain="week"
+            metric_id="test_metric",
+            analysis_window=analysis_window,
+            forecast_vs_target_stats=multiple_stats,
+            pacing=multiple_pacing,
+            required_performance=multiple_required,
+            forecast=[
+                Forecast(date="2023-02-01", forecasted_value=130.0),
+                Forecast(date="2023-02-02", forecasted_value=131.0),
+                Forecast(date="2023-02-03", forecasted_value=132.0),
+            ],
         )
 
-        assert forecasting.forecast_period_grain == Granularity.WEEK
+        # Verify multiple entries
+        assert len(forecasting.forecast_vs_target_stats) == 2
+        assert len(forecasting.pacing) == 2
+        assert len(forecasting.required_performance) == 2
+        assert len(forecasting.forecast) == 3
+
+        # Verify specific entries
+        assert forecasting.forecast_vs_target_stats[0].forecasted_value == 150.0
+        assert forecasting.forecast_vs_target_stats[1].forecasted_value == 180.0
+        assert forecasting.pacing[0].period_elapsed_percent == 50.0
+        assert forecasting.pacing[1].period_elapsed_percent == 75.0
+        assert forecasting.required_performance[0].remaining_periods == 10
+        assert forecasting.required_performance[1].remaining_periods == 5
+
+    def test_forecasting_with_empty_lists(self):
+        """Test forecasting with empty lists."""
+        analysis_window = AnalysisWindow(start_date="2023-01-01", end_date="2023-01-31", grain=Granularity.DAY)
+
+        forecasting = Forecasting(
+            metric_id="test_metric",
+            analysis_window=analysis_window,
+            forecast_vs_target_stats=[],  # Empty list
+            pacing=[],  # Empty list
+            required_performance=[],  # Empty list
+            forecast=[],  # Empty list
+        )
+
+        assert forecasting.pattern == "forecasting"
+        assert isinstance(forecasting.forecast_vs_target_stats, list)
+        assert len(forecasting.forecast_vs_target_stats) == 0
+        assert isinstance(forecasting.pacing, list)
+        assert len(forecasting.pacing) == 0
+        assert isinstance(forecasting.required_performance, list)
+        assert len(forecasting.required_performance) == 0
+        assert isinstance(forecasting.forecast, list)
+        assert len(forecasting.forecast) == 0
+
+    def test_forecasting_with_none_values_in_lists(self):
+        """Test forecasting with None values in lists."""
+        analysis_window = AnalysisWindow(start_date="2023-01-01", end_date="2023-01-31", grain=Granularity.DAY)
+
+        # This test should check validation error for None values in forecast list
+        try:
+            forecasting = Forecasting(
+                metric_id="test_metric",
+                analysis_window=analysis_window,
+                forecast_vs_target_stats=[None, None],  # List with None values
+                pacing=[None],  # List with None value
+                required_performance=[None, None, None],  # List with None values
+                forecast=[
+                    Forecast(date="2023-02-01", forecasted_value=130.0),
+                    Forecast(date="2023-02-03", forecasted_value=132.0),
+                ],
+            )
+        except Exception:
+            # It's acceptable to raise an exception for invalid data
+            return
+
+        assert len(forecasting.forecast_vs_target_stats) == 2
+        assert len(forecasting.pacing) == 1
+        assert len(forecasting.required_performance) == 3
+        assert len(forecasting.forecast) == 2  # Only 2 valid forecasts, None values filtered out
+
+        # Verify None values are preserved where applicable
+        assert forecasting.forecast_vs_target_stats[0] is None
+        assert forecasting.forecast_vs_target_stats[1] is None
+        assert forecasting.pacing[0] is None
+        assert forecasting.required_performance[0] is None
+        # forecast list has filtered out None values, so only valid entries remain
+        assert forecasting.forecast[0] is not None
+        assert forecasting.forecast[1] is not None
+
+    def test_forecasting_backwards_compatibility(self):
+        """Test that the updated model maintains essential functionality."""
+        analysis_window = AnalysisWindow(start_date="2023-01-01", end_date="2023-01-31", grain=Granularity.DAY)
+
+        # Create forecasting with single entries (common case)
+        forecasting = Forecasting(
+            metric_id="test_metric",
+            analysis_window=analysis_window,
+            forecast_vs_target_stats=[ForecastVsTargetStats(forecasted_value=150.0, target_value=155.0)],
+            pacing=[PacingProjection(period_elapsed_percent=75.0, projected_value=133.33)],
+            required_performance=[RequiredPerformance(remaining_periods=15, required_pop_growth_percent=10.5)],
+            forecast=[Forecast(date="2023-02-01", forecasted_value=130.0)],
+        )
+
+        # Verify essential attributes
+        assert forecasting.pattern == "forecasting"
+        assert forecasting.metric_id == "test_metric"
+        assert forecasting.analysis_window == analysis_window
+
+        # Verify list access patterns
+        assert len(forecasting.forecast_vs_target_stats) == 1
+        assert forecasting.forecast_vs_target_stats[0].forecasted_value == 150.0
+        assert len(forecasting.pacing) == 1
+        assert forecasting.pacing[0].period_elapsed_percent == 75.0
+        assert len(forecasting.required_performance) == 1
+        assert forecasting.required_performance[0].remaining_periods == 15
+        assert len(forecasting.forecast) == 1
+        assert forecasting.forecast[0].forecasted_value == 130.0
 
 
 class TestPeriodTypeEnum:

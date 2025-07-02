@@ -70,7 +70,10 @@ def simple_forecast(
     grain : str | None, default=None
         Time grain description (e.g., 'day', 'week', 'month')
     **kwargs
-        Additional parameters for the forecasting methods
+        Additional parameters for the forecasting methods.
+        analysis_date : date-like, optional
+            Starting date for the forecast. If provided, forecast dates will start from this date.
+            If not provided, forecast dates will start from the last date in the time series.
 
     Returns
     -------
@@ -115,8 +118,14 @@ def simple_forecast(
 
         # Generate future dates if date_col and freq provided
         if date_col and freq and not series.index.empty:
-            last_date = series.index[-1]
-            future_idx = pd.date_range(start=last_date, periods=periods + 1, freq=freq)[1:]
+            # Use analysis_date from kwargs if provided, otherwise use last date from series
+            analysis_date = kwargs.get("analysis_date")
+            if analysis_date is not None:
+                start_date = pd.to_datetime(analysis_date)
+                future_idx = pd.date_range(start=start_date, periods=periods + 1, freq=freq)[1:]
+            else:
+                last_date = series.index[-1]
+                future_idx = pd.date_range(start=last_date, periods=periods + 1, freq=freq)[1:]
             fc_vals = [last_val] * periods
             return pd.DataFrame({"date": future_idx, "forecast": fc_vals})
         else:
@@ -210,8 +219,14 @@ def simple_forecast(
         fc_vals = forecast["yhat"].tail(periods).values
 
     # Generate output DataFrame with dates
-    last_idx = series.index[-1]
-    future_idx = pd.date_range(last_idx, periods=periods + 1, freq=freq)[1:]
+    # Use analysis_date from kwargs if provided, otherwise use last date from series
+    analysis_date = kwargs.get("analysis_date", None)
+    if analysis_date is not None:
+        future_idx = pd.date_range(start=analysis_date, periods=periods, freq=freq)
+    else:
+        last_idx = series.index[-1]
+        future_idx = pd.date_range(last_idx, periods=periods + 1, freq=freq)[1:]
+
     return pd.DataFrame({"date": future_idx, "forecast": fc_vals}).reset_index(drop=True)
 
 
@@ -252,13 +267,17 @@ def forecast_with_confidence_intervals(
     grain : str | None, default=None
         Time grain description
     **kwargs
-        Additional parameters
+        Additional parameters for the forecasting methods.
+        analysis_date : date-like, optional
+            Starting date for the forecast. If provided, forecast dates will start from this date.
+            If not provided, forecast dates will start from the last date in the time series.
 
     Returns
     -------
     pd.DataFrame
         DataFrame with columns ['date', 'forecast', 'lower_bound', 'upper_bound', 'confidence_level']
     """
+
     # Get basic forecast
     forecast_df = simple_forecast(
         df=df, value_col=value_col, periods=periods, method=method, date_col=date_col, freq=freq, grain=grain, **kwargs
@@ -271,7 +290,7 @@ def forecast_with_confidence_intervals(
     # Estimate volatility from historical data
     if len(df) > 1:
         returns = df[value_col].pct_change().dropna()
-        volatility = returns.std()  # TODO: check this value
+        volatility = returns.std()
         if volatility >= 1:
             volatility = volatility / 100
 

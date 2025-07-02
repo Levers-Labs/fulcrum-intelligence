@@ -47,6 +47,7 @@ from .time_series import (
     calculate_slope_of_time_series,
     convert_grain_to_freq,
     validate_date_sorted,
+    calculate_cumulative_aggregate,
 )
 
 # Trend Analysis primitives
@@ -251,6 +252,7 @@ __all__ = [
     "convert_grain_to_freq",
     "calculate_slope_of_time_series",
     "validate_date_sorted",
+    "calculate_cumulative_aggregate",
     # Trend Analysis primitives
     "analyze_metric_trend",
     "detect_performance_plateau",
