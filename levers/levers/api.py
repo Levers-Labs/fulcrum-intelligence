@@ -14,7 +14,12 @@ from levers.models import (
     Granularity,
     PatternConfig,
 )
-from levers.models.patterns import DimensionAnalysis, HistoricalPerformance, MetricPerformance
+from levers.models.patterns import (
+    DimensionAnalysis,
+    Forecasting,
+    HistoricalPerformance,
+    MetricPerformance,
+)
 from levers.patterns import Pattern
 from levers.primitives import get_primitive_metadata, list_primitives_by_family
 from levers.registry import PatternRegistry, autodiscover_patterns
@@ -30,6 +35,7 @@ class Levers(Generic[T]):
         "performance_status": MetricPerformance,
         "historical_performance": HistoricalPerformance,
         "dimension_analysis": DimensionAnalysis,
+        "forecasting": Forecasting,
         # Add other patterns here as they are implemented
     }
 

@@ -614,3 +614,45 @@ def calculate_benchmark_comparisons(
             benchmark_comparison.add_benchmark(config["comparison_type"], benchmark)
 
     return benchmark_comparison
+
+
+def calculate_cumulative_aggregate(
+    df: pd.DataFrame,
+    value_col: str = "value",
+    aggregation_method: str = "sum",
+) -> float:
+    """
+    Calculate cumulative aggregate value for the time series.
+
+    Family: time_series
+    Version: 1.0
+
+    Args:
+        df: DataFrame containing time series data
+        value_col: Column name containing values to aggregate
+        aggregation_method: Method to aggregate values ('sum', 'mean', 'min', 'max', 'median')
+
+    Returns:
+        Cumulative aggregate value for the time series
+    """
+
+    valid_methods = ["sum", "mean", "min", "max", "median"]
+    if aggregation_method not in valid_methods:
+        raise ValidationError(f"Invalid aggregation method '{aggregation_method}'. Must be one of {valid_methods}")
+
+    if df.empty:
+        return 0.0
+
+    # Calculate cumulative aggregate based on method
+    if aggregation_method == "sum":
+        result = df[value_col].cumsum().iloc[-1]
+    elif aggregation_method == "mean":
+        result = df[value_col].mean()
+    elif aggregation_method == "min":
+        result = df[value_col].cummin().iloc[-1]
+    elif aggregation_method == "max":
+        result = df[value_col].cummax().iloc[-1]
+    elif aggregation_method == "median":
+        result = df[value_col].median()
+
+    return float(result)
