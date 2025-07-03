@@ -100,13 +100,31 @@ class MetricGeneratorService:
         self.settings = get_settings()
 
     def from_yaml_file(self, yaml_file_path: str, csv_file_path: str | Path | None = None) -> list[Metric]:
-        """Generate metrics from a YAML file."""
+        """
+        Generate metrics from a YAML file.
+
+        Args:
+            yaml_file_path: Path to the YAML file containing cube definitions
+            csv_file_path: Optional path to a CSV file for filtering and enhancing metrics
+
+        Returns:
+            List of generated Metric objects
+        """
         with open(yaml_file_path) as file:
             yaml_content = file.read()
         return self.from_yaml_content(yaml_content, csv_file_path)
 
     def from_yaml_content(self, yaml_content: str, csv_file_path: str | Path | None = None) -> list[Metric]:
-        """Generate metrics from YAML content."""
+        """
+        Generate metrics from YAML content.
+
+        Args:
+            yaml_content: YAML content as a string
+            csv_file_path: Optional path to a CSV file for filtering and enhancing metrics
+
+        Returns:
+            List of generated Metric objects
+        """
         yaml_data = yaml.safe_load(yaml_content)
         cubes = [CubeDefinition(**cube) for cube in yaml_data.get("cubes", [])]
 
@@ -124,7 +142,13 @@ class MetricGeneratorService:
         return metrics
 
     def save_metrics_to_json(self, metrics: list[Metric], output_path: str | Path) -> None:
-        """Save metrics to JSON file using existing JSON utilities."""
+        """
+        Save metrics to JSON file using existing JSON utilities.
+
+        Args:
+            metrics: List of Metric objects to save
+            output_path: Path to the output JSON file
+        """
         metrics_data = [self._prepare_metric_data(metric, include_metric_id=True) for metric in metrics]
 
         # Use existing JSON utilities for consistent serialization
@@ -136,7 +160,16 @@ class MetricGeneratorService:
         logger.info(f"Saved {len(metrics)} metrics to: {output_path}")
 
     async def save_metrics_to_db(self, metrics: list[Metric], tenant_id: int) -> int:
-        """Save metrics to database using established patterns."""
+        """
+        Save metrics to database using established patterns.
+
+        Args:
+            metrics: List of Metric objects to save
+            tenant_id: ID of the tenant to save metrics for
+
+        Returns:
+            Number of metrics saved
+        """
         # Set tenant context following metadata_upsert.py pattern
         logger.info(f"Setting tenant context, Tenant ID: {tenant_id}")
         set_tenant_id(tenant_id)
@@ -246,7 +279,15 @@ class MetricGeneratorService:
         return data
 
     def _parse_csv_file(self, csv_file_path: str | Path) -> dict[str, list[CSVMetricData]]:
-        """Parse CSV file and create lookup map."""
+        """
+        Parse CSV file and create lookup map.
+
+        Args:
+            csv_file_path: Path to the CSV file to parse
+
+        Returns:
+            Dictionary mapping measure names to lists of CSVMetricData objects
+        """
         try:
             # Read CSV with multi-row header - skip first row and use second row as header
             df = pd.read_csv(csv_file_path, header=1)
@@ -286,7 +327,16 @@ class MetricGeneratorService:
     def _generate_metrics_for_cube(
         self, cube: CubeDefinition, csv_metrics_map: dict[str, list[CSVMetricData]] | None = None
     ) -> list[Metric]:
-        """Generate metrics for a cube definition."""
+        """
+        Generate metrics for a cube definition.
+
+        Args:
+            cube: CubeDefinition object containing cube measures and dimensions
+            csv_metrics_map: Optional dictionary mapping measure names to CSVMetricData objects
+
+        Returns:
+            List of generated Metric objects
+        """
         csv_metrics_map = csv_metrics_map or {}
         metrics = []
 
@@ -362,7 +412,19 @@ class MetricGeneratorService:
         csv_data: CSVMetricData | None = None,
         metric_id: str | None = None,
     ) -> Metric:
-        """Create a metric from cube measure and optional CSV data."""
+        """
+        Create a metric from cube measure and optional CSV data.
+
+        Args:
+            cube_name: Name of the cube
+            measure: CubeMeasure object containing measure details
+            time_dimension: SemanticMetaTimeDimension object containing time dimension details
+            csv_data: Optional CSVMetricData object containing CSV data
+            metric_id: Optional metric ID to use
+
+        Returns:
+            Generated Metric object
+        """
         # Create semantic metadata
         semantic_meta = self._create_semantic_meta(cube_name, measure, time_dimension, csv_data)
 
@@ -407,7 +469,14 @@ class MetricGeneratorService:
         time_dimension: SemanticMetaTimeDimension,
         csv_data: CSVMetricData | None = None,
     ) -> SemanticMetaMetric:
-        """Create semantic metadata for a metric."""
+        """Create semantic metadata for a metric.
+
+        Args:
+            cube_name: Name of the cube
+            measure: CubeMeasure object containing measure details
+            time_dimension: SemanticMetaTimeDimension object containing time dimension details
+            csv_data: Optional CSVMetricData object containing CSV data
+        """
         # Use CSV anchor date if available
         if csv_data and csv_data.anchor_date:
             time_dimension = SemanticMetaTimeDimension(cube=cube_name, member=csv_data.anchor_date)
@@ -424,7 +493,15 @@ class MetricGeneratorService:
         )
 
     def _parse_filters(self, filters_str: str, cube_name: str) -> list[CubeFilter]:
-        """Parse filter string into CubeFilter objects."""
+        """Parse filter string into CubeFilter objects.
+
+        Args:
+            filters_str: String containing filter conditions
+            cube_name: Name of the cube
+
+        Returns:
+            List of parsed CubeFilter objects
+        """
 
         cube_filters = []
         filter_parts = [f.strip() for f in filters_str.split(" AND ")]
@@ -460,7 +537,15 @@ class MetricGeneratorService:
         return cube_filters
 
     def _parse_measure_filters(self, filters: list[dict[str, Any]], cube_name: str) -> list[CubeFilter]:
-        """Parse measure filters into CubeFilter objects."""
+        """Parse measure filters into CubeFilter objects.
+
+        Args:
+            filters: List of filter dictionaries
+            cube_name: Name of the cube
+
+        Returns:
+            List of parsed CubeFilter objects
+        """
 
         cube_filters = []
         for filter_dict in filters:
@@ -489,7 +574,14 @@ class MetricGeneratorService:
         return cube_filters
 
     def _find_primary_time_dimension(self, cube: CubeDefinition) -> SemanticMetaTimeDimension:
-        """Find primary time dimension for a cube."""
+        """Find primary time dimension for a cube.
+
+        Args:
+            cube: CubeDefinition object containing cube measures and dimensions
+
+        Returns:
+            SemanticMetaTimeDimension object containing time dimension details
+        """
         time_candidates = [
             "created_at",
             "inquiry_at",
@@ -509,7 +601,16 @@ class MetricGeneratorService:
     def _generate_variant_metric_id(
         self, base_measure: str, csv_data: CSVMetricData, base_csv_data: CSVMetricData
     ) -> str:
-        """Generate unique metric ID for variant metrics."""
+        """Generate unique metric ID for variant metrics.
+
+        Args:
+            base_measure: Base measure name
+            csv_data: CSVMetricData object containing CSV data
+            base_csv_data: Base CSVMetricData object containing base CSV data
+
+        Returns:
+            Generated metric ID
+        """
         keywords = []
 
         # Extract keywords from filters
@@ -573,7 +674,14 @@ class MetricGeneratorService:
         return f"{base_measure}_{suffix}"
 
     def _extract_filter_keywords(self, filters_str: str) -> list[str]:
-        """Extract keywords from filter strings."""
+        """Extract keywords from filter strings.
+
+        Args:
+            filters_str: String containing filter conditions
+
+        Returns:
+            List of extracted keywords
+        """
         keywords = []
         filters_lower = filters_str.lower().strip()
 
@@ -607,7 +715,14 @@ class MetricGeneratorService:
     # Utility methods - these can remain static since they're pure functions
     @staticmethod
     def _get_unit_of_measure(measure: CubeMeasure) -> str:
-        """Get unit of measure from measure."""
+        """Get unit of measure from measure.
+
+        Args:
+            measure: CubeMeasure object containing measure details
+
+        Returns:
+            String representing the unit of measure
+        """
         format_type = measure.format
         title = (measure.title or measure.short_title or "").lower()
 
@@ -622,7 +737,14 @@ class MetricGeneratorService:
 
     @staticmethod
     def _get_unit(measure: CubeMeasure) -> str:
-        """Get unit from measure."""
+        """Get unit from measure.
+
+        Args:
+            measure: CubeMeasure object containing measure details
+
+        Returns:
+            String representing the unit
+        """
         format_type = measure.format
         title = (measure.title or measure.short_title or "").lower()
 
@@ -637,7 +759,14 @@ class MetricGeneratorService:
 
     @staticmethod
     def _get_complexity(measure: CubeMeasure) -> Complexity:
-        """Get complexity from measure."""
+        """Get complexity from measure.
+
+        Args:
+            measure: CubeMeasure object containing measure details
+
+        Returns:
+            Complexity enum value
+        """
         sql = measure.sql or ""
         # If SQL contains references to other measures, it's complex
         if "{" in sql and "}" in sql and measure.type == "number":
@@ -646,7 +775,14 @@ class MetricGeneratorService:
 
     @staticmethod
     def _get_aim(measure: CubeMeasure) -> MetricAim:
-        """Get aim from measure."""
+        """Get aim from measure.
+
+        Args:
+            measure: CubeMeasure object containing measure details
+
+        Returns:
+            MetricAim enum value
+        """
         title = (measure.title or measure.short_title or "").lower()
         minimize_keywords = ["time", "days", "cost", "churn", "loss", "error", "disqualified"]
 
@@ -656,7 +792,14 @@ class MetricGeneratorService:
 
     @staticmethod
     def _get_aggregation_type(cube_type: str) -> str:
-        """Get aggregation type from cube type."""
+        """Get aggregation type from cube type.
+
+        Args:
+            cube_type: String representing the cube type
+
+        Returns:
+            String representing the aggregation type
+        """
         aggregation_map = {
             "count": "sum",
             "count_distinct": "sum",
