@@ -1,4 +1,4 @@
-from pydantic import ConfigDict, Field, field_validator
+from pydantic import ConfigDict, Field, model_validator
 
 from commons.models import BaseModel
 from commons.models.slack import SlackChannel
@@ -41,17 +41,16 @@ class SnowflakeConfigCreate(SnowflakeConfigBase):
     private_key: str | None = Field(None, description="Private key for key-based authentication")
     private_key_passphrase: str | None = Field(None, description="Passphrase for private key")
 
-    @field_validator("password", "private_key", "private_key_passphrase")
-    @classmethod
-    def validate_credentials_based_on_auth_method(cls, v, info):
+    @model_validator(mode="after")
+    def validate_credentials_based_on_auth_method(self):
         """Validate that required credentials are provided based on auth method"""
-        if info.data.get("auth_method") == SnowflakeAuthMethod.PASSWORD:
-            if info.field_name == "password" and not v:
-                raise ValueError("Password is required when auth_method is 'password'")
-        elif info.data.get("auth_method") == SnowflakeAuthMethod.PRIVATE_KEY:
-            if info.field_name == "private_key" and not v:
-                raise ValueError("Private key is required when auth_method is 'private_key'")
-        return v
+        if self.auth_method == SnowflakeAuthMethod.PASSWORD:
+            if not self.password:
+                raise ValueError("Password is required when auth_method is 'PASSWORD'")
+        elif self.auth_method == SnowflakeAuthMethod.PRIVATE_KEY:
+            if not self.private_key:
+                raise ValueError("Private key is required when auth_method is 'PRIVATE_KEY'")
+        return self
 
     model_config = ConfigDict(
         json_schema_extra={

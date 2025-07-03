@@ -1,9 +1,11 @@
 from sqlalchemy import Select, select, update
 from sqlalchemy.dialects.postgresql import insert
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import selectinload
 
 from commons.clients.snowflake import SnowflakeClient, SnowflakeConfigModel
 from commons.db.crud import CRUDBase, NotFoundError
+from commons.exceptions import ConflictError
 from commons.models.tenant import SlackConnectionConfig, TenantConfigUpdate
 from commons.utilities.context import get_tenant_id
 from insights_backend.core.filters import TenantConfigFilter
@@ -210,7 +212,13 @@ class TenantCRUD(CRUDBase[Tenant, Tenant, Tenant, TenantConfigFilter]):  # type:
 
         # Persist the new configuration to database
         self.session.add(snowflake_config)
-        await self.session.commit()
+        try:
+            await self.session.commit()
+        except IntegrityError as e:
+            # Check if this is a unique constraint violation for tenant_id
+            if "uq_snowflake_config_tenant_id" in str(e) or "tenant_id" in str(e.orig):
+                raise ConflictError("Snowflake configuration already exists for this tenant") from e
+            raise
         await self.session.refresh(snowflake_config)
         return snowflake_config
 
