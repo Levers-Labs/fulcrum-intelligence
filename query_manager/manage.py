@@ -15,6 +15,7 @@ from alembic.util import CommandError
 from commons.utilities.migration_utils import add_rls_policies
 from query_manager.config import get_settings
 from query_manager.db.config import MODEL_PATHS
+from query_manager.services.metric_generator import MetricGeneratorService
 
 cli = typer.Typer()
 db_cli = typer.Typer()
@@ -213,6 +214,116 @@ def metadata_upsert(tenant_id: int):
         typer.secho(f"Metadata upsert for tenant {tenant_id} completed successfully!", fg=typer.colors.GREEN)
     except Exception as e:
         typer.secho(f"Error during metadata upsert for tenant {tenant_id}: {str(e)}", fg=typer.colors.RED)
+        raise typer.Exit(code=1) from e
+
+
+@cli.command("generate-metrics")
+def generate_metrics(
+    file: Annotated[
+        Path | None, typer.Option("--file", "-f", help="Path to YAML file containing cube definitions")
+    ] = None,
+    content: Annotated[str | None, typer.Option("--content", "-c", help="Direct YAML content as string")] = None,
+    csv_file: Annotated[
+        Path | None,
+        typer.Option("--csv-file", help="Path to GTM metrics CSV file for filtering and " "enhancing metrics"),
+    ] = None,
+    output: Annotated[Path | None, typer.Option("--output", "-o", help="Output JSON file path (optional)")] = None,
+    tenant_id: Annotated[
+        int | None, typer.Option("--tenant-id", "-t", help="Tenant ID is required when using " "--save-to-db")
+    ] = None,
+    save_to_db: Annotated[bool, typer.Option("--save-to-db", help="Save generated metrics to database")] = False,
+):
+    """
+    Generate metrics from YAML cube definitions with optional CSV filtering and enhancement.
+
+    This command uses the MetricGeneratorService to generate metrics from YAML cube definitions.
+    It supports:
+      - CSV file filtering and enhancement
+      - Saving to JSON file
+      - Saving to database with tenant context
+      - Processing from file or direct content
+
+    Arguments:
+        file: Path to YAML file containing cube definitions
+        content: Direct YAML content as string
+        csv_file: Path to GTM metrics CSV file for filtering and enhancing metrics
+        output: Output JSON file path (optional)
+        tenant_id: Tenant ID is required when using --save-to-db
+        save_to_db: Save generated metrics to database
+    """
+
+    # Validate input arguments
+    if not file and not content:
+        typer.secho("Error: Either --file or --content must be provided", fg=typer.colors.RED)
+        raise typer.Exit(code=1)
+
+    if file and content:
+        typer.secho("Error: Cannot specify both --file and --content", fg=typer.colors.RED)
+        raise typer.Exit(code=1)
+
+    if save_to_db and not tenant_id:
+        typer.secho("Error: --tenant-id is required when using --save-to-db", fg=typer.colors.RED)
+        raise typer.Exit(code=1)
+
+    try:
+        metric_generator_service = MetricGeneratorService()
+
+        # Generate metrics
+        if file:
+            typer.secho(f"📂 Processing YAML file: {file}", fg=typer.colors.BLUE)
+            if csv_file:
+                typer.secho(f"📊 Using CSV file for filtering: {csv_file}", fg=typer.colors.BLUE)
+            metrics = metric_generator_service.from_yaml_file(str(file), csv_file)
+        else:
+            typer.secho("📄 Processing YAML content", fg=typer.colors.BLUE)
+            if csv_file:
+                typer.secho(f"📊 Using CSV file for filtering: {csv_file}", fg=typer.colors.BLUE)
+            metrics = metric_generator_service.from_yaml_content(content, csv_file)  # type: ignore
+
+        if not metrics:
+            typer.secho("No metrics generated from the provided YAML", fg=typer.colors.YELLOW)
+            return
+
+        # Display generated metrics count
+        typer.secho(f"\n✅ Generated {len(metrics)} metrics", fg=typer.colors.GREEN)
+
+        # Save to JSON if requested
+        if output:
+            try:
+                metric_generator_service.save_metrics_to_json(metrics, output)
+                typer.secho(f"📁 Saved {len(metrics)} metrics to: {output}", fg=typer.colors.GREEN)
+            except Exception as e:
+                typer.secho(f"❌ JSON save failed: {str(e)}", fg=typer.colors.RED)
+                raise typer.Exit(code=1) from e
+
+        # Save to database if requested
+        if save_to_db:
+            import asyncio
+
+            async def save_to_database():
+                try:
+                    typer.secho(
+                        f"💾 Saving {len(metrics)} metrics to database for tenant {tenant_id}...", fg=typer.colors.BLUE
+                    )
+                    saved_count = await metric_generator_service.save_metrics_to_db(metrics, tenant_id)
+                    typer.secho(
+                        f"✅ Successfully saved {saved_count}/{len(metrics)} metrics to database", fg=typer.colors.GREEN
+                    )
+                except Exception as e:
+                    typer.secho(f"❌ Database save failed: {str(e)}", fg=typer.colors.RED)
+                    raise typer.Exit(code=1) from e
+
+            asyncio.run(save_to_database())
+
+        # Success message
+        if not output and not save_to_db:
+            typer.secho(
+                "💡 Use --output to save to JSON or --save-to-db with --tenant-id to save to database",
+                fg=typer.colors.CYAN,
+            )
+
+    except Exception as e:
+        typer.secho(f"❌ Error generating metrics: {str(e)}", fg=typer.colors.RED)
         raise typer.Exit(code=1) from e
 
 
