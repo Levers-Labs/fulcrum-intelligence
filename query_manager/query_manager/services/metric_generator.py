@@ -14,7 +14,7 @@ from commons.utilities.context import reset_context, set_tenant_id
 from commons.utilities.json_utils import serialize_json
 from commons.utilities.tenant_utils import validate_tenant
 from query_manager.config import get_settings
-from query_manager.core.enums import Complexity, MetricAim
+from query_manager.core.enums import Complexity, CubeFilterOperator, MetricAim
 from query_manager.core.models import (
     CubeFilter,
     Metric,
@@ -521,7 +521,9 @@ class MetricGeneratorService:
                     value = value.upper() == "TRUE"
 
                 cube_filters.append(
-                    CubeFilter(dimension=f"{cube_name}.{dimension_name}", operator="equals", values=[value])
+                    CubeFilter(
+                        dimension=f"{cube_name}.{dimension_name}", operator=CubeFilterOperator.EQUALS, values=[value]
+                    )
                 )
                 continue
 
@@ -529,7 +531,9 @@ class MetricGeneratorService:
             not_null_match = re.match(r"\{(\w+)\}\s+IS\s+NOT\s+NULL", filter_part)
             if not_null_match:
                 dimension_name = not_null_match.group(1)
-                cube_filters.append(CubeFilter(dimension=f"{cube_name}.{dimension_name}", operator="set", values=[]))
+                cube_filters.append(
+                    CubeFilter(dimension=f"{cube_name}.{dimension_name}", operator=CubeFilterOperator.SET, values=[])
+                )
                 continue
 
             logger.warning(f"Could not parse filter: {filter_part}")
@@ -559,7 +563,9 @@ class MetricGeneratorService:
                 dimension_name, value = bool_match.groups()
                 cube_filters.append(
                     CubeFilter(
-                        dimension=f"{cube_name}.{dimension_name}", operator="equals", values=[value.lower() == "true"]
+                        dimension=f"{cube_name}.{dimension_name}",
+                        operator=CubeFilterOperator.EQUALS,
+                        values=[value.lower() == "true"],
                     )
                 )
                 continue
@@ -568,7 +574,9 @@ class MetricGeneratorService:
             not_null_match = re.match(r"\{(\w+)\}\s+IS\s+NOT\s+NULL", sql_filter)
             if not_null_match:
                 dimension_name = not_null_match.group(1)
-                cube_filters.append(CubeFilter(dimension=f"{cube_name}.{dimension_name}", operator="set", values=[]))
+                cube_filters.append(
+                    CubeFilter(dimension=f"{cube_name}.{dimension_name}", operator=CubeFilterOperator.SET, values=[])
+                )
                 continue
 
         return cube_filters
