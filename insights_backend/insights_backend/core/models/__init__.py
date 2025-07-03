@@ -1,5 +1,7 @@
 from .base import InsightsSchemaBaseModel
 from .tenant import (
+    SnowflakeAuthMethod,
+    SnowflakeConfig,
     Tenant,
     TenantConfig,
     TenantList,
@@ -14,6 +16,8 @@ from .users import (
 
 __all__ = [
     "InsightsSchemaBaseModel",
+    "SnowflakeAuthMethod",
+    "SnowflakeConfig",
     "User",
     "UserCreate",
     "UserUpdate",

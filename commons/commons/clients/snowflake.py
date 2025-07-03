@@ -5,6 +5,8 @@ import snowflake.snowpark as snowpark
 from cryptography.hazmat.primitives import serialization
 from pydantic import BaseModel
 
+from commons.models.enums import SnowflakeAuthMethod
+
 logger = logging.getLogger(__name__)
 
 
@@ -17,7 +19,7 @@ class SnowflakeConfigModel(BaseModel):
     private_key: str | None = None
     private_key_passphrase: str | None = None
     database: str
-    schema: str  # type: ignore
+    db_schema: str  # type: ignore
     warehouse: str | None = None
     role: str | None = None
     auth_method: str  # "password" or "private_key"
@@ -50,7 +52,7 @@ class SnowflakeClient:
             "account": self.config.account_identifier,
             "user": self.config.username,
             "database": self.config.database,
-            "schema": self.config.schema,
+            "schema": self.config.db_schema,
         }
 
         # Add optional parameters if they exist
@@ -60,11 +62,11 @@ class SnowflakeClient:
             conn_params["role"] = self.config.role
 
         # Add authentication parameters based on auth method
-        if self.config.auth_method.lower() == "password":
+        if self.config.auth_method == SnowflakeAuthMethod.PASSWORD:
             if not self.config.password:
                 raise ValueError("Password is required for password authentication")
             conn_params["password"] = self.config.password
-        elif self.config.auth_method.lower() == "private_key":
+        elif self.config.auth_method == SnowflakeAuthMethod.PRIVATE_KEY:
             if not self.config.private_key:
                 raise ValueError("Private key is required for private key authentication")
             # Load the private key object for Snowpark
@@ -105,7 +107,7 @@ class SnowflakeClient:
                 self.config.account_identifier,
                 self.config.username,
                 self.config.database,
-                self.config.schema,
+                self.config.db_schema,
                 self.config.auth_method,
             ]
 
@@ -129,7 +131,7 @@ class SnowflakeClient:
                 "connection_details": {
                     "warehouse": self.config.warehouse,
                     "database": self.config.database,
-                    "schema": self.config.schema,
+                    "schema": self.config.db_schema,
                     "role": self.config.role,
                     "account": self.config.account_identifier,
                 },

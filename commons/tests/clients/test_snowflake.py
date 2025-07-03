@@ -25,7 +25,7 @@ def snowflake_config():
         username="test_user",
         password="test_password",
         database="test_db",
-        schema="test_schema",
+        db_schema="test_schema",
         warehouse="test_warehouse",
         role="test_role",
         auth_method="password",
@@ -52,7 +52,7 @@ class TestSnowflakeClient:
         assert params["user"] == "test_user"
         assert params["password"] == "test_password"
         assert params["database"] == "test_db"
-        assert params["schema"] == "test_schema"
+        assert params["db_schema"] == "test_schema"
         assert params["warehouse"] == "test_warehouse"
         assert params["role"] == "test_role"
 
@@ -70,7 +70,7 @@ class TestSnowflakeClient:
             private_key="TEST_PRIVATE_KEY",
             private_key_passphrase="passphrase",
             database="test_db",
-            schema="test_schema",
+            db_schema="test_schema",
             auth_method="private_key",
         )
         client = SnowflakeClient(config=config)
@@ -83,7 +83,7 @@ class TestSnowflakeClient:
         assert "password" not in params
         assert params["private_key"] == mock_private_key  # Should be the mock private key object
         assert params["database"] == "test_db"
-        assert params["schema"] == "test_schema"
+        assert params["db_schema"] == "test_schema"
 
         # Verify mock_load_pem_key was called correctly
         mock_load_pem_key.assert_called_once_with(b"TEST_PRIVATE_KEY", password=b"passphrase")
@@ -120,7 +120,7 @@ class TestSnowflakeClient:
             private_key="TEST_PRIVATE_KEY_PEM",
             private_key_passphrase="secret",
             database="test_db",
-            schema="test_schema",
+            db_schema="test_schema",
             auth_method="private_key",
         )
 
@@ -161,7 +161,7 @@ class TestSnowflakeClient:
             username="test_user",
             password="test_password",
             database="test_db",
-            schema="test_schema",
+            db_schema="test_schema",
             auth_method="password",
         )
         client = SnowflakeClient(config=config)
@@ -180,7 +180,7 @@ class TestSnowflakeClient:
             username="test_user",
             password="test_password",
             database="test_db",
-            schema="test_schema",
+            db_schema="test_schema",
             auth_method="password",
         )
         client = SnowflakeClient(config=config)
@@ -199,7 +199,7 @@ class TestSnowflakeClient:
             username="test_user",
             password="test_password",
             database="test_db",
-            schema="test_schema",
+            db_schema="test_schema",
             auth_method="password",
         )
         client = SnowflakeClient(config=config)
@@ -220,7 +220,7 @@ class TestSnowflakeClient:
             username="test_user",
             password="test_password",
             database="test_db",
-            schema="test_schema",
+            db_schema="test_schema",
             auth_method="password",
         )
 
@@ -242,7 +242,7 @@ class TestSnowflakeClient:
             username="test_user",
             password="test_password",
             database="test_db",
-            schema="test_schema",
+            db_schema="test_schema",
             warehouse="test_warehouse",
             role="test_role",
             auth_method="password",
@@ -265,7 +265,7 @@ class TestSnowflakeClient:
             username="test_user",
             password=None,  # No password provided
             database="test_db",
-            schema="test_schema",
+            db_schema="test_schema",
             auth_method="password",  # But auth method is password
         )
 
@@ -281,7 +281,7 @@ class TestSnowflakeClient:
             username="test_user",
             private_key=None,  # No private key provided
             database="test_db",
-            schema="test_schema",
+            db_schema="test_schema",
             auth_method="private_key",  # But auth method is private_key
         )
 
@@ -296,7 +296,7 @@ class TestSnowflakeClient:
             account_identifier="my_account",
             username="test_user",
             database="test_db",
-            schema="test_schema",
+            db_schema="test_schema",
             auth_method="invalid_method",  # Invalid auth method
         )
 
@@ -313,7 +313,7 @@ class TestSnowflakeClient:
             account_identifier="",  # Empty account identifier
             username="test_user",
             database="test_db",
-            schema="test_schema",
+            db_schema="test_schema",
             auth_method="password",
         )
 
@@ -336,7 +336,7 @@ class TestSnowflakeClient:
             username="test_user",
             password="test_password",
             database="test_db",
-            schema="test_schema",
+            db_schema="test_schema",
             auth_method="password",
         )
 
@@ -357,7 +357,7 @@ class TestSnowflakeClient:
             username="test_user",
             password="test_password",
             database="test_db",
-            schema="test_schema",
+            db_schema="test_schema",
             auth_method="password",
         )
 
@@ -388,7 +388,7 @@ class TestSnowflakeClient:
             username="test_user",
             password="test_password",
             database="test_db",
-            schema="test_schema",
+            db_schema="test_schema",
             auth_method="password",
         )
 
@@ -417,7 +417,7 @@ class TestSnowflakeClient:
             username="test_user",
             password="test_password",
             database="test_db",
-            schema="test_schema",
+            db_schema="test_schema",
             auth_method="password",
         )
 
@@ -443,7 +443,7 @@ class TestSnowflakeClient:
             username="test_user",
             password="test_password",
             database="test_db",
-            schema="test_schema",
+            db_schema="test_schema",
             auth_method="password",
         )
 
