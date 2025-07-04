@@ -84,3 +84,4 @@ class TenantConfigRead(BaseModel):
     cube_connection_config: CubeConnectionRead
     slack_connection: SlackConnectionRead | None = None
     enable_story_generation: bool
+    enable_metric_cache: bool

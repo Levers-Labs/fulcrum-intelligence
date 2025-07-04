@@ -8,8 +8,18 @@ from commons.clients.insight_backend import InsightBackendClient
 from commons.llm.provider import LLMProvider
 from commons.llm.settings import LLMSettings, get_llm_settings
 from query_manager.config import get_settings
-from query_manager.core.crud import CRUDDimensions, CRUDMetric
-from query_manager.core.models import Dimension, Metric
+from query_manager.core.crud import (
+    CRUDDimensions,
+    CRUDMetric,
+    CRUDMetricCacheConfig,
+    CRUDMetricCacheGrainConfig,
+)
+from query_manager.core.models import (
+    Dimension,
+    Metric,
+    MetricCacheConfig,
+    MetricCacheGrainConfig,
+)
 from query_manager.db.config import AsyncSessionDep
 from query_manager.llm.services.expression_parser import ExpressionParserService
 from query_manager.services.cube import CubeClient, CubeJWTAuthType
@@ -71,8 +81,24 @@ async def get_metric_crud(session: AsyncSessionDep) -> CRUDMetric:
     return CRUDMetric(model=Metric, session=session)
 
 
+async def get_metric_cache_grain_config_crud(session: AsyncSessionDep) -> CRUDMetricCacheGrainConfig:
+    """
+    CRUD for MetricCacheGrainConfig Model.
+    """
+    return CRUDMetricCacheGrainConfig(model=MetricCacheGrainConfig, session=session)
+
+
+async def get_metric_cache_config_crud(session: AsyncSessionDep) -> CRUDMetricCacheConfig:
+    """
+    CRUD for MetricCacheConfig Model.
+    """
+    return CRUDMetricCacheConfig(model=MetricCacheConfig, session=session)
+
+
 CRUDDimensionDep = Annotated[CRUDDimensions, Depends(get_dimensions_crud)]
 CRUDMetricDep = Annotated[CRUDMetric, Depends(get_metric_crud)]
+CRUDMetricCacheGrainConfigDep = Annotated[CRUDMetricCacheGrainConfig, Depends(get_metric_cache_grain_config_crud)]
+CRUDMetricCacheConfigDep = Annotated[CRUDMetricCacheConfig, Depends(get_metric_cache_config_crud)]
 
 
 async def get_query_client(

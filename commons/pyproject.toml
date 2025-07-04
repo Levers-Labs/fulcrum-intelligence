@@ -42,6 +42,8 @@ slack-sdk = "^3.33.3"
 pyyaml = "^6.0.2"
 setuptools = "65.5.0"
 pydantic-extra-types = "^2.10.3"
+sqlalchemy-utils = "^0.41.1"
+snowflake-snowpark-python = "^1.33.0"
 
 [tool.poetry.extras]
 db = ["sqlmodel", "sqlalchemy", "psycopg2-binary", "alembic", "asyncpg", "greenlet", "blinker"]

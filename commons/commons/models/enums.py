@@ -33,3 +33,10 @@ class ExecutionStatus(StrEnum):
     PARTIAL = "PARTIAL"
     FAILED = "FAILED"
     CRASHED = "CRASHED"
+
+
+class SnowflakeAuthMethod(StrEnum):
+    """Method of authentication for Snowflake."""
+
+    PASSWORD = "PASSWORD"  # noqa
+    PRIVATE_KEY = "PRIVATE_KEY"  # noqa
