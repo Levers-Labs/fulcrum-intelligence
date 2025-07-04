@@ -21,13 +21,18 @@ from commons.models.enums import Granularity
 from commons.models.tenant import CubeConnectionConfig
 from commons.utilities.pagination import Page, PaginationParams
 from query_manager.core.dependencies import (
+    CRUDMetricCacheConfigDep,
+    CRUDMetricCacheGrainConfigDep,
     ExpressionParserServiceDep,
     ParquetServiceDep,
     QueryClientDep,
     oauth2_auth,
 )
 from query_manager.core.enums import OutputFormat
+from query_manager.core.filters import MetricCacheConfigFilter
 from query_manager.core.schemas import (
+    BulkGrainConfigUpdate,
+    BulkMetricCacheUpdate,
     Cube,
     DeleteResponse,
     Dimension,
@@ -37,6 +42,10 @@ from query_manager.core.schemas import (
     DimensionUpdate,
     ExpressionParseRequest,
     Metric,
+    MetricCacheConfigRead,
+    MetricCacheConfigUpdate,
+    MetricCacheGrainConfigRead,
+    MetricCacheGrainConfigUpdate,
     MetricCreate,
     MetricDetail,
     MetricList,
@@ -517,3 +526,211 @@ async def delete_dimension(
                 "type": "not_found",
             },
         ) from e
+
+
+# Metric Cache Configuration Routes
+@router.get(
+    "/grains/cache-config",
+    response_model=Page[MetricCacheGrainConfigRead],
+    tags=["metric-cache"],
+    dependencies=[Security(oauth2_auth().verify, scopes=[QUERY_MANAGER_ALL])],  # type: ignore
+)
+async def list_grain_configs(
+    grain_crud: CRUDMetricCacheGrainConfigDep,
+    params: Annotated[PaginationParams, Depends(PaginationParams)],
+):
+    """
+    Get all grain configurations for metric caching.
+    """
+    results, count = await grain_crud.paginate(params, {})
+    # Convert model objects to response schemas
+    response_items = [MetricCacheGrainConfigRead.model_validate(result) for result in results]
+    return Page[MetricCacheGrainConfigRead].create(items=response_items, total_count=count, params=params)
+
+
+@router.get(
+    "/grains/{grain}/cache-config",
+    response_model=MetricCacheGrainConfigRead,
+    tags=["metric-cache"],
+    dependencies=[Security(oauth2_auth().verify, scopes=[QUERY_MANAGER_ALL])],  # type: ignore
+)
+async def get_grain_config(
+    grain: Granularity,
+    grain_crud: CRUDMetricCacheGrainConfigDep,
+):
+    """
+    Get configuration for a specific grain level.
+    """
+    try:
+        config = await grain_crud.get_by_grain(grain)
+        return MetricCacheGrainConfigRead.model_validate(config)
+    except NotFoundError as e:
+        raise HTTPException(status_code=404, detail=f"Grain configuration for '{grain}' not found") from e
+
+
+@router.put(
+    "/grains/{grain}/cache-config",
+    response_model=MetricCacheGrainConfigRead,
+    tags=["metric-cache"],
+    dependencies=[Security(oauth2_auth().verify, scopes=[QUERY_MANAGER_ALL])],  # type: ignore
+)
+async def update_grain_config(
+    grain: Granularity,
+    config_update: MetricCacheGrainConfigUpdate,
+    grain_crud: CRUDMetricCacheGrainConfigDep,
+):
+    """
+    Update configuration for a specific grain level.
+    """
+    try:
+        update_data = config_update.model_dump(exclude_unset=True)
+        updated_config = await grain_crud.update_grain_config(grain, update_data)
+        return MetricCacheGrainConfigRead.model_validate(updated_config)
+    except NotFoundError as e:
+        raise HTTPException(status_code=404, detail=f"Grain configuration for '{grain}' not found") from e
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to update grain configuration: {str(e)}") from e
+
+
+@router.post(
+    "/grains/cache-config/bulk",
+    response_model=list[MetricCacheGrainConfigRead],
+    tags=["metric-cache"],
+    dependencies=[Security(oauth2_auth().verify, scopes=[QUERY_MANAGER_ALL])],  # type: ignore
+)
+async def bulk_update_grain_configs(
+    bulk_update: BulkGrainConfigUpdate,
+    grain_crud: CRUDMetricCacheGrainConfigDep,
+):
+    """
+    Bulk update multiple grain configurations.
+    """
+    try:
+        updated_configs = await grain_crud.bulk_update_grain_configs(bulk_update.configs)
+        # Convert model objects to response schemas
+        return [MetricCacheGrainConfigRead.model_validate(config) for config in updated_configs]
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to bulk update grain configurations: {str(e)}") from e
+
+
+@router.post(
+    "/grains/cache-config/enable-all",
+    response_model=list[MetricCacheGrainConfigRead],
+    tags=["metric-cache"],
+    dependencies=[Security(oauth2_auth().verify, scopes=[QUERY_MANAGER_ALL])],  # type: ignore
+)
+async def enable_all_grain_caching(
+    grain_crud: CRUDMetricCacheGrainConfigDep,
+):
+    """
+    Enable caching for all grain levels with default configurations.
+    Creates default configurations if they don't exist.
+    """
+    try:
+        created_configs = await grain_crud.create_default_grain_configs()
+        return [MetricCacheGrainConfigRead.model_validate(config) for config in created_configs]
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to enable caching for all grains: {str(e)}") from e
+
+
+@router.get(
+    "/metrics/{metric_id}/cache-config",
+    response_model=MetricCacheConfigRead,
+    tags=["metric-cache"],
+    dependencies=[Security(oauth2_auth().verify, scopes=[QUERY_MANAGER_ALL])],  # type: ignore
+)
+async def get_metric_cache_config(
+    metric_id: str,
+    cache_crud: CRUDMetricCacheConfigDep,
+):
+    """
+    Get cache configuration for a specific metric.
+    """
+    try:
+        config = await cache_crud.get_by_metric_id(metric_id)
+        return MetricCacheConfigRead.model_validate(config)
+    except NotFoundError as e:
+        raise HTTPException(status_code=404, detail=f"Cache configuration for metric {metric_id} not found") from e
+
+
+@router.put(
+    "/metrics/{metric_id}/cache-config",
+    response_model=MetricCacheConfigRead,
+    tags=["metric-cache"],
+    dependencies=[Security(oauth2_auth().verify, scopes=[QUERY_MANAGER_ALL])],  # type: ignore
+)
+async def update_metric_cache_config(
+    metric_id: str,
+    config_update: MetricCacheConfigUpdate,
+    cache_crud: CRUDMetricCacheConfigDep,
+):
+    """
+    Update cache configuration for a specific metric.
+    """
+    try:
+        updated_config = await cache_crud.create_or_update_metric_config(metric_id, config_update.is_enabled)
+        return MetricCacheConfigRead.model_validate(updated_config)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to update metric cache configuration: {str(e)}") from e
+
+
+@router.get(
+    "/metrics/cache-config/all",
+    response_model=Page[MetricCacheConfigRead],
+    tags=["metric-cache"],
+    dependencies=[Security(oauth2_auth().verify, scopes=[QUERY_MANAGER_ALL])],  # type: ignore
+)
+async def list_metric_cache_configs(
+    cache_crud: CRUDMetricCacheConfigDep,
+    params: Annotated[PaginationParams, Depends(PaginationParams)],
+    metric_ids: Annotated[list[str] | None, Query(description="List of metric ids")] = None,  # type: ignore
+    is_enabled: Annotated[bool | None, Query(description="Filter to only enabled metrics")] = None,  # type: ignore
+):
+    """
+    Get cache configurations for all metrics.
+    """
+    filter_obj = MetricCacheConfigFilter(metric_ids=metric_ids, is_enabled=is_enabled)
+    results, count = await cache_crud.paginate(params, filter_obj.model_dump(exclude_unset=True))
+    response_items = [MetricCacheConfigRead.model_validate(result) for result in results]
+    return Page[MetricCacheConfigRead].create(items=response_items, total_count=count, params=params)
+
+
+@router.post(
+    "/metrics/cache-config/bulk",
+    response_model=list[MetricCacheConfigRead],
+    tags=["metric-cache"],
+    dependencies=[Security(oauth2_auth().verify, scopes=[QUERY_MANAGER_ALL])],  # type: ignore
+)
+async def bulk_update_metric_cache_configs(
+    bulk_update: BulkMetricCacheUpdate,
+    cache_crud: CRUDMetricCacheConfigDep,
+):
+    """
+    Bulk update cache configurations for multiple metrics.
+    """
+    try:
+        updated_configs = await cache_crud.bulk_update_metric_configs(bulk_update.metric_ids, bulk_update.is_enabled)
+        return [MetricCacheConfigRead.model_validate(config) for config in updated_configs]
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"Failed to bulk update metric cache configurations: {str(e)}"
+        ) from e
+
+
+@router.post(
+    "/metrics/cache-config/enable-all",
+    response_model=list[MetricCacheConfigRead],
+    tags=["metric-cache"],
+    dependencies=[Security(oauth2_auth().verify, scopes=[QUERY_MANAGER_ALL])],  # type: ignore
+)
+async def enable_all_metric_caching(
+    cache_crud: CRUDMetricCacheConfigDep,
+):
+    """
+    Enable caching for all metrics in the tenant.
+    """
+    try:
+        updated_configs = await cache_crud.enable_all_metrics()
+        return [MetricCacheConfigRead.model_validate(config) for config in updated_configs]
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to enable caching for all metrics: {str(e)}") from e

@@ -320,3 +320,80 @@ class Cube(BaseModel):
 
 class DeleteResponse(BaseModel):
     message: str
+
+
+# Snowflake Cache Configuration Schemas
+class MetricCacheGrainConfigBase(BaseModel):
+    grain: Granularity = Field(description="Granularity level (day, week, month)")
+    is_enabled: bool = Field(default=True, description="Whether sync is enabled for this grain")
+    initial_sync_period: int = Field(description="Initial sync period in days", ge=1, le=3650)  # Max 10 years
+    delta_sync_period: int = Field(description="Delta sync period in days", ge=1, le=365)  # Max 1 year
+
+    model_config = ConfigDict(
+        from_attributes=True,
+        json_schema_extra={
+            "example": {"grain": "day", "is_enabled": True, "initial_sync_period": 730, "delta_sync_period": 90}
+        },
+    )
+
+
+class MetricCacheGrainConfigCreate(MetricCacheGrainConfigBase):
+    pass
+
+
+class MetricCacheGrainConfigRead(MetricCacheGrainConfigBase):
+    id: int
+    tenant_id: int
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class MetricCacheGrainConfigUpdate(BaseModel):
+    is_enabled: bool | None = None
+    initial_sync_period: int | None = Field(None, ge=1, le=3650)
+    delta_sync_period: int | None = Field(None, ge=1, le=365)
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class BulkGrainConfigUpdate(BaseModel):
+    configs: list[dict] = Field(
+        description="List of grain configurations with grain and update fields",
+        examples=[
+            [
+                {"grain": "day", "is_enabled": True, "initial_sync_period": 730, "delta_sync_period": 90},
+                {"grain": "week", "is_enabled": True, "initial_sync_period": 1095, "delta_sync_period": 90},
+                {"grain": "month", "is_enabled": False},
+            ]
+        ],
+    )
+
+
+class MetricCacheConfigBase(BaseModel):
+    is_enabled: bool = Field(default=True, description="Whether caching is enabled for this metric")
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class MetricCacheConfigRead(MetricCacheConfigBase):
+    id: int
+    metric_id: str
+    tenant_id: int
+    metric: MetricList | None = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class MetricCacheConfigUpdate(BaseModel):
+    is_enabled: bool
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class BulkMetricCacheUpdate(BaseModel):
+    metric_ids: list[str] = Field(description="List of metric IDs to update")
+    is_enabled: bool = Field(description="Enable or disable caching for all specified metrics")
+
+    model_config = ConfigDict(
+        json_schema_extra={"example": {"metric_ids": ["metric_1", "metric_2", "metric_3"], "is_enabled": False}}
+    )
