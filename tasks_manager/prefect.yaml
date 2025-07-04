@@ -1,6 +1,6 @@
 # Generic metadata about this project
 name: tasks_manager
-prefect-version: 3.1.7
+prefect-version: 3.4.8.dev4
 
 # Build, push, and pull configuration for Git-based storage
 build: null
