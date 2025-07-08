@@ -15,6 +15,7 @@ from alembic.util import CommandError
 from commons.utilities.migration_utils import add_rls_policies
 from query_manager.config import get_settings
 from query_manager.db.config import MODEL_PATHS
+from query_manager.scripts.load_dimensions import main as load_dimensions_main
 from query_manager.services.metric_generator import MetricGeneratorService
 
 cli = typer.Typer()
@@ -214,6 +215,61 @@ def metadata_upsert(tenant_id: int):
         typer.secho(f"Metadata upsert for tenant {tenant_id} completed successfully!", fg=typer.colors.GREEN)
     except Exception as e:
         typer.secho(f"Error during metadata upsert for tenant {tenant_id}: {str(e)}", fg=typer.colors.RED)
+        raise typer.Exit(code=1) from e
+
+
+@cli.command("load-dimensions")
+def load_dimensions(
+    tenant_id: Annotated[int, typer.Option("--tenant-id", "-t", help="Tenant ID to get cube configuration (required)")],
+    yaml_file: Annotated[Path, typer.Option("--file", "-f", help="Path to specific YAML file to process")],
+    max_values: Annotated[
+        int, typer.Option("--max-values", "-m", help="Maximum number of unique values to include a dimension")
+    ] = 15,
+    output: Annotated[Path | None, typer.Option("--output", "-o", help="Output JSON file path (optional)")] = None,
+    save_to_db: Annotated[bool, typer.Option("--save-to-db", help="Save filtered dimensions to database")] = False,
+):
+    """
+    Load dimensions from YAML file.
+
+    This command loads dimensions from YAML file,
+    then uses the CubeClient to fetch dimension members and filters them based on count.
+    It returns dimensions with fewer than or equal to max_values unique values.
+
+    The cube configuration is automatically retrieved from the database for the specified tenant.
+
+    Arguments:
+        tenant_id: Tenant ID to get cube configuration (required)
+        yaml_file: Path to specific YAML file to process (required)
+        max_values: Maximum number of unique values to include a dimension (default: 15)
+        output: Output JSON file path (optional)
+        save_to_db: Save filtered dimensions to database
+    """
+    import asyncio
+
+    source = f"file {yaml_file}"
+    typer.secho(
+        f"Filtering dimensions from {source} with <= {max_values} values for tenant {tenant_id}...",
+        fg=typer.colors.BLUE,
+    )  # type: ignore
+    try:
+        dimensions = asyncio.run(
+            load_dimensions_main(
+                tenant_id=tenant_id, file_path=yaml_file, max_values=max_values, output=output, save_to_db=save_to_db  # type: ignore
+            )
+        )
+
+        typer.secho(f"\nFound {len(dimensions)} dimensions with <= {max_values} values", fg=typer.colors.GREEN)
+
+        # If output was specified, confirm it was saved
+        if output:
+            typer.secho(f"\nSaved dimensions to: {output}", fg=typer.colors.GREEN)
+
+        # If save_to_db was specified, confirm dimensions were saved to DB
+        if save_to_db:
+            typer.secho(f"\nSaved dimensions to database for tenant {tenant_id}", fg=typer.colors.GREEN)
+
+    except Exception as e:
+        typer.secho(f"Error filtering dimensions: {str(e)}", fg=typer.colors.RED)
         raise typer.Exit(code=1) from e
 
 
