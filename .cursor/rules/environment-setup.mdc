@@ -1,0 +1,281 @@
+---
+description:
+globs:
+alwaysApply: false
+---
+# Environment Setup
+
+## 🎯 Overview
+
+**Fulcrum Intelligence Engine** development environment setup for microservices analytics platform.
+
+## 📋 Prerequisites
+
+### System Requirements
+- **Python 3.10+** (required)
+- **PostgreSQL 15+** (database)
+- **Git** (version control)
+- **Make** (build automation)
+
+### Hardware
+- **RAM**: 8GB minimum, 16GB recommended
+- **Storage**: 10GB free space
+- **CPU**: Multi-core (for multiple services)
+
+## 🚀 Quick Setup
+
+```bash
+# Clone repository
+git clone https://github.com/Levers-Labs/fulcrum-intelligence.git
+cd fulcrum-intelligence
+
+# One-command setup
+make setup
+```
+
+This installs:
+- Python 3.10 (via pyenv if needed)
+- Virtual environment
+- Poetry dependency manager
+- All project dependencies
+- Pre-commit hooks
+
+## 🔧 Manual Setup
+
+### 1. Python Installation
+```bash
+# Install pyenv (if not present)
+curl https://pyenv.run | bash
+
+# Install Python 3.10
+pyenv install 3.10.12
+pyenv global 3.10.12
+```
+
+### 2. Poetry Installation
+```bash
+# Install Poetry
+pip install poetry==1.8.2
+
+# Verify installation
+poetry --version
+```
+
+### 3. Project Dependencies
+```bash
+# Create virtual environment
+python -m venv venv
+source venv/bin/activate
+
+# Install dependencies
+make install-all-deps
+```
+
+### 4. PostgreSQL Setup
+```bash
+# macOS with Homebrew
+brew install postgresql@15
+brew services start postgresql
+
+# Create database
+createdb fulcrum_db
+
+# Verify connection
+psql -d fulcrum_db -c "SELECT version();"
+```
+
+### 5. Environment Configuration
+```bash
+# Copy environment templates
+cp analysis_manager/.env.template analysis_manager/.env
+cp query_manager/.env.template query_manager/.env
+cp story_manager/.env.template story_manager/.env
+cp insights_backend/.env.template insights_backend/.env
+
+# Edit .env files with actual values
+# - Database URLs
+# - Auth0 credentials
+# - Secret keys
+```
+
+### 6. Database Migrations
+```bash
+# Run migrations for each service
+cd analysis_manager && python manage.py db upgrade
+cd ../query_manager && python manage.py db upgrade
+cd ../story_manager && python manage.py db upgrade
+cd ../insights_backend && python manage.py db upgrade
+```
+
+### 7. Pre-commit Hooks
+```bash
+# Install pre-commit hooks
+make setup-pre-commit
+
+# Verify installation
+pre-commit --version
+```
+
+## ✅ Verification
+
+### Test Setup
+```bash
+# Activate environment
+source venv/bin/activate
+
+# Start all services
+make run-all
+
+# Run tests
+make test-all
+
+# Check health endpoints
+curl http://localhost:8000/analysis/v1/health
+curl http://localhost:8001/query/v1/health
+```
+
+### Service Access
+```bash
+# API documentation
+open http://localhost:8000/docs  # Analysis Manager
+open http://localhost:8001/docs  # Query Manager
+open http://localhost:8002/docs  # Story Manager
+open http://localhost:8004/docs  # Insights Backend
+```
+
+## 🔧 Prefect Setup (Tasks Manager)
+
+```bash
+cd tasks_manager
+
+# Complete Prefect setup
+make setup-local
+
+# Start Prefect UI
+make server
+open http://localhost:4200
+```
+
+## 🛠️ IDE Configuration
+
+### VS Code Settings
+```json
+// .vscode/settings.json
+{
+    "python.defaultInterpreterPath": "./venv/bin/python",
+    "python.formatting.provider": "black",
+    "python.linting.ruffEnabled": true,
+    "python.testing.pytestEnabled": true
+}
+```
+
+### Cursor Configuration
+```json
+// .cursor/settings.json
+{
+    "python.analysis.typeCheckingMode": "strict",
+    "python.analysis.autoImportCompletions": true
+}
+```
+
+## 🐛 Troubleshooting
+
+### Common Issues
+
+#### Python Version
+```bash
+# Check Python version
+python --version
+
+# Should show Python 3.10.x
+# If not, ensure pyenv is configured:
+echo 'export PATH="$HOME/.pyenv/bin:$PATH"' >> ~/.zshrc
+echo 'eval "$(pyenv init -)"' >> ~/.zshrc
+source ~/.zshrc
+```
+
+#### Poetry Issues
+```bash
+# Clear Poetry cache
+poetry cache clear --all pypi
+
+# Reinstall dependencies
+rm poetry.lock
+poetry install
+```
+
+#### Database Connection
+```bash
+# Check PostgreSQL status
+brew services list | grep postgresql
+
+# Restart if needed
+brew services restart postgresql
+
+# Check connection
+psql -h localhost -U $USER -d fulcrum_db
+```
+
+#### Port Conflicts
+```bash
+# Check port usage
+lsof -i :8000
+lsof -i :8001
+
+# Kill conflicting processes
+kill -9 <PID>
+```
+
+### Environment Reset
+```bash
+# Complete environment reset
+make clean
+rm -rf venv/
+make setup
+```
+
+## 🔒 Security Setup
+
+### Environment Variables
+```bash
+# Never commit .env files
+echo ".env" >> .gitignore
+
+# Use .env.template for documentation
+# Fill actual values in .env files
+```
+
+### Auth0 Configuration
+```bash
+# Required environment variables:
+AUTH0_API_AUDIENCE=your_audience
+AUTH0_ISSUER=https://your-domain.auth0.com/
+AUTH0_CLIENT_ID=your_client_id
+AUTH0_CLIENT_SECRET=your_client_secret
+```
+
+## 📚 Next Steps
+
+1. **Read Architecture Guide** - Understand system design
+2. **Review Code Style** - Follow coding standards
+3. **Run Tests** - Ensure everything works
+4. **Start Development** - Follow development workflow
+
+## 🆘 Getting Help
+
+### Documentation
+- Project README.md
+- Service-specific READMEs
+- Architecture documentation
+
+### Common Commands
+```bash
+# View available Make commands
+make help
+
+# Check service status
+python manage.py --help
+
+# Debug issues
+DEBUG=True python manage.py run-local-server
+```

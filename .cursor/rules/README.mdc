@@ -1,0 +1,64 @@
+---
+description:
+globs:
+alwaysApply: true
+---
+# Cursor Rules Documentation
+
+## 🏗️ Architecture Overview
+
+**Fulcrum Intelligence Engine** - Microservices analytics platform
+
+### Service Types
+- **Libraries**: `commons/`, `core/`, `levers/` - Reusable shared components
+- **API Services**: `analysis_manager/`, `query_manager/`, `story_manager/`, `insights_backend/` - FastAPI servers
+- **Orchestration**: `tasks_manager/` - Prefect workflow management
+
+### Core Services
+| Service | Port | Purpose |
+|---------|------|---------|
+| Analysis Manager | 8000 | Pattern analysis, drift detection |
+| Query Manager | 8001 | Data querying, semantic models |
+| Story Manager | 8002 | Story generation, narratives |
+| Insights Backend | 8004 | User management, notifications |
+| Tasks Manager | - | Prefect orchestration |
+
+## 📖 Documentation
+
+### Core Guidelines
+- **[Architecture](mdc:architecture.mdc)** - System design, services, data flow
+- **[Code Style](mdc:code-style-guidelines.mdc)** - Python/FastAPI standards
+- **[File Structure](mdc:file-structure-guidelines.mdc)** - Organization patterns
+- **[Testing](mdc:testing-guidelines.mdc)** - Test strategies, 70%+ coverage
+- **[Development](mdc:development-workflow.mdc)** - Daily workflow, TDD
+
+### Quick Reference
+- **[Tech Stack](mdc:tech-stack.mdc)** - Technologies and tools
+- **[Commands](mdc:common-commands.mdc)** - Development commands
+- **[Environment](mdc:environment-setup.mdc)** - Setup guide
+
+## 🎯 Key Standards
+
+- **Python 3.10+** with async/await
+- **FastAPI** with dependency injection
+- **PostgreSQL** multi-schema design
+- **Auth0** JWT authentication
+- **Poetry** dependency management
+- **Pytest** with 70%+ coverage
+- **Black/Ruff** code formatting
+
+## 🚀 Quick Start
+
+```bash
+make setup                  # Full environment setup
+make run-all               # Start all services
+make test-all              # Run all tests
+make format-all            # Format all code
+```
+
+## 🔧 Auto-Run Features
+
+- **Pre-commit hooks**: Black, isort, Ruff, MyPy
+- **GitHub Actions**: CI/CD pipeline
+- **Hot reload**: Development servers
+- **Test coverage**: Automated reporting

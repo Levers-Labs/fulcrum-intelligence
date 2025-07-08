@@ -1,0 +1,297 @@
+---
+description:
+globs:
+alwaysApply: false
+---
+# Development Workflow
+
+## 🚀 Initial Setup
+
+```bash
+# Clone and setup
+git clone https://github.com/Levers-Labs/fulcrum-intelligence.git
+cd fulcrum-intelligence
+make setup                 # One-command setup
+
+# Environment files
+cp analysis_manager/.env.template analysis_manager/.env
+cp query_manager/.env.template query_manager/.env
+cp story_manager/.env.template story_manager/.env
+cp insights_backend/.env.template insights_backend/.env
+```
+
+## 🔄 Daily Development
+
+### Start Development
+```bash
+source venv/bin/activate    # Activate environment
+git pull origin main        # Pull latest changes
+make run-all               # Start all services
+```
+
+### Feature Development
+```bash
+# Create feature branch
+git checkout -b feature/your-feature-name
+
+# Start specific services
+make run app=analysis_manager port=8000
+make run app=query_manager port=8001
+
+# API docs available at:
+# http://localhost:8000/docs
+# http://localhost:8001/docs
+```
+
+## 🧪 Test-Driven Development
+
+### TDD Workflow
+```bash
+# 1. Write failing test
+pytest tests/unit/core/test_new_feature.py -v
+
+# 2. Implement feature
+# Edit service_name/core/services/
+
+# 3. Run test (should pass)
+pytest tests/unit/core/test_new_feature.py -v
+
+# 4. Refactor and repeat
+```
+
+### Testing Commands
+```bash
+# Run tests for specific service
+make test app=analysis_manager
+
+# Run all tests
+make test-all
+
+# Run with coverage
+cd analysis_manager && poetry run pytest --cov-report=html
+```
+
+## 🎨 Code Quality
+
+### Automatic on Commit
+```bash
+git add .
+git commit -m "feat: add new feature"
+# Pre-commit hooks run automatically:
+# - Black formatting
+# - isort import sorting
+# - Ruff linting
+# - MyPy type checking
+```
+
+### Manual Quality Checks
+```bash
+# Format code
+make format path=analysis_manager
+
+# Lint code
+make lint path=analysis_manager
+
+# All services
+make format-all && make lint-all
+```
+
+## 🔧 Service-Specific Development
+
+### Analysis Manager
+```bash
+cd analysis_manager
+python manage.py run-local-server --port 8000
+python manage.py db upgrade
+python manage.py shell
+```
+
+### Query Manager
+```bash
+cd query_manager
+python manage.py run-local-server --port 8001
+python scripts/metadata_upsert.py
+```
+
+### Story Manager
+```bash
+cd story_manager
+python manage.py run-local-server --port 8002
+python scripts/load_mock_stories.py
+```
+
+### Tasks Manager (Prefect)
+```bash
+cd tasks_manager
+make setup-local           # Complete setup
+make server               # Start Prefect server
+make worker               # Start worker
+# Access UI: http://localhost:4200
+```
+
+## 🗄️ Database Management
+
+### Migrations
+```bash
+# Create migration
+python manage.py db revision -m "add_new_table"
+
+# Apply migrations
+python manage.py db upgrade
+
+# Rollback
+python manage.py db downgrade
+```
+
+### Database Reset
+```bash
+python manage.py db downgrade base
+python manage.py db upgrade
+```
+
+## 🐛 Debugging
+
+### Local Debugging
+```bash
+# Debug mode
+DEBUG=True python manage.py run-local-server
+
+# Health checks
+curl http://localhost:8000/analysis/v1/health
+curl http://localhost:8001/query/v1/health
+```
+
+### Common Issues
+```bash
+# Port conflicts
+lsof -i :8000
+kill -9 <PID>
+
+# Dependency issues
+poetry cache clear --all pypi
+rm poetry.lock && poetry install
+
+# Database connection
+brew services restart postgresql
+```
+
+## 🚀 Deployment Workflow
+
+### Git Workflow
+```bash
+# Feature branch
+git checkout -b feature/your-feature
+# ... development work ...
+git add .
+git commit -m "feat: implement feature"
+git push origin feature/your-feature
+
+# Create PR on GitHub
+# After review and merge to main
+git checkout main
+git pull origin main
+```
+
+### Pre-deployment Checks
+```bash
+# Run all checks
+make format-all
+make lint-all
+make test-all
+
+# Docker build test
+docker build -f analysis_manager/Dockerfile -t test .
+```
+
+## 📊 Monitoring
+
+### Health Checks
+```bash
+# All services
+curl http://localhost:8000/analysis/v1/health
+curl http://localhost:8001/query/v1/health
+curl http://localhost:8002/story/v1/health
+curl http://localhost:8004/insights/v1/health
+```
+
+### Performance Monitoring
+```bash
+# Coverage reports
+pytest --cov=service_name --cov-report=html
+open htmlcov/index.html
+
+# Resource usage
+htop
+```
+
+## 🛠️ CLI Tools
+
+### Root Commands
+```bash
+python manage.py format commons/
+python manage.py lint analysis_manager/ --raise-error
+python manage.py generate-secret-key
+```
+
+### Service Commands
+```bash
+# In any service directory
+python manage.py --help
+python manage.py shell
+python manage.py db upgrade
+```
+
+## 📋 Pull Request Process
+
+### Before PR
+```bash
+# Self-review
+make format-all
+make lint-all
+make test-all
+git diff main...feature/your-feature
+```
+
+### PR Requirements
+- [ ] Tests added/updated
+- [ ] Documentation updated
+- [ ] Breaking changes noted
+- [ ] Database migrations included
+- [ ] 70%+ test coverage
+
+## 🔍 Troubleshooting
+
+### Service Issues
+```bash
+# Check processes
+ps aux | grep uvicorn
+netstat -tulpn | grep :8000
+
+# Kill stuck processes
+pkill -f "uvicorn"
+pkill -f "python manage.py"
+```
+
+### Environment Reset
+```bash
+make clean
+make setup
+```
+
+## 📚 Best Practices
+
+### Code Quality
+- **TDD**: Write tests first
+- **Small commits**: Atomic changes
+- **Clear messages**: Descriptive commit messages
+- **Early returns**: Guard clauses for error handling
+
+### Performance
+- **Async operations**: Use async/await for I/O
+- **Database optimization**: Efficient queries
+- **Connection pooling**: Proper resource management
+
+### Security
+- **No secrets**: Never commit secrets
+- **Input validation**: Validate all inputs
+- **Auth integration**: Proper Auth0 usage

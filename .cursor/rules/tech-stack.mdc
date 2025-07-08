@@ -1,0 +1,200 @@
+---
+description:
+globs:
+alwaysApply: false
+---
+# Tech Stack
+
+## 🛠️ Core Technologies
+
+### Language & Framework
+- **Python 3.10+** - Primary language with type hints
+- **FastAPI** - Web framework for API services
+- **Pydantic v2** - Data validation and serialization
+- **SQLModel** - Database ORM with type safety
+
+### Service Types
+- **Libraries**: `commons/`, `core/`, `levers/` - Reusable components
+- **API Services**: FastAPI servers with dedicated databases
+- **Orchestration**: `tasks_manager/` - Prefect workflow management
+
+## 🗄️ Database & Storage
+
+### Database
+- **PostgreSQL 15+** - Multi-schema design
+- **AsyncPG** - Async database driver
+- **Alembic** - Database migrations
+- **SQLAlchemy 2.0** - ORM foundation
+
+### Storage
+- **AWS S3** - Data and file storage
+- **Parquet** - Columnar data format
+
+## 🔐 Authentication
+
+- **Auth0** - OAuth 2.0 identity provider
+- **JWT Tokens** - Stateless authentication
+- **Multi-tenant** - Tenant isolation
+
+## ☁️ Deployment
+
+### AWS Services
+- **AWS Lambda** - Serverless functions
+- **API Gateway** - HTTP routing
+- **ECS** - Container orchestration (alternative)
+- **CloudWatch** - Monitoring and logging
+
+### Containers
+- **Docker** - Container runtime
+- **Docker Compose** - Local development
+
+## 📊 Analytics
+
+### Core Analytics
+- **NumPy** - Numerical computing
+- **Pandas** - Data manipulation
+- **SciPy** - Scientific computing
+- **Scikit-learn** - Machine learning
+
+### Time Series
+- **PMDArima** - ARIMA forecasting
+- **Prophet** - Time series forecasting
+- **Process Control** - Statistical process control
+
+### Specialized
+- **DoWhy** - Causal inference
+- **NetworkX** - Graph analysis
+- **SymPy** - Symbolic mathematics
+
+## 🧠 AI & LLM
+
+### Language Models
+- **OpenAI API** - GPT models
+- **Anthropic Claude** - Alternative LLM
+- **LangChain** - LLM framework
+
+### Story Generation
+- **Template Engine** - Jinja2 templates
+- **Evaluation System** - Story quality assessment
+
+## 🔄 Workflow
+
+### Orchestration
+- **Prefect** - Workflow management
+- **Prefect Worker** - Task execution
+- **Flow Management** - Complex workflows
+
+### Tasks
+- **Async Tasks** - Non-blocking execution
+- **Job Scheduling** - Automated triggers
+- **Error Handling** - Robust recovery
+
+## 🌐 HTTP & Communication
+
+### HTTP Clients
+- **HTTPX** - Async HTTP client
+- **Service-to-service** - Inter-service communication
+
+### Standards
+- **REST** - RESTful API design
+- **OpenAPI** - API documentation
+- **JSON** - Data exchange format
+
+## 📦 Dependencies
+
+### Package Management
+- **Poetry** - Dependency management
+- **pyproject.toml** - Project configuration
+- **Monorepo** - Shared dependencies
+
+### Development
+- **Virtual environments** - Isolation
+- **Lock files** - Reproducible builds
+
+## 🧪 Testing
+
+### Framework
+- **Pytest** - Testing framework
+- **Pytest-asyncio** - Async test support
+- **Pytest-cov** - Coverage reporting
+
+### Tools
+- **Factory Boy** - Test data factories
+- **Testing PostgreSQL** - Database isolation
+- **Mock utilities** - Test doubles
+
+## 🔍 Code Quality
+
+### Formatters
+- **Black** - Code formatting (120 char)
+- **isort** - Import sorting
+
+### Linters
+- **Ruff** - Fast Python linter
+- **MyPy** - Static type checking
+- **PyUpgrade** - Python version upgrade
+
+### Automation
+- **Pre-commit** - Git hooks
+- **GitHub Actions** - CI/CD pipeline
+
+## 📈 Monitoring
+
+### Logging
+- **Structured Logging** - JSON format
+- **Rich** - Enhanced console output
+
+### Health
+- **FastAPI Health** - Service endpoints
+- **Docker Health** - Container checks
+
+## 🛡️ Development
+
+### Environment
+- **pyenv** - Python version management
+- **venv** - Virtual environments
+- **Environment Variables** - Configuration
+
+### IDE
+- **VS Code** - Recommended IDE
+- **Cursor** - AI-assisted development
+- **Type Support** - Full intellisense
+
+## 🎯 Service-Specific
+
+### Analysis Manager
+- **Pattern Detection** - Drift analysis
+- **Statistical Analysis** - Core algorithms
+- **Process Control** - SPC implementation
+
+### Query Manager
+- **Semantic Models** - Metric management
+- **Data Querying** - Multi-source access
+- **Cube Integration** - OLAP connectivity
+
+### Story Manager
+- **Story Generation** - Narrative creation
+- **Template System** - Story templates
+- **Evaluation** - Quality assessment
+
+### Insights Backend
+- **User Management** - Multi-tenant users
+- **Notifications** - Slack/email delivery
+- **Tenant Management** - Customer isolation
+
+### Tasks Manager
+- **Prefect Flows** - Workflow definition
+- **Task Scheduling** - Automated execution
+- **Worker Management** - Distributed processing
+
+## 🚀 Deployment Stack
+
+### Lambda
+- **Mangum** - ASGI adapter
+- **Container Images** - Docker-based
+- **Cold Start** - Performance optimization
+
+### CI/CD
+- **GitHub Actions** - Automation
+- **Make** - Build commands
+- **Shell Scripts** - Deployment
