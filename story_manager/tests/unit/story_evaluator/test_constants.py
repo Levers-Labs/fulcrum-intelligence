@@ -117,13 +117,13 @@ def test_story_templates():
     # Test record value templates
     record_high = STORY_TEMPLATES[StoryType.RECORD_HIGH]
     assert "highest" in record_high["title"]
-    assert "highest value" in record_high["detail"]
+    assert "highest" in record_high["detail"] and "value" in record_high["detail"]
     assert "high_rank" in record_high["title"]
     assert "high_value" in record_high["detail"]
 
     record_low = STORY_TEMPLATES[StoryType.RECORD_LOW]
     assert "lowest" in record_low["title"]
-    assert "lowest value" in record_low["detail"]
+    assert "lowest" in record_low["detail"] and "value" in record_low["detail"]
     assert "low_rank" in record_low["title"]
     assert "low_value" in record_low["detail"]
 

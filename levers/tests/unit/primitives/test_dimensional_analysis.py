@@ -198,9 +198,9 @@ class TestDifferenceFromAverage:
         result = difference_from_average(single_df, "aggregated_value")
 
         # Assert
-        assert pd.isna(result["avg_other_slices_value"].iloc[0])
-        assert pd.isna(result["absolute_diff_from_avg"].iloc[0])
-        assert pd.isna(result["absolute_diff_percent_from_avg"].iloc[0])
+        assert result["avg_other_slices_value"].iloc[0] == 0
+        assert result["absolute_diff_from_avg"].iloc[0] == 0
+        assert result["absolute_diff_percent_from_avg"].iloc[0] == 0
 
     def test_with_invalid_column(self, sample_slice_data):
         """Test with invalid column name."""

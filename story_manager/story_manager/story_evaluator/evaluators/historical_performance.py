@@ -10,6 +10,7 @@ import pandas as pd
 from commons.models.enums import Granularity
 from levers.models import ComparisonType, TrendExceptionType, TrendType
 from levers.models.patterns import BenchmarkComparison, HistoricalPerformance
+from levers.models.patterns.historical_performance import RankSummary
 from story_manager.core.enums import StoryGenre, StoryGroup, StoryType
 from story_manager.story_evaluator import StoryEvaluatorBase, render_story_text
 
@@ -82,9 +83,17 @@ class HistoricalPerformanceEvaluator(StoryEvaluatorBase[HistoricalPerformance]):
                 stories.append(self._create_drop_story(pattern_result, metric_id, metric, grain))
 
         # Record Value Stories
-        if pattern_result.high_rank and pattern_result.high_rank.rank <= 2:  # Consider top 2 as record high
+        if (
+            pattern_result.high_rank
+            and pattern_result.high_rank.rank <= 2
+            and self._is_valid_record_value(pattern_result.high_rank)
+        ):  # Consider top 2 as record high
             stories.append(self._create_record_high_story(pattern_result, metric_id, metric, grain))
-        elif pattern_result.low_rank and pattern_result.low_rank.rank <= 2:  # Consider bottom 2 as record low
+        elif (
+            pattern_result.low_rank
+            and pattern_result.low_rank.rank <= 2
+            and self._is_valid_record_value(pattern_result.low_rank)
+        ):  # Consider bottom 2 as record low
             stories.append(self._create_record_low_story(pattern_result, metric_id, metric, grain))
 
         # Benchmark Stories (only for week and month grains)
@@ -119,6 +128,11 @@ class HistoricalPerformanceEvaluator(StoryEvaluatorBase[HistoricalPerformance]):
 
         return False
 
+    def _is_valid_record_value(self, record_value: RankSummary) -> bool:
+        """Check if the current value is a record value."""
+
+        return record_value.value != record_value.prior_record_value
+
     def _populate_template_context(
         self, pattern_result: HistoricalPerformance, metric: dict, grain: Granularity, **kwargs
     ) -> dict[str, Any]:
@@ -143,9 +157,9 @@ class HistoricalPerformanceEvaluator(StoryEvaluatorBase[HistoricalPerformance]):
         if "growth_stats" in include and pattern_result.growth_stats:
             context.update(
                 {
-                    "current_growth": abs(pattern_result.growth_stats.current_pop_growth or 0),
-                    "average_growth": abs(pattern_result.growth_stats.average_pop_growth or 0),
-                    "growth_acceleration": abs(pattern_result.growth_stats.current_growth_acceleration or 0),
+                    "current_growth": pattern_result.growth_stats.current_pop_growth or 0,
+                    "average_growth": pattern_result.growth_stats.average_pop_growth or 0,
+                    "growth_acceleration": pattern_result.growth_stats.current_growth_acceleration or 0,
                     "num_periods_accelerating": pattern_result.growth_stats.num_periods_accelerating,
                     "num_periods_slowing": pattern_result.growth_stats.num_periods_slowing,
                 }
@@ -157,7 +171,7 @@ class HistoricalPerformanceEvaluator(StoryEvaluatorBase[HistoricalPerformance]):
                 {
                     "trend_start_date": pattern_result.current_trend.start_date,
                     "trend_duration": pattern_result.current_trend.duration_grains,
-                    "trend_avg_growth": abs(pattern_result.current_trend.average_pop_growth or 0),
+                    "trend_avg_growth": pattern_result.current_trend.average_pop_growth or 0,
                     "trend_direction": (
                         "increase"
                         if pattern_result.current_trend.average_pop_growth
@@ -172,7 +186,7 @@ class HistoricalPerformanceEvaluator(StoryEvaluatorBase[HistoricalPerformance]):
             context.update(
                 {
                     "prev_trend_duration": pattern_result.previous_trend.duration_grains,
-                    "prev_trend_avg_growth": abs(pattern_result.previous_trend.average_pop_growth or 0),
+                    "prev_trend_avg_growth": pattern_result.previous_trend.average_pop_growth or 0,
                 }
             )
 
@@ -210,8 +224,8 @@ class HistoricalPerformanceEvaluator(StoryEvaluatorBase[HistoricalPerformance]):
                     "exception_value": pattern_result.trend_exception.current_value,
                     "normal_low": pattern_result.trend_exception.normal_range_low,
                     "normal_high": pattern_result.trend_exception.normal_range_high,
-                    "deviation": abs(pattern_result.trend_exception.absolute_delta_from_normal_range or 0),
-                    "deviation_percent": abs(pattern_result.trend_exception.magnitude_percent or 0),
+                    "deviation": pattern_result.trend_exception.absolute_delta_from_normal_range or 0,
+                    "deviation_percent": pattern_result.trend_exception.magnitude_percent or 0,
                 }
             )
 
@@ -293,7 +307,7 @@ class HistoricalPerformanceEvaluator(StoryEvaluatorBase[HistoricalPerformance]):
         detail = render_story_text(story_type, "detail", context)
 
         # prepare series data with SPC data
-        series_df = self._prepare_trend_analysis_series_data(pattern_result)
+        series_df = self._prepare_trend_changes_series_data(pattern_result)
         series_data = self.export_dataframe_as_story_series(series_df, story_type, story_group, grain)
 
         return self.prepare_story_model(
@@ -323,7 +337,7 @@ class HistoricalPerformanceEvaluator(StoryEvaluatorBase[HistoricalPerformance]):
         detail = render_story_text(story_type, "detail", context)
 
         # prepare series data with SPC data
-        series_df = self._prepare_trend_analysis_series_data(pattern_result)
+        series_df = self._prepare_trend_changes_series_data(pattern_result)
         series_data = self.export_dataframe_as_story_series(series_df, story_type, story_group, grain)
 
         return self.prepare_story_model(
@@ -354,7 +368,7 @@ class HistoricalPerformanceEvaluator(StoryEvaluatorBase[HistoricalPerformance]):
         detail = render_story_text(story_type, "detail", context)
 
         # prepare series data with SPC data
-        series_df = self._prepare_trend_analysis_series_data(pattern_result)
+        series_df = self._prepare_trend_changes_series_data(pattern_result)
         series_data = self.export_dataframe_as_story_series(series_df, story_type, story_group, grain)
 
         return self.prepare_story_model(
@@ -385,7 +399,7 @@ class HistoricalPerformanceEvaluator(StoryEvaluatorBase[HistoricalPerformance]):
         detail = render_story_text(story_type, "detail", context)
 
         # prepare series data with SPC data
-        series_df = self._prepare_trend_analysis_series_data(pattern_result)
+        series_df = self._prepare_trend_changes_series_data(pattern_result)
         series_data = self.export_dataframe_as_story_series(series_df, story_type, story_group, grain)
 
         return self.prepare_story_model(
@@ -417,7 +431,7 @@ class HistoricalPerformanceEvaluator(StoryEvaluatorBase[HistoricalPerformance]):
         detail = render_story_text(story_type, "detail", context)
 
         # prepare series data with SPC data
-        series_df = self._prepare_trend_analysis_series_data(pattern_result)
+        series_df = self._prepare_spike_drop_series_data(pattern_result)
         series_data = self.export_dataframe_as_story_series(series_df, story_type, story_group, grain)
 
         return self.prepare_story_model(
@@ -450,7 +464,7 @@ class HistoricalPerformanceEvaluator(StoryEvaluatorBase[HistoricalPerformance]):
         detail = render_story_text(story_type, "detail", context)
 
         # prepare series data with SPC data
-        series_df = self._prepare_trend_analysis_series_data(pattern_result)
+        series_df = self._prepare_spike_drop_series_data(pattern_result)
         series_data = self.export_dataframe_as_story_series(series_df, story_type, story_group, grain)
 
         return self.prepare_story_model(
@@ -731,9 +745,9 @@ class HistoricalPerformanceEvaluator(StoryEvaluatorBase[HistoricalPerformance]):
 
         return merged_df
 
-    def _prepare_trend_analysis_series_data(self, pattern_result: HistoricalPerformance) -> pd.DataFrame:
+    def _prepare_trend_changes_series_data(self, pattern_result: HistoricalPerformance) -> pd.DataFrame:
         """
-        Prepare the series data for trend analysis stories.
+        Prepare the series data for trend changes stories.
 
         This method extracts SPC-related fields from the trend_analysis results
         (which are derived from process_control_analysis) and merges them
@@ -743,15 +757,11 @@ class HistoricalPerformanceEvaluator(StoryEvaluatorBase[HistoricalPerformance]):
             pattern_result: Historical performance pattern result
 
         Returns:
-            DataFrame with series data and SPC metrics
+            DataFrame with series data and SPC metrics for trend changes stories ( stable, new upward, new downward,
+            performance plateau)
         """
-        # Make a copy to avoid modifying the original
-        series_df = self.series_df.copy() if self.series_df is not None else pd.DataFrame()
 
-        if not pattern_result.trend_analysis:  # Check trend_analysis
-            return series_df
-
-        series_df["date"] = pd.to_datetime(series_df["date"])
+        pop_growth_df = self._prepare_series_data_with_pop_growth(pattern_result)
 
         # Extract data from trend_analysis results
         # TrendAnalysis objects contain all necessary fields
@@ -769,8 +779,47 @@ class HistoricalPerformanceEvaluator(StoryEvaluatorBase[HistoricalPerformance]):
             "slope",
             "slope_change_percent",
             "trend_signal_detected",
-            "trend_type",
         ]
+
+        # Filter trend_analysis_df to only include necessary columns, ensure 'date' is present
+        available_columns = [col for col in columns_to_merge if col in trend_analysis_df.columns]
+        df_to_merge = trend_analysis_df[available_columns].drop(columns=["value"], errors="ignore")
+        df_to_merge["date"] = pd.to_datetime(df_to_merge["date"])
+
+        merged_df = pd.merge(pop_growth_df, df_to_merge, on="date", how="left").sort_values("date")
+
+        return merged_df
+
+    def _prepare_spike_drop_series_data(self, pattern_result: HistoricalPerformance) -> pd.DataFrame:
+        """
+        Prepare the series data for spike and drop stories.
+
+        This method extracts SPC-related fields from the trend_analysis results
+        (which are derived from process_control_analysis) and merges them
+        with the base series data for visualization and story generation.
+
+        Args:
+            pattern_result: Historical performance pattern result
+
+        Returns:
+            DataFrame with series data and SPC metrics for spike and drop stories
+        """
+        # Make a copy to avoid modifying the original
+        series_df = self.series_df.copy() if self.series_df is not None else pd.DataFrame()
+
+        if not pattern_result.trend_analysis:  # Check trend_analysis
+            return series_df
+
+        series_df["date"] = pd.to_datetime(series_df["date"])
+
+        # Extract data from trend_analysis results
+        # TrendAnalysis objects contain all necessary fields
+        trend_analysis_data = [data.model_dump() for data in pattern_result.trend_analysis]
+        trend_analysis_df = pd.DataFrame(trend_analysis_data)
+
+        # Select columns that are expected by stories.
+        # These should align with fields in the TrendAnalysis model.
+        columns_to_merge = ["date", "value", "central_line", "ucl", "lcl", "slope"]
 
         # Filter trend_analysis_df to only include necessary columns, ensure 'date' is present
         available_columns = [col for col in columns_to_merge if col in trend_analysis_df.columns]
