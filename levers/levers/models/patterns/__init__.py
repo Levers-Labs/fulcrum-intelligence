@@ -8,6 +8,9 @@ in the levers.patterns module.
 # Dimension analysis
 from .dimension_analysis import DimensionAnalysis
 
+# Forecasting models
+from .forecasting import Forecasting
+
 # Historical performance models
 from .historical_performance import (
     Benchmark,
@@ -49,4 +52,6 @@ __all__ = [
     "GrowthStats",
     # Dimension Analysis
     "DimensionAnalysis",
+    # Forecasting
+    "Forecasting",
 ]
