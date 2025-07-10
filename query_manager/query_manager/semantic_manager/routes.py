@@ -6,7 +6,7 @@ This module provides FastAPI routes for the semantic manager module.
 
 import logging
 from datetime import date
-from typing import Annotated, Any
+from typing import Annotated
 
 from fastapi import (
     APIRouter,
@@ -29,8 +29,6 @@ from query_manager.semantic_manager.schemas import (
     MetricTimeSeriesResponse,
     TargetBulkUpsertRequest,
     TargetBulkUpsertResponse,
-    TargetBulkUpsertWithCleanupRequest,
-    TargetBulkUpsertWithCleanupResponse,
     TargetResponse,
 )
 
@@ -231,33 +229,6 @@ async def get_target(
     return TargetResponse.model_validate(target)
 
 
-@router.get(
-    "/metrics/{metric_id}/targets/analyze",
-    response_model=dict,
-    summary="Analyze target overlap for cleanup strategy",
-    dependencies=[Security(oauth2_auth().verify, scopes=[QUERY_MANAGER_ALL])],
-    tags=["targets"],
-)
-async def analyze_target_overlap(
-    metric_id: str,
-    grain: Granularity,
-    new_start_date: date,
-    new_end_date: date,
-    semantic_manager: SemanticManagerDep,
-) -> dict[str, Any]:
-    """
-    Analyze existing targets and recommend cleanup strategy.
-
-    This endpoint helps you understand what will happen when you update targets
-    with a new date range, and recommends whether cleanup is needed.
-    """
-    analysis = await semantic_manager.metric_target.analyze_target_overlap(
-        metric_id=metric_id, grain=grain, new_start_date=new_start_date, new_end_date=new_end_date
-    )
-
-    return analysis
-
-
 @router.post(
     "/metrics/targets/bulk",
     response_model=TargetBulkUpsertResponse,
@@ -281,39 +252,6 @@ async def bulk_upsert_targets(
     result = await semantic_manager.metric_target.bulk_upsert_targets(targets_data)
 
     return TargetBulkUpsertResponse(total=result["total"], processed=result["processed"], failed=result["failed"])
-
-
-@router.post(
-    "/metrics/targets/bulk/cleanup",
-    response_model=TargetBulkUpsertWithCleanupResponse,
-    status_code=status.HTTP_201_CREATED,
-    summary="Bulk upsert targets with cleanup",
-    dependencies=[Security(oauth2_auth().verify, scopes=[QUERY_MANAGER_ALL])],
-    tags=["targets"],
-)
-async def bulk_upsert_targets_with_cleanup(
-    bulk_data: TargetBulkUpsertWithCleanupRequest,
-    semantic_manager: SemanticManagerDep,
-) -> TargetBulkUpsertWithCleanupResponse:
-    """
-    Bulk upsert targets for metrics with cleanup options.
-
-    - **targets**: List of targets to upsert
-    - **replace_existing**: If True, delete ALL existing targets for these metric_id/grain combinations first
-    - **date_range_cleanup**: If True, delete existing targets outside the new date range
-    """
-    targets_data = [target.model_dump() for target in bulk_data.targets]
-
-    # Upsert targets with cleanup options
-    result = await semantic_manager.metric_target.bulk_upsert_targets_with_cleanup(
-        targets=targets_data,
-        replace_existing=bulk_data.replace_existing,
-        date_range_cleanup=bulk_data.date_range_cleanup,
-    )
-
-    return TargetBulkUpsertWithCleanupResponse(
-        total=result["total"], processed=result["processed"], failed=result["failed"], deleted=result["deleted"]
-    )
 
 
 @router.delete(

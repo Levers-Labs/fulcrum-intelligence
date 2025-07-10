@@ -75,33 +75,12 @@ class TargetBulkUpsertRequest(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
-class TargetBulkUpsertWithCleanupRequest(BaseModel):
-    """Schema for bulk upserting targets with cleanup options."""
-
-    targets: list[TargetCreate]
-    replace_existing: bool = False
-    date_range_cleanup: bool = False
-
-    model_config = ConfigDict(from_attributes=True)
-
-
 class TargetBulkUpsertResponse(BaseModel):
     """Response schema for bulk upserting targets."""
 
     processed: int
     failed: int
     total: int
-
-    model_config = ConfigDict(from_attributes=True)
-
-
-class TargetBulkUpsertWithCleanupResponse(BaseModel):
-    """Response schema for bulk upserting targets with cleanup."""
-
-    processed: int
-    failed: int
-    total: int
-    deleted: int
 
     model_config = ConfigDict(from_attributes=True)
 
