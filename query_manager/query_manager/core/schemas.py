@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from commons.models import BaseModel
 from commons.models.enums import Granularity
-from query_manager.core.enums import Complexity
+from query_manager.core.enums import Complexity, MetricAim
 from query_manager.core.models import (
     Dimension,
     DimensionBase,
@@ -163,6 +163,7 @@ class MetricUpdate(BaseModel):
     influencers: list[str] | None = Field(None, description="List of influencer metric IDs")
     components: list[str] | None = Field(None, description="List of component metric IDs")
     inputs: list[str] | None = Field(None, description="List of input metric IDs")
+    aim: MetricAim | None = None
 
     model_config = ConfigDict(from_attributes=True)
 
