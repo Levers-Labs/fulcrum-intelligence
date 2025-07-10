@@ -7,9 +7,11 @@ from typing import (
 
 from pydantic import ConfigDict, TypeAdapter
 from sqlalchemy import (
+    Boolean,
     Column,
     Enum,
     Float,
+    Integer,
     String,
     Text,
     UniqueConstraint,
@@ -124,7 +126,7 @@ class QuerySchemaBaseModel(BaseTimeStampedTenantModel):
 
 
 # Association tables
-class MetricDimension(SQLModel, table=True):
+class MetricDimension(SQLModel, table=True):  # type: ignore
     """
     Association table for the many-to-many relationship between Metric and Dimensions.
     """
@@ -134,7 +136,7 @@ class MetricDimension(SQLModel, table=True):
     dimension_id: int = Field(foreign_key="query_store.dimension.id", primary_key=True)
 
 
-class MetricInfluence(SQLModel, table=True):
+class MetricInfluence(SQLModel, table=True):  # type: ignore
     """Association table for metric influences"""
 
     __table_args__ = {"schema": "query_store"}
@@ -142,7 +144,7 @@ class MetricInfluence(SQLModel, table=True):
     influenced_id: int = Field(foreign_key="query_store.metric.id", primary_key=True)
 
 
-class MetricComponent(SQLModel, table=True):
+class MetricComponent(SQLModel, table=True):  # type: ignore
     """Association table for metric components"""
 
     __table_args__ = {"schema": "query_store"}
@@ -150,7 +152,7 @@ class MetricComponent(SQLModel, table=True):
     component_id: int = Field(foreign_key="query_store.metric.id", primary_key=True)
 
 
-class MetricInput(SQLModel, table=True):
+class MetricInput(SQLModel, table=True):  # type: ignore
     """Association table for metric inputs"""
 
     __table_args__ = {"schema": "query_store"}
@@ -287,3 +289,42 @@ class Metric(MetricBase, QuerySchemaBaseModel, table=True):  # type: ignore
         def receive_load(target: Metric, context):
             if isinstance(target.meta_data, dict):  # type: ignore
                 target.meta_data = TypeAdapter(MetricMetadata).validate_python(target.meta_data)  # type: ignore
+
+
+# Snowflake Cache Configuration Models
+class MetricCacheGrainConfig(QuerySchemaBaseModel, table=True):  # type: ignore
+    """
+    Configuration for Snowflake sync at different grain levels (day/week/month).
+    This is tenant-scoped and applies to all metrics unless individually disabled.
+    """
+
+    __table_args__ = (
+        # Unique constraint for grain and tenant_id
+        UniqueConstraint("grain", "tenant_id", name="uq_grain_tenant_id"),  # type: ignore
+        {"schema": "query_store"},
+    )
+
+    grain: Granularity = Field(sa_column=Column(Enum(Granularity, name="granularity")))
+    is_enabled: bool = Field(default=True, sa_column=Column(Boolean, server_default="true"))
+    initial_sync_period: int = Field(
+        description="Initial sync period in days (e.g., 730 for 2 years)", sa_column=Column(Integer, default=730)
+    )
+    delta_sync_period: int = Field(
+        description="Delta sync period in days (e.g., 90 for 90 days)", sa_column=Column(Integer, default=90)
+    )
+
+
+class MetricCacheConfig(QuerySchemaBaseModel, table=True):  # type: ignore
+    """
+    Configuration for individual metric caching to Snowflake.
+    Controls whether specific metrics participate in caching.
+    """
+
+    __table_args__ = (
+        # Unique constraint for metric_id and tenant_id
+        UniqueConstraint("metric_id", "tenant_id", name="uq_metric_cache_tenant_id"),  # type: ignore
+        {"schema": "query_store"},
+    )
+
+    metric_id: str
+    is_enabled: bool = Field(default=True, sa_column=Column(Boolean, default=True))
