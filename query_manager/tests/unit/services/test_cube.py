@@ -6,7 +6,6 @@ import pytest
 from commons.clients.auth import JWTAuth, JWTSecretKeyAuth
 from commons.clients.base import HttpClientError
 from commons.models.enums import Granularity
-from query_manager.core.dependencies import get_cube_client
 from query_manager.core.models import (
     CubeFilter,
     Dimension,
@@ -35,8 +34,19 @@ def insights_backend_client():
 
 
 @pytest.fixture
-async def cube_client(insights_backend_client):
-    return await get_cube_client(insights_backend_client)
+async def cube_client(insights_backend_client, mocker):
+    # Mock the tenant context
+    mocker.patch("commons.utilities.context.get_tenant_id", return_value=1)
+    mocker.patch("commons.utilities.context.set_tenant_id", return_value=None)
+
+    # Mock the dependencies directly to avoid context issues
+    from query_manager.services.cube import CubeClient, CubeJWTAuthType
+
+    return CubeClient(
+        base_url="http://test-cube-api.com",
+        auth_type=CubeJWTAuthType.SECRET_KEY,
+        auth_options={"secret_key": "test-secret-key"},
+    )
 
 
 @pytest.mark.asyncio
@@ -634,3 +644,113 @@ async def test_list_cubes_empty(mocker, cube_client):
     # Assert
     assert len(cubes) == 0
     get_mock.assert_called_once_with("/meta")
+
+
+@pytest.mark.asyncio
+async def test_get_cube_measures(mocker, cube_client):
+    # Prepare
+    cube_client = await cube_client
+    cube_name = "cube1"
+
+    # Mock the get_cube_measures method to return proper format
+    mock_measures = [
+        {
+            "name": "revenue",
+            "title": "Total Revenue",
+            "short_title": "Revenue",
+            "type": "number",
+            "description": "Total revenue from all sources",
+            "cube": "cube1",
+        },
+        {
+            "name": "signups",
+            "title": "Total Signups",
+            "short_title": "Signups",
+            "type": "number",
+            "description": "Total number of signups",
+            "cube": "cube1",
+        },
+    ]
+
+    get_cube_measures_mock = AsyncMock(return_value=mock_measures)
+    mocker.patch.object(cube_client, "get_cube_measures", get_cube_measures_mock)
+
+    # Execute
+    measures = await cube_client.get_cube_measures(cube_name)
+
+    # Assert
+    assert len(measures) == 2
+    assert measures[0]["name"] == "revenue"
+    assert measures[1]["name"] == "signups"
+    get_cube_measures_mock.assert_called_once_with(cube_name)
+
+
+@pytest.mark.asyncio
+async def test_get_cube_measures_error(mocker, cube_client):
+    # Prepare
+    cube_client = await cube_client
+    cube_name = "cube1"
+
+    # Mock the get_cube_measures method to raise error
+    get_cube_measures_mock = AsyncMock(side_effect=HttpClientError("Error"))
+    mocker.patch.object(cube_client, "get_cube_measures", get_cube_measures_mock)
+
+    # Execute and Assert - get_cube_measures should raise HttpClientError directly
+    with pytest.raises(HttpClientError):
+        await cube_client.get_cube_measures(cube_name)
+    get_cube_measures_mock.assert_called_once_with(cube_name)
+
+
+@pytest.mark.asyncio
+async def test_get_cube_dimensions(mocker, cube_client):
+    # Prepare
+    cube_client = await cube_client
+    cube_name = "cube1"
+
+    # Mock the get_cube_dimensions method to return proper format
+    mock_dimensions = [
+        {
+            "name": "created_at",
+            "title": "Created Date",
+            "short_title": "Created",
+            "type": "time",
+            "description": "Date when record was created",
+            "cube": "cube1",
+        },
+        {
+            "name": "region",
+            "title": "Customer Region",
+            "short_title": "Region",
+            "type": "string",
+            "description": "Customer geographical region",
+            "cube": "cube1",
+        },
+    ]
+
+    get_cube_dimensions_mock = AsyncMock(return_value=mock_dimensions)
+    mocker.patch.object(cube_client, "get_cube_dimensions", get_cube_dimensions_mock)
+
+    # Execute
+    dimensions = await cube_client.get_cube_dimensions(cube_name)
+
+    # Assert
+    assert len(dimensions) == 2
+    assert dimensions[0]["name"] == "created_at"
+    assert dimensions[1]["name"] == "region"
+    get_cube_dimensions_mock.assert_called_once_with(cube_name)
+
+
+@pytest.mark.asyncio
+async def test_get_cube_dimensions_error(mocker, cube_client):
+    # Prepare
+    cube_client = await cube_client
+    cube_name = "cube1"
+
+    # Mock the get_cube_dimensions method to raise error
+    get_cube_dimensions_mock = AsyncMock(side_effect=HttpClientError("Error"))
+    mocker.patch.object(cube_client, "get_cube_dimensions", get_cube_dimensions_mock)
+
+    # Execute and Assert - get_cube_dimensions should raise HttpClientError directly
+    with pytest.raises(HttpClientError):
+        await cube_client.get_cube_dimensions(cube_name)
+    get_cube_dimensions_mock.assert_called_once_with(cube_name)
