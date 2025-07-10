@@ -211,7 +211,7 @@ class MetricBase(BaseSQLModel):
     owned_by_team: list[str] = Field(sa_column=Column(ARRAY(String), nullable=True, default=list))
     meta_data: MetricMetadata = Field(sa_type=JSONB, default_factory=dict)
     hypothetical_max: float | None = Field(sa_column=Column(Float, nullable=True), default=None)
-    aim: MetricAim | None = Field(sa_column=Column(String(255), nullable=True), default=None)
+    aim: MetricAim | None = Field(sa_column=Column(String(255), nullable=True), default=MetricAim.MAXIMIZE)
 
 
 class Metric(MetricBase, QuerySchemaBaseModel, table=True):  # type: ignore

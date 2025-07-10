@@ -405,7 +405,12 @@ async def preview_metric_from_yaml(
                         unit_of_measure: quantity
                         unit: n
                         measure: cube.test
-                        time_dimension: cube.test""",
+                        aim: maximize
+                        time_dimension: cube.test,
+                        cube_filters:
+                            - [cube.dimension, equals, ["US", "CA"]]
+                            - [cube.dimension, notEquals, ["closed"]]
+                        """,
         description="Raw Metric Data in YAML format",
         media_type="application/x-yaml",
     ),
