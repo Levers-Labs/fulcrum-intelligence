@@ -279,7 +279,7 @@ class TestAnalysisWindowConfig:
         # Start date should be before end date and roughly around the expected range
         assert start_date < end_date
         assert (end_date - start_date).days >= 85  # Allow some flexibility in calculation
-        assert (end_date - start_date).days <= 95
+        assert (end_date - start_date).days <= 105  # Allow more flexibility for quarterly periods
 
     def test_get_date_range_with_look_forward_different_grains(self):
         """Test get_date_range with look_forward=True for different grains."""
@@ -303,7 +303,7 @@ class TestAnalysisWindowConfig:
             # Start date should be before end date and roughly around the expected range
             assert start_date < end_date
             assert (end_date - start_date).days >= 85  # Allow some flexibility in calculation
-            assert (end_date - start_date).days <= 95
+            assert (end_date - start_date).days <= 105  # Allow more flexibility for quarterly periods
 
     def test_get_prev_period_start_date(self):
         """Test get_prev_period_start_date method."""

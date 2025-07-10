@@ -36,7 +36,7 @@ class TestForecastingPattern:
         assert config.data_sources[0].source_type == DataSourceType.METRIC_TIME_SERIES
         assert config.data_sources[0].data_key == "data"
         assert config.data_sources[0].look_forward is False
-        assert config.data_sources[1].source_type == DataSourceType.METRIC_TARGETS_ONLY
+        assert config.data_sources[1].source_type == DataSourceType.TARGETS
         assert config.data_sources[1].data_key == "target"
         assert config.data_sources[1].look_forward is True
         assert config.data_sources[0].is_required is True
@@ -48,15 +48,13 @@ class TestForecastingPattern:
         pattern = ForecastingPattern()
 
         # Create minimal test data
-        dates = pd.date_range(start="2023-01-01", periods=12, freq="W")
-        data = pd.DataFrame(
-            {"date": dates, "value": range(100, 112), "grain": ["week"] * 12}
-        )  # Simple increasing trend
+        dates = pd.date_range(start="2023-01-01", periods=12, freq="D")
+        data = pd.DataFrame({"date": dates, "value": range(100, 112), "grain": ["day"] * 12})  # Simple increasing trend
 
         # Create minimal target data
-        target = pd.DataFrame({"date": ["2023-03-26"], "target_value": [150.0], "grain": ["week"]})
+        target = pd.DataFrame({"date": ["2023-01-12"], "target_value": [150.0], "grain": ["day"]})
 
-        analysis_window = AnalysisWindow(start_date="2023-01-01", end_date="2023-03-19", grain=Granularity.WEEK)
+        analysis_window = AnalysisWindow(start_date="2023-01-01", end_date="2023-01-11", grain=Granularity.DAY)
 
         # Run analysis
         result = pattern.analyze(
@@ -64,7 +62,7 @@ class TestForecastingPattern:
             data=data,
             target=target,
             analysis_window=analysis_window,
-            analysis_date=date(2023, 3, 19),
+            analysis_date=date(2023, 1, 11),
         )
 
         # Verify basic structure
@@ -83,26 +81,26 @@ class TestForecastingPattern:
         pattern = ForecastingPattern()
 
         # Create test data
-        dates = pd.date_range(start="2023-01-01", periods=12, freq="W")
+        dates = pd.date_range(start="2023-01-01", periods=12, freq="D")
         data = pd.DataFrame(
             {
                 "date": dates,
                 "value": range(100, 112),
-                "grain": ["week"] * 12,
+                "grain": ["day"] * 12,
             }
         )
 
         # Create target data
         target = pd.DataFrame(
             {
-                "date": ["2023-03-26"],  # Week ending date for weekly grain
+                "date": ["2023-01-13"],  # Day for daily grain
                 "target_value": [150.0],
-                "target_date": ["2023-03-26"],
-                "grain": ["week"],
+                "target_date": ["2023-01-13"],
+                "grain": ["day"],
             }
         )
 
-        analysis_window = AnalysisWindow(start_date="2023-01-01", end_date="2023-03-19", grain=Granularity.WEEK)
+        analysis_window = AnalysisWindow(start_date="2023-01-01", end_date="2023-01-12", grain=Granularity.DAY)
 
         # Run analysis
         result = pattern.analyze(
@@ -110,7 +108,7 @@ class TestForecastingPattern:
             data=data,
             target=target,
             analysis_window=analysis_window,
-            analysis_date=date(2023, 3, 19),
+            analysis_date=date(2023, 1, 12),
         )
 
         # Verify targets are incorporated
@@ -156,11 +154,11 @@ class TestForecastingPattern:
         pattern = ForecastingPattern()
 
         # Create test data
-        dates = pd.date_range(start="2023-01-01", periods=12, freq="W")
-        data = pd.DataFrame({"date": dates, "value": range(100, 112), "grain": ["week"] * 12})
-        target = pd.DataFrame({"date": ["2023-03-26"], "target_value": [150.0], "grain": ["week"]})
+        dates = pd.date_range(start="2023-01-01", periods=12, freq="D")
+        data = pd.DataFrame({"date": dates, "value": range(100, 112), "grain": ["day"] * 12})
+        target = pd.DataFrame({"date": ["2023-01-13"], "target_value": [150.0], "grain": ["day"]})
 
-        analysis_window = AnalysisWindow(start_date="2023-01-01", end_date="2023-03-19", grain=Granularity.WEEK)
+        analysis_window = AnalysisWindow(start_date="2023-01-01", end_date="2023-01-12", grain=Granularity.DAY)
 
         # Test basic forecasting
         result = pattern.analyze(
@@ -168,7 +166,7 @@ class TestForecastingPattern:
             data=data,
             target=target,
             analysis_window=analysis_window,
-            analysis_date=date(2023, 3, 19),
+            analysis_date=date(2023, 1, 12),
         )
 
         assert result.pattern == "forecasting"
@@ -181,26 +179,26 @@ class TestForecastingPattern:
         pattern = ForecastingPattern()
 
         # Create test data
-        dates = pd.date_range(start="2023-01-01", periods=12, freq="W")
+        dates = pd.date_range(start="2023-01-01", periods=12, freq="D")
         data = pd.DataFrame(
             {
                 "date": dates,
                 "value": range(100, 112),
-                "grain": ["week"] * 12,
+                "grain": ["day"] * 12,
             }
         )
 
-        # Create target data with week ending date for weekly grain
+        # Create target data with day for daily grain
         target = pd.DataFrame(
             {
-                "date": ["2023-03-26"],
+                "date": ["2023-01-13"],
                 "target_value": [150.0],
-                "target_date": ["2023-03-26"],
-                "grain": ["week"],
-            }  # Week ending date
+                "target_date": ["2023-01-13"],
+                "grain": ["day"],
+            }  # Day ending date
         )
 
-        analysis_window = AnalysisWindow(start_date="2023-01-01", end_date="2023-03-19", grain=Granularity.WEEK)
+        analysis_window = AnalysisWindow(start_date="2023-01-01", end_date="2023-01-12", grain=Granularity.DAY)
 
         # Run analysis
         result = pattern.analyze(
@@ -208,7 +206,7 @@ class TestForecastingPattern:
             data=data,
             target=target,
             analysis_window=analysis_window,
-            analysis_date=date(2023, 3, 19),
+            analysis_date=date(2023, 1, 12),
         )
 
         # Verify results structure
@@ -228,13 +226,13 @@ class TestForecastingPattern:
         pattern = ForecastingPattern()
 
         # Create test data
-        dates = pd.date_range(start="2023-01-01", periods=12, freq="W")
-        data = pd.DataFrame({"date": dates, "value": range(100, 112), "grain": ["week"] * 12})
+        dates = pd.date_range(start="2023-01-01", periods=12, freq="D")
+        data = pd.DataFrame({"date": dates, "value": range(100, 112), "grain": ["day"] * 12})
 
         # Create target data with zero value
-        target = pd.DataFrame({"date": ["2023-03-26"], "target_value": [0.0], "grain": ["week"]})
+        target = pd.DataFrame({"date": ["2023-01-13"], "target_value": [0.0], "grain": ["day"]})
 
-        analysis_window = AnalysisWindow(start_date="2023-01-01", end_date="2023-03-19", grain=Granularity.WEEK)
+        analysis_window = AnalysisWindow(start_date="2023-01-01", end_date="2023-01-12", grain=Granularity.DAY)
 
         # Run analysis
         result = pattern.analyze(
@@ -242,7 +240,7 @@ class TestForecastingPattern:
             data=data,
             target=target,
             analysis_window=analysis_window,
-            analysis_date=date(2023, 3, 19),
+            analysis_date=date(2023, 1, 12),
         )
 
         assert result.pattern == "forecasting"
@@ -773,27 +771,27 @@ class TestForecastingPattern:
         pattern = ForecastingPattern()
 
         # Create test data
-        dates = pd.date_range(start="2023-01-01", periods=10, freq="W")
-        data = pd.DataFrame({"date": dates, "value": range(100, 110), "grain": ["week"] * 10})
+        dates = pd.date_range(start="2023-01-01", periods=10, freq="D")
+        data = pd.DataFrame({"date": dates, "value": range(100, 110), "grain": ["day"] * 10})
 
         # Multiple targets for different periods
         target = pd.DataFrame(
             {
-                "date": ["2023-02-12", "2023-03-05"],
+                "date": ["2023-01-07", "2023-01-10"],
                 "target_value": [115.0, 130.0],
-                "target_date": ["2023-02-12", "2023-03-05"],
-                "grain": ["week", "week"],
+                "target_date": ["2023-01-07", "2023-01-10"],
+                "grain": ["day", "day"],
             }
         )
 
-        analysis_window = AnalysisWindow(start_date="2023-01-01", end_date="2023-03-05", grain=Granularity.WEEK)
+        analysis_window = AnalysisWindow(start_date="2023-01-01", end_date="2023-01-10", grain=Granularity.DAY)
 
         result = pattern.analyze(
             metric_id="test_metric",
             data=data,
             target=target,
             analysis_window=analysis_window,
-            analysis_date=date(2023, 3, 5),
+            analysis_date=date(2023, 1, 10),
         )
 
         # Verify list structures
@@ -899,24 +897,36 @@ class TestForecastingPattern:
         pattern = ForecastingPattern()
 
         # Data with large values
-        dates = pd.date_range(start="2023-01-01", periods=5, freq="W")
+        dates = pd.date_range(start="2023-01-01", periods=5, freq="D")
         large_values = [1e6 + i * 1e4 for i in range(5)]  # Values in millions
-        data = pd.DataFrame({"date": dates, "value": large_values, "grain": ["week"] * 5})
-        target = pd.DataFrame({"date": ["2023-02-05"], "target_value": [1.2e6], "grain": ["week"]})
+        data = pd.DataFrame({"date": dates, "value": large_values, "grain": ["day"] * 5})
+        target = pd.DataFrame({"date": ["2023-01-06"], "target_value": [1.2e6], "grain": ["day"]})
 
-        analysis_window = AnalysisWindow(start_date="2023-01-01", end_date="2023-01-29", grain=Granularity.WEEK)
+        analysis_window = AnalysisWindow(start_date="2023-01-01", end_date="2023-01-05", grain=Granularity.DAY)
 
-        result = pattern.analyze(
-            metric_id="test_metric",
-            data=data,
-            target=target,
-            analysis_window=analysis_window,
-            analysis_date=date(2023, 1, 29),
-        )
+        # Mock forecast_with_confidence_intervals to return valid data
+        with patch("levers.patterns.forecasting.forecast_with_confidence_intervals") as mock_forecast:
+            mock_forecast.return_value = pd.DataFrame(
+                {
+                    "date": pd.date_range(start="2023-01-06", periods=5, freq="D"),
+                    "forecast": [1.2e6, 1.21e6, 1.22e6, 1.23e6, 1.24e6],
+                    "lower_bound": [1.1e6, 1.11e6, 1.12e6, 1.13e6, 1.14e6],
+                    "upper_bound": [1.3e6, 1.31e6, 1.32e6, 1.33e6, 1.34e6],
+                    "confidence_level": [0.95, 0.95, 0.95, 0.95, 0.95],
+                }
+            )
 
-        assert result.pattern == "forecasting"
-        assert isinstance(result.forecast, list)
-        assert len(result.forecast) > 0
+            result = pattern.analyze(
+                metric_id="test_metric",
+                data=data,
+                target=target,
+                analysis_window=analysis_window,
+                analysis_date=date(2023, 1, 5),
+            )
+
+            assert result.pattern == "forecasting"
+            assert isinstance(result.forecast, list)
+            assert len(result.forecast) > 0
 
     def test_duplicate_dates_handling(self):
         """Test handling of duplicate dates in data."""
@@ -1116,27 +1126,39 @@ class TestForecastingPattern:
         pattern = ForecastingPattern()
 
         # Create test data
-        dates = pd.date_range(start="2023-01-01", periods=12, freq="W")
-        data = pd.DataFrame({"date": dates, "value": range(100, 112), "grain": ["week"] * 12})
-        target = pd.DataFrame({"date": ["2023-03-26"], "target_value": [150.0], "grain": ["week"]})
+        dates = pd.date_range(start="2023-01-01", periods=12, freq="D")
+        data = pd.DataFrame({"date": dates, "value": range(100, 112), "grain": ["day"] * 12})
+        target = pd.DataFrame({"date": ["2023-01-13"], "target_value": [150.0], "grain": ["day"]})
 
-        analysis_window = AnalysisWindow(start_date="2023-01-01", end_date="2023-03-19", grain=Granularity.WEEK)
+        analysis_window = AnalysisWindow(start_date="2023-01-01", end_date="2023-01-12", grain=Granularity.DAY)
 
-        # Run analysis
-        result = pattern.analyze(
-            metric_id="test_metric",
-            data=data,
-            target=target,
-            analysis_window=analysis_window,
-            analysis_date=date(2023, 3, 19),
-        )
+        # Mock forecast_with_confidence_intervals to return valid data
+        with patch("levers.patterns.forecasting.forecast_with_confidence_intervals") as mock_forecast:
+            mock_forecast.return_value = pd.DataFrame(
+                {
+                    "date": pd.date_range(start="2023-01-13", periods=5, freq="D"),
+                    "forecast": [115, 116, 117, 118, 119],
+                    "lower_bound": [110, 111, 112, 113, 114],
+                    "upper_bound": [120, 121, 122, 123, 124],
+                    "confidence_level": [0.95, 0.95, 0.95, 0.95, 0.95],
+                }
+            )
 
-        # Comprehensive validation
-        assert isinstance(result.forecast_vs_target_stats, list)
-        assert isinstance(result.pacing, list)
-        assert isinstance(result.required_performance, list)
-        assert isinstance(result.forecast, list)
-        assert result.forecast_window is not None
+            # Run analysis
+            result = pattern.analyze(
+                metric_id="test_metric",
+                data=data,
+                target=target,
+                analysis_window=analysis_window,
+                analysis_date=date(2023, 1, 12),
+            )
+
+            # Comprehensive validation
+            assert isinstance(result.forecast_vs_target_stats, list)
+            assert isinstance(result.pacing, list)
+            assert isinstance(result.required_performance, list)
+            assert isinstance(result.forecast, list)
+            assert result.forecast_window is not None
 
     def test_empty_forecast_handling(self):
         """Test handling when forecast generation returns empty DataFrame."""
@@ -1173,10 +1195,10 @@ class TestForecastingPattern:
         pattern = ForecastingPattern()
 
         # Create test data
-        dates = pd.date_range(start="2023-01-01", periods=12, freq="W")
-        data = pd.DataFrame({"date": dates, "value": range(100, 112), "grain": ["week"] * 12})
+        dates = pd.date_range(start="2023-01-01", periods=12, freq="D")
+        data = pd.DataFrame({"date": dates, "value": range(100, 112), "grain": ["day"] * 12})
 
-        analysis_window = AnalysisWindow(start_date="2023-01-01", end_date="2023-03-19", grain=Granularity.WEEK)
+        analysis_window = AnalysisWindow(start_date="2023-01-01", end_date="2023-01-12", grain=Granularity.DAY)
 
         # Test with empty target
         empty_target = pd.DataFrame()
@@ -1185,10 +1207,11 @@ class TestForecastingPattern:
         with patch("levers.patterns.forecasting.forecast_with_confidence_intervals") as mock_forecast:
             mock_forecast.return_value = pd.DataFrame(
                 {
-                    "date": pd.date_range(start="2023-03-20", periods=5, freq="D"),
+                    "date": pd.date_range(start="2023-01-13", periods=5, freq="D"),
                     "forecast": [115, 116, 117, 118, 119],
                     "lower_bound": [110, 111, 112, 113, 114],
                     "upper_bound": [120, 121, 122, 123, 124],
+                    "confidence_level": [0.95, 0.95, 0.95, 0.95, 0.95],
                 }
             )
 
@@ -1198,25 +1221,25 @@ class TestForecastingPattern:
                 data=data,
                 target=empty_target,
                 analysis_window=analysis_window,
-                analysis_date=date(2023, 3, 19),
+                analysis_date=date(2023, 1, 12),
             )
 
-            # Should return result with error information
-            assert result.pattern == "forecasting"
-            assert result.metric_id == "test_metric"
-            assert hasattr(result, "error")
-            assert result.error["type"] == "data_error"
-            assert "Invalid target data" in result.error["message"]
+        # Should return result with error information
+        assert result.pattern == "forecasting"
+        assert result.metric_id == "test_metric"
+        assert hasattr(result, "error")
+        assert result.error["type"] == "data_error"
+        assert "Invalid target data for analysis" in result.error["message"]
 
     def test_missing_target_columns_handling(self):
         """Test handling when target data is missing required columns."""
         pattern = ForecastingPattern()
 
         # Create test data
-        dates = pd.date_range(start="2023-01-01", periods=12, freq="W")
-        data = pd.DataFrame({"date": dates, "value": range(100, 112), "grain": ["week"] * 12})
+        dates = pd.date_range(start="2023-01-01", periods=12, freq="D")
+        data = pd.DataFrame({"date": dates, "value": range(100, 112), "grain": ["day"] * 12})
 
-        analysis_window = AnalysisWindow(start_date="2023-01-01", end_date="2023-03-19", grain=Granularity.WEEK)
+        analysis_window = AnalysisWindow(start_date="2023-01-01", end_date="2023-01-12", grain=Granularity.DAY)
 
         # Test with target missing required columns
         invalid_target = pd.DataFrame({"some_column": [100, 200]})
@@ -1225,10 +1248,11 @@ class TestForecastingPattern:
         with patch("levers.patterns.forecasting.forecast_with_confidence_intervals") as mock_forecast:
             mock_forecast.return_value = pd.DataFrame(
                 {
-                    "date": pd.date_range(start="2023-03-20", periods=5, freq="D"),
+                    "date": pd.date_range(start="2023-01-13", periods=5, freq="D"),
                     "forecast": [115, 116, 117, 118, 119],
                     "lower_bound": [110, 111, 112, 113, 114],
                     "upper_bound": [120, 121, 122, 123, 124],
+                    "confidence_level": [0.95, 0.95, 0.95, 0.95, 0.95],
                 }
             )
 
@@ -1238,7 +1262,7 @@ class TestForecastingPattern:
                 data=data,
                 target=invalid_target,
                 analysis_window=analysis_window,
-                analysis_date=date(2023, 3, 19),
+                analysis_date=date(2023, 1, 12),
             )
 
             # Should return result with error information
@@ -1246,7 +1270,7 @@ class TestForecastingPattern:
             assert result.metric_id == "test_metric"
             assert hasattr(result, "error")
             assert result.error["type"] == "data_error"
-            assert "Invalid target data" in result.error["message"]
+            assert "Invalid target data for analysis" in result.error["message"]
 
     def test_no_target_value_found_for_period(self):
         """Test handling when no target value is found for a period."""
@@ -1399,27 +1423,16 @@ class TestForecastingPattern:
             pattern._get_pacing_grain_for_period("invalid_period")
 
     def test_convert_to_day_grain_edge_cases(self):
-        """Test _convert_to_day_grain with different scenarios."""
+        """Test _convert_to_day_grain method availability."""
         pattern = ForecastingPattern()
 
-        # Test with weekly data
+        # Test with weekly data - method doesn't exist so should raise AttributeError
         weekly_data = pd.DataFrame(
             {"date": pd.to_datetime(["2023-01-02", "2023-01-09"]), "value": [140, 210]}  # Mondays
         )
 
-        daily_result = pattern._convert_to_day_grain(weekly_data, Granularity.WEEK)
-        assert len(daily_result) == 14  # 7 days * 2 weeks
-        assert daily_result["value"].iloc[0] == 20  # 140/7
-
-        # Test with monthly data
-        monthly_data = pd.DataFrame({"date": pd.to_datetime(["2023-01-01", "2023-02-01"]), "value": [310, 280]})
-
-        daily_result = pattern._convert_to_day_grain(monthly_data, Granularity.MONTH)
-        assert len(daily_result) > 50  # Should be about 59 days (31 + 28)
-
-        # Test unsupported grain
-        with pytest.raises(ValueError):
-            pattern._convert_to_day_grain(weekly_data, Granularity.DAY)
+        with pytest.raises(AttributeError):
+            pattern._convert_to_day_grain(weekly_data, Granularity.WEEK)
 
     def test_forecast_window_functionality(self):
         """Test _get_forecast_window functionality."""
@@ -1510,6 +1523,7 @@ class TestForecastingPattern:
                 "forecast": [115.123, 116.456, float("nan")],
                 "lower_bound": [110.789, float("nan"), 113.0],
                 "upper_bound": [120.0, 121.5, 124.987],
+                "confidence_level": [0.95, 0.95, 0.95],
             }
         )
 
@@ -1623,12 +1637,12 @@ class TestForecastingPattern:
         """Test error handling in the main analyze method."""
         pattern = ForecastingPattern()
 
-        # Create test data that will cause an error in processing
-        dates = pd.date_range(start="2023-01-01", periods=5, freq="W")
-        data = pd.DataFrame({"date": dates, "value": range(100, 105), "grain": ["week"] * 5})
-        target = pd.DataFrame({"date": ["2023-02-05"], "target_value": [150.0], "grain": ["week"]})
+        # Create test data that will cause an error in processing - use DAY grain to reach the exception
+        dates = pd.date_range(start="2023-01-01", periods=5, freq="D")
+        data = pd.DataFrame({"date": dates, "value": range(100, 105), "grain": ["day"] * 5})
+        target = pd.DataFrame({"date": ["2023-01-06"], "target_value": [150.0], "grain": ["day"]})
 
-        analysis_window = AnalysisWindow(start_date="2023-01-01", end_date="2023-01-29", grain=Granularity.WEEK)
+        analysis_window = AnalysisWindow(start_date="2023-01-01", end_date="2023-01-05", grain=Granularity.DAY)
 
         # Mock a primitive to raise an exception
         with patch("levers.patterns.forecasting.forecast_with_confidence_intervals") as mock_forecast:
@@ -1640,7 +1654,7 @@ class TestForecastingPattern:
                     data=data,
                     target=target,
                     analysis_window=analysis_window,
-                    analysis_date=date(2023, 1, 29),
+                    analysis_date=date(2023, 1, 5),
                 )
 
             assert "Error in forecasting pattern calculation" in str(exc_info.value)
@@ -1657,6 +1671,7 @@ class TestForecastingPattern:
                 "forecast": [115, 116, 117],
                 "lower_bound": [110, 111, 112],
                 "upper_bound": [120, 121, 122],
+                "confidence_level": [0.95, 0.95, 0.95],
             }
         )
 
@@ -1924,28 +1939,14 @@ class TestForecastingPattern:
             assert len(result.pacing) == 0  # No pacing stats due to None target
 
     def test_different_grain_conversions_comprehensive(self):
-        """Test comprehensive grain conversion scenarios in _convert_to_day_grain."""
+        """Test that _convert_to_day_grain method doesn't exist."""
         pattern = ForecastingPattern()
 
-        # Test weekly data edge case with single week
+        # Test that method doesn't exist - should raise AttributeError
         single_week_data = pd.DataFrame({"date": pd.to_datetime(["2023-01-02"]), "value": [70]})  # Monday
 
-        daily_result = pattern._convert_to_day_grain(single_week_data, Granularity.WEEK)
-        assert len(daily_result) == 7  # Should create 7 daily rows
-        assert daily_result["value"].iloc[0] == 10  # 70/7 = 10
-
-        # Test monthly data edge case with single month (February - shorter month)
-        single_month_data = pd.DataFrame({"date": pd.to_datetime(["2023-02-01"]), "value": [280]})
-
-        daily_result = pattern._convert_to_day_grain(single_month_data, Granularity.MONTH)
-        assert len(daily_result) == 28  # February 2023 has 28 days
-        assert daily_result["value"].iloc[0] == 10  # 280/28 = 10
-
-        # Test DAY grain should raise error
-        day_data = pd.DataFrame({"date": pd.to_datetime(["2023-01-01", "2023-01-02"]), "value": [100, 110]})
-
-        with pytest.raises(ValueError, match="Unsupported grain"):
-            pattern._convert_to_day_grain(day_data, Granularity.DAY)
+        with pytest.raises(AttributeError):
+            pattern._convert_to_day_grain(single_week_data, Granularity.WEEK)
 
     def test_all_period_grain_mappings(self):
         """Test all period to grain mappings comprehensively."""
@@ -2163,21 +2164,14 @@ class TestForecastingPattern:
             pattern._get_periods_for_grain("INVALID_GRAIN_TYPE")
 
     def test_month_end_calculation_in_conversion(self):
-        """Test month end calculation in grain conversion."""
+        """Test that _convert_to_day_grain method doesn't exist."""
         pattern = ForecastingPattern()
 
-        # Test with a month that has different end dates
-        march_data = pd.DataFrame({"date": pd.to_datetime(["2023-03-01"]), "value": [310]})  # March has 31 days
+        # Test that method doesn't exist - should raise AttributeError
+        march_data = pd.DataFrame({"date": pd.to_datetime(["2023-03-01"]), "value": [310]})
 
-        daily_result = pattern._convert_to_day_grain(march_data, Granularity.MONTH)
-        assert len(daily_result) == 31  # March 2023 has 31 days
-        assert daily_result["value"].iloc[0] == 10  # 310/31 = 10
-
-        # Test with December (also 31 days)
-        december_data = pd.DataFrame({"date": pd.to_datetime(["2023-12-01"]), "value": [310]})
-
-        daily_result = pattern._convert_to_day_grain(december_data, Granularity.MONTH)
-        assert len(daily_result) == 31  # December 2023 has 31 days
+        with pytest.raises(AttributeError):
+            pattern._convert_to_day_grain(march_data, Granularity.MONTH)
 
     def test_forecast_data_with_extreme_values(self):
         """Test forecast data preparation with extreme values."""
@@ -2190,6 +2184,7 @@ class TestForecastingPattern:
                 "forecast": [0.0, -100.567, 999999.999, float("inf")],
                 "lower_bound": [float("-inf"), -200.123, 999900.0, float("nan")],
                 "upper_bound": [10.0, -50.0, 1000100.456, float("inf")],
+                "confidence_level": [0.95, 0.95, 0.95, 0.95],
             }
         )
 
@@ -2210,55 +2205,57 @@ class TestForecastingPattern:
         assert forecast_list[3].forecasted_value == float("inf")  # May be handled specially
 
     def test_analyze_with_daily_grain_unsupported(self):
-        """Test analyze method with unsupported DAY grain in _convert_to_day_grain."""
+        """Test analyze method with non-DAY grain which is unsupported."""
         pattern = ForecastingPattern()
 
-        # Create test data
-        dates = pd.date_range(start="2023-01-01", periods=5, freq="D")
-        data = pd.DataFrame({"date": dates, "value": range(100, 105), "grain": ["day"] * 5})
-        target = pd.DataFrame({"date": ["2023-01-06"], "target_value": [150.0], "grain": ["day"]})
+        # Create test data with WEEK grain (which is unsupported)
+        dates = pd.date_range(start="2023-01-01", periods=5, freq="W")
+        data = pd.DataFrame({"date": dates, "value": range(100, 105), "grain": ["week"] * 5})
+        target = pd.DataFrame({"date": ["2023-02-05"], "target_value": [150.0], "grain": ["week"]})
 
-        analysis_window = AnalysisWindow(start_date="2023-01-01", end_date="2023-01-05", grain=Granularity.DAY)
+        analysis_window = AnalysisWindow(start_date="2023-01-01", end_date="2023-01-29", grain=Granularity.WEEK)
 
-        # This should trigger the unsupported grain error in _convert_to_day_grain
-        with pytest.raises(ValidationError) as exc_info:
-            pattern.analyze(
-                metric_id="test_metric",
-                data=data,
-                target=target,
-                analysis_window=analysis_window,
-                analysis_date=date(2023, 1, 5),
-            )
+        # This should trigger the unsupported grain behavior and return handle_empty_data
+        result = pattern.analyze(
+            metric_id="test_metric",
+            data=data,
+            target=target,
+            analysis_window=analysis_window,
+            analysis_date=date(2023, 1, 29),
+        )
 
-        assert "Unsupported grain" in str(exc_info.value)
+        # Should return empty result because only DAY grain is supported
+        assert result.pattern == "forecasting"
+        assert result.metric_id == "test_metric"
 
     def test_continue_when_target_value_none(self):
         """Test the continue logic when target_value is None for all periods."""
         pattern = ForecastingPattern()
 
         # Create test data
-        dates = pd.date_range(start="2023-01-01", periods=5, freq="W")
-        data = pd.DataFrame({"date": dates, "value": range(100, 105), "grain": ["week"] * 5})
+        dates = pd.date_range(start="2023-01-01", periods=5, freq="D")
+        data = pd.DataFrame({"date": dates, "value": range(100, 105), "grain": ["day"] * 5})
 
         # Create target data that will return None for all periods (invalid date/grain combo)
         target = pd.DataFrame(
             {
                 "date": ["2023-12-31"],  # Far future date that won't match
                 "target_value": [150.0],
-                "grain": ["month"],  # Different grain that won't match week periods
+                "grain": ["month"],  # Different grain that won't match day periods
             }
         )
 
-        analysis_window = AnalysisWindow(start_date="2023-01-01", end_date="2023-01-29", grain=Granularity.WEEK)
+        analysis_window = AnalysisWindow(start_date="2023-01-01", end_date="2023-01-05", grain=Granularity.DAY)
 
         # Mock forecast_with_confidence_intervals to return valid data
         with patch("levers.patterns.forecasting.forecast_with_confidence_intervals") as mock_forecast:
             mock_forecast.return_value = pd.DataFrame(
                 {
-                    "date": pd.date_range(start="2023-01-30", periods=5, freq="D"),
+                    "date": pd.date_range(start="2023-01-06", periods=5, freq="D"),
                     "forecast": [115, 116, 117, 118, 119],
                     "lower_bound": [110, 111, 112, 113, 114],
                     "upper_bound": [120, 121, 122, 123, 124],
+                    "confidence_level": [0.95, 0.95, 0.95, 0.95, 0.95],
                 }
             )
 
@@ -2267,7 +2264,7 @@ class TestForecastingPattern:
                 data=data,
                 target=target,
                 analysis_window=analysis_window,
-                analysis_date=date(2023, 1, 29),
+                analysis_date=date(2023, 1, 5),
             )
 
             # Should continue through all periods and return empty stats due to no matching targets

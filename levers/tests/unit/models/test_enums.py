@@ -213,22 +213,22 @@ class TestPeriodName:
 
     def test_period_name_values(self):
         """Test all period name values."""
-        assert PeriodType.END_OF_WEEK == "endOfWeek"
-        assert PeriodType.END_OF_MONTH == "endOfMonth"
-        assert PeriodType.END_OF_QUARTER == "endOfQuarter"
-        assert PeriodType.END_OF_NEXT_MONTH == "endOfNextMonth"
+        assert PeriodType.END_OF_WEEK == "END_OF_WEEK"
+        assert PeriodType.END_OF_MONTH == "END_OF_MONTH"
+        assert PeriodType.END_OF_QUARTER == "END_OF_QUARTER"
+        assert PeriodType.END_OF_NEXT_MONTH == "END_OF_NEXT_MONTH"
 
     def test_period_name_from_string(self):
         """Test creating PeriodType from string."""
-        assert PeriodType("endOfWeek") == PeriodType.END_OF_WEEK
-        assert PeriodType("endOfMonth") == PeriodType.END_OF_MONTH
-        assert PeriodType("endOfQuarter") == PeriodType.END_OF_QUARTER
-        assert PeriodType("endOfNextMonth") == PeriodType.END_OF_NEXT_MONTH
+        assert PeriodType("END_OF_WEEK") == PeriodType.END_OF_WEEK
+        assert PeriodType("END_OF_MONTH") == PeriodType.END_OF_MONTH
+        assert PeriodType("END_OF_QUARTER") == PeriodType.END_OF_QUARTER
+        assert PeriodType("END_OF_NEXT_MONTH") == PeriodType.END_OF_NEXT_MONTH
 
     def test_invalid_period_name(self):
         """Test invalid period name raises ValueError."""
         with pytest.raises(ValueError):
-            PeriodType("endOfDecade")
+            PeriodType("END_OF_DECADE")
 
     def test_period_name_iteration(self):
         """Test iterating over PeriodType values."""

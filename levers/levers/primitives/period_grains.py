@@ -506,3 +506,31 @@ def calculate_remaining_periods(current_date: pd.Timestamp, end_date: pd.Timesta
         ) from e
 
     return max(0, remaining_periods_count)
+
+
+def get_dates_for_a_range(start_date: pd.Timestamp, end_date: pd.Timestamp, grain: Granularity) -> list[pd.Timestamp]:
+    """
+    Get the dates for a range of dates.
+
+    Family: period_grains
+    Version: 1.0
+
+    Args:
+        start_date: The start date
+        end_date: The end date
+    """
+    if grain == Granularity.DAY:
+        return [start_date + pd.Timedelta(days=i) for i in range((end_date - start_date).days + 1)]
+    elif grain == Granularity.WEEK:
+        return [start_date + pd.Timedelta(weeks=i) for i in range((end_date - start_date).days // 7 + 1)]
+    elif grain == Granularity.MONTH:
+        return [start_date + pd.DateOffset(months=i) for i in range((end_date - start_date).days // 30 + 1)]
+    elif grain == Granularity.QUARTER:
+        return [start_date + pd.DateOffset(months=i * 3) for i in range((end_date - start_date).days // 90 + 1)]
+    elif grain == Granularity.YEAR:
+        return [start_date + pd.DateOffset(years=i) for i in range((end_date - start_date).days // 365 + 1)]
+    else:
+        raise ValidationError(
+            f"Unsupported grain '{grain}'",
+            invalid_fields={"grain": grain, "valid_grains": list(Granularity)},
+        )

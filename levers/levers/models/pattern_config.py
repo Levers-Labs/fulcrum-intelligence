@@ -153,10 +153,11 @@ class AnalysisWindowConfig(BaseModel):
             # For forward-looking data, we need to include current period start date and future periods
             # This ensures we capture targets for the current period
             today = date.today()
+            start_date = date(today.year, today.month, 1)
 
             # Calculate the start of the current period based on grain
             if grain == Granularity.DAY:
-                start_date = today
+                start_date = start_date
             elif grain == Granularity.WEEK:
                 # Start of current week (Monday)
                 start_date = today - timedelta(days=today.weekday())

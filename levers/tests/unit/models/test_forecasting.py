@@ -65,7 +65,6 @@ class TestPacingProjection:
         pacing = PacingProjection()
 
         assert pacing.period_elapsed_percent is None
-        assert pacing.cumulative_value is None
         assert pacing.projected_value is None
         assert pacing.target_value is None
         assert pacing.gap_percent is None
@@ -75,7 +74,6 @@ class TestPacingProjection:
         """Test creating a populated pacing projection."""
         pacing = PacingProjection(
             period_elapsed_percent=75.0,
-            cumulative_value=100.0,
             projected_value=133.33,
             target_value=150.0,
             gap_percent=5.0,
@@ -83,7 +81,6 @@ class TestPacingProjection:
         )
 
         assert pacing.period_elapsed_percent == 75.0
-        assert pacing.cumulative_value == 100.0
         assert pacing.projected_value == 133.33
         assert pacing.target_value == 150.0
         assert pacing.gap_percent == 5.0
@@ -93,7 +90,6 @@ class TestPacingProjection:
         """Test pacing projection with 100% elapsed."""
         pacing = PacingProjection(
             period_elapsed_percent=100.0,
-            cumulative_value=200.0,
             projected_value=200.0,
             target_value=200.0,
             gap_percent=0.0,
@@ -101,7 +97,6 @@ class TestPacingProjection:
         )
 
         assert pacing.period_elapsed_percent == 100.0
-        assert pacing.cumulative_value == 200.0
         assert pacing.projected_value == 200.0
         assert pacing.target_value == 200.0
         assert pacing.gap_percent == 0.0
@@ -208,7 +203,6 @@ class TestForecasting:
             pacing=[
                 PacingProjection(
                     period_elapsed_percent=75.0,
-                    cumulative_value=100.0,
                     projected_value=133.33,
                     gap_percent=5.0,
                     status="on_track",
@@ -292,14 +286,12 @@ class TestForecasting:
         multiple_pacing = [
             PacingProjection(
                 period_elapsed_percent=50.0,
-                cumulative_value=80.0,
                 projected_value=160.0,
                 gap_percent=3.0,
                 status="on_track",
             ),
             PacingProjection(
                 period_elapsed_percent=75.0,
-                cumulative_value=120.0,
                 projected_value=160.0,
                 gap_percent=0.0,
                 status="on_track",
@@ -441,11 +433,11 @@ class TestPeriodTypeEnum:
 
     def test_period_type_values(self):
         """Test PeriodType enum values."""
-        assert PeriodType.END_OF_WEEK.value == "endOfWeek"
-        assert PeriodType.END_OF_MONTH.value == "endOfMonth"
-        assert PeriodType.END_OF_QUARTER.value == "endOfQuarter"
-        assert PeriodType.END_OF_YEAR.value == "endOfYear"
-        assert PeriodType.END_OF_NEXT_MONTH.value == "endOfNextMonth"
+        assert PeriodType.END_OF_WEEK.value == "END_OF_WEEK"
+        assert PeriodType.END_OF_MONTH.value == "END_OF_MONTH"
+        assert PeriodType.END_OF_QUARTER.value == "END_OF_QUARTER"
+        assert PeriodType.END_OF_YEAR.value == "END_OF_YEAR"
+        assert PeriodType.END_OF_NEXT_MONTH.value == "END_OF_NEXT_MONTH"
 
     def test_period_type_string_representation(self):
         """Test PeriodType string representation."""
@@ -455,9 +447,9 @@ class TestPeriodTypeEnum:
 
     def test_period_type_equality(self):
         """Test PeriodType equality with strings."""
-        assert PeriodType.END_OF_WEEK == "endOfWeek"
-        assert PeriodType.END_OF_MONTH == "endOfMonth"
-        assert PeriodType.END_OF_QUARTER == "endOfQuarter"
+        assert PeriodType.END_OF_WEEK == "END_OF_WEEK"
+        assert PeriodType.END_OF_MONTH == "END_OF_MONTH"
+        assert PeriodType.END_OF_QUARTER == "END_OF_QUARTER"
 
 
 class TestForecastMethodEnum:

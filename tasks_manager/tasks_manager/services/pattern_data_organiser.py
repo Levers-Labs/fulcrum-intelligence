@@ -43,7 +43,7 @@ class PatternDataOrganiser:
             DataSourceType.METRIC_WITH_TARGETS: self._fetch_metric_with_targets,
             DataSourceType.DIMENSIONAL_TIME_SERIES: self._fetch_dimensional_time_series,
             DataSourceType.MULTI_METRIC: self._fetch_multi_metric,
-            DataSourceType.METRIC_TARGETS_ONLY: self._fetch_metric_targets,
+            DataSourceType.TARGETS: self._fetch_targets,
         }
 
     async def fetch_data_for_pattern(
@@ -241,7 +241,7 @@ class PatternDataOrganiser:
         )
         return [dict(date=item.date, value=item.value, metric_id=item.metric_id) for item in result]
 
-    async def _fetch_metric_targets(
+    async def _fetch_targets(
         self, metric_id: str, grain: Granularity, start_date: date, end_date: date, **kwargs
     ) -> list[dict[str, Any]]:
         """Fetch metric targets only no."""

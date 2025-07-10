@@ -50,32 +50,32 @@ class ForecastingEvaluator(StoryEvaluatorBase[Forecasting]):
         # Generate forecast vs target stories for each period
         if pattern_result.forecast_vs_target_stats:
             for forecast_stats in pattern_result.forecast_vs_target_stats:
-                if forecast_stats and forecast_stats.status:
-                    if forecast_stats.status == MetricGVAStatus.ON_TRACK:
-                        stories.append(
-                            self._create_forecasted_on_track_story(
-                                pattern_result, metric_id, metric, grain, forecast_stats
-                            )
+                if not forecast_stats or not forecast_stats.status:
+                    continue
+
+                if forecast_stats.status == MetricGVAStatus.ON_TRACK:
+                    stories.append(
+                        self._create_forecasted_on_track_story(pattern_result, metric_id, metric, grain, forecast_stats)
+                    )
+                elif forecast_stats.status == MetricGVAStatus.OFF_TRACK:
+                    stories.append(
+                        self._create_forecasted_off_track_story(
+                            pattern_result, metric_id, metric, grain, forecast_stats
                         )
-                    elif forecast_stats.status == MetricGVAStatus.OFF_TRACK:
-                        stories.append(
-                            self._create_forecasted_off_track_story(
-                                pattern_result, metric_id, metric, grain, forecast_stats
-                            )
-                        )
+                    )
 
         # Generate pacing stories for each period
         if pattern_result.pacing:
             for pacing in pattern_result.pacing:
-                if pacing and pacing.status and pacing.projected_value is not None:
-                    if pacing.status == "on_track":
-                        stories.append(
-                            self._create_pacing_on_track_story(pattern_result, metric_id, metric, grain, pacing)
-                        )
-                    elif pacing.status == "off_track":
-                        stories.append(
-                            self._create_pacing_off_track_story(pattern_result, metric_id, metric, grain, pacing)
-                        )
+                if not pacing or not pacing.status or pacing.projected_value is None:
+                    continue
+
+                if pacing.status == MetricGVAStatus.ON_TRACK:
+                    stories.append(self._create_pacing_on_track_story(pattern_result, metric_id, metric, grain, pacing))
+                elif pacing.status == MetricGVAStatus.OFF_TRACK:
+                    stories.append(
+                        self._create_pacing_off_track_story(pattern_result, metric_id, metric, grain, pacing)
+                    )
 
         # Generate required performance stories for each period
         if pattern_result.required_performance:

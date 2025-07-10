@@ -82,7 +82,7 @@
         "look_forward": false
       },
       {
-        "source_type": "metric_targets_only",
+        "source_type": "targets",
         "is_required": true,
         "data_key": "target",
         "look_forward": true

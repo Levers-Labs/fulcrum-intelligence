@@ -18,7 +18,7 @@ class DataSourceType(str, Enum):
     METRIC_WITH_TARGETS = "metric_with_targets"
     DIMENSIONAL_TIME_SERIES = "dimensional_time_series"
     MULTI_METRIC = "multi_metric"
-    METRIC_TARGETS_ONLY = "metric_targets_only"
+    TARGETS = "targets"
 
 
 class WindowStrategy(str, Enum):
@@ -135,11 +135,11 @@ class ComparisonType(str, Enum):
 class PeriodType(str, Enum):
     """Names of periods."""
 
-    END_OF_WEEK = "endOfWeek"
-    END_OF_MONTH = "endOfMonth"
-    END_OF_QUARTER = "endOfQuarter"
-    END_OF_YEAR = "endOfYear"
-    END_OF_NEXT_MONTH = "endOfNextMonth"
+    END_OF_WEEK = "END_OF_WEEK"
+    END_OF_MONTH = "END_OF_MONTH"
+    END_OF_QUARTER = "END_OF_QUARTER"
+    END_OF_YEAR = "END_OF_YEAR"
+    END_OF_NEXT_MONTH = "END_OF_NEXT_MONTH"
 
 
 class ForecastMethod(str, Enum):
