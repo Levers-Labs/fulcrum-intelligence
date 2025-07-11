@@ -2,7 +2,8 @@ import yaml
 from fastapi import HTTPException
 from pydantic import BaseModel, field_validator
 
-from query_manager.core.models import MetricExpression
+from query_manager.core.enums import MetricAim
+from query_manager.core.models import CubeFilter, MetricExpression
 from query_manager.core.schemas import MetricCreate
 
 
@@ -51,6 +52,11 @@ class MetricDataBuilder:
                 expression_parser_service, data.get("expression"), data["metric_id"]  # type: ignore
             )
 
+        cube_filters = None
+        if "cube_filters" in data:
+            cube_name = data["measure"].split(".")[0]
+            cube_filters = MetricDataBuilder._build_cube_filter(data["cube_filters"], cube_name)
+
         # Build final metric structure
         return MetricDataBuilder._build_metric_structure(
             data=data,
@@ -60,6 +66,7 @@ class MetricDataBuilder:
             dimensions=dimensions,
             components=components,
             metric_expression=metric_expression,
+            cube_filters=cube_filters,
         )
 
     @staticmethod
@@ -120,6 +127,7 @@ class MetricDataBuilder:
                 status_code=422, detail=f"Time dimension '{time_dimension}' not found in cube {measure_cube}"
             )
 
+        # TODO: should we filter out dimensions here? based on the length of values?
         dimensions = [
             dimension["dimension_id"] for dimension in cube.get("dimensions", []) if "dimension_id" in dimension
         ]
@@ -160,6 +168,7 @@ class MetricDataBuilder:
         dimensions: list[str],
         components: list[str] | None = None,
         metric_expression: dict | None = None,
+        cube_filters: list[CubeFilter] | None = None,
     ) -> MetricCreate:
         """Build the final metric data structure"""
         # Extract locations once
@@ -175,6 +184,7 @@ class MetricDataBuilder:
             "member": measure_name,
             "member_type": "measure",
             "time_dimension": {"cube": time_cube, "member": time_member},
+            "cube_filters": cube_filters,
         }
 
         # Build metric structure
@@ -200,4 +210,41 @@ class MetricDataBuilder:
             influences=data.get("influences", []),
             components=components,
             inputs=data.get("inputs", []),
+            aim=data.get("aim").title() if data.get("aim") else MetricAim.MAXIMIZE,  # type: ignore
         )
+
+    @staticmethod
+    def _build_cube_filter(cube_filters: list, cube_name: str) -> list[CubeFilter]:
+        """Build cube filter from a list of filter tuples"""
+        if not cube_filters:
+            return []
+
+        result = []
+        for i, filter_item in enumerate(cube_filters):
+            # Validate filter item structure
+            if not isinstance(filter_item, list) or len(filter_item) != 3:
+                raise HTTPException(
+                    status_code=422,
+                    detail=f"Invalid cube filter format at index {i}. Expected [dimension, operator, values] but got "
+                    f"{filter_item}",
+                )
+
+            dimension, operator, values = filter_item
+
+            # Validate dimension
+            if not isinstance(dimension, str):
+                raise HTTPException(
+                    status_code=422,
+                    detail=f"Invalid dimension at index {i}. Expected string but got {type(dimension).__name__}",
+                )
+
+            # Validate values is a list
+            if not isinstance(values, list):
+                raise HTTPException(
+                    status_code=422,
+                    detail=f"Invalid values at index {i}. Expected list but got {type(values).__name__}",
+                )
+
+            result.append(CubeFilter(dimension=f"{cube_name}.{dimension}", operator=operator, values=values))
+
+        return result
