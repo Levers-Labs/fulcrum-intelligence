@@ -8,9 +8,6 @@ work_pool: &default_work_pool
 
 # Shared schedule configurations
 schedules:
-  daily_midnight: &daily_midnight
-    cron: "0 0 * * *"
-    timezone: "America/Los_Angeles"
   daily_2am_pst: &daily_2am_pst
     cron: "0 2 * * *"
     timezone: "America/Los_Angeles"
@@ -26,14 +23,6 @@ schedules:
 
 # Deployment configurations
 deployments:
-  - name: "generate-stories"
-    version: "1.0.0"
-    tags:
-      - daily
-    description: "Generate stories for all tenants, metrics and groups"
-    entrypoint: tasks_manager.flows.stories:generate_stories
-    work_pool: *default_work_pool
-    schedule: *daily_midnight
 
   - name: "process-metric-pattern-stories"
     version: "1.0.0"
