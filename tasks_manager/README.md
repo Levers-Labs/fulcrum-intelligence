@@ -191,7 +191,7 @@ prefect deploy --all
 ### Via Prefect UI
 1. Open your Prefect Cloud dashboard
 2. Navigate to Deployments
-3. Find the desired deployment (e.g., "generate-stories")
+3. Find the desired deployment (e.g., "semantic-data-sync-daily")
 4. Click "Run"
 5. Enter any required parameters
 6. Click "Run deployment"
@@ -199,15 +199,16 @@ prefect deploy --all
 ### Via CLI
 ```bash
 # Run with parameters
-prefect deployment run 'generate-stories' --param group="daily"
+prefect deployment run 'semantic-data-sync-daily' --param group="daily"
 ```
 
 ### Via Python
 ```python
-from tasks_manager.flows.stories import generate_stories
+from tasks_manager.flows.semantic_sync import semantic_data_sync
+from commons.models.enums import Granularity
 
 # Run the flow with specific parameters
-await generate_stories(group="daily")
+await semantic_data_sync(grain=Granularity.DAY)  # noqa
 ```
 
 ## Adding New Flows
@@ -223,7 +224,7 @@ To add a new flow for production:
    @task
    async def your_task(data: Dict[str, Any]) -> Dict[str, Any]:
        # Task implementation
-       return processed_data
+       return {"processed_data": "data"}
 
    @flow
    async def your_flow(group: str) -> None:
@@ -301,11 +302,11 @@ make clean-prefect  # Clean Prefect data and reset local database
 ### Running Flows
 ```bash
 # Run a specific deployment
-make run-flow DEPLOYMENT=generate-stories PARAMS='group="daily"'
+make run-flow DEPLOYMENT=semantic-data-sync-daily PARAMS='grain="day"'
 
 # Examples:
 make run-flow DEPLOYMENT=semantic-data-sync-daily
-make run-flow DEPLOYMENT=generate-stories PARAMS='group="weekly"'
+make run-flow DEPLOYMENT=pattern-analysis-metric PARAMS='tenant_id_str="1" metric_id="test" grain="day"'
 ```
 
 ### Production Deployment
@@ -443,8 +444,9 @@ prefect cloud workspace ls
 cd tasks_manager
 python -c "
 import asyncio
-from tasks_manager.flows.stories import generate_stories
-asyncio.run(generate_stories(group='test'))
+from tasks_manager.flows.semantic_sync import semantic_data_sync
+from commons.models.enums import Granularity
+asyncio.run(semantic_data_sync(grain=Granularity.day))
 "
 ```
 

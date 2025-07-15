@@ -29,9 +29,6 @@ definitions:
       name: tasks-manager-managed-pool
       work_queue_name: default
   schedules:
-    daily_midnight: &daily_midnight
-      - cron: "0 0 * * *"
-        timezone: "America/Los_Angeles"
     daily_2am_pst: &daily_2am_pst
       - cron: "0 2 * * *"
         timezone: "America/Los_Angeles"
@@ -47,14 +44,6 @@ definitions:
 
 # Deployments configuration
 deployments:
-- name: "generate-stories"
-  version: "1.0.0"
-  tags:
-  - daily
-  description: "Generate stories for all tenants, metrics and groups"
-  entrypoint: tasks_manager.flows.stories:generate_stories
-  work_pool: *managed_work_pool
-  schedules: *daily_midnight
 
 - name: "process-metric-pattern-stories"
   version: "1.0.0"
