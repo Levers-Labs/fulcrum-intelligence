@@ -598,26 +598,49 @@ class TestForecastingEvaluator:
             forecast=mock_period_forecast,  # Updated field name
         )
 
+        # Create forecast stats for filtering
+        forecast_stats = ForecastVsTargetStats(
+            forecasted_value=1200.0,
+            target_date="2024-01-31",
+            target_value=1000.0,
+            gap_percent=20.0,
+            status=MetricGVAStatus.ON_TRACK,
+            period=PeriodType.END_OF_MONTH,
+        )
+
         # Test the method
-        combined_df = forecasting_evaluator._prepare_forecast_series_data(pattern_result, Granularity.DAY)
+        combined_df = forecasting_evaluator._prepare_forecast_series_data(
+            pattern_result, Granularity.DAY, forecast_stats
+        )
 
         # Verify the structure
         assert isinstance(combined_df, pd.DataFrame)
         assert not combined_df.empty
 
-        # Should have all required columns
-        expected_columns = ["date", "value", "lower_bound", "upper_bound"]
+        # Should have all required columns including cumulative_value
+        expected_columns = ["date", "value", "cumulative_value", "lower_bound", "upper_bound"]
         for col in expected_columns:
             assert col in combined_df.columns
 
         # Should have both historical and forecast data
         assert len(combined_df) >= 5  # At least the historical data
 
+        # Verify cumulative values are calculated correctly
+        assert all(pd.notna(combined_df["cumulative_value"]))
+        assert combined_df["cumulative_value"].is_monotonic_increasing
+
         # Verify data types and values
         assert all(pd.notna(combined_df["value"]))
 
         # Should be sorted by date
         assert combined_df["date"].is_monotonic_increasing
+
+        # Check that bounds are calculated as percentages for forecast data
+        forecast_rows = combined_df[combined_df["lower_bound"].notna()]
+        if not forecast_rows.empty:
+            for _, row in forecast_rows.iterrows():
+                # Bounds should be around the cumulative value
+                assert row["lower_bound"] < row["cumulative_value"] < row["upper_bound"]
 
     def test_prepare_forecast_series_data_forecast_only(self, forecasting_evaluator, mock_period_forecast):
         """Test _prepare_forecast_series_data with forecast data only (no historical data)."""
@@ -632,11 +655,27 @@ class TestForecastingEvaluator:
             forecast=mock_period_forecast,  # Updated field name
         )
 
+        # Create forecast stats for filtering
+        forecast_stats = ForecastVsTargetStats(
+            forecasted_value=1200.0,
+            target_date="2024-01-31",
+            target_value=1000.0,
+            gap_percent=20.0,
+            status=MetricGVAStatus.ON_TRACK,
+            period=PeriodType.END_OF_MONTH,
+        )
+
         # Test the method
-        combined_df = forecasting_evaluator._prepare_forecast_series_data(pattern_result, Granularity.DAY)
+        combined_df = forecasting_evaluator._prepare_forecast_series_data(
+            pattern_result, Granularity.DAY, forecast_stats
+        )
 
         # Should have only forecast data
         assert len(combined_df) == 3  # 3 forecast points
+
+        # Should have cumulative_value column
+        assert "cumulative_value" in combined_df.columns
+        assert combined_df["cumulative_value"].is_monotonic_increasing
 
     def test_prepare_forecast_series_data_historical_only(self, forecasting_evaluator):
         """Test _prepare_forecast_series_data with historical data only (no forecast data)."""
@@ -655,13 +694,29 @@ class TestForecastingEvaluator:
             forecast=[],  # Empty list
         )
 
+        # Create forecast stats for filtering
+        forecast_stats = ForecastVsTargetStats(
+            forecasted_value=1200.0,
+            target_date="2024-01-31",
+            target_value=1000.0,
+            gap_percent=20.0,
+            status=MetricGVAStatus.ON_TRACK,
+            period=PeriodType.END_OF_MONTH,
+        )
+
         # Test the method
-        combined_df = forecasting_evaluator._prepare_forecast_series_data(pattern_result, Granularity.DAY)
+        combined_df = forecasting_evaluator._prepare_forecast_series_data(
+            pattern_result, Granularity.DAY, forecast_stats
+        )
 
         # Should have only historical data
         assert len(combined_df) == 5  # 5 historical points
         assert all(pd.isna(combined_df["lower_bound"]))  # No forecast bounds
         assert all(pd.isna(combined_df["upper_bound"]))  # No forecast bounds
+
+        # Should have cumulative_value column
+        assert "cumulative_value" in combined_df.columns
+        assert combined_df["cumulative_value"].is_monotonic_increasing
 
     def test_prepare_required_performance_series_data_with_historical_and_forecast(
         self, forecasting_evaluator, mock_required_performance
@@ -1008,12 +1063,21 @@ class TestForecastingEvaluator:
         # Test that forecast data is filtered
         series_df = forecasting_evaluator._prepare_forecast_series_data(pattern_result, Granularity.DAY, forecast_stats)
 
-        # The implementation filters forecast data based on actual data available
+        # Should have cumulative_value column
+        assert "cumulative_value" in series_df.columns
+        assert series_df["cumulative_value"].is_monotonic_increasing
+
+        # The forecast data should be filtered to period end date (July 31)
+        # All forecast dates should be <= July 31
+        forecast_rows = series_df[series_df["lower_bound"].notna()]
+        if not forecast_rows.empty:
+            max_forecast_date = forecast_rows["date"].max()
+            assert max_forecast_date <= pd.Timestamp("2024-07-31")
+
+        # Check that August dates are filtered out
         forecast_dates = series_df[series_df["date"] >= "2024-07-25"]["date"].dt.strftime("%Y-%m-%d").tolist()
-        # Based on actual implementation behavior
-        assert len(forecast_dates) >= 2  # At least some forecast dates
-        assert "2024-07-25" in forecast_dates
-        assert "2024-07-26" in forecast_dates
+        assert "2024-08-01" not in forecast_dates
+        assert "2024-08-02" not in forecast_dates
 
     def test_required_performance_period_filtering(self, forecasting_evaluator):
         """Test that required performance future dates are filtered to period end."""
@@ -1124,8 +1188,18 @@ class TestForecastingEvaluator:
             forecast=[],
         )
 
+        # Create forecast stats for filtering
+        forecast_stats = ForecastVsTargetStats(
+            forecasted_value=100.0,
+            target_date="2024-01-31",
+            target_value=90.0,
+            gap_percent=11.1,
+            status=MetricGVAStatus.ON_TRACK,
+            period=PeriodType.END_OF_MONTH,
+        )
+
         # Should return empty dataframe without error
-        result_df = forecasting_evaluator._prepare_forecast_series_data(pattern_result, Granularity.DAY)
+        result_df = forecasting_evaluator._prepare_forecast_series_data(pattern_result, Granularity.DAY, forecast_stats)
         assert isinstance(result_df, pd.DataFrame)
         assert result_df.empty
 
@@ -1192,7 +1266,7 @@ class TestForecastingEvaluator:
 
         # Should have both historical and forecast data
         series_dates = [item["date"] for item in story["series"]]
-        assert len(series_dates) == 6  # Based on actual implementation behavior
+        assert len(series_dates) == 5  # Historical data points based on period filtering
 
     def test_forecast_series_data_with_different_grains(self, forecasting_evaluator):
         """Test forecast series data preparation with different grains."""
@@ -1214,10 +1288,142 @@ class TestForecastingEvaluator:
             forecast=forecast_data,
         )
 
-        result_df = forecasting_evaluator._prepare_forecast_series_data(pattern_result, Granularity.WEEK)
+        # Create forecast stats for filtering
+        forecast_stats = ForecastVsTargetStats(
+            forecasted_value=245.0,
+            target_date="2024-01-31",
+            target_value=200.0,
+            gap_percent=22.5,
+            status=MetricGVAStatus.ON_TRACK,
+            period=PeriodType.END_OF_MONTH,
+        )
+
+        result_df = forecasting_evaluator._prepare_forecast_series_data(
+            pattern_result, Granularity.WEEK, forecast_stats
+        )
 
         # Should convert daily data based on implementation behavior
         assert len(result_df) >= 2  # At least some data conversion
 
         # Check that data conversion occurred
         assert not result_df.empty
+
+        # Should have cumulative_value column
+        assert "cumulative_value" in result_df.columns
+        assert result_df["cumulative_value"].is_monotonic_increasing
+
+    def test_prepare_pacing_series_data_with_cumulative_values(self, forecasting_evaluator):
+        """Test that _prepare_pacing_series_data correctly calculates cumulative values."""
+
+        # Set up mock historical data
+        historical_data = pd.DataFrame(
+            {"date": pd.date_range(start="2024-01-20", periods=5, freq="D"), "value": [100, 120, 140, 160, 180]}
+        )
+        forecasting_evaluator.series_df = historical_data
+
+        # Create pattern result with pacing data
+        pattern_result = Forecasting(
+            metric_id="test_inquiries",
+            analysis_window=AnalysisWindow(grain=Granularity.DAY, start_date="2024-01-01", end_date="2024-01-31"),
+            analysis_date=date(2024, 1, 25),
+            forecast=[],
+        )
+
+        # Create pacing projection
+        pacing = PacingProjection(
+            period_elapsed_percent=75.0,
+            cumulative_value=600.0,
+            projected_value=800.0,
+            gap_percent=20.0,
+            status="on_track",
+            period=PeriodType.END_OF_MONTH,
+        )
+
+        # Test the method
+        series_df = forecasting_evaluator._prepare_pacing_series_data(pattern_result, Granularity.DAY, pacing)
+
+        # Verify the structure
+        assert isinstance(series_df, pd.DataFrame)
+        assert not series_df.empty
+
+        # Should have required columns including cumulative_value
+        expected_columns = ["date", "value", "cumulative_value"]
+        for col in expected_columns:
+            assert col in series_df.columns
+
+        # Should not have bounds columns (pacing doesn't use bounds)
+        assert "lower_bound" not in series_df.columns
+        assert "upper_bound" not in series_df.columns
+
+        # Should have all historical data
+        assert len(series_df) == 5
+
+        # Verify cumulative values are calculated correctly
+        assert all(pd.notna(series_df["cumulative_value"]))
+        assert series_df["cumulative_value"].is_monotonic_increasing
+
+        # Check that cumulative values are proper cumulative sums
+        expected_cumulative = [100, 220, 360, 520, 700]  # Cumulative sum of [100, 120, 140, 160, 180]
+        assert series_df["cumulative_value"].tolist() == expected_cumulative
+
+    def test_calculate_cumulative_series_with_bounds(self, forecasting_evaluator):
+        """Test that _calculate_cumulative_series correctly calculates cumulative values and percentage-based bounds."""
+        # Create test data with both actual and forecast data
+        test_df = pd.DataFrame(
+            {
+                "date": pd.date_range(start="2024-01-01", periods=5, freq="D"),
+                "value": [100, 120, 140, 160, 180],
+                "lower_bound": [None, None, None, 150, 170],  # Only forecast data has bounds
+                "upper_bound": [None, None, None, 170, 190],
+            }
+        )
+
+        # Test with bounds
+        result_df = forecasting_evaluator._calculate_cumulative_series(test_df, include_bounds=True)
+
+        # Should have cumulative_value column
+        assert "cumulative_value" in result_df.columns
+
+        # Check cumulative values are correct
+        expected_cumulative = [100, 220, 360, 520, 700]
+        assert result_df["cumulative_value"].tolist() == expected_cumulative
+
+        # Check that bounds are calculated as percentages for forecast data only
+        # Actual data should have None bounds
+        assert pd.isna(result_df.iloc[0]["lower_bound"])
+        assert pd.isna(result_df.iloc[0]["upper_bound"])
+        assert pd.isna(result_df.iloc[1]["lower_bound"])
+        assert pd.isna(result_df.iloc[1]["upper_bound"])
+
+        # Forecast data should have bounds calculated as percentages
+        forecast_row_1 = result_df.iloc[3]  # 4th row (0-indexed)
+        forecast_row_2 = result_df.iloc[4]  # 5th row (0-indexed)
+
+        # Bounds should be around the cumulative value
+        assert forecast_row_1["lower_bound"] < forecast_row_1["cumulative_value"] < forecast_row_1["upper_bound"]
+        assert forecast_row_2["lower_bound"] < forecast_row_2["cumulative_value"] < forecast_row_2["upper_bound"]
+
+        # Check that bounds are calculated based on uncertainty percentage
+        assert forecast_row_1["lower_bound"] > 0
+        assert forecast_row_1["upper_bound"] > forecast_row_1["cumulative_value"]
+
+    def test_calculate_cumulative_series_without_bounds(self, forecasting_evaluator):
+        """Test that _calculate_cumulative_series works without bounds."""
+        # Create test data without bounds
+        test_df = pd.DataFrame(
+            {"date": pd.date_range(start="2024-01-01", periods=3, freq="D"), "value": [100, 120, 140]}
+        )
+
+        # Test without bounds
+        result_df = forecasting_evaluator._calculate_cumulative_series(test_df, include_bounds=False)
+
+        # Should have cumulative_value column
+        assert "cumulative_value" in result_df.columns
+
+        # Check cumulative values are correct
+        expected_cumulative = [100, 220, 360]
+        assert result_df["cumulative_value"].tolist() == expected_cumulative
+
+        # Should not have bounds columns
+        assert "lower_bound" not in result_df.columns
+        assert "upper_bound" not in result_df.columns

@@ -5,6 +5,7 @@ Tests for the ForecastingPattern.
 from datetime import date
 from unittest.mock import patch
 
+import numpy as np
 import pandas as pd
 import pytest
 
@@ -47,14 +48,16 @@ class TestForecastingPattern:
         """Test analysis with minimal valid data."""
         pattern = ForecastingPattern()
 
-        # Create minimal test data
-        dates = pd.date_range(start="2023-01-01", periods=12, freq="D")
-        data = pd.DataFrame({"date": dates, "value": range(100, 112), "grain": ["day"] * 12})  # Simple increasing trend
+        # Create minimal test data - increase to 150 days for Prophet cross-validation to work
+        dates = pd.date_range(start="2023-01-01", periods=150, freq="D")
+        data = pd.DataFrame(
+            {"date": dates, "value": range(100, 250), "grain": ["day"] * 150}
+        )  # Simple increasing trend
 
         # Create minimal target data
-        target = pd.DataFrame({"date": ["2023-01-12"], "target_value": [150.0], "grain": ["day"]})
+        target = pd.DataFrame({"date": ["2023-05-30"], "target_value": [300.0], "grain": ["day"]})
 
-        analysis_window = AnalysisWindow(start_date="2023-01-01", end_date="2023-01-11", grain=Granularity.DAY)
+        analysis_window = AnalysisWindow(start_date="2023-01-01", end_date="2023-05-30", grain=Granularity.DAY)
 
         # Run analysis
         result = pattern.analyze(
@@ -62,7 +65,7 @@ class TestForecastingPattern:
             data=data,
             target=target,
             analysis_window=analysis_window,
-            analysis_date=date(2023, 1, 11),
+            analysis_date=date(2023, 5, 30),
         )
 
         # Verify basic structure
@@ -80,27 +83,26 @@ class TestForecastingPattern:
         """Test analysis with target data."""
         pattern = ForecastingPattern()
 
-        # Create test data
-        dates = pd.date_range(start="2023-01-01", periods=12, freq="D")
+        # Create test data - increase to 150 days for Prophet cross-validation to work
+        dates = pd.date_range(start="2023-01-01", periods=150, freq="D")
         data = pd.DataFrame(
             {
                 "date": dates,
-                "value": range(100, 112),
-                "grain": ["day"] * 12,
+                "value": [100 + i * 2 + np.random.normal(0, 1) for i in range(150)],  # Trending upward with noise
+                "grain": ["day"] * 150,
             }
         )
 
         # Create target data
         target = pd.DataFrame(
             {
-                "date": ["2023-01-13"],  # Day for daily grain
-                "target_value": [150.0],
-                "target_date": ["2023-01-13"],
+                "date": ["2023-05-30"],
+                "target_value": [400.0],
                 "grain": ["day"],
             }
         )
 
-        analysis_window = AnalysisWindow(start_date="2023-01-01", end_date="2023-01-12", grain=Granularity.DAY)
+        analysis_window = AnalysisWindow(start_date="2023-01-01", end_date="2023-05-30", grain=Granularity.DAY)
 
         # Run analysis
         result = pattern.analyze(
@@ -108,14 +110,15 @@ class TestForecastingPattern:
             data=data,
             target=target,
             analysis_window=analysis_window,
-            analysis_date=date(2023, 1, 12),
+            analysis_date=date(2023, 5, 30),
         )
 
-        # Verify targets are incorporated
+        # Verify basic structure
         assert result.pattern == "forecasting"
         assert result.forecast is not None  # Updated field name
+        assert len(result.forecast) >= 1  # Should have forecasts
 
-        # Check lists structure
+        # Verify structured sections
         assert isinstance(result.forecast_vs_target_stats, list)
         assert isinstance(result.pacing, list)
         assert isinstance(result.required_performance, list)
@@ -150,55 +153,61 @@ class TestForecastingPattern:
             pattern.analyze(metric_id="test_metric", data=data, target=target, analysis_window=analysis_window)
 
     def test_different_forecasting_methods(self):
-        """Test forecasting with different parameters."""
+        """Test analysis with different forecasting methods."""
         pattern = ForecastingPattern()
 
-        # Create test data
-        dates = pd.date_range(start="2023-01-01", periods=12, freq="D")
-        data = pd.DataFrame({"date": dates, "value": range(100, 112), "grain": ["day"] * 12})
-        target = pd.DataFrame({"date": ["2023-01-13"], "target_value": [150.0], "grain": ["day"]})
+        # Create test data with enough points for different methods - increase to 150 days
+        dates = pd.date_range(start="2023-01-01", periods=150, freq="D")
+        data = pd.DataFrame(
+            {
+                "date": dates,
+                "value": [100 + i * 1.5 + np.random.normal(0, 2) for i in range(150)],  # Trending with noise
+                "grain": ["day"] * 150,
+            }
+        )
 
-        analysis_window = AnalysisWindow(start_date="2023-01-01", end_date="2023-01-12", grain=Granularity.DAY)
+        # Create target data
+        target = pd.DataFrame({"date": ["2023-05-30"], "target_value": [400.0], "grain": ["day"]})
 
-        # Test basic forecasting
+        analysis_window = AnalysisWindow(start_date="2023-01-01", end_date="2023-05-30", grain=Granularity.DAY)
+
+        # Test with the default method (method parameter is no longer supported)
         result = pattern.analyze(
             metric_id="test_metric",
             data=data,
             target=target,
             analysis_window=analysis_window,
-            analysis_date=date(2023, 1, 12),
+            analysis_date=date(2023, 5, 30),
         )
 
+        # Verify basic structure
         assert result.pattern == "forecasting"
-        # Should have some forecast data
         assert result.forecast is not None  # Updated field name
-        assert len(result.forecast) >= 1
+        assert len(result.forecast) >= 1  # Should have forecasts
+
+        # Verify structured sections
+        assert isinstance(result.forecast_vs_target_stats, list)
+        assert isinstance(result.pacing, list)
+        assert isinstance(result.required_performance, list)
 
     def test_analyze_with_target_calculations(self):
-        """Test analysis with target value calculations and gap computation."""
+        """Test analysis with target calculations."""
         pattern = ForecastingPattern()
 
-        # Create test data
-        dates = pd.date_range(start="2023-01-01", periods=12, freq="D")
+        # Create test data with 150 days for Prophet cross-validation to work
+        dates = pd.date_range(start="2023-01-01", periods=150, freq="D")
         data = pd.DataFrame(
             {
                 "date": dates,
-                "value": range(100, 112),
-                "grain": ["day"] * 12,
+                "value": [100 + i * 1.2 + np.random.normal(0, 1.5) for i in range(150)],
+                "grain": ["day"] * 150,
             }
         )
 
-        # Create target data with day for daily grain
-        target = pd.DataFrame(
-            {
-                "date": ["2023-01-13"],
-                "target_value": [150.0],
-                "target_date": ["2023-01-13"],
-                "grain": ["day"],
-            }  # Day ending date
-        )
+        # Create target data
+        target = pd.DataFrame({"date": ["2023-05-30"], "target_value": [350.0], "grain": ["day"]})
 
-        analysis_window = AnalysisWindow(start_date="2023-01-01", end_date="2023-01-12", grain=Granularity.DAY)
+        analysis_window = AnalysisWindow(start_date="2023-01-01", end_date="2023-05-30", grain=Granularity.DAY)
 
         # Run analysis
         result = pattern.analyze(
@@ -206,33 +215,37 @@ class TestForecastingPattern:
             data=data,
             target=target,
             analysis_window=analysis_window,
-            analysis_date=date(2023, 1, 12),
+            analysis_date=date(2023, 5, 30),
         )
 
-        # Verify results structure
+        # Verify basic structure
         assert result.pattern == "forecasting"
-        assert result.forecast is not None  # Updated field name
+        assert result.forecast is not None
+        assert len(result.forecast) >= 1
 
-        # Verify list structures
+        # Verify structured sections
         assert isinstance(result.forecast_vs_target_stats, list)
         assert isinstance(result.pacing, list)
         assert isinstance(result.required_performance, list)
-
-        # Test if we have actual forecast data
-        assert len(result.forecast) > 0
 
     def test_analyze_with_zero_target_value(self):
         """Test analysis with zero target value."""
         pattern = ForecastingPattern()
 
-        # Create test data
-        dates = pd.date_range(start="2023-01-01", periods=12, freq="D")
-        data = pd.DataFrame({"date": dates, "value": range(100, 112), "grain": ["day"] * 12})
+        # Create test data with 150 days for Prophet cross-validation to work
+        dates = pd.date_range(start="2023-01-01", periods=150, freq="D")
+        data = pd.DataFrame(
+            {
+                "date": dates,
+                "value": [100 + i * 0.5 + np.random.normal(0, 1) for i in range(150)],
+                "grain": ["day"] * 150,
+            }
+        )
 
         # Create target data with zero value
-        target = pd.DataFrame({"date": ["2023-01-13"], "target_value": [0.0], "grain": ["day"]})
+        target = pd.DataFrame({"date": ["2023-05-30"], "target_value": [0.0], "grain": ["day"]})
 
-        analysis_window = AnalysisWindow(start_date="2023-01-01", end_date="2023-01-12", grain=Granularity.DAY)
+        analysis_window = AnalysisWindow(start_date="2023-01-01", end_date="2023-05-30", grain=Granularity.DAY)
 
         # Run analysis
         result = pattern.analyze(
@@ -240,11 +253,15 @@ class TestForecastingPattern:
             data=data,
             target=target,
             analysis_window=analysis_window,
-            analysis_date=date(2023, 1, 12),
+            analysis_date=date(2023, 5, 30),
         )
 
+        # Verify basic structure
         assert result.pattern == "forecasting"
-        assert result.forecast is not None  # Updated field name
+        assert result.forecast is not None
+        assert len(result.forecast) >= 1
+
+        # Verify structured sections
         assert isinstance(result.forecast_vs_target_stats, list)
         assert isinstance(result.pacing, list)
         assert isinstance(result.required_performance, list)
@@ -767,41 +784,48 @@ class TestForecastingPattern:
         assert isinstance(result.pacing, list)
 
     def test_forecast_list_structure_validation(self):
-        """Test that the new list structure is properly validated and populated."""
+        """Test that forecast results have the correct list structure."""
         pattern = ForecastingPattern()
 
-        # Create test data
-        dates = pd.date_range(start="2023-01-01", periods=10, freq="D")
-        data = pd.DataFrame({"date": dates, "value": range(100, 110), "grain": ["day"] * 10})
-
-        # Multiple targets for different periods
-        target = pd.DataFrame(
+        # Create test data with 150 days for Prophet cross-validation to work
+        dates = pd.date_range(start="2023-01-01", periods=150, freq="D")
+        data = pd.DataFrame(
             {
-                "date": ["2023-01-07", "2023-01-10"],
-                "target_value": [115.0, 130.0],
-                "target_date": ["2023-01-07", "2023-01-10"],
-                "grain": ["day", "day"],
+                "date": dates,
+                "value": [100 + i * 0.8 + np.random.normal(0, 1) for i in range(150)],
+                "grain": ["day"] * 150,
             }
         )
 
-        analysis_window = AnalysisWindow(start_date="2023-01-01", end_date="2023-01-10", grain=Granularity.DAY)
+        # Create target data
+        target = pd.DataFrame({"date": ["2023-05-30"], "target_value": [275.0], "grain": ["day"]})
 
+        analysis_window = AnalysisWindow(start_date="2023-01-01", end_date="2023-05-30", grain=Granularity.DAY)
+
+        # Run analysis
         result = pattern.analyze(
             metric_id="test_metric",
             data=data,
             target=target,
             analysis_window=analysis_window,
-            analysis_date=date(2023, 1, 10),
+            analysis_date=date(2023, 5, 30),
         )
 
-        # Verify list structures
+        # Verify forecast structure
+        assert isinstance(result.forecast, list)
+        assert len(result.forecast) >= 1
+
+        # Verify forecast object structure
+        forecast_obj = result.forecast[0]
+        assert hasattr(forecast_obj, "date")
+        assert hasattr(forecast_obj, "forecasted_value")
+        assert hasattr(forecast_obj, "lower_bound")
+        assert hasattr(forecast_obj, "upper_bound")
+
+        # Verify structured sections are lists
         assert isinstance(result.forecast_vs_target_stats, list)
         assert isinstance(result.pacing, list)
         assert isinstance(result.required_performance, list)
-        assert isinstance(result.forecast, list)
-
-        # Should have some forecast data
-        assert len(result.forecast) > 0
 
     def test_multiple_targets_generate_multiple_stats(self):
         """Test that multiple targets can generate multiple forecast stats."""
@@ -1371,7 +1395,6 @@ class TestForecastingPattern:
                 target=target,
                 analysis_window=analysis_window,
                 analysis_date=date(2023, 3, 19),
-                num_past_periods_for_growth=4,  # More than available data
             )
 
             # Should handle insufficient data gracefully
@@ -1893,7 +1916,6 @@ class TestForecastingPattern:
                 target=target,
                 analysis_window=analysis_window,
                 analysis_date=date(2023, 2, 5),
-                num_past_periods_for_growth=3,
             )
 
             # Should handle NaN growth gracefully
@@ -2046,7 +2068,6 @@ class TestForecastingPattern:
                 target=target,
                 analysis_window=analysis_window,
                 analysis_date=date(2023, 2, 19),
-                num_past_periods_for_growth=4,  # Use 4 past periods
             )
 
             # Should calculate both required and previous growth rates
@@ -2350,7 +2371,6 @@ class TestForecastingPattern:
                 target=target,
                 analysis_window=analysis_window,
                 analysis_date=date(2023, 2, 5),
-                num_past_periods_for_growth=4,
             )
 
             # Should handle None required growth gracefully

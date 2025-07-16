@@ -518,6 +518,7 @@ def get_dates_for_a_range(start_date: pd.Timestamp, end_date: pd.Timestamp, grai
     Args:
         start_date: The start date
         end_date: The end date
+        grain: The grain to use for the calculation
     """
     if grain == Granularity.DAY:
         return [start_date + pd.Timedelta(days=i) for i in range((end_date - start_date).days + 1)]

@@ -11,7 +11,7 @@ from commons.models.enums import Granularity
 from levers.models import ForecastVsTargetStats, PacingProjection, RequiredPerformance
 from levers.models.enums import MetricGVAStatus, PeriodType
 from levers.models.patterns.forecasting import Forecasting
-from levers.primitives import get_period_end_date
+from levers.primitives import get_period_range_for_grain
 from story_manager.core.enums import StoryGenre, StoryGroup, StoryType
 from story_manager.story_evaluator import StoryEvaluatorBase, render_story_text
 
@@ -294,6 +294,9 @@ class ForecastingEvaluator(StoryEvaluatorBase[Forecasting]):
         title = render_story_text(story_type, "title", context)
         detail = render_story_text(story_type, "detail", context)
 
+        series_df = self._prepare_pacing_series_data(pattern_result, grain, pacing)
+        series_data = self.export_dataframe_as_story_series(series_df, story_type, story_group, grain)
+
         # Prepare the story model
         return self.prepare_story_model(
             genre=StoryGenre.PERFORMANCE,
@@ -304,6 +307,7 @@ class ForecastingEvaluator(StoryEvaluatorBase[Forecasting]):
             title=title,
             detail=detail,
             grain=grain,
+            series_data=series_data,
             **context,
         )
 
@@ -335,6 +339,9 @@ class ForecastingEvaluator(StoryEvaluatorBase[Forecasting]):
         title = render_story_text(story_type, "title", context)
         detail = render_story_text(story_type, "detail", context)
 
+        series_df = self._prepare_pacing_series_data(pattern_result, grain, pacing)
+        series_data = self.export_dataframe_as_story_series(series_df, story_type, story_group, grain)
+
         # Prepare the story model
         return self.prepare_story_model(
             genre=StoryGenre.PERFORMANCE,
@@ -345,6 +352,7 @@ class ForecastingEvaluator(StoryEvaluatorBase[Forecasting]):
             title=title,
             detail=detail,
             grain=grain,
+            series_data=series_data,
             **context,
         )
 
@@ -399,6 +407,58 @@ class ForecastingEvaluator(StoryEvaluatorBase[Forecasting]):
             **context,
         )
 
+    def _calculate_cumulative_series(self, df: pd.DataFrame, include_bounds: bool = True) -> pd.DataFrame:
+        """
+        Calculate cumulative sums for a DataFrame.
+
+        Args:
+            df: DataFrame with columns: date, value, and optionally lower_bound, upper_bound
+            include_bounds: Whether to calculate cumulative sums for bounds
+
+        Returns:
+            DataFrame with cumulative sums applied
+        """
+        if df.empty:
+            return df
+
+        df = df.copy().sort_values("date")
+
+        # Add cumulative_value column with cumulative sum of values
+        df["cumulative_value"] = df["value"].cumsum()
+
+        if include_bounds:
+            if "lower_bound" in df.columns and "upper_bound" in df.columns:
+                # Only calculate bounds for forecast data (where bounds are not None)
+                forecast_mask = df["lower_bound"].notna() & df["upper_bound"].notna()
+                if forecast_mask.any():
+                    # Calculate bounds as a percentage of cumulative value
+                    # Use the original forecast bounds to estimate uncertainty percentage
+                    forecast_rows = df[forecast_mask]
+
+                    for idx in forecast_rows.index:
+                        cumulative_val = df.loc[idx, "cumulative_value"]
+                        original_val = df.loc[idx, "value"]
+                        original_lower = df.loc[idx, "lower_bound"]
+                        original_upper = df.loc[idx, "upper_bound"]
+
+                        # Calculate uncertainty percentage from original bounds
+                        if original_val > 0:  # type: ignore
+                            lower_uncertainty = abs(original_val - original_lower) / original_val  # type: ignore
+                            upper_uncertainty = abs(original_upper - original_val) / original_val  # type: ignore
+                        else:
+                            lower_uncertainty = 0.1  # default 10% uncertainty
+                            upper_uncertainty = 0.1
+
+                        # Apply uncertainty to cumulative value
+                        df.loc[idx, "lower_bound"] = cumulative_val * (1 - lower_uncertainty)
+                        df.loc[idx, "upper_bound"] = cumulative_val * (1 + upper_uncertainty)
+
+                    # Set bounds to None for actual data
+                    df.loc[~forecast_mask, "lower_bound"] = None
+                    df.loc[~forecast_mask, "upper_bound"] = None
+
+        return df
+
     def _prepare_forecast_series_data(
         self, pattern_result: Forecasting, target_grain: Granularity, forecast_stats=None
     ) -> pd.DataFrame:
@@ -424,10 +484,18 @@ class ForecastingEvaluator(StoryEvaluatorBase[Forecasting]):
             - lower_bound: Lower confidence bound (forecast only)
             - upper_bound: Upper confidence bound (forecast only)
         """
+        analysis_date = pd.to_datetime(pattern_result.analysis_date)
+        period_start_date, period_end_date = get_period_range_for_grain(
+            analysis_date, self._get_period_grain(forecast_stats.period), include_today=True
+        )
+        period_start_date = pd.to_datetime(period_start_date)
+        period_end_date = pd.to_datetime(period_end_date)
+
         # Start with actual data (if available)
         if self.series_df is not None and not self.series_df.empty:
             actual_df = self.series_df.copy()
             actual_df["date"] = pd.to_datetime(actual_df["date"])
+            actual_df = actual_df[actual_df["date"] >= period_start_date]
 
             # Add forecast-specific columns for actual data
             actual_df["lower_bound"] = None
@@ -447,27 +515,35 @@ class ForecastingEvaluator(StoryEvaluatorBase[Forecasting]):
             }
             forecast_data.append(forecast_point)
 
-        if forecast_data:
-            forecast_df = pd.DataFrame(forecast_data)
+        forecast_df = pd.DataFrame(forecast_data)
+        if not forecast_df.empty:
             forecast_df["date"] = pd.to_datetime(forecast_df["date"])
+            # Filter to only include forecast dates up to the period end date
+            forecast_df = forecast_df[forecast_df["date"] <= period_end_date].copy()
 
-            # Filter forecast data to only include dates up to the period end date if forecast_stats is provided
-            if forecast_stats and forecast_stats.period:
-                analysis_date = pd.to_datetime(pattern_result.analysis_date)
-                period_end_date = get_period_end_date(analysis_date, forecast_stats.period)
-                period_end_date = pd.to_datetime(period_end_date)
+        # Convert forecast from day grain to target grain
+        if not forecast_df.empty:
+            forecast_df = self._convert_daily_forecast_to_grain(forecast_df, target_grain)
 
-                # Filter to only include forecast dates up to the period end date
-                forecast_df = forecast_df[forecast_df["date"] <= period_end_date].copy()
+        # Split data like in the pattern: actual from period_start to analysis_date (exclusive), forecast from
+        # analysis_date onwards
+        period_actuals = (
+            actual_df[(actual_df["date"] >= period_start_date) & (actual_df["date"] < analysis_date)]
+            if not actual_df.empty
+            else pd.DataFrame(columns=["date", "value", "lower_bound", "upper_bound"])
+        )
 
-            # Convert forecast from day grain to target grain
-            if not forecast_df.empty:
-                forecast_df = self._convert_daily_forecast_to_grain(forecast_df, target_grain)
-        else:
-            forecast_df = pd.DataFrame(columns=["date", "value", "lower_bound", "upper_bound"])
+        period_forecast = (
+            forecast_df[forecast_df["date"] >= analysis_date]
+            if not forecast_df.empty
+            else pd.DataFrame(columns=["date", "value", "lower_bound", "upper_bound"])
+        )
 
-        # Combine actual and forecast data
-        combined_df = pd.concat([actual_df, forecast_df], ignore_index=True)
+        # Combine period actuals and forecast data
+        combined_df = pd.concat([period_actuals, period_forecast], ignore_index=True)
+
+        # Calculate cumulative sums for forecast stories (includes both actual and forecast)
+        combined_df = self._calculate_cumulative_series(combined_df, include_bounds=True)
 
         return combined_df
 
@@ -543,6 +619,13 @@ class ForecastingEvaluator(StoryEvaluatorBase[Forecasting]):
         Returns:
             DataFrame with columns: ["date", "value", "required_growth_percent", "pop_growth_percent"]
         """
+        analysis_date = pd.to_datetime(pattern_result.analysis_date)
+        period_start_date, period_end_date = get_period_range_for_grain(
+            analysis_date, self._get_period_grain(required_perf.period), include_today=True
+        )
+        period_start_date = pd.to_datetime(period_start_date)
+        period_end_date = pd.to_datetime(period_end_date)
+
         # Return empty if no series data
         if self.series_df is None or self.series_df.empty:
             return pd.DataFrame(columns=["date", "value", "required_growth_percent", "pop_growth_percent"])
@@ -550,6 +633,7 @@ class ForecastingEvaluator(StoryEvaluatorBase[Forecasting]):
         # Prepare historical data with growth rates
         actual_df = self.series_df.copy()
         actual_df["date"] = pd.to_datetime(actual_df["date"])
+        actual_df = actual_df[actual_df["date"] >= period_start_date]
         actual_df = actual_df.sort_values("date")
         actual_df["pop_growth_percent"] = actual_df["value"].pct_change() * 100
         actual_df["required_growth_percent"] = None
@@ -571,11 +655,6 @@ class ForecastingEvaluator(StoryEvaluatorBase[Forecasting]):
         last_date = (
             historical_df["date"].max() if not historical_df.empty else pd.to_datetime(pattern_result.analysis_date)
         )
-
-        period_end_date = None
-        if required_perf.period:
-            analysis_date = pd.to_datetime(pattern_result.analysis_date)
-            period_end_date = pd.to_datetime(get_period_end_date(analysis_date, required_perf.period))
 
         # Generate daily forecast data for future period (same as forecast method)
         if period_end_date:
@@ -615,3 +694,45 @@ class ForecastingEvaluator(StoryEvaluatorBase[Forecasting]):
         # Combine historical and future data
         result_df = pd.concat([historical_df, future_df], ignore_index=True)
         return result_df.sort_values("date").reset_index(drop=True)
+
+    def _prepare_pacing_series_data(
+        self, pattern_result: Forecasting, grain: Granularity, pacing: PacingProjection
+    ) -> pd.DataFrame:
+        """
+        Prepare series data for pacing visualization.
+        """
+        analysis_date = pd.to_datetime(pattern_result.analysis_date)
+        period_start_date, period_end_date = get_period_range_for_grain(
+            analysis_date, self._get_period_grain(pacing.period), include_today=True  # type: ignore
+        )
+        period_start_date = pd.to_datetime(period_start_date)
+        period_end_date = pd.to_datetime(period_end_date)
+
+        # Return empty if no series data
+        if self.series_df is None or self.series_df.empty:
+            return pd.DataFrame(columns=["date", "value"])
+
+        actual_df = self.series_df.copy()
+        actual_df["date"] = pd.to_datetime(actual_df["date"])
+        actual_df = actual_df[actual_df["date"] >= period_start_date]
+        actual_df = actual_df.sort_values("date")
+
+        # Calculate cumulative sums for pacing stories (without bounds)
+        actual_df = self._calculate_cumulative_series(actual_df, include_bounds=False)
+
+        return actual_df
+
+    def _get_period_grain(self, period: PeriodType) -> Granularity:
+        """
+        Get the grain for a given period.
+        """
+        if period == PeriodType.END_OF_WEEK:
+            return Granularity.WEEK
+        elif period == PeriodType.END_OF_MONTH:
+            return Granularity.MONTH
+        elif period == PeriodType.END_OF_QUARTER:
+            return Granularity.QUARTER
+        elif period == PeriodType.END_OF_YEAR:
+            return Granularity.YEAR
+        else:
+            return Granularity.DAY

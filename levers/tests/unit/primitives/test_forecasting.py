@@ -7,6 +7,8 @@ import pandas as pd
 import pytest
 
 from levers.exceptions import PrimitiveError, ValidationError
+from levers.models import Granularity
+from levers.models.enums import ForecastMethod
 from levers.primitives import (
     calculate_forecast_accuracy,
     forecast_with_confidence_intervals,
@@ -28,7 +30,9 @@ class TestSimpleForecast:
         """Test simple forecast with naive method."""
         df = self.create_sample_data()
 
-        result = simple_forecast(df=df, value_col="value", periods=10, method="naive", date_col="date", grain="day")
+        result = simple_forecast(
+            df=df, value_col="value", periods=10, method=ForecastMethod.NAIVE, date_col="date", grain=Granularity.DAY
+        )
 
         assert len(result) == 10
         assert "date" in result.columns
@@ -42,7 +46,9 @@ class TestSimpleForecast:
         """Test simple forecast with SES method."""
         df = self.create_sample_data()
 
-        result = simple_forecast(df=df, value_col="value", periods=10, method="ses", date_col="date", grain="day")
+        result = simple_forecast(
+            df=df, value_col="value", periods=10, method=ForecastMethod.SES, date_col="date", grain=Granularity.DAY
+        )
 
         assert len(result) == 10
         assert "date" in result.columns
@@ -54,7 +60,12 @@ class TestSimpleForecast:
         df = self.create_sample_data(periods=60)  # Need more data for Holt-Winters
 
         result = simple_forecast(
-            df=df, value_col="value", periods=10, method="holtwinters", date_col="date", grain="day"
+            df=df,
+            value_col="value",
+            periods=10,
+            method=ForecastMethod.HOLT_WINTERS,
+            date_col="date",
+            grain=Granularity.DAY,
         )
 
         assert len(result) == 10
@@ -66,7 +77,12 @@ class TestSimpleForecast:
         df = self.create_sample_data()
 
         result = simple_forecast(
-            df=df, value_col="value", periods=10, method="auto_arima", date_col="date", grain="day"
+            df=df,
+            value_col="value",
+            periods=10,
+            method=ForecastMethod.AUTO_ARIMA,
+            date_col="date",
+            grain=Granularity.DAY,
         )
 
         assert len(result) == 10
@@ -114,7 +130,7 @@ class TestForecastWithConfidenceIntervals:
         df = self.create_sample_data()
 
         result = forecast_with_confidence_intervals(
-            df=df, value_col="value", periods=10, confidence_level=0.95, date_col="date", grain="day"
+            df=df, value_col="value", periods=10, confidence_level=0.95, date_col="date", grain=Granularity.DAY
         )
 
         assert len(result) == 10
@@ -131,11 +147,11 @@ class TestForecastWithConfidenceIntervals:
         df = self.create_sample_data()
 
         result_95 = forecast_with_confidence_intervals(
-            df=df, value_col="value", periods=10, confidence_level=0.95, date_col="date", grain="day"
+            df=df, value_col="value", periods=10, confidence_level=0.95, date_col="date", grain=Granularity.DAY
         )
 
         result_90 = forecast_with_confidence_intervals(
-            df=df, value_col="value", periods=10, confidence_level=0.90, date_col="date", grain="day"
+            df=df, value_col="value", periods=10, confidence_level=0.90, date_col="date", grain=Granularity.DAY
         )
 
         # 90% intervals should be narrower than 95% intervals
@@ -257,11 +273,13 @@ class TestForecastingIntegration:
         df = pd.DataFrame({"date": dates, "value": values})
 
         # Generate forecast
-        forecast_df = simple_forecast(df=df, value_col="value", periods=10, method="ses", date_col="date", grain="day")
+        forecast_df = simple_forecast(
+            df=df, value_col="value", periods=10, method=ForecastMethod.SES, date_col="date", grain=Granularity.DAY
+        )
 
         # Add confidence intervals
         forecast_with_ci = forecast_with_confidence_intervals(
-            df=df, value_col="value", periods=10, confidence_level=0.95, date_col="date", grain="day"
+            df=df, value_col="value", periods=10, confidence_level=0.95, date_col="date", grain=Granularity.DAY
         )
 
         # Generate scenarios

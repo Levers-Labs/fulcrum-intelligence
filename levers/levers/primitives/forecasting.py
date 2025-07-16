@@ -25,6 +25,7 @@ import numpy as np
 import pandas as pd
 from pmdarima import arima as pmd_arima
 from prophet import Prophet
+from prophet.diagnostics import cross_validation, performance_metrics
 from statsmodels.tsa.holtwinters import ExponentialSmoothing, SimpleExpSmoothing
 
 from levers.exceptions import PrimitiveError, ValidationError
@@ -80,6 +81,9 @@ def simple_forecast(
     pd.DataFrame
         DataFrame with columns ['date', 'forecast']
     """
+    confidence_level = kwargs.get("confidence_level", 0.95)
+    analysis_date = kwargs.get("analysis_date", None)
+
     # Validate inputs
     if value_col not in df.columns:
         raise ValidationError(f"value_col '{value_col}' not found in DataFrame")
@@ -137,6 +141,7 @@ def simple_forecast(
     elif method == ForecastMethod.SES:
         # Simple Exponential Smoothing
         smoothing_level = kwargs.get("smoothing_level", 0.2)
+        kwargs.pop("analysis_date", None)  # Remove analysis_date if present
         # Default to estimated initialization for better results
         model = SimpleExpSmoothing(series, initialization_method=kwargs.get("initialization_method", "estimated"))
         fit = model.fit(smoothing_level=smoothing_level, **{k: v for k, v in kwargs.items() if k != "smoothing_level"})
@@ -158,6 +163,7 @@ def simple_forecast(
             seasonal_periods=seasonal_periods,
             initialization_method=kwargs.pop("initialization_method", "estimated"),
         )
+        kwargs.pop("analysis_date", None)  # Remove analysis_date if present
         fit = model.fit(**kwargs)
         fc_vals = fit.forecast(periods)
 
@@ -194,12 +200,18 @@ def simple_forecast(
 
         # Initialize Prophet model with optional parameters
         prophet_kwargs = {
-            "daily_seasonality": kwargs.get("daily_seasonality", "auto"),
+            "daily_seasonality": kwargs.get("daily_seasonality", False),
             "weekly_seasonality": kwargs.get("weekly_seasonality", "auto"),
             "yearly_seasonality": kwargs.get("yearly_seasonality", "auto"),
-            "seasonality_mode": kwargs.get("seasonality_mode", "additive"),
-            "interval_width": kwargs.get("interval_width", 0.8),
+            "seasonality_prior_scale": kwargs.get("seasonality_prior_scale", 1.0),
+            "interval_width": kwargs.get("interval_width", confidence_level),
         }
+        rmse_additive = _get_rmse_for_seasonality_mode(series, "additive")  # type: ignore
+        rmse_multiplicative = _get_rmse_for_seasonality_mode(series, "multiplicative")  # type: ignore
+        if rmse_additive < rmse_multiplicative:
+            prophet_kwargs["seasonality_mode"] = "additive"
+        else:
+            prophet_kwargs["seasonality_mode"] = "multiplicative"
 
         # Remove None values
         prophet_kwargs = {k: v for k, v in prophet_kwargs.items() if v is not None}
@@ -220,7 +232,6 @@ def simple_forecast(
 
     # Generate output DataFrame with dates
     # Use analysis_date from kwargs if provided, otherwise use last date from series
-    analysis_date = kwargs.get("analysis_date", None)
     if analysis_date is not None:
         future_idx = pd.date_range(start=analysis_date, periods=periods, freq=freq)
     else:
@@ -277,7 +288,6 @@ def forecast_with_confidence_intervals(
     pd.DataFrame
         DataFrame with columns ['date', 'forecast', 'lower_bound', 'upper_bound', 'confidence_level']
     """
-
     # Get basic forecast
     forecast_df = simple_forecast(
         df=df, value_col=value_col, periods=periods, method=method, date_col=date_col, freq=freq, grain=grain, **kwargs
@@ -481,3 +491,31 @@ def _detect_trend_type(series: pd.Series) -> str | None:  # type: ignore
         return "add"  # Linear trend
     else:
         return None
+
+
+def _get_rmse_for_seasonality_mode(series: pd.Series, mode: str) -> float:
+    """
+    Get the RMSE of a Prophet model with a given seasonality mode.
+    This is used to determine the best seasonality mode for a given time series.
+    Here we are using the cross-validation method to get the RMSE of the model.
+
+    Args:
+        series: pd.Series
+        mode: str
+    Returns:
+        float
+    """
+
+    # Prepare data for Prophet with floor constraint
+    prophet_df = pd.DataFrame({"ds": series.index, "y": series.values})
+
+    prophet_model = Prophet(seasonality_mode=mode)
+    prophet_model.fit(prophet_df)
+
+    # Cross-validate the model
+    cross_validated_df = cross_validation(prophet_model, horizon="30 days")
+
+    # Calculate performance metrics
+    performance_metrics_df = performance_metrics(cross_validated_df)
+
+    return performance_metrics_df["rmse"].mean()

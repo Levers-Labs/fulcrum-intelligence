@@ -89,7 +89,6 @@ class ForecastingPattern(Pattern[Forecasting]):
             settings={
                 "confidence_level": 0.95,
                 "pacing_status_threshold_pct": 5.0,
-                "num_past_periods_for_growth": 4,
             },
         )
 
@@ -102,7 +101,6 @@ class ForecastingPattern(Pattern[Forecasting]):
         analysis_date: date | None = None,
         confidence_level: float = 0.95,
         pacing_status_threshold_pct: float = 5.0,
-        num_past_periods_for_growth: int = 4,
     ) -> Forecasting:
         """
         Execute the forecasting pattern.
@@ -115,7 +113,6 @@ class ForecastingPattern(Pattern[Forecasting]):
             analysis_date: Date from which forecasts are made (defaults to today)
             confidence_level: Confidence level for prediction intervals
             pacing_status_threshold_pct: Threshold percentage for pacing status
-            num_past_periods_for_growth: Number of past periods for historical growth calculation
 
         Returns:
             Forecasting object with forecast results
@@ -133,7 +130,14 @@ class ForecastingPattern(Pattern[Forecasting]):
 
             if grain != Granularity.DAY:
                 logger.info(f"Forecasting pattern is not supported for grain: {grain}")
-                return self.handle_empty_data(metric_id, analysis_window)
+                return self.handle_empty_data(
+                    metric_id,
+                    analysis_window,
+                    error=dict(
+                        message="Forecasting pattern is not supported for grain: {grain}",
+                        type="grain_not_supported",
+                    ),
+                )
 
             # Validate input data
             required_columns = ["date", "value"]
@@ -225,8 +229,8 @@ class ForecastingPattern(Pattern[Forecasting]):
                         analysis_dt=analysis_dt,
                         grain=grain,
                         target_value=target_value,
-                        num_past_periods_for_growth=num_past_periods_for_growth,
                         period=period,
+                        period_start_date=period_start_date,
                         period_end_date=period_end_date,
                     )
                 )
@@ -412,24 +416,28 @@ class ForecastingPattern(Pattern[Forecasting]):
         else:
             # Calculate pop growth from recent actual data for projections
             pop_growth_rate = 0.0
-            if len(df) >= 4:  # Need at least 4 periods for growth calculation
+            if len(df) >= 4:
                 recent_df = df.tail(4).copy()
-                pop_growth_df = calculate_pop_growth(recent_df, date_col="date", value_col="value", periods=1)
+                pop_growth_df = calculate_pop_growth(recent_df, date_col="date", value_col="value")
                 if not pop_growth_df.empty and not pop_growth_df["pop_growth"].isna().all():
                     pop_growth_rate = pop_growth_df["pop_growth"].mean() / 100.0  # Convert percentage to decimal
 
-            remaining_dates = get_dates_for_a_range(analysis_dt + pd.Timedelta(days=1), pacing_period_end, pacing_grain)
+            remaining_dates = get_dates_for_a_range(
+                analysis_dt + pd.Timedelta(days=1), pacing_period_end, Granularity.DAY
+            )
 
             projected_values = []
             if not pacing_period_actuals.empty and len(remaining_dates) > 0:
                 # Use last actual value as base for projections
                 last_actual_value = pacing_period_actuals["value"].iloc[-1]
-
                 for i, _ in enumerate(remaining_dates):
                     # Apply pop growth for each remaining day
-                    projected_value = last_actual_value * (1 + pop_growth_rate) ** (i + 1)
-                    projected_values.append(projected_value)
+                    # exponential growth
+                    # projected_value = last_actual_value * ((1 + pop_growth_rate) ** (i + 1))
+                    # linear growth
+                    projected_value = last_actual_value + (last_actual_value * pop_growth_rate * (i + 1))
 
+                    projected_values.append(projected_value)
             # Combine actual and projected values
             combined_series = pd.concat(
                 [
@@ -476,10 +484,10 @@ class ForecastingPattern(Pattern[Forecasting]):
             analysis_dt: Analysis date.
             grain: Grain.
             **kwargs: Additional keyword arguments.
-                - latest_actual_value: Latest actual value.
-                - target_date: Target date.
-                - target_value: Target value.
-                - num_past_periods_for_growth: Number of past periods for growth calculation.
+                - target_value: Target value. (not used)
+                - period_start_date: Period start date.
+                - period_end_date: Period end date. (not used)
+                - period: Period type.
 
         Returns:
             RequiredPerformance: Required performance.
@@ -492,13 +500,16 @@ class ForecastingPattern(Pattern[Forecasting]):
 
         # Get the forecast target date and value
         target_value = kwargs.get("target_value", 0)
+        period_start_date = kwargs.get("period_start_date")
         period_end_date = kwargs.get("period_end_date")
 
         # Get the period
         period: PeriodType = kwargs.get("period")  # type: ignore
 
         # Get the number of past periods for growth calculation
-        num_past_periods_for_growth = kwargs.get("num_past_periods_for_growth", 4)
+        past_periods_count = (analysis_dt - period_start_date).days + 1  # type: ignore
+        if past_periods_count < 1:
+            return RequiredPerformance(period=period, previous_periods=past_periods_count)
 
         # Get the latest actual value
         latest_actual_value = float(df["value"].iloc[-1])
@@ -520,8 +531,8 @@ class ForecastingPattern(Pattern[Forecasting]):
             )
 
         # Calculate past pop growth percent
-        if len(df) >= num_past_periods_for_growth + 1:
-            past_df = df.tail(num_past_periods_for_growth + 1).copy()
+        if len(df) >= past_periods_count:
+            past_df = df.tail(past_periods_count).copy()
             past_df_growth = calculate_pop_growth(past_df, date_col="date", value_col="value", periods=1)
             avg_past_growth = past_df_growth["pop_growth"].mean()
             required_performance.previous_pop_growth_percent = (
@@ -537,7 +548,7 @@ class ForecastingPattern(Pattern[Forecasting]):
                 required_performance.required_pop_growth_percent - required_performance.previous_pop_growth_percent,
                 2,
             )
-        required_performance.previous_periods = num_past_periods_for_growth
+        required_performance.previous_periods = past_periods_count
         required_performance.period = period
         return required_performance
 
