@@ -12,6 +12,7 @@ from levers.models import ForecastVsTargetStats, PacingProjection, RequiredPerfo
 from levers.models.enums import MetricGVAStatus, PeriodType
 from levers.models.patterns.forecasting import Forecasting
 from levers.primitives import get_period_range_for_grain
+from levers.primitives.period_grains import get_period_end_date
 from story_manager.core.enums import StoryGenre, StoryGroup, StoryType
 from story_manager.story_evaluator import StoryEvaluatorBase, render_story_text
 
@@ -138,12 +139,14 @@ class ForecastingEvaluator(StoryEvaluatorBase[Forecasting]):
 
         if pacing:
             context["period"] = period_map.get(pacing.period, pacing.period.value) if pacing.period else None
+            period_end_date = get_period_end_date(pattern_result.analysis_date, pacing.period)
             context.update(
                 {
                     "percent_elapsed": pacing.period_elapsed_percent or 0,
                     "projected_value": pacing.projected_value,
                     "target_value": pacing.target_value,
                     "gap_percent": abs(pacing.gap_percent or 0),
+                    "period_end_date": period_end_date.strftime("%Y-%m-%d"),
                 }
             )
 
@@ -637,7 +640,7 @@ class ForecastingEvaluator(StoryEvaluatorBase[Forecasting]):
         actual_df["date"] = pd.to_datetime(actual_df["date"])
         actual_df = actual_df[actual_df["date"] >= period_start_date]
         actual_df = actual_df.sort_values("date")
-        actual_df["pop_growth_percent"] = actual_df["value"].pct_change() * 100
+        actual_df["pop_growth_percent"] = round(actual_df["value"].pct_change() * 100, 2)
         actual_df["required_growth_percent"] = None
 
         # Remove first row (NaN growth)
