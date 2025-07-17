@@ -423,8 +423,8 @@ class ForecastingEvaluator(StoryEvaluatorBase[Forecasting]):
 
         df = df.copy().sort_values("date")
 
-        # Add cumulative_value column with cumulative sum of values
-        df["cumulative_value"] = df["value"].cumsum()
+        # Add cumulative_value column with cumulative sum of values rounded to 2 decimal places
+        df["cumulative_value"] = df["value"].cumsum().round(2)
 
         if include_bounds:
             if "lower_bound" in df.columns and "upper_bound" in df.columns:
@@ -454,8 +454,8 @@ class ForecastingEvaluator(StoryEvaluatorBase[Forecasting]):
                             upper_uncertainty = 0.1
 
                         # Apply uncertainty to cumulative value for new columns
-                        df.loc[idx, "cumulative_lower_bound"] = cumulative_val * (1 - lower_uncertainty)
-                        df.loc[idx, "cumulative_upper_bound"] = cumulative_val * (1 + upper_uncertainty)
+                        df.loc[idx, "cumulative_lower_bound"] = round(cumulative_val * (1 - lower_uncertainty), 2)
+                        df.loc[idx, "cumulative_upper_bound"] = round(cumulative_val * (1 + upper_uncertainty), 2)
 
         return df
 
@@ -533,11 +533,13 @@ class ForecastingEvaluator(StoryEvaluatorBase[Forecasting]):
             else pd.DataFrame(columns=["date", "value", "lower_bound", "upper_bound"])
         )
 
-        period_forecast = (
-            forecast_df[forecast_df["date"] >= analysis_date]
-            if not forecast_df.empty
-            else pd.DataFrame(columns=["date", "value", "lower_bound", "upper_bound"])
-        )
+        if not forecast_df.empty:
+            period_forecast = forecast_df[forecast_df["date"] >= analysis_date]
+        else:
+            period_forecast = pd.DataFrame(columns=["date", "value", "lower_bound", "upper_bound"])
+            period_forecast["value"] = period_forecast["value"].astype("float64")
+            period_forecast["lower_bound"] = period_forecast["lower_bound"].astype("float64")
+            period_forecast["upper_bound"] = period_forecast["upper_bound"].astype("float64")
 
         # Combine period actuals and forecast data
         combined_df = pd.concat([period_actuals, period_forecast], ignore_index=True)
