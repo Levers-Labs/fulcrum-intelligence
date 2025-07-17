@@ -486,7 +486,7 @@ class ForecastingEvaluator(StoryEvaluatorBase[Forecasting]):
         """
         analysis_date = pd.to_datetime(pattern_result.analysis_date)
         period_start_date, period_end_date = get_period_range_for_grain(
-            analysis_date, self._get_period_grain(forecast_stats.period), include_today=True
+            analysis_date, self._get_period_grain(forecast_stats.period), include_today=True  # type: ignore
         )
         period_start_date = pd.to_datetime(period_start_date)
         period_end_date = pd.to_datetime(period_end_date)
@@ -621,7 +621,7 @@ class ForecastingEvaluator(StoryEvaluatorBase[Forecasting]):
         """
         analysis_date = pd.to_datetime(pattern_result.analysis_date)
         period_start_date, period_end_date = get_period_range_for_grain(
-            analysis_date, self._get_period_grain(required_perf.period), include_today=True
+            analysis_date, self._get_period_grain(required_perf.period), include_today=True  # type: ignore
         )
         period_start_date = pd.to_datetime(period_start_date)
         period_end_date = pd.to_datetime(period_end_date)
