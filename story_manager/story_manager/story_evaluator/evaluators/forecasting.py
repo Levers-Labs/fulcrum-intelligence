@@ -428,6 +428,10 @@ class ForecastingEvaluator(StoryEvaluatorBase[Forecasting]):
 
         if include_bounds:
             if "lower_bound" in df.columns and "upper_bound" in df.columns:
+                # Initialize cumulative bound columns
+                df["cumulative_lower_bound"] = None
+                df["cumulative_upper_bound"] = None
+
                 # Only calculate bounds for forecast data (where bounds are not None)
                 forecast_mask = df["lower_bound"].notna() & df["upper_bound"].notna()
                 if forecast_mask.any():
@@ -449,13 +453,9 @@ class ForecastingEvaluator(StoryEvaluatorBase[Forecasting]):
                             lower_uncertainty = 0.1  # default 10% uncertainty
                             upper_uncertainty = 0.1
 
-                        # Apply uncertainty to cumulative value
-                        df.loc[idx, "lower_bound"] = cumulative_val * (1 - lower_uncertainty)
-                        df.loc[idx, "upper_bound"] = cumulative_val * (1 + upper_uncertainty)
-
-                    # Set bounds to None for actual data
-                    df.loc[~forecast_mask, "lower_bound"] = None
-                    df.loc[~forecast_mask, "upper_bound"] = None
+                        # Apply uncertainty to cumulative value for new columns
+                        df.loc[idx, "cumulative_lower_bound"] = cumulative_val * (1 - lower_uncertainty)
+                        df.loc[idx, "cumulative_upper_bound"] = cumulative_val * (1 + upper_uncertainty)
 
         return df
 

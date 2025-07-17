@@ -622,6 +622,10 @@ class TestForecastingEvaluator:
         for col in expected_columns:
             assert col in combined_df.columns
 
+        # Should also have cumulative bound columns
+        assert "cumulative_lower_bound" in combined_df.columns
+        assert "cumulative_upper_bound" in combined_df.columns
+
         # Should have both historical and forecast data
         assert len(combined_df) >= 5  # At least the historical data
 
@@ -635,12 +639,12 @@ class TestForecastingEvaluator:
         # Should be sorted by date
         assert combined_df["date"].is_monotonic_increasing
 
-        # Check that bounds are calculated as percentages for forecast data
-        forecast_rows = combined_df[combined_df["lower_bound"].notna()]
+        # Check that cumulative bounds are calculated as percentages for forecast data
+        forecast_rows = combined_df[combined_df["cumulative_lower_bound"].notna()]
         if not forecast_rows.empty:
             for _, row in forecast_rows.iterrows():
-                # Bounds should be around the cumulative value
-                assert row["lower_bound"] < row["cumulative_value"] < row["upper_bound"]
+                # Cumulative bounds should be around the cumulative value
+                assert row["cumulative_lower_bound"] < row["cumulative_value"] < row["cumulative_upper_bound"]
 
     def test_prepare_forecast_series_data_forecast_only(self, forecasting_evaluator, mock_period_forecast):
         """Test _prepare_forecast_series_data with forecast data only (no historical data)."""
@@ -1384,28 +1388,52 @@ class TestForecastingEvaluator:
         # Should have cumulative_value column
         assert "cumulative_value" in result_df.columns
 
+        # Should have cumulative bound columns
+        assert "cumulative_lower_bound" in result_df.columns
+        assert "cumulative_upper_bound" in result_df.columns
+
         # Check cumulative values are correct
         expected_cumulative = [100, 220, 360, 520, 700]
         assert result_df["cumulative_value"].tolist() == expected_cumulative
 
-        # Check that bounds are calculated as percentages for forecast data only
-        # Actual data should have None bounds
+        # Check that cumulative bounds are calculated as percentages for forecast data only
+        # Actual data should have None cumulative bounds
+        assert pd.isna(result_df.iloc[0]["cumulative_lower_bound"])
+        assert pd.isna(result_df.iloc[0]["cumulative_upper_bound"])
+        assert pd.isna(result_df.iloc[1]["cumulative_lower_bound"])
+        assert pd.isna(result_df.iloc[1]["cumulative_upper_bound"])
+
+        # Original bounds should be preserved (actual data has None, forecast data has original values)
         assert pd.isna(result_df.iloc[0]["lower_bound"])
         assert pd.isna(result_df.iloc[0]["upper_bound"])
         assert pd.isna(result_df.iloc[1]["lower_bound"])
         assert pd.isna(result_df.iloc[1]["upper_bound"])
 
-        # Forecast data should have bounds calculated as percentages
+        # Forecast data should have cumulative bounds calculated as percentages
         forecast_row_1 = result_df.iloc[3]  # 4th row (0-indexed)
         forecast_row_2 = result_df.iloc[4]  # 5th row (0-indexed)
 
-        # Bounds should be around the cumulative value
-        assert forecast_row_1["lower_bound"] < forecast_row_1["cumulative_value"] < forecast_row_1["upper_bound"]
-        assert forecast_row_2["lower_bound"] < forecast_row_2["cumulative_value"] < forecast_row_2["upper_bound"]
+        # Cumulative bounds should be around the cumulative value
+        assert (
+            forecast_row_1["cumulative_lower_bound"]
+            < forecast_row_1["cumulative_value"]
+            < forecast_row_1["cumulative_upper_bound"]
+        )
+        assert (
+            forecast_row_2["cumulative_lower_bound"]
+            < forecast_row_2["cumulative_value"]
+            < forecast_row_2["cumulative_upper_bound"]
+        )
 
-        # Check that bounds are calculated based on uncertainty percentage
-        assert forecast_row_1["lower_bound"] > 0
-        assert forecast_row_1["upper_bound"] > forecast_row_1["cumulative_value"]
+        # Check that cumulative bounds are calculated based on uncertainty percentage
+        assert forecast_row_1["cumulative_lower_bound"] > 0
+        assert forecast_row_1["cumulative_upper_bound"] > forecast_row_1["cumulative_value"]
+
+        # Original bounds should be preserved for forecast data
+        assert forecast_row_1["lower_bound"] == 150
+        assert forecast_row_1["upper_bound"] == 170
+        assert forecast_row_2["lower_bound"] == 170
+        assert forecast_row_2["upper_bound"] == 190
 
     def test_calculate_cumulative_series_without_bounds(self, forecasting_evaluator):
         """Test that _calculate_cumulative_series works without bounds."""
