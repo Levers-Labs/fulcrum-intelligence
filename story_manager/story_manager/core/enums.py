@@ -225,6 +225,11 @@ GROUP_TO_STORY_TYPE_MAPPING = {
     StoryGroup.LIKELY_STATUS: [
         StoryType.LIKELY_ON_TRACK,
         StoryType.LIKELY_OFF_TRACK,
+        StoryType.FORECASTED_ON_TRACK,
+        StoryType.FORECASTED_OFF_TRACK,
+        StoryType.PACING_ON_TRACK,
+        StoryType.PACING_OFF_TRACK,
+        StoryType.REQUIRED_PERFORMANCE,
     ],
     StoryGroup.REQUIRED_PERFORMANCE: [StoryType.REQUIRED_PERFORMANCE, StoryType.HOLD_STEADY],
     StoryGroup.SEGMENT_DRIFT: [
