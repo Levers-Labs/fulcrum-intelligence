@@ -139,7 +139,8 @@ class ForecastingEvaluator(StoryEvaluatorBase[Forecasting]):
 
         if pacing:
             context["period"] = period_map.get(pacing.period, pacing.period.value) if pacing.period else None
-            period_end_date = get_period_end_date(pattern_result.analysis_date, pacing.period)
+            analysis_dt = pd.to_datetime(pattern_result.analysis_date)
+            period_end_date = get_period_end_date(analysis_dt, pacing.period)
             context.update(
                 {
                     "percent_elapsed": pacing.period_elapsed_percent or 0,
