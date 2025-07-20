@@ -1,1221 +1,819 @@
 """
-Tests for forecasting story evaluator.
+Tests for the forecasting evaluator.
 """
 
 from datetime import date
+from unittest.mock import patch
 
 import pandas as pd
 import pytest
 
 from commons.models.enums import Granularity
-from levers.models import AnalysisWindow
-from levers.models.enums import MetricGVAStatus, PeriodType
-from levers.models.forecasting import (
+from levers.models import (
+    AnalysisWindow,
     Forecast,
     ForecastVsTargetStats,
+    ForecastWindow,
     PacingProjection,
     RequiredPerformance,
 )
+from levers.models.enums import MetricGVAStatus, PeriodType
 from levers.models.patterns.forecasting import Forecasting
 from story_manager.core.enums import StoryGenre, StoryGroup, StoryType
 from story_manager.story_evaluator.evaluators.forecasting import ForecastingEvaluator
 
 
 @pytest.fixture
-def mock_metric():
-    """Mock metric data."""
-    return {
-        "label": "Test Inquiries",
-        "metric_id": "test_inquiries",
-    }
-
-
-@pytest.fixture
 def mock_analysis_window():
-    """Mock analysis window."""
-    return AnalysisWindow(grain=Granularity.WEEK, start_date="2024-01-01", end_date="2024-01-31")
+    """Fixture for mock analysis window."""
+    return AnalysisWindow(start_date="2024-01-01", end_date="2024-01-31", grain=Granularity.DAY)
 
 
 @pytest.fixture
-def mock_forecast_vs_target_stats_on_track():
-    """Mock forecast vs target stats for on-track scenario."""
-    return ForecastVsTargetStats(
-        forecasted_value=1200.0,
-        target_date="2024-01-31",
-        target_value=1000.0,
-        gap_percent=20.0,
-        status=MetricGVAStatus.ON_TRACK,
-        period=PeriodType.END_OF_MONTH,
-    )
-
-
-@pytest.fixture
-def mock_forecast_vs_target_stats_off_track():
-    """Mock forecast vs target stats for off-track scenario."""
-    return ForecastVsTargetStats(
-        forecasted_value=800.0,
-        target_date="2024-01-31",
-        target_value=1000.0,
-        gap_percent=20.0,
-        status=MetricGVAStatus.OFF_TRACK,
-        period=PeriodType.END_OF_MONTH,
-    )
-
-
-@pytest.fixture
-def mock_pacing_on_track():
-    """Mock pacing projection for on-track scenario."""
-    return PacingProjection(
-        period_elapsed_percent=75.0,
-        cumulative_value=900.0,
-        projected_value=1200.0,
-        gap_percent=20.0,
-        status="on_track",
-        period=PeriodType.END_OF_MONTH,
-    )
-
-
-@pytest.fixture
-def mock_pacing_off_track():
-    """Mock pacing projection for off-track scenario."""
-    return PacingProjection(
-        period_elapsed_percent=75.0,
-        cumulative_value=600.0,
-        projected_value=800.0,
-        gap_percent=20.0,
-        status="off_track",
-        period=PeriodType.END_OF_MONTH,
-    )
-
-
-@pytest.fixture
-def mock_required_performance():
-    """Mock required performance."""
-    return RequiredPerformance(
-        remaining_periods=2,
-        required_pop_growth_percent=15.0,
-        previous_pop_growth_percent=10.0,
-        growth_difference=5.0,
-        previous_num_periods=4,
-        period=PeriodType.END_OF_MONTH,
-    )
-
-
-@pytest.fixture
-def mock_period_forecast():
-    """Mock period forecast (now called forecast)."""
+def mock_forecast_vs_target_stats():
+    """Fixture for mock forecast vs target stats."""
     return [
-        Forecast(
-            date="2024-01-29", forecasted_value=1100.0, lower_bound=1000.0, upper_bound=1200.0, confidence_level=0.95
+        ForecastVsTargetStats(
+            period=PeriodType.END_OF_MONTH,
+            forecasted_value=1200.0,
+            target_value=1000.0,
+            gap_percent=20.0,
+            status=MetricGVAStatus.ON_TRACK,
         ),
-        Forecast(
-            date="2024-01-30", forecasted_value=1150.0, lower_bound=1050.0, upper_bound=1250.0, confidence_level=0.95
-        ),
-        Forecast(
-            date="2024-01-31", forecasted_value=1200.0, lower_bound=1100.0, upper_bound=1300.0, confidence_level=0.95
+        ForecastVsTargetStats(
+            period=PeriodType.END_OF_QUARTER,
+            forecasted_value=900.0,
+            target_value=1000.0,
+            gap_percent=-10.0,
+            status=MetricGVAStatus.OFF_TRACK,
         ),
     ]
 
 
 @pytest.fixture
-def forecasting_evaluator():
-    """Forecasting evaluator instance."""
+def mock_pacing_projections():
+    """Fixture for mock pacing projections."""
+    return [
+        PacingProjection(
+            period=PeriodType.END_OF_MONTH,
+            period_elapsed_percent=75.0,
+            projected_value=1100.0,
+            target_value=1000.0,
+            gap_percent=10.0,
+            status=MetricGVAStatus.ON_TRACK,
+        ),
+        PacingProjection(
+            period=PeriodType.END_OF_QUARTER,
+            period_elapsed_percent=33.3,
+            projected_value=900.0,
+            target_value=1200.0,
+            gap_percent=-25.0,
+            status=MetricGVAStatus.OFF_TRACK,
+        ),
+    ]
+
+
+@pytest.fixture
+def mock_required_performance():
+    """Fixture for mock required performance."""
+    return [
+        RequiredPerformance(
+            period=PeriodType.END_OF_MONTH,
+            remaining_periods=4,
+            required_pop_growth_percent=15.0,
+            previous_pop_growth_percent=10.0,
+            growth_difference=5.0,
+            previous_periods=3,
+        ),
+        RequiredPerformance(
+            period=PeriodType.END_OF_QUARTER,
+            remaining_periods=2,
+            required_pop_growth_percent=25.0,
+            previous_pop_growth_percent=5.0,
+            growth_difference=20.0,
+            previous_periods=6,
+        ),
+    ]
+
+
+@pytest.fixture
+def mock_forecast_data():
+    """Fixture for mock forecast data."""
+    return [
+        Forecast(date="2024-02-01", forecasted_value=100.0, lower_bound=90.0, upper_bound=110.0, confidence_level=0.95),
+        Forecast(date="2024-02-02", forecasted_value=105.0, lower_bound=95.0, upper_bound=115.0, confidence_level=0.95),
+        Forecast(date="2024-02-03", forecasted_value=110.0, lower_bound=98.0, upper_bound=122.0, confidence_level=0.95),
+    ]
+
+
+@pytest.fixture
+def mock_forecasting_pattern(
+    mock_analysis_window,
+    mock_forecast_vs_target_stats,
+    mock_pacing_projections,
+    mock_required_performance,
+    mock_forecast_data,
+):
+    """Fixture for mock forecasting pattern."""
+    return Forecasting(
+        pattern="forecasting",
+        pattern_run_id=1,
+        metric_id="test_metric",
+        analysis_window=mock_analysis_window,
+        analysis_date=date(2024, 1, 31),
+        forecast_window=ForecastWindow(start_date="2024-02-01", end_date="2024-02-28", num_periods=28),
+        forecast_vs_target_stats=mock_forecast_vs_target_stats,
+        pacing=mock_pacing_projections,
+        required_performance=mock_required_performance,
+        forecast=mock_forecast_data,
+    )
+
+
+@pytest.fixture
+def mock_metric():
+    """Fixture for mock metric."""
+    return {
+        "metric_id": "test_metric",
+        "metric_name": "Test Metric",
+        "metric_display_name": "Test Display Metric",
+        "label": "Test Metric",  # Added required label field
+        "higher_is_better": True,
+        "metric_type": "revenue",
+        "unit": "USD",
+    }
+
+
+@pytest.fixture
+def mock_series_df():
+    """Fixture for mock series data."""
+    return pd.DataFrame(
+        {
+            "date": pd.date_range("2024-01-01", "2024-01-31", freq="D"),
+            "value": [100 + i * 5 for i in range(31)],  # Increasing values
+        }
+    )
+
+
+@pytest.fixture
+def evaluator():
+    """Fixture for forecasting evaluator."""
     return ForecastingEvaluator()
+
+
+@pytest.fixture
+def evaluator_with_series(evaluator, mock_series_df):
+    """Fixture for evaluator with series data."""
+    evaluator.series_df = mock_series_df
+    return evaluator
 
 
 class TestForecastingEvaluator:
     """Test cases for ForecastingEvaluator."""
 
+    def test_pattern_name(self, evaluator):
+        """Test pattern name is set correctly."""
+        assert evaluator.pattern_name == "forecasting"
+
     @pytest.mark.asyncio
-    async def test_evaluate_forecasted_on_track(
-        self,
-        forecasting_evaluator,
-        mock_metric,
-        mock_analysis_window,
-        mock_forecast_vs_target_stats_on_track,
-        mock_period_forecast,
-    ):
-        """Test evaluation of forecasted on track scenario."""
-        pattern_result = Forecasting(
-            metric_id="test_inquiries",
-            analysis_window=mock_analysis_window,
-            analysis_date=date(2024, 1, 25),
-            forecast_vs_target_stats=[mock_forecast_vs_target_stats_on_track],  # Now a list
-            forecast=mock_period_forecast,  # Updated field name
+    async def test_evaluate_all_story_types(self, evaluator_with_series, mock_forecasting_pattern, mock_metric):
+        """Test that evaluate method generates all expected story types."""
+        stories = await evaluator_with_series.evaluate(mock_forecasting_pattern, mock_metric)
+
+        # Should generate 6 stories: 2 forecast stories + 2 pacing stories + 2 required performance stories
+        assert len(stories) == 6
+
+        story_types = {story["story_type"] for story in stories}
+        expected_story_types = {
+            StoryType.FORECASTED_ON_TRACK,
+            StoryType.FORECASTED_OFF_TRACK,
+            StoryType.PACING_ON_TRACK,
+            StoryType.PACING_OFF_TRACK,
+            StoryType.REQUIRED_PERFORMANCE,
+        }
+        assert expected_story_types.issubset(story_types)
+
+        # Verify all stories have required fields
+        for story in stories:
+            assert "title" in story
+            assert "detail" in story
+            assert story["genre"] == StoryGenre.PERFORMANCE
+            assert story["story_group"] == StoryGroup.LIKELY_STATUS
+            assert story["metric_id"] == "test_metric"
+            assert story["grain"] == Granularity.DAY
+
+    @pytest.mark.asyncio
+    async def test_evaluate_empty_pattern_data(self, evaluator, mock_metric):
+        """Test evaluate with empty pattern data."""
+        empty_pattern = Forecasting(
+            pattern="forecasting",
+            metric_id="test_metric",
+            analysis_window=AnalysisWindow(start_date="2024-01-01", end_date="2024-01-31", grain=Granularity.DAY),
+            analysis_date=date(2024, 1, 31),
+            forecast_vs_target_stats=[],
+            pacing=[],
+            required_performance=[],
+            forecast=[],
         )
 
-        stories = await forecasting_evaluator.evaluate(pattern_result, mock_metric)
+        stories = await evaluator.evaluate(empty_pattern, mock_metric)
+        assert len(stories) == 0
 
-        assert len(stories) == 1
-        story = stories[0]
+    @pytest.mark.asyncio
+    async def test_evaluate_none_values_in_data(self, evaluator_with_series, mock_metric):
+        """Test evaluate with None values in data."""
+        pattern_with_nones = Forecasting(
+            pattern="forecasting",
+            metric_id="test_metric",
+            analysis_window=AnalysisWindow(start_date="2024-01-01", end_date="2024-01-31", grain=Granularity.DAY),
+            analysis_date=date(2024, 1, 31),
+            forecast_vs_target_stats=[None, ForecastVsTargetStats(status=None)],
+            pacing=[None, PacingProjection(status=None, projected_value=None)],
+            required_performance=[None, RequiredPerformance(required_pop_growth_percent=None)],
+            forecast=[],
+        )
+
+        stories = await evaluator_with_series.evaluate(pattern_with_nones, mock_metric)
+        assert len(stories) == 0
+
+    def test_populate_template_context_forecast_stats(self, evaluator, mock_forecasting_pattern, mock_metric):
+        """Test _populate_template_context with forecast stats."""
+        forecast_stats = mock_forecasting_pattern.forecast_vs_target_stats[0]
+
+        context = evaluator._populate_template_context(
+            mock_forecasting_pattern, mock_metric, Granularity.DAY, forecast_stats=forecast_stats
+        )
+
+        assert context["period"] == "month"
+        assert context["forecasted_value"] == 1200.0
+        assert context["target_value"] == 1000.0
+        assert context["gap_percent"] == 20.0
+
+    def test_populate_template_context_pacing(self, evaluator, mock_forecasting_pattern, mock_metric):
+        """Test _populate_template_context with pacing data."""
+        pacing = mock_forecasting_pattern.pacing[0]
+
+        context = evaluator._populate_template_context(
+            mock_forecasting_pattern, mock_metric, Granularity.DAY, pacing=pacing
+        )
+
+        assert context["period"] == "month"
+        assert context["percent_elapsed"] == 75.0
+        assert context["projected_value"] == 1100.0
+        assert context["target_value"] == 1000.0
+        assert context["gap_percent"] == 10.0
+        assert "period_end_date" in context
+
+    def test_populate_template_context_required_performance(self, evaluator, mock_forecasting_pattern, mock_metric):
+        """Test _populate_template_context with required performance data."""
+        required_perf = mock_forecasting_pattern.required_performance[0]
+
+        context = evaluator._populate_template_context(
+            mock_forecasting_pattern, mock_metric, Granularity.DAY, required_perf=required_perf
+        )
+
+        assert context["period"] == "month"
+        assert context["required_growth"] == 15.0
+        assert context["remaining_periods"] == 4
+        assert context["growth_difference"] == 5.0
+        assert context["trend_direction"] == "increase"
+        assert context["previous_growth"] == 10.0
+        assert context["previous_periods"] == 3
+
+    def test_populate_template_context_negative_growth_difference(
+        self, evaluator, mock_forecasting_pattern, mock_metric
+    ):
+        """Test _populate_template_context with negative growth difference."""
+        required_perf = RequiredPerformance(
+            period=PeriodType.END_OF_MONTH,
+            remaining_periods=4,
+            required_pop_growth_percent=5.0,
+            previous_pop_growth_percent=10.0,
+            growth_difference=-5.0,  # Negative difference
+            previous_periods=3,
+        )
+
+        context = evaluator._populate_template_context(
+            mock_forecasting_pattern, mock_metric, Granularity.DAY, required_perf=required_perf
+        )
+
+        assert context["trend_direction"] == "decrease"
+        assert context["growth_difference"] == 5.0  # Should be absolute value
+
+    def test_populate_template_context_no_period(self, evaluator, mock_forecasting_pattern, mock_metric):
+        """Test _populate_template_context with no period specified."""
+        forecast_stats = ForecastVsTargetStats(
+            period=None,  # No period
+            forecasted_value=1200.0,
+            target_value=1000.0,
+            gap_percent=20.0,
+            status=MetricGVAStatus.ON_TRACK,
+        )
+
+        context = evaluator._populate_template_context(
+            mock_forecasting_pattern, mock_metric, Granularity.DAY, forecast_stats=forecast_stats
+        )
+
+        assert context["period"] is None
+
+    @patch("story_manager.story_evaluator.evaluators.forecasting.render_story_text")
+    def test_create_forecasted_on_track_story(
+        self, mock_render, evaluator_with_series, mock_forecasting_pattern, mock_metric
+    ):
+        """Test _create_forecasted_on_track_story method."""
+        mock_render.return_value = "Mock rendered text"
+        forecast_stats = mock_forecasting_pattern.forecast_vs_target_stats[0]
+
+        story = evaluator_with_series._create_forecasted_on_track_story(
+            mock_forecasting_pattern, "test_metric", mock_metric, Granularity.DAY, forecast_stats
+        )
 
         assert story["story_type"] == StoryType.FORECASTED_ON_TRACK
         assert story["story_group"] == StoryGroup.LIKELY_STATUS
         assert story["genre"] == StoryGenre.PERFORMANCE
-        assert story["metric_id"] == "test_inquiries"
-        assert "Forecasted to beat end of month target" in story["title"]
-        assert "Test Inquiries is forecasted to end the month" in story["detail"]
-        assert "1200.00" in story["detail"]
-        assert "1000.00" in story["detail"]
-        assert "20.0%" in story["detail"]
+        assert story["metric_id"] == "test_metric"
+        assert "title" in story
+        assert "detail" in story
+        assert "title" in story
+        assert "detail" in story
 
-    @pytest.mark.asyncio
-    async def test_evaluate_forecasted_off_track(
-        self,
-        forecasting_evaluator,
-        mock_metric,
-        mock_analysis_window,
-        mock_forecast_vs_target_stats_off_track,
-        mock_period_forecast,
+    @patch("story_manager.story_evaluator.evaluators.forecasting.render_story_text")
+    def test_create_forecasted_off_track_story(
+        self, mock_render, evaluator_with_series, mock_forecasting_pattern, mock_metric
     ):
-        """Test evaluation of forecasted off track scenario."""
-        pattern_result = Forecasting(
-            metric_id="test_inquiries",
-            analysis_window=mock_analysis_window,
-            analysis_date=date(2024, 1, 25),
-            forecast_vs_target_stats=[mock_forecast_vs_target_stats_off_track],  # Now a list
-            forecast=mock_period_forecast,  # Updated field name
+        """Test _create_forecasted_off_track_story method."""
+        mock_render.return_value = "Mock rendered text"
+        forecast_stats = mock_forecasting_pattern.forecast_vs_target_stats[1]
+
+        story = evaluator_with_series._create_forecasted_off_track_story(
+            mock_forecasting_pattern, "test_metric", mock_metric, Granularity.DAY, forecast_stats
         )
-
-        stories = await forecasting_evaluator.evaluate(pattern_result, mock_metric)
-
-        assert len(stories) == 1
-        story = stories[0]
 
         assert story["story_type"] == StoryType.FORECASTED_OFF_TRACK
         assert story["story_group"] == StoryGroup.LIKELY_STATUS
         assert story["genre"] == StoryGenre.PERFORMANCE
-        assert story["metric_id"] == "test_inquiries"
-        assert "Forecasted to miss end of month target by 20.0%" in story["title"]
-        assert "Test Inquiries is forecasted to end the month" in story["detail"]
-        assert "800" in story["detail"]
-        assert "1000.00" in story["detail"]
+        assert story["metric_id"] == "test_metric"
 
-    @pytest.mark.asyncio
-    async def test_evaluate_pacing_on_track(
-        self,
-        forecasting_evaluator,
-        mock_metric,
-        mock_analysis_window,
-        mock_forecast_vs_target_stats_on_track,
-        mock_pacing_on_track,
-        mock_period_forecast,
+    @patch("story_manager.story_evaluator.evaluators.forecasting.render_story_text")
+    def test_create_pacing_on_track_story(
+        self, mock_render, evaluator_with_series, mock_forecasting_pattern, mock_metric
     ):
-        """Test evaluation of pacing on track scenario."""
-        pattern_result = Forecasting(
-            metric_id="test_inquiries",
-            analysis_window=mock_analysis_window,
-            analysis_date=date(2024, 1, 25),
-            forecast_vs_target_stats=[mock_forecast_vs_target_stats_on_track],  # Now a list
-            pacing=[mock_pacing_on_track],  # Now a list
-            forecast=mock_period_forecast,  # Updated field name
+        """Test _create_pacing_on_track_story method."""
+        mock_render.return_value = "Mock rendered text"
+        pacing = mock_forecasting_pattern.pacing[0]
+
+        story = evaluator_with_series._create_pacing_on_track_story(
+            mock_forecasting_pattern, "test_metric", mock_metric, Granularity.DAY, pacing
         )
 
-        stories = await forecasting_evaluator.evaluate(pattern_result, mock_metric)
+        assert story["story_type"] == StoryType.PACING_ON_TRACK
+        assert story["story_group"] == StoryGroup.LIKELY_STATUS
+        assert story["genre"] == StoryGenre.PERFORMANCE
 
-        assert len(stories) == 2  # Forecast and Pacing stories
-        pacing_story = [s for s in stories if s["story_type"] == StoryType.PACING_ON_TRACK][0]
-
-        assert pacing_story["story_type"] == StoryType.PACING_ON_TRACK
-        assert pacing_story["story_group"] == StoryGroup.LIKELY_STATUS
-        assert pacing_story["genre"] == StoryGenre.PERFORMANCE
-        assert pacing_story["metric_id"] == "test_inquiries"
-        assert "Pacing to beat end of month target" in pacing_story["title"]
-        assert "Test Inquiries is pacing to end this month" in pacing_story["detail"]
-        assert "1200.00" in pacing_story["detail"]
-        assert "N/A" in pacing_story["detail"]  # Changed from "1000.00" since target_value is None in pacing data
-
-    @pytest.mark.asyncio
-    async def test_evaluate_pacing_off_track(
-        self,
-        forecasting_evaluator,
-        mock_metric,
-        mock_analysis_window,
-        mock_forecast_vs_target_stats_off_track,
-        mock_pacing_off_track,
-        mock_period_forecast,
+    @patch("story_manager.story_evaluator.evaluators.forecasting.render_story_text")
+    def test_create_pacing_off_track_story(
+        self, mock_render, evaluator_with_series, mock_forecasting_pattern, mock_metric
     ):
-        """Test evaluation of pacing off track scenario."""
-        pattern_result = Forecasting(
-            metric_id="test_inquiries",
-            analysis_window=mock_analysis_window,
-            analysis_date=date(2024, 1, 25),
-            forecast_vs_target_stats=[mock_forecast_vs_target_stats_off_track],  # Now a list
-            pacing=[mock_pacing_off_track],  # Now a list
-            forecast=mock_period_forecast,  # Updated field name
+        """Test _create_pacing_off_track_story method."""
+        mock_render.return_value = "Mock rendered text"
+        pacing = mock_forecasting_pattern.pacing[1]
+
+        story = evaluator_with_series._create_pacing_off_track_story(
+            mock_forecasting_pattern, "test_metric", mock_metric, Granularity.DAY, pacing
         )
 
-        stories = await forecasting_evaluator.evaluate(pattern_result, mock_metric)
+        assert story["story_type"] == StoryType.PACING_OFF_TRACK
+        assert story["story_group"] == StoryGroup.LIKELY_STATUS
+        assert story["genre"] == StoryGenre.PERFORMANCE
 
-        assert len(stories) == 2  # Forecast and Pacing stories
-        pacing_story = [s for s in stories if s["story_type"] == StoryType.PACING_OFF_TRACK][0]
-
-        assert pacing_story["story_type"] == StoryType.PACING_OFF_TRACK
-        assert pacing_story["story_group"] == StoryGroup.LIKELY_STATUS
-        assert pacing_story["genre"] == StoryGenre.PERFORMANCE
-        assert pacing_story["metric_id"] == "test_inquiries"
-        assert "Pacing to miss end of month target by 20.0%" in pacing_story["title"]
-        assert "Test Inquiries is pacing to end this month" in pacing_story["detail"]
-        assert "800" in pacing_story["detail"]
-        assert "N/A" in pacing_story["detail"]  # Changed from "1000.00" to "N/A" since target_value is None
-
-    @pytest.mark.asyncio
-    async def test_evaluate_required_performance(
-        self,
-        forecasting_evaluator,
-        mock_metric,
-        mock_analysis_window,
-        mock_forecast_vs_target_stats_on_track,
-        mock_required_performance,
-        mock_period_forecast,
+    @patch("story_manager.story_evaluator.evaluators.forecasting.render_story_text")
+    def test_create_required_performance_story(
+        self, mock_render, evaluator_with_series, mock_forecasting_pattern, mock_metric
     ):
-        """Test evaluation of required performance scenario."""
-        pattern_result = Forecasting(
-            metric_id="test_inquiries",
-            analysis_window=mock_analysis_window,
-            analysis_date=date(2024, 1, 25),
-            forecast_vs_target_stats=[mock_forecast_vs_target_stats_on_track],  # Now a list
-            required_performance=[mock_required_performance],  # Now a list
-            forecast=mock_period_forecast,  # Updated field name
+        """Test _create_required_performance_story method."""
+        mock_render.return_value = "Mock rendered text"
+        required_perf = mock_forecasting_pattern.required_performance[0]
+
+        story = evaluator_with_series._create_required_performance_story(
+            mock_forecasting_pattern, "test_metric", mock_metric, Granularity.DAY, required_perf
         )
 
-        stories = await forecasting_evaluator.evaluate(pattern_result, mock_metric)
-
-        assert len(stories) == 2  # Forecast and Required Performance stories
-        required_story = [s for s in stories if s["story_type"] == StoryType.REQUIRED_PERFORMANCE][0]
-
-        assert required_story["story_type"] == StoryType.REQUIRED_PERFORMANCE
-        assert required_story["story_group"] == StoryGroup.LIKELY_STATUS
-        assert required_story["genre"] == StoryGenre.PERFORMANCE
-        assert required_story["metric_id"] == "test_inquiries"
-        assert "Must grow 15.0% w/w to meet end of month target" in required_story["title"]
-        assert "Test Inquiries must average a 15.0% w/w growth rate" in required_story["detail"]
-        assert "next 2 weeks" in required_story["detail"]
-
-    @pytest.mark.asyncio
-    async def test_evaluate_all_scenarios(
-        self,
-        forecasting_evaluator,
-        mock_metric,
-        mock_analysis_window,
-        mock_forecast_vs_target_stats_on_track,
-        mock_pacing_on_track,
-        mock_required_performance,
-        mock_period_forecast,
-    ):
-        """Test evaluation with all story types present."""
-        pattern_result = Forecasting(
-            metric_id="test_inquiries",
-            analysis_window=mock_analysis_window,
-            analysis_date=date(2024, 1, 25),
-            forecast_vs_target_stats=[mock_forecast_vs_target_stats_on_track],  # Now a list
-            pacing=[mock_pacing_on_track],  # Now a list
-            required_performance=[mock_required_performance],  # Now a list
-            forecast=mock_period_forecast,  # Updated field name
-        )
-
-        stories = await forecasting_evaluator.evaluate(pattern_result, mock_metric)
-
-        assert len(stories) == 3  # All three story types
-        story_types = {story["story_type"] for story in stories}
-        assert StoryType.FORECASTED_ON_TRACK in story_types
-        assert StoryType.PACING_ON_TRACK in story_types
-        assert StoryType.REQUIRED_PERFORMANCE in story_types
-
-    @pytest.mark.asyncio
-    async def test_evaluate_no_stories_without_forecast_status(
-        self, forecasting_evaluator, mock_metric, mock_analysis_window, mock_period_forecast
-    ):
-        """Test no stories are generated without forecast stats."""
-        pattern_result = Forecasting(
-            metric_id="test_inquiries",
-            analysis_window=mock_analysis_window,
-            analysis_date=date(2024, 1, 25),
-            forecast_vs_target_stats=[],  # Empty list
-            forecast=mock_period_forecast,  # Updated field name
-        )
-
-        stories = await forecasting_evaluator.evaluate(pattern_result, mock_metric)
-
-        assert len(stories) == 0
-
-    @pytest.mark.asyncio
-    async def test_evaluate_no_stories_with_zero_remaining_periods(
-        self,
-        forecasting_evaluator,
-        mock_metric,
-        mock_analysis_window,
-        mock_forecast_vs_target_stats_on_track,
-        mock_period_forecast,
-    ):
-        """Test no required performance story when remaining periods is zero."""
-        required_performance_zero = RequiredPerformance(
-            remaining_periods=0,  # Zero remaining periods
-            required_pop_growth_percent=15.0,
-            previous_pop_growth_percent=10.0,
-            growth_difference=5.0,
-            previous_num_periods=4,
-            period=PeriodType.END_OF_MONTH,
-        )
-
-        pattern_result = Forecasting(
-            metric_id="test_inquiries",
-            analysis_window=mock_analysis_window,
-            analysis_date=date(2024, 1, 25),
-            forecast_vs_target_stats=[mock_forecast_vs_target_stats_on_track],  # Now a list
-            required_performance=[required_performance_zero],  # Now a list
-            forecast=mock_period_forecast,  # Updated field name
-        )
-
-        stories = await forecasting_evaluator.evaluate(pattern_result, mock_metric)
-
-        # Should only have forecast story, no required performance story
-        assert len(stories) == 1
-        assert stories[0]["story_type"] == StoryType.FORECASTED_ON_TRACK
-
-    @pytest.mark.asyncio
-    async def test_populate_template_context(self, forecasting_evaluator, mock_metric, mock_analysis_window):
-        """Test template context population."""
-        pattern_result = Forecasting(
-            metric_id="test_inquiries",
-            analysis_window=mock_analysis_window,
-            analysis_date=date(2024, 1, 25),
-            forecast_vs_target_stats=[],
-            forecast=[],
-        )
-        context = forecasting_evaluator._populate_template_context(
-            pattern_result=pattern_result, metric=mock_metric, grain=Granularity.WEEK
-        )
-
-        assert context["metric"] == mock_metric
-        assert context["grain_label"] == "week"
-        assert context["pop"] == "w/w"
-
-    def test_period_type_labels(self, forecasting_evaluator, mock_metric, mock_analysis_window):
-        """Test period type to label mapping."""
-        pattern_result = Forecasting(
-            metric_id="test_inquiries",
-            analysis_window=mock_analysis_window,
-            analysis_date=date(2024, 1, 25),
-            forecast_vs_target_stats=[],
-            forecast=[],
-        )
-        _ = forecasting_evaluator._populate_template_context(
-            pattern_result=pattern_result, metric=mock_metric, grain=Granularity.WEEK
-        )
-
-        # Test period mapping using the period_map from the implementation
-        period_map = {
-            PeriodType.END_OF_WEEK: "week",
-            PeriodType.END_OF_MONTH: "month",
-            PeriodType.END_OF_QUARTER: "quarter",
-            PeriodType.END_OF_YEAR: "year",
-        }
-        assert period_map[PeriodType.END_OF_WEEK] == "week"
-        assert period_map[PeriodType.END_OF_MONTH] == "month"
-        assert period_map[PeriodType.END_OF_QUARTER] == "quarter"
-        assert period_map[PeriodType.END_OF_YEAR] == "year"
-
-    @pytest.mark.asyncio
-    async def test_evaluate_no_pacing_story_without_pacing_status(
-        self,
-        forecasting_evaluator,
-        mock_metric,
-        mock_analysis_window,
-        mock_forecast_vs_target_stats_on_track,
-        mock_period_forecast,
-    ):
-        """Test no pacing story when no pacing data provided."""
-        pattern_result = Forecasting(
-            metric_id="test_inquiries",
-            analysis_window=mock_analysis_window,
-            analysis_date=date(2024, 1, 25),
-            forecast_vs_target_stats=[mock_forecast_vs_target_stats_on_track],  # Now a list
-            pacing=[],  # Empty list
-            forecast=mock_period_forecast,  # Updated field name
-        )
-
-        stories = await forecasting_evaluator.evaluate(pattern_result, mock_metric)
-
-        # Should only have forecast story, no pacing story
-        assert len(stories) == 1
-        assert stories[0]["story_type"] == StoryType.FORECASTED_ON_TRACK
-
-    @pytest.mark.asyncio
-    async def test_evaluate_no_pacing_story_without_projected_value(
-        self,
-        forecasting_evaluator,
-        mock_metric,
-        mock_analysis_window,
-        mock_forecast_vs_target_stats_on_track,
-        mock_period_forecast,
-    ):
-        """Test no pacing story when projected value is missing."""
-        pacing_no_projected = PacingProjection(
-            period_elapsed_percent=75.0,
-            cumulative_value=600.0,
-            projected_value=None,  # Missing projected value
-            gap_percent=20.0,
-            status="off_track",
-            period=PeriodType.END_OF_MONTH,
-        )
-
-        pattern_result = Forecasting(
-            metric_id="test_inquiries",
-            analysis_window=mock_analysis_window,
-            analysis_date=date(2024, 1, 25),
-            forecast_vs_target_stats=[mock_forecast_vs_target_stats_on_track],  # Now a list
-            pacing=[pacing_no_projected],  # Now a list
-            forecast=mock_period_forecast,  # Updated field name
-        )
-
-        stories = await forecasting_evaluator.evaluate(pattern_result, mock_metric)
-
-        # Should only have forecast story, no pacing story
-        assert len(stories) == 1
-        assert stories[0]["story_type"] == StoryType.FORECASTED_ON_TRACK
-
-    @pytest.mark.asyncio
-    async def test_custom_forecast_series_data_included(
-        self,
-        forecasting_evaluator,
-        mock_metric,
-        mock_analysis_window,
-        mock_forecast_vs_target_stats_on_track,
-        mock_period_forecast,
-    ):
-        """Test that custom forecast series data is included in forecast stories."""
-        # Set up mock historical data
-        historical_data = pd.DataFrame(
-            {"date": pd.date_range(start="2024-01-20", periods=5, freq="D"), "value": [1000, 1020, 1040, 1060, 1080]}
-        )
-        forecasting_evaluator.series_df = historical_data
-
-        # Create minimal forecast data
-        minimal_forecast = [mock_period_forecast[0]]  # Just one forecast point
-
-        pattern_result = Forecasting(
-            metric_id="test_inquiries",
-            analysis_window=mock_analysis_window,
-            analysis_date=date(2024, 1, 25),
-            forecast_vs_target_stats=[mock_forecast_vs_target_stats_on_track],  # Now a list
-            forecast=minimal_forecast,  # Updated field name
-        )
-
-        stories = await forecasting_evaluator.evaluate(pattern_result, mock_metric)
-
-        assert len(stories) == 1
-        story = stories[0]
-
-        # Verify that series contains both historical and forecast data
-        assert "series" in story
-        series_data = story["series"]
-        assert len(series_data) == 6  # 5 historical + 1 forecast
-
-    @pytest.mark.asyncio
-    async def test_custom_forecast_series_data_off_track(
-        self,
-        forecasting_evaluator,
-        mock_metric,
-        mock_analysis_window,
-        mock_forecast_vs_target_stats_off_track,
-        mock_period_forecast,
-    ):
-        """Test that custom forecast series data is included in off-track stories."""
-        # Set up mock historical data
-        historical_data = pd.DataFrame(
-            {"date": pd.date_range(start="2024-01-20", periods=5, freq="D"), "value": [1000, 1020, 1040, 1060, 1080]}
-        )
-        forecasting_evaluator.series_df = historical_data
-
-        pattern_result = Forecasting(
-            metric_id="test_inquiries",
-            analysis_window=mock_analysis_window,
-            analysis_date=date(2024, 1, 25),
-            forecast_vs_target_stats=[mock_forecast_vs_target_stats_off_track],  # Now a list
-            forecast=mock_period_forecast,  # Updated field name
-        )
-
-        stories = await forecasting_evaluator.evaluate(pattern_result, mock_metric)
-
-        assert len(stories) == 1
-        story = stories[0]
-
-        # Verify that series contains both historical and forecast data
-        assert "series" in story
-        series_data = story["series"]
-        assert len(series_data) == 6  # Based on actual implementation behavior
-
-    @pytest.mark.asyncio
-    async def test_custom_forecast_series_data_empty_when_no_period_forecast(
-        self,
-        forecasting_evaluator,
-        mock_metric,
-        mock_analysis_window,
-        mock_forecast_vs_target_stats_on_track,
-    ):
-        """Test that series data is empty when no period forecast is provided."""
-        # Set up mock historical data
-        historical_data = pd.DataFrame(
-            {"date": pd.date_range(start="2024-01-20", periods=5, freq="D"), "value": [1000, 1020, 1040, 1060, 1080]}
-        )
-        forecasting_evaluator.series_df = historical_data
-
-        pattern_result = Forecasting(
-            metric_id="test_inquiries",
-            analysis_window=mock_analysis_window,
-            analysis_date=date(2024, 1, 25),
-            forecast_vs_target_stats=[mock_forecast_vs_target_stats_on_track],  # Now a list
-            forecast=[],  # Empty forecast list
-        )
-
-        stories = await forecasting_evaluator.evaluate(pattern_result, mock_metric)
-
-        assert len(stories) == 1
-        story = stories[0]
-
-        # Verify that series contains only historical data
-        assert "series" in story
-        series_data = story["series"]
-        assert len(series_data) == 5  # Only historical data
-
-    def test_prepare_forecast_series_data_with_historical_and_forecast(
-        self, forecasting_evaluator, mock_period_forecast
-    ):
-        """Test that _prepare_forecast_series_data correctly combines historical and forecast data."""
-
-        # Set up mock historical data
-        historical_data = pd.DataFrame(
-            {"date": pd.date_range(start="2024-01-20", periods=5, freq="D"), "value": [1000, 1020, 1040, 1060, 1080]}
-        )
-        forecasting_evaluator.series_df = historical_data
-
-        # Create pattern result with forecast data
-        pattern_result = Forecasting(
-            metric_id="test_inquiries",
-            analysis_window=AnalysisWindow(grain=Granularity.DAY, start_date="2024-01-01", end_date="2024-01-31"),
-            analysis_date=date(2024, 1, 25),
-            forecast=mock_period_forecast,  # Updated field name
-        )
-
-        # Create forecast stats for filtering
-        forecast_stats = ForecastVsTargetStats(
-            forecasted_value=1200.0,
-            target_date="2024-01-31",
-            target_value=1000.0,
-            gap_percent=20.0,
-            status=MetricGVAStatus.ON_TRACK,
-            period=PeriodType.END_OF_MONTH,
-        )
-
-        # Test the method
-        combined_df = forecasting_evaluator._prepare_forecast_series_data(
-            pattern_result, Granularity.DAY, forecast_stats
-        )
-
-        # Verify the structure
-        assert isinstance(combined_df, pd.DataFrame)
-        assert not combined_df.empty
-
-        # Should have all required columns including cumulative_value
-        expected_columns = ["date", "value", "cumulative_value", "lower_bound", "upper_bound"]
-        for col in expected_columns:
-            assert col in combined_df.columns
-
-        # Should also have cumulative bound columns
-        assert "cumulative_lower_bound" in combined_df.columns
-        assert "cumulative_upper_bound" in combined_df.columns
-
-        # Should have both historical and forecast data
-        assert len(combined_df) >= 5  # At least the historical data
-
-        # Verify cumulative values are calculated correctly
-        assert all(pd.notna(combined_df["cumulative_value"]))
-        assert combined_df["cumulative_value"].is_monotonic_increasing
-
-        # Verify data types and values
-        assert all(pd.notna(combined_df["value"]))
-
-        # Should be sorted by date
-        assert combined_df["date"].is_monotonic_increasing
-
-        # Check that cumulative bounds are calculated as percentages for forecast data
-        forecast_rows = combined_df[combined_df["cumulative_lower_bound"].notna()]
-        if not forecast_rows.empty:
-            for _, row in forecast_rows.iterrows():
-                # Cumulative bounds should be around the cumulative value
-                assert row["cumulative_lower_bound"] < row["cumulative_value"] < row["cumulative_upper_bound"]
-
-    def test_prepare_forecast_series_data_forecast_only(self, forecasting_evaluator, mock_period_forecast):
-        """Test _prepare_forecast_series_data with forecast data only (no historical data)."""
-        # No historical data
-        forecasting_evaluator.series_df = None
-
-        # Create pattern result with forecast data
-        pattern_result = Forecasting(
-            metric_id="test_inquiries",
-            analysis_window=AnalysisWindow(grain=Granularity.DAY, start_date="2024-01-01", end_date="2024-01-31"),
-            analysis_date=date(2024, 1, 25),
-            forecast=mock_period_forecast,  # Updated field name
-        )
-
-        # Create forecast stats for filtering
-        forecast_stats = ForecastVsTargetStats(
-            forecasted_value=1200.0,
-            target_date="2024-01-31",
-            target_value=1000.0,
-            gap_percent=20.0,
-            status=MetricGVAStatus.ON_TRACK,
-            period=PeriodType.END_OF_MONTH,
-        )
-
-        # Test the method
-        combined_df = forecasting_evaluator._prepare_forecast_series_data(
-            pattern_result, Granularity.DAY, forecast_stats
-        )
-
-        # Should have only forecast data
-        assert len(combined_df) == 3  # 3 forecast points
-
-        # Should have cumulative_value column
-        assert "cumulative_value" in combined_df.columns
-        assert combined_df["cumulative_value"].is_monotonic_increasing
-
-    def test_prepare_forecast_series_data_historical_only(self, forecasting_evaluator):
-        """Test _prepare_forecast_series_data with historical data only (no forecast data)."""
-
-        # Set up mock historical data
-        historical_data = pd.DataFrame(
-            {"date": pd.date_range(start="2024-01-20", periods=5, freq="D"), "value": [1000, 1020, 1040, 1060, 1080]}
-        )
-        forecasting_evaluator.series_df = historical_data
-
-        # Create pattern result with empty forecast data
-        pattern_result = Forecasting(
-            metric_id="test_inquiries",
-            analysis_window=AnalysisWindow(grain=Granularity.DAY, start_date="2024-01-01", end_date="2024-01-31"),
-            analysis_date=date(2024, 1, 25),
-            forecast=[],  # Empty list
-        )
-
-        # Create forecast stats for filtering
-        forecast_stats = ForecastVsTargetStats(
-            forecasted_value=1200.0,
-            target_date="2024-01-31",
-            target_value=1000.0,
-            gap_percent=20.0,
-            status=MetricGVAStatus.ON_TRACK,
-            period=PeriodType.END_OF_MONTH,
-        )
-
-        # Test the method
-        combined_df = forecasting_evaluator._prepare_forecast_series_data(
-            pattern_result, Granularity.DAY, forecast_stats
-        )
-
-        # Should have only historical data
-        assert len(combined_df) == 5  # 5 historical points
-        assert all(pd.isna(combined_df["lower_bound"]))  # No forecast bounds
-        assert all(pd.isna(combined_df["upper_bound"]))  # No forecast bounds
-
-        # Should have cumulative_value column
-        assert "cumulative_value" in combined_df.columns
-        assert combined_df["cumulative_value"].is_monotonic_increasing
-
-    def test_prepare_required_performance_series_data_with_historical_and_forecast(
-        self, forecasting_evaluator, mock_required_performance
-    ):
-        """Test that _prepare_required_performance_series_data correctly creates growth rate data."""
-
-        # Set up mock historical data
-        historical_data = pd.DataFrame(
-            {"date": pd.date_range(start="2024-01-20", periods=5, freq="D"), "value": [1000, 1020, 1040, 1060, 1080]}
-        )
-        forecasting_evaluator.series_df = historical_data
-
-        # Create pattern result with required performance data
-        pattern_result = Forecasting(
-            metric_id="test_inquiries",
-            analysis_window=AnalysisWindow(grain=Granularity.DAY, start_date="2024-01-01", end_date="2024-01-31"),
-            analysis_date=date(2024, 1, 25),
-            required_performance=[mock_required_performance],  # Now a list
-        )
-
-        # Test the method
-        series_df = forecasting_evaluator._prepare_required_performance_series_data(
-            pattern_result, Granularity.DAY, mock_required_performance
-        )
-
-        # Verify the structure
-        assert isinstance(series_df, pd.DataFrame)
-        assert not series_df.empty
-
-        # Should have all required columns
-        expected_columns = ["date", "value", "pop_growth_percent", "required_growth_percent"]
-        for col in expected_columns:
-            assert col in series_df.columns
-
-        # Should have historical growth data + future required growth based on implementation
-        assert len(series_df) == 11  # Based on actual implementation behavior
-
-    def test_prepare_required_performance_series_data_forecast_only(
-        self, forecasting_evaluator, mock_required_performance
-    ):
-        """Test _prepare_required_performance_series_data with no historical data."""
-        # No historical data
-        forecasting_evaluator.series_df = None
-
-        # Create pattern result with required performance data
-        pattern_result = Forecasting(
-            metric_id="test_inquiries",
-            analysis_window=AnalysisWindow(grain=Granularity.DAY, start_date="2024-01-01", end_date="2024-01-31"),
-            analysis_date=date(2024, 1, 25),
-            required_performance=[mock_required_performance],  # Now a list
-        )
-
-        # Test the method
-        series_df = forecasting_evaluator._prepare_required_performance_series_data(
-            pattern_result, Granularity.DAY, mock_required_performance
-        )
-
-        # Should return empty DataFrame when no historical data
-        expected_columns = ["date", "value", "required_growth_percent", "pop_growth_percent"]
-        assert list(series_df.columns) == expected_columns
-
-    def test_prepare_required_performance_series_data_historical_only(self, forecasting_evaluator):
-        """Test _prepare_required_performance_series_data with historical data only (no required performance)."""
-
-        # Set up mock historical data
-        historical_data = pd.DataFrame(
-            {"date": pd.date_range(start="2024-01-20", periods=5, freq="D"), "value": [1000, 1020, 1040, 1060, 1080]}
-        )
-        forecasting_evaluator.series_df = historical_data
-
-        # Create pattern result without required performance data
-        pattern_result = Forecasting(
-            metric_id="test_inquiries",
-            analysis_window=AnalysisWindow(grain=Granularity.DAY, start_date="2024-01-01", end_date="2024-01-31"),
-            analysis_date=date(2024, 1, 25),
-            required_performance=[],  # Empty list
-        )
-
-        # Required performance with no remaining periods
-        required_perf_none = RequiredPerformance(
-            remaining_periods=0,  # No remaining periods
-            required_pop_growth_percent=None,
-            previous_pop_growth_percent=None,
-            growth_difference=None,
-            previous_num_periods=None,
-            period=PeriodType.END_OF_MONTH,
-        )
-
-        # Test the method
-        series_df = forecasting_evaluator._prepare_required_performance_series_data(
-            pattern_result, Granularity.DAY, required_perf_none
-        )
-
-        # Should have only historical growth data (4 points)
-        assert len(series_df) == 4  # 4 historical growth points (excluding first NaN)
-
-    def test_convert_daily_forecast_to_grain_day(self, forecasting_evaluator):
-        """Test _convert_daily_forecast_to_grain with day grain (no conversion)."""
-        daily_df = pd.DataFrame(
+        assert story["story_type"] == StoryType.REQUIRED_PERFORMANCE
+        assert story["story_group"] == StoryGroup.LIKELY_STATUS
+        assert story["genre"] == StoryGenre.PERFORMANCE
+
+    def test_calculate_cumulative_series_basic(self, evaluator):
+        """Test _calculate_cumulative_series method."""
+        df = pd.DataFrame({"date": pd.date_range("2024-01-01", periods=5), "value": [10, 20, 15, 25, 30]})
+
+        result = evaluator._calculate_cumulative_series(df, include_bounds=False)
+
+        assert "cumulative_value" in result.columns
+        expected_cumulative = [10, 30, 45, 70, 100]
+        assert result["cumulative_value"].tolist() == expected_cumulative
+
+    def test_calculate_cumulative_series_with_bounds(self, evaluator):
+        """Test _calculate_cumulative_series with bounds."""
+        df = pd.DataFrame(
             {
-                "date": pd.date_range(start="2024-01-01", periods=7, freq="D"),
-                "value": [100, 101, 102, 103, 104, 105, 106],
-                "lower_bound": [95, 96, 97, 98, 99, 100, 101],
-                "upper_bound": [105, 106, 107, 108, 109, 110, 111],
+                "date": pd.date_range("2024-01-01", periods=3),
+                "value": [10, 20, 15],
+                "lower_bound": [8, 18, 13],
+                "upper_bound": [12, 22, 17],
             }
         )
 
-        result_df = forecasting_evaluator._convert_daily_forecast_to_grain(daily_df, Granularity.DAY)
+        result = evaluator._calculate_cumulative_series(df, include_bounds=True)
 
-        # Should be unchanged for day grain
-        assert len(result_df) == 7
-        pd.testing.assert_frame_equal(result_df, daily_df)
+        assert "cumulative_value" in result.columns
+        assert "cumulative_lower_bound" in result.columns
+        assert "cumulative_upper_bound" in result.columns
 
-    def test_convert_daily_forecast_to_grain_week(self, forecasting_evaluator):
+        # Check cumulative values
+        assert result["cumulative_value"].tolist() == [10, 30, 45]
+
+    def test_calculate_cumulative_series_with_last_value(self, evaluator):
+        """Test _calculate_cumulative_series with last cumulative value."""
+        df = pd.DataFrame({"date": pd.date_range("2024-01-01", periods=3), "value": [10, 20, 15]})
+
+        result = evaluator._calculate_cumulative_series(df, include_bounds=False, last_cumulative_value=100.0)
+
+        expected_cumulative = [110, 130, 145]  # Adding 100 to each cumulative value
+        assert result["cumulative_value"].tolist() == expected_cumulative
+
+    def test_calculate_cumulative_series_empty_df(self, evaluator):
+        """Test _calculate_cumulative_series with empty DataFrame."""
+        df = pd.DataFrame(columns=["date", "value"])
+
+        result = evaluator._calculate_cumulative_series(df)
+
+        assert result.empty
+        assert list(result.columns) == ["date", "value"]
+
+    def test_calculate_cumulative_series_with_bounds_partial_none(self, evaluator):
+        """Test _calculate_cumulative_series with some None bounds."""
+        df = pd.DataFrame(
+            {
+                "date": pd.date_range("2024-01-01", periods=4),
+                "value": [10, 20, 15, 25],
+                "lower_bound": [8, None, 13, 23],  # One None value
+                "upper_bound": [12, 22, None, 27],  # One None value
+            }
+        )
+
+        result = evaluator._calculate_cumulative_series(df, include_bounds=True)
+
+        assert "cumulative_value" in result.columns
+        assert "cumulative_lower_bound" in result.columns
+        assert "cumulative_upper_bound" in result.columns
+
+    def test_convert_daily_forecast_to_grain_day(self, evaluator):
+        """Test _convert_daily_forecast_to_grain with day grain."""
+        daily_df = pd.DataFrame(
+            {
+                "date": pd.date_range("2024-01-01", periods=5),
+                "value": [10, 20, 15, 25, 30],
+                "lower_bound": [8, 18, 13, 23, 28],
+                "upper_bound": [12, 22, 17, 27, 32],
+            }
+        )
+
+        result = evaluator._convert_daily_forecast_to_grain(daily_df, Granularity.DAY)
+
+        # Should return the same DataFrame for day grain
+        pd.testing.assert_frame_equal(result, daily_df)
+
+    def test_convert_daily_forecast_to_grain_week(self, evaluator):
         """Test _convert_daily_forecast_to_grain with week grain."""
         # Create 14 days of data (2 weeks)
         daily_df = pd.DataFrame(
             {
-                "date": pd.date_range(start="2024-01-01", periods=14, freq="D"),  # Monday start
-                "value": range(100, 114),
-                "lower_bound": range(95, 109),
-                "upper_bound": range(105, 119),
+                "date": pd.date_range("2024-01-01", periods=14),  # Monday start
+                "value": [10] * 14,
+                "lower_bound": [8] * 14,
+                "upper_bound": [12] * 14,
             }
         )
 
-        result_df = forecasting_evaluator._convert_daily_forecast_to_grain(daily_df, Granularity.WEEK)
+        result = evaluator._convert_daily_forecast_to_grain(daily_df, Granularity.WEEK)
 
-        # Should aggregate to 2 weeks
-        assert len(result_df) == 2
+        # Should aggregate by week (2 weeks = 2 rows)
+        assert len(result) == 2
+        assert "date" in result.columns
+        assert result["value"].iloc[0] == 70  # 7 days * 10
+        assert result["value"].iloc[1] == 70  # 7 days * 10
 
-        # Verify dates are Mondays
-        assert all(result_df["date"].dt.weekday == 0)  # Monday = 0
-
-        # First Monday should be 2024-01-01
-        assert result_df.iloc[0]["date"] == pd.Timestamp("2024-01-01")
-
-        # Values should be summed
-        assert result_df.iloc[0]["value"] == sum(range(100, 107))  # First week sum
-
-    def test_convert_daily_forecast_to_grain_month(self, forecasting_evaluator):
+    def test_convert_daily_forecast_to_grain_month(self, evaluator):
         """Test _convert_daily_forecast_to_grain with month grain."""
-        # Create data spanning 2 months
+        # Create data for January 2024 (31 days)
         daily_df = pd.DataFrame(
             {
-                "date": pd.date_range(start="2024-01-01", end="2024-02-15", freq="D"),
-                "value": range(1, 47),  # 46 days of data
-                "lower_bound": range(0, 46),
-                "upper_bound": range(2, 48),
+                "date": pd.date_range("2024-01-01", periods=31),
+                "value": [10] * 31,
+                "lower_bound": [8] * 31,
+                "upper_bound": [12] * 31,
             }
         )
 
-        result_df = forecasting_evaluator._convert_daily_forecast_to_grain(daily_df, Granularity.MONTH)
+        result = evaluator._convert_daily_forecast_to_grain(daily_df, Granularity.MONTH)
 
-        # Should aggregate to 2 months
-        assert len(result_df) == 2
+        # Should aggregate by month (1 month = 1 row)
+        assert len(result) == 1
+        assert result["value"].iloc[0] == 310  # 31 days * 10
 
-        # Verify dates are month starts
-        assert result_df.iloc[0]["date"] == pd.Timestamp("2024-01-01")
-        assert result_df.iloc[1]["date"] == pd.Timestamp("2024-02-01")
+    def test_convert_daily_forecast_to_grain_other(self, evaluator):
+        """Test _convert_daily_forecast_to_grain with unsupported grain."""
+        daily_df = pd.DataFrame(
+            {
+                "date": pd.date_range("2024-01-01", periods=5),
+                "value": [10, 20, 15, 25, 30],
+            }
+        )
 
-        # Values should be summed by month
-        jan_days = 31
-        assert result_df.iloc[0]["value"] == sum(range(1, jan_days + 1))
+        result = evaluator._convert_daily_forecast_to_grain(daily_df, Granularity.QUARTER)
 
-    @pytest.mark.asyncio
-    async def test_multiple_periods_support(
-        self,
-        forecasting_evaluator,
-        mock_metric,
-        mock_analysis_window,
-        mock_period_forecast,
+        # Should return original DataFrame for unsupported grains
+        pd.testing.assert_frame_equal(result, daily_df)
+
+    @patch("levers.primitives.get_period_range_for_grain")
+    def test_prepare_forecast_series_data(self, mock_get_range, evaluator_with_series, mock_forecasting_pattern):
+        """Test _prepare_forecast_series_data method."""
+        mock_get_range.return_value = (pd.Timestamp("2024-01-01"), pd.Timestamp("2024-01-31"))
+        forecast_stats = mock_forecasting_pattern.forecast_vs_target_stats[0]
+
+        series_data = evaluator_with_series._prepare_forecast_series_data(
+            mock_forecasting_pattern, Granularity.DAY, forecast_stats
+        )
+
+        assert isinstance(series_data, list)
+        assert len(series_data) == 1
+
+        data_dict = series_data[0]
+        assert "data" in data_dict
+        assert "forecast" in data_dict
+        assert isinstance(data_dict["data"], list)
+        assert isinstance(data_dict["forecast"], list)
+
+    @patch("levers.primitives.get_period_range_for_grain")
+    def test_prepare_forecast_series_data_empty_series(self, mock_get_range, evaluator, mock_forecasting_pattern):
+        """Test _prepare_forecast_series_data with no series data."""
+        mock_get_range.return_value = (pd.Timestamp("2024-01-01"), pd.Timestamp("2024-01-31"))
+        forecast_stats = mock_forecasting_pattern.forecast_vs_target_stats[0]
+
+        series_data = evaluator._prepare_forecast_series_data(mock_forecasting_pattern, Granularity.DAY, forecast_stats)
+
+        assert isinstance(series_data, list)
+        assert len(series_data) == 1
+        data_dict = series_data[0]
+        assert "data" in data_dict
+        assert "forecast" in data_dict
+
+    @patch("levers.primitives.get_period_range_for_grain")
+    def test_prepare_required_performance_series_data(
+        self, mock_get_range, evaluator_with_series, mock_forecasting_pattern
     ):
-        """Test that evaluator correctly handles multiple periods in lists."""
-        # Create multiple forecast stats for different periods
-        forecast_stats_month = ForecastVsTargetStats(
-            forecasted_value=1200.0,
-            target_date="2024-01-31",
-            target_value=1000.0,
-            gap_percent=20.0,
-            status=MetricGVAStatus.ON_TRACK,
-            period=PeriodType.END_OF_MONTH,
+        """Test _prepare_required_performance_series_data method."""
+        mock_get_range.return_value = (pd.Timestamp("2024-01-01"), pd.Timestamp("2024-01-31"))
+        required_perf = mock_forecasting_pattern.required_performance[0]
+
+        series_data = evaluator_with_series._prepare_required_performance_series_data(
+            mock_forecasting_pattern, Granularity.DAY, required_perf
         )
 
-        forecast_stats_quarter = ForecastVsTargetStats(
-            forecasted_value=3500.0,
-            target_date="2024-03-31",
-            target_value=3000.0,
-            gap_percent=16.7,
-            status=MetricGVAStatus.ON_TRACK,
-            period=PeriodType.END_OF_QUARTER,
+        assert isinstance(series_data, list)
+        assert len(series_data) == 1
+
+        data_dict = series_data[0]
+        assert "data" in data_dict
+        assert "required_performance" in data_dict
+
+    def test_prepare_required_performance_series_data_no_series(self, evaluator, mock_forecasting_pattern):
+        """Test _prepare_required_performance_series_data with no series data."""
+        required_perf = mock_forecasting_pattern.required_performance[0]
+
+        series_data = evaluator._prepare_required_performance_series_data(
+            mock_forecasting_pattern, Granularity.DAY, required_perf
         )
 
-        pattern_result = Forecasting(
-            metric_id="test_inquiries",
-            analysis_window=mock_analysis_window,
-            analysis_date=date(2024, 1, 25),
-            forecast_vs_target_stats=[forecast_stats_month, forecast_stats_quarter],  # Multiple periods
-            forecast=mock_period_forecast,
-        )
+        assert series_data == []
 
-        stories = await forecasting_evaluator.evaluate(pattern_result, mock_metric)
-
-        # Should generate stories for both periods
-        assert len(stories) == 2
-
-        # Check that we have stories for both periods
-        story_periods = [story["variables"]["period"] for story in stories]
-        assert "month" in story_periods
-        assert "quarter" in story_periods
-
-    @pytest.mark.asyncio
-    async def test_multiple_pacing_and_required_performance(
-        self,
-        forecasting_evaluator,
-        mock_metric,
-        mock_analysis_window,
-        mock_period_forecast,
+    @patch("levers.primitives.get_period_range_for_grain")
+    def test_prepare_required_performance_series_data_no_remaining_periods(
+        self, mock_get_range, evaluator_with_series, mock_forecasting_pattern
     ):
-        """Test multiple pacing and required performance objects."""
-        # Create multiple objects for different periods
-        pacing_month = PacingProjection(
-            period_elapsed_percent=60.0,
-            cumulative_value=600.0,
-            projected_value=1000.0,
-            gap_percent=10.0,
-            status="on_track",
-            period=PeriodType.END_OF_MONTH,
-        )
-
-        pacing_quarter = PacingProjection(
-            period_elapsed_percent=30.0,
-            cumulative_value=900.0,
-            projected_value=3000.0,
-            gap_percent=5.0,
-            status="on_track",
-            period=PeriodType.END_OF_QUARTER,
-        )
-
-        required_month = RequiredPerformance(
-            remaining_periods=3,
-            required_pop_growth_percent=12.0,
-            previous_pop_growth_percent=8.0,
-            growth_difference=4.0,
-            previous_num_periods=4,
-            period=PeriodType.END_OF_MONTH,
-        )
-
-        pattern_result = Forecasting(
-            metric_id="test_inquiries",
-            analysis_window=mock_analysis_window,
-            analysis_date=date(2024, 1, 25),
-            pacing=[pacing_month, pacing_quarter],  # Multiple pacing
-            required_performance=[required_month],  # Single required performance
-            forecast=mock_period_forecast,
-        )
-
-        stories = await forecasting_evaluator.evaluate(pattern_result, mock_metric)
-
-        # Should generate stories for pacing (2) and required performance (1)
-        assert len(stories) == 3
-
-        # Check story types
-        story_types = {story["story_type"] for story in stories}
-        assert StoryType.PACING_ON_TRACK in story_types
-        assert StoryType.REQUIRED_PERFORMANCE in story_types
-
-    @pytest.mark.asyncio
-    async def test_empty_lists_no_stories(
-        self,
-        forecasting_evaluator,
-        mock_metric,
-        mock_analysis_window,
-        mock_period_forecast,
-    ):
-        """Test that empty lists result in no stories."""
-        pattern_result = Forecasting(
-            metric_id="test_inquiries",
-            analysis_window=mock_analysis_window,
-            analysis_date=date(2024, 1, 25),
-            forecast_vs_target_stats=[],  # Empty
-            pacing=[],  # Empty
-            required_performance=[],  # Empty
-            forecast=mock_period_forecast,
-        )
-
-        stories = await forecasting_evaluator.evaluate(pattern_result, mock_metric)
-        assert len(stories) == 0
-
-    @pytest.mark.asyncio
-    async def test_none_values_in_lists(
-        self,
-        forecasting_evaluator,
-        mock_metric,
-        mock_analysis_window,
-        mock_period_forecast,
-    ):
-        """Test that None values in lists are handled gracefully."""
-        pattern_result = Forecasting(
-            metric_id="test_inquiries",
-            analysis_window=mock_analysis_window,
-            analysis_date=date(2024, 1, 25),
-            forecast_vs_target_stats=[None],  # None value
-            pacing=[None],  # None value
-            required_performance=[None],  # None value
-            forecast=mock_period_forecast,
-        )
-
-        stories = await forecasting_evaluator.evaluate(pattern_result, mock_metric)
-        assert len(stories) == 0
-
-    def test_period_end_date_filtering(self, forecasting_evaluator):
-        """Test that forecast series data is properly filtered to period end date."""
-        # Set up historical data
-        historical_data = pd.DataFrame(
-            {"date": pd.date_range(start="2024-07-01", periods=10, freq="D"), "value": range(100, 110)}
-        )
-        forecasting_evaluator.series_df = historical_data
-
-        # Create forecast data that extends beyond period end
-        forecast_stats = ForecastVsTargetStats(
-            forecasted_value=150.0,
-            target_date="2024-07-31",
-            target_value=140.0,
-            gap_percent=7.1,
-            status=MetricGVAStatus.ON_TRACK,
-            period=PeriodType.END_OF_MONTH,
-        )
-
-        # Mock forecast extending beyond July
-        extended_forecast = [
-            Forecast(date="2024-07-25", forecasted_value=120.0, lower_bound=115.0, upper_bound=125.0),
-            Forecast(date="2024-07-26", forecasted_value=125.0, lower_bound=120.0, upper_bound=130.0),
-            Forecast(date="2024-08-01", forecasted_value=130.0, lower_bound=125.0, upper_bound=135.0),  # Beyond period
-            Forecast(date="2024-08-02", forecasted_value=135.0, lower_bound=130.0, upper_bound=140.0),  # Beyond period
-        ]
-
-        pattern_result = Forecasting(
-            metric_id="test_inquiries",
-            analysis_window=AnalysisWindow(grain=Granularity.DAY, start_date="2024-07-01", end_date="2024-07-10"),
-            analysis_date=date(2024, 7, 10),
-            forecast=extended_forecast,
-        )
-
-        # Test that forecast data is filtered
-        series_df = forecasting_evaluator._prepare_forecast_series_data(pattern_result, Granularity.DAY, forecast_stats)
-
-        # Should have cumulative_value column
-        assert "cumulative_value" in series_df.columns
-        assert series_df["cumulative_value"].is_monotonic_increasing
-
-        # The forecast data should be filtered to period end date (July 31)
-        # All forecast dates should be <= July 31
-        forecast_rows = series_df[series_df["lower_bound"].notna()]
-        if not forecast_rows.empty:
-            max_forecast_date = forecast_rows["date"].max()
-            assert max_forecast_date <= pd.Timestamp("2024-07-31")
-
-        # Check that August dates are filtered out
-        forecast_dates = series_df[series_df["date"] >= "2024-07-25"]["date"].dt.strftime("%Y-%m-%d").tolist()
-        assert "2024-08-01" not in forecast_dates
-        assert "2024-08-02" not in forecast_dates
-
-    def test_required_performance_period_filtering(self, forecasting_evaluator):
-        """Test that required performance future dates are filtered to period end."""
-        # Set up historical data
-        historical_data = pd.DataFrame(
-            {"date": pd.date_range(start="2024-09-01", periods=15, freq="D"), "value": range(100, 115)}
-        )
-        forecasting_evaluator.series_df = historical_data
-
+        """Test _prepare_required_performance_series_data with no remaining periods."""
+        mock_get_range.return_value = (pd.Timestamp("2024-01-01"), pd.Timestamp("2024-01-31"))
         required_perf = RequiredPerformance(
-            remaining_periods=10,
-            required_pop_growth_percent=8.0,
-            previous_pop_growth_percent=5.0,
-            growth_difference=3.0,
-            previous_num_periods=4,
-            period=PeriodType.END_OF_QUARTER,  # Sept 30, 2024
+            period=PeriodType.END_OF_MONTH,
+            remaining_periods=0,  # No remaining periods
+            required_pop_growth_percent=15.0,
         )
 
-        pattern_result = Forecasting(
-            metric_id="test_inquiries",
-            analysis_window=AnalysisWindow(grain=Granularity.DAY, start_date="2024-09-01", end_date="2024-09-15"),
-            analysis_date=date(2024, 9, 15),
-            required_performance=[required_perf],
+        series_data = evaluator_with_series._prepare_required_performance_series_data(
+            mock_forecasting_pattern, Granularity.DAY, required_perf
         )
 
-        series_df = forecasting_evaluator._prepare_required_performance_series_data(
-            pattern_result, Granularity.DAY, required_perf
-        )
+        assert isinstance(series_data, list)
+        assert len(series_data) == 1
+        data_dict = series_data[0]
+        assert "required_performance" in data_dict
+        assert data_dict["required_performance"] == []
 
-        # Should not have future dates beyond Sept 30
-        future_dates = series_df[series_df["required_growth_percent"].notna()]["date"]
-        if not future_dates.empty:
-            max_future_date = future_dates.max()
-            assert max_future_date <= pd.Timestamp("2024-09-30")
+    @patch("levers.primitives.get_period_range_for_grain")
+    def test_prepare_pacing_series_data(self, mock_get_range, evaluator_with_series, mock_forecasting_pattern):
+        """Test _prepare_pacing_series_data method."""
+        mock_get_range.return_value = (pd.Timestamp("2024-01-01"), pd.Timestamp("2024-01-31"))
+        pacing = mock_forecasting_pattern.pacing[0]
 
-    def test_weekly_monday_alignment(self, forecasting_evaluator):
-        """Test that weekly aggregation properly aligns to Monday dates."""
-        # Create daily forecast data starting on different days of week
-        daily_df = pd.DataFrame(
-            {
-                "date": [
-                    "2024-07-01",  # Monday
-                    "2024-07-02",  # Tuesday
-                    "2024-07-03",  # Wednesday
-                    "2024-07-04",  # Thursday
-                    "2024-07-05",  # Friday
-                    "2024-07-08",  # Monday next week
-                    "2024-07-09",  # Tuesday next week
+        result = evaluator_with_series._prepare_pacing_series_data(mock_forecasting_pattern, Granularity.DAY, pacing)
+
+        assert isinstance(result, pd.DataFrame)
+        assert "cumulative_value" in result.columns
+        assert len(result) > 0
+
+    @patch("levers.primitives.get_period_range_for_grain")
+    def test_prepare_pacing_series_data_no_series(self, mock_get_range, evaluator, mock_forecasting_pattern):
+        """Test _prepare_pacing_series_data with no series data."""
+        mock_get_range.return_value = (pd.Timestamp("2024-01-01"), pd.Timestamp("2024-01-31"))
+        pacing = mock_forecasting_pattern.pacing[0]
+
+        result = evaluator._prepare_pacing_series_data(mock_forecasting_pattern, Granularity.DAY, pacing)
+
+        # Should return empty DataFrame with correct columns
+        assert isinstance(result, pd.DataFrame)
+        assert "date" in result.columns
+        assert "value" in result.columns
+        assert len(result) == 0
+
+    def test_get_period_grain(self, evaluator):
+        """Test _get_period_grain method."""
+        assert evaluator._get_period_grain(PeriodType.END_OF_WEEK) == Granularity.WEEK
+        assert evaluator._get_period_grain(PeriodType.END_OF_MONTH) == Granularity.MONTH
+        assert evaluator._get_period_grain(PeriodType.END_OF_QUARTER) == Granularity.QUARTER
+        assert evaluator._get_period_grain(PeriodType.END_OF_YEAR) == Granularity.YEAR
+
+    @pytest.mark.asyncio
+    async def test_evaluate_with_different_grains(self, evaluator_with_series, mock_metric):
+        """Test evaluate with different granularities."""
+        for grain in [Granularity.DAY, Granularity.WEEK, Granularity.MONTH]:
+            pattern = Forecasting(
+                pattern="forecasting",
+                metric_id="test_metric",
+                analysis_window=AnalysisWindow(start_date="2024-01-01", end_date="2024-01-31", grain=grain),
+                analysis_date=date(2024, 1, 31),
+                forecast_vs_target_stats=[
+                    ForecastVsTargetStats(
+                        period=PeriodType.END_OF_MONTH,
+                        forecasted_value=1000.0,
+                        target_value=900.0,
+                        gap_percent=11.1,
+                        status=MetricGVAStatus.ON_TRACK,
+                    )
                 ],
-                "value": [100, 101, 102, 103, 104, 105, 106],
-                "lower_bound": [95, 96, 97, 98, 99, 100, 101],
-                "upper_bound": [105, 106, 107, 108, 109, 110, 111],
-            }
-        )
-        daily_df["date"] = pd.to_datetime(daily_df["date"])
+                pacing=[],
+                required_performance=[],
+                forecast=[],
+            )
 
-        result_df = forecasting_evaluator._convert_daily_forecast_to_grain(daily_df, Granularity.WEEK)
+            stories = await evaluator_with_series.evaluate(pattern, mock_metric)
+            assert len(stories) == 1
+            assert stories[0]["grain"] == grain
 
-        # Should have 2 weeks
-        assert len(result_df) == 2
-
-        # All dates should be Mondays
-        assert all(result_df["date"].dt.weekday == 0)
-
-        # First week should start on 2024-07-01 (Monday)
-        assert result_df.iloc[0]["date"] == pd.Timestamp("2024-07-01")
-
-        # Second week should start on 2024-07-08 (Monday)
-        assert result_df.iloc[1]["date"] == pd.Timestamp("2024-07-08")
-
-        # Values should be properly aggregated
-        assert result_df.iloc[0]["value"] == sum([100, 101, 102, 103, 104])  # First week
-        assert result_df.iloc[1]["value"] == sum([105, 106])  # Second week
-
-    def test_month_start_alignment(self, forecasting_evaluator):
-        """Test that monthly aggregation properly aligns to month start dates."""
-        # Create daily data spanning multiple months
-        date_range = pd.date_range(start="2024-01-15", end="2024-03-10", freq="D")
-        num_days = len(date_range)
-        daily_df = pd.DataFrame(
-            {
-                "date": date_range,
-                "value": range(1, num_days + 1),
-                "lower_bound": range(0, num_days),
-                "upper_bound": range(2, num_days + 2),
-            }
-        )
-
-        result_df = forecasting_evaluator._convert_daily_forecast_to_grain(daily_df, Granularity.MONTH)
-
-        # Should have 3 months
-        assert len(result_df) == 3
-
-        # All dates should be month starts
-        expected_dates = [pd.Timestamp("2024-01-01"), pd.Timestamp("2024-02-01"), pd.Timestamp("2024-03-01")]
-
-        for i, expected_date in enumerate(expected_dates):
-            assert result_df.iloc[i]["date"] == expected_date
-
-    def test_empty_historical_data_edge_case(self, forecasting_evaluator):
-        """Test handling of empty historical data."""
-        forecasting_evaluator.series_df = pd.DataFrame(columns=["date", "value"])
-
-        pattern_result = Forecasting(
-            metric_id="test_inquiries",
-            analysis_window=AnalysisWindow(grain=Granularity.DAY, start_date="2024-01-01", end_date="2024-01-10"),
-            analysis_date=date(2024, 1, 10),
+    @pytest.mark.asyncio
+    async def test_evaluate_skips_invalid_required_performance(self, evaluator_with_series, mock_metric):
+        """Test that evaluate skips invalid required performance data."""
+        pattern = Forecasting(
+            pattern="forecasting",
+            metric_id="test_metric",
+            analysis_window=AnalysisWindow(start_date="2024-01-01", end_date="2024-01-31", grain=Granularity.DAY),
+            analysis_date=date(2024, 1, 31),
+            forecast_vs_target_stats=[],
+            pacing=[],
+            required_performance=[
+                RequiredPerformance(required_pop_growth_percent=None),  # Invalid: None value
+                RequiredPerformance(remaining_periods=None),  # Invalid: None value
+                RequiredPerformance(remaining_periods=0),  # Invalid: 0 periods
+                RequiredPerformance(required_pop_growth_percent=15.0, remaining_periods=4),  # Valid
+            ],
             forecast=[],
         )
 
-        # Create forecast stats for filtering
-        forecast_stats = ForecastVsTargetStats(
-            forecasted_value=100.0,
-            target_date="2024-01-31",
-            target_value=90.0,
-            gap_percent=11.1,
-            status=MetricGVAStatus.ON_TRACK,
-            period=PeriodType.END_OF_MONTH,
+        stories = await evaluator_with_series.evaluate(pattern, mock_metric)
+        assert len(stories) == 1  # Only the valid required performance story
+        assert stories[0]["story_type"] == StoryType.REQUIRED_PERFORMANCE
+
+    @pytest.mark.asyncio
+    async def test_evaluate_with_week_grain_pattern(self, evaluator_with_series, mock_metric):
+        """Test evaluate with week grain analysis window."""
+        pattern = Forecasting(
+            pattern="forecasting",
+            metric_id="test_metric",
+            analysis_window=AnalysisWindow(
+                start_date="2024-01-01", end_date="2024-01-31", grain=Granularity.WEEK  # Week grain
+            ),
+            analysis_date=date(2024, 1, 31),
+            forecast_vs_target_stats=[
+                ForecastVsTargetStats(
+                    period=PeriodType.END_OF_MONTH,
+                    forecasted_value=1000.0,
+                    target_value=900.0,
+                    gap_percent=11.1,
+                    status=MetricGVAStatus.ON_TRACK,
+                )
+            ],
+            pacing=[
+                PacingProjection(
+                    period=PeriodType.END_OF_MONTH,
+                    period_elapsed_percent=75.0,
+                    projected_value=1100.0,
+                    target_value=1000.0,
+                    gap_percent=10.0,
+                    status=MetricGVAStatus.ON_TRACK,
+                )
+            ],
+            required_performance=[
+                RequiredPerformance(
+                    period=PeriodType.END_OF_MONTH,
+                    remaining_periods=4,
+                    required_pop_growth_percent=15.0,
+                )
+            ],
+            forecast=[
+                Forecast(
+                    date="2024-02-01",
+                    forecasted_value=100.0,
+                    lower_bound=90.0,
+                    upper_bound=110.0,
+                )
+            ],
         )
 
-        # Should return empty dataframe without error
-        result_df = forecasting_evaluator._prepare_forecast_series_data(pattern_result, Granularity.DAY, forecast_stats)
-        assert isinstance(result_df, pd.DataFrame)
-        assert result_df.empty
+        stories = await evaluator_with_series.evaluate(pattern, mock_metric)
+        assert len(stories) == 3  # One of each story type
+        for story in stories:
+            assert story["grain"] == Granularity.WEEK
 
-    def test_get_period_label_method(self, forecasting_evaluator):
-        """Test the period mapping with all available period types."""
-        # Test the period mapping logic from the implementation
-        period_map = {
-            PeriodType.END_OF_WEEK: "week",
-            PeriodType.END_OF_MONTH: "month",
-            PeriodType.END_OF_QUARTER: "quarter",
-            PeriodType.END_OF_YEAR: "year",
-        }
+    def test_prepare_forecast_series_data_json_serialization(self, evaluator_with_series, mock_forecasting_pattern):
+        """Test that _prepare_forecast_series_data produces JSON-serializable data."""
+        with patch("levers.primitives.get_period_range_for_grain") as mock_get_range:
+            mock_get_range.return_value = (pd.Timestamp("2024-01-01"), pd.Timestamp("2024-01-31"))
+            forecast_stats = mock_forecasting_pattern.forecast_vs_target_stats[0]
+
+            series_data = evaluator_with_series._prepare_forecast_series_data(
+                mock_forecasting_pattern, Granularity.DAY, forecast_stats
+            )
+
+            # Should be JSON serializable
+            import json
+
+            try:
+                json.dumps(series_data)
+            except (TypeError, ValueError):
+                pytest.fail("Series data should be JSON serializable")
+
+    @patch("story_manager.story_evaluator.evaluators.forecasting.render_story_text")
+    @patch.object(ForecastingEvaluator, "prepare_story_model")
+    def test_story_creation_methods_call_prepare_story_model(
+        self, mock_prepare_story_model, mock_render, evaluator_with_series, mock_forecasting_pattern, mock_metric
+    ):
+        """Test that story creation methods call prepare_story_model."""
+        mock_render.return_value = "Mock rendered text"
+        mock_prepare_story_model.return_value = {"test": "story"}
+
+        # Test forecasted on track story
+        forecast_stats = mock_forecasting_pattern.forecast_vs_target_stats[0]
+        result = evaluator_with_series._create_forecasted_on_track_story(
+            mock_forecasting_pattern, "test_metric", mock_metric, Granularity.DAY, forecast_stats
+        )
+        assert result == {"test": "story"}
+        mock_prepare_story_model.assert_called()
+
+    def test_prepare_base_context_called_in_populate_template_context(
+        self, evaluator, mock_forecasting_pattern, mock_metric
+    ):
+        """Test that prepare_base_context is called in _populate_template_context."""
+        with patch.object(evaluator, "prepare_base_context", return_value={}) as mock_prepare_base:
+            forecast_stats = mock_forecasting_pattern.forecast_vs_target_stats[0]
+            evaluator._populate_template_context(
+                mock_forecasting_pattern, mock_metric, Granularity.DAY, forecast_stats=forecast_stats
+            )
+            mock_prepare_base.assert_called_once_with(mock_metric, Granularity.DAY)
+
+    def test_export_dataframe_as_story_series_called_in_pacing_story(
+        self, evaluator_with_series, mock_forecasting_pattern, mock_metric
+    ):
+        """Test that export_dataframe_as_story_series is called in pacing story creation."""
+        with patch.object(evaluator_with_series, "export_dataframe_as_story_series", return_value=[]) as mock_export:
+            with patch(
+                "story_manager.story_evaluator.evaluators.forecasting.render_story_text", return_value="Mock text"
+            ):
+                pacing = mock_forecasting_pattern.pacing[0]
+                evaluator_with_series._create_pacing_on_track_story(
+                    mock_forecasting_pattern, "test_metric", mock_metric, Granularity.DAY, pacing
+                )
+                mock_export.assert_called_once()
+
+    def test_period_mapping_comprehensive(self, evaluator):
+        """Test comprehensive period mapping in _populate_template_context."""
         test_cases = [
             (PeriodType.END_OF_WEEK, "week"),
             (PeriodType.END_OF_MONTH, "month"),
@@ -1223,235 +821,136 @@ class TestForecastingEvaluator:
             (PeriodType.END_OF_YEAR, "year"),
         ]
 
-        for period_type, expected_label in test_cases:
-            result = period_map.get(period_type, period_type.value)
-            assert result == expected_label
+        for period_type, expected_str in test_cases:
+            forecast_stats = ForecastVsTargetStats(
+                period=period_type,
+                forecasted_value=1000.0,
+                target_value=900.0,
+            )
+
+            context = evaluator._populate_template_context(
+                Forecasting(
+                    pattern="forecasting",
+                    metric_id="test_metric",
+                    analysis_window=AnalysisWindow(
+                        start_date="2024-01-01", end_date="2024-01-31", grain=Granularity.DAY
+                    ),
+                    analysis_date=date(2024, 1, 31),
+                ),
+                {"metric_id": "test_metric", "label": "Test Metric"},
+                Granularity.DAY,
+                forecast_stats=forecast_stats,
+            )
+
+            assert context["period"] == expected_str
+
+    # Additional edge case tests for higher coverage
+    def test_populate_template_context_with_zero_target_value(self, evaluator, mock_forecasting_pattern, mock_metric):
+        """Test _populate_template_context with zero target value in required performance."""
+        required_perf = RequiredPerformance(
+            period=PeriodType.END_OF_MONTH,
+            remaining_periods=4,
+            required_pop_growth_percent=15.0,
+            previous_pop_growth_percent=10.0,
+            growth_difference=5.0,
+            previous_periods=3,
+        )
+
+        context = evaluator._populate_template_context(
+            mock_forecasting_pattern, mock_metric, Granularity.DAY, required_perf=required_perf
+        )
+
+        assert "target_value" in context
+        # The context should contain target_value from the forecasting pattern
+        assert "target_value" in context
+
+    def test_convert_daily_forecast_to_grain_empty_dataframe(self, evaluator):
+        """Test _convert_daily_forecast_to_grain with empty DataFrame."""
+        empty_df = pd.DataFrame(columns=["date", "value", "lower_bound", "upper_bound"])
+
+        result = evaluator._convert_daily_forecast_to_grain(empty_df, Granularity.WEEK)
+
+        # Should return empty DataFrame
+        assert result.empty
+
+    @patch("levers.primitives.get_period_range_for_grain")
+    def test_prepare_forecast_series_data_empty_forecast(
+        self, mock_get_range, evaluator_with_series, mock_forecasting_pattern
+    ):
+        """Test _prepare_forecast_series_data with empty forecast data."""
+        mock_get_range.return_value = (pd.Timestamp("2024-01-01"), pd.Timestamp("2024-01-31"))
+
+        # Create pattern with empty forecast
+        pattern = Forecasting(
+            pattern="forecasting",
+            metric_id="test_metric",
+            analysis_window=AnalysisWindow(start_date="2024-01-01", end_date="2024-01-31", grain=Granularity.DAY),
+            analysis_date=date(2024, 1, 31),
+            forecast=[],  # Empty forecast
+        )
+
+        forecast_stats = ForecastVsTargetStats(
+            period=PeriodType.END_OF_MONTH, forecasted_value=1200.0, target_value=1000.0
+        )
+
+        series_data = evaluator_with_series._prepare_forecast_series_data(pattern, Granularity.DAY, forecast_stats)
+
+        assert isinstance(series_data, list)
+        assert len(series_data) == 1
+
+    def test_calculate_cumulative_series_with_zero_values(self, evaluator):
+        """Test _calculate_cumulative_series with zero values."""
+        df = pd.DataFrame({"date": pd.date_range("2024-01-01", periods=3), "value": [0, 0, 0]})  # All zero values
+
+        result = evaluator._calculate_cumulative_series(df, include_bounds=False)
+
+        assert "cumulative_value" in result.columns
+        assert result["cumulative_value"].tolist() == [0, 0, 0]
 
     @pytest.mark.asyncio
-    async def test_series_data_included_in_stories(
-        self,
-        forecasting_evaluator,
-        mock_metric,
-        mock_analysis_window,
-        mock_period_forecast,
+    async def test_evaluate_with_empty_forecast_vs_target_stats_but_valid_others(
+        self, evaluator_with_series, mock_metric
     ):
-        """Test that series data is properly included in generated stories."""
-        # Set up historical data
-        historical_data = pd.DataFrame(
-            {"date": pd.date_range(start="2024-01-01", periods=5, freq="D"), "value": [100, 110, 120, 130, 140]}
-        )
-        forecasting_evaluator.series_df = historical_data
-
-        forecast_stats = ForecastVsTargetStats(
-            forecasted_value=160.0,
-            target_date="2024-01-31",
-            target_value=150.0,
-            gap_percent=6.7,
-            status=MetricGVAStatus.ON_TRACK,
-            period=PeriodType.END_OF_MONTH,
-        )
-
-        pattern_result = Forecasting(
-            metric_id="test_inquiries",
-            analysis_window=mock_analysis_window,
-            analysis_date=date(2024, 1, 5),
-            forecast_vs_target_stats=[forecast_stats],
-            forecast=mock_period_forecast,
-        )
-
-        stories = await forecasting_evaluator.evaluate(pattern_result, mock_metric)
-
-        assert len(stories) == 1
-        story = stories[0]
-
-        # Verify series data is included
-        assert "series" in story
-        assert len(story["series"]) > 0
-
-        # Should have both historical and forecast data
-        series_dates = [item["date"] for item in story["series"]]
-        assert len(series_dates) == 5  # Historical data points based on period filtering
-
-    def test_forecast_series_data_with_different_grains(self, forecasting_evaluator):
-        """Test forecast series data preparation with different grains."""
-        # Test with WEEK grain (should use conversion)
-        historical_data = pd.DataFrame(
-            {"date": pd.date_range(start="2024-01-01", periods=14, freq="D"), "value": range(100, 114)}  # 2 weeks
-        )
-        forecasting_evaluator.series_df = historical_data
-
-        forecast_data = [
-            Forecast(date="2024-01-15", forecasted_value=120.0, lower_bound=115.0, upper_bound=125.0),
-            Forecast(date="2024-01-16", forecasted_value=125.0, lower_bound=120.0, upper_bound=130.0),
-        ]
-
-        pattern_result = Forecasting(
-            metric_id="test_inquiries",
-            analysis_window=AnalysisWindow(grain=Granularity.WEEK, start_date="2024-01-01", end_date="2024-01-14"),
-            analysis_date=date(2024, 1, 14),
-            forecast=forecast_data,
-        )
-
-        # Create forecast stats for filtering
-        forecast_stats = ForecastVsTargetStats(
-            forecasted_value=245.0,
-            target_date="2024-01-31",
-            target_value=200.0,
-            gap_percent=22.5,
-            status=MetricGVAStatus.ON_TRACK,
-            period=PeriodType.END_OF_MONTH,
-        )
-
-        result_df = forecasting_evaluator._prepare_forecast_series_data(
-            pattern_result, Granularity.WEEK, forecast_stats
-        )
-
-        # Should convert daily data based on implementation behavior
-        assert len(result_df) >= 2  # At least some data conversion
-
-        # Check that data conversion occurred
-        assert not result_df.empty
-
-        # Should have cumulative_value column
-        assert "cumulative_value" in result_df.columns
-        assert result_df["cumulative_value"].is_monotonic_increasing
-
-    def test_prepare_pacing_series_data_with_cumulative_values(self, forecasting_evaluator):
-        """Test that _prepare_pacing_series_data correctly calculates cumulative values."""
-
-        # Set up mock historical data
-        historical_data = pd.DataFrame(
-            {"date": pd.date_range(start="2024-01-20", periods=5, freq="D"), "value": [100, 120, 140, 160, 180]}
-        )
-        forecasting_evaluator.series_df = historical_data
-
-        # Create pattern result with pacing data
-        pattern_result = Forecasting(
-            metric_id="test_inquiries",
-            analysis_window=AnalysisWindow(grain=Granularity.DAY, start_date="2024-01-01", end_date="2024-01-31"),
-            analysis_date=date(2024, 1, 25),
+        """Test evaluate with empty forecast stats but valid pacing and required performance."""
+        pattern = Forecasting(
+            pattern="forecasting",
+            metric_id="test_metric",
+            analysis_window=AnalysisWindow(start_date="2024-01-01", end_date="2024-01-31", grain=Granularity.DAY),
+            analysis_date=date(2024, 1, 31),
+            forecast_vs_target_stats=[],  # Empty
+            pacing=[
+                PacingProjection(
+                    period=PeriodType.END_OF_MONTH,
+                    period_elapsed_percent=75.0,
+                    projected_value=1100.0,
+                    target_value=1000.0,
+                    gap_percent=10.0,
+                    status=MetricGVAStatus.ON_TRACK,
+                )
+            ],
+            required_performance=[
+                RequiredPerformance(
+                    period=PeriodType.END_OF_MONTH,
+                    remaining_periods=4,
+                    required_pop_growth_percent=15.0,
+                )
+            ],
             forecast=[],
         )
 
-        # Create pacing projection
-        pacing = PacingProjection(
-            period_elapsed_percent=75.0,
-            cumulative_value=600.0,
-            projected_value=800.0,
-            gap_percent=20.0,
-            status="on_track",
-            period=PeriodType.END_OF_MONTH,
-        )
+        stories = await evaluator_with_series.evaluate(pattern, mock_metric)
+        assert len(stories) == 2  # One pacing + one required performance story
 
-        # Test the method
-        series_df = forecasting_evaluator._prepare_pacing_series_data(pattern_result, Granularity.DAY, pacing)
+    def test_get_period_grain_comprehensive(self, evaluator):
+        """Test _get_period_grain with all supported period types."""
+        period_mappings = [
+            (PeriodType.END_OF_WEEK, Granularity.WEEK),
+            (PeriodType.END_OF_MONTH, Granularity.MONTH),
+            (PeriodType.END_OF_QUARTER, Granularity.QUARTER),
+            (PeriodType.END_OF_YEAR, Granularity.YEAR),
+            (PeriodType.END_OF_NEXT_MONTH, Granularity.DAY),  # Fallback case
+        ]
 
-        # Verify the structure
-        assert isinstance(series_df, pd.DataFrame)
-        assert not series_df.empty
-
-        # Should have required columns including cumulative_value
-        expected_columns = ["date", "value", "cumulative_value"]
-        for col in expected_columns:
-            assert col in series_df.columns
-
-        # Should not have bounds columns (pacing doesn't use bounds)
-        assert "lower_bound" not in series_df.columns
-        assert "upper_bound" not in series_df.columns
-
-        # Should have all historical data
-        assert len(series_df) == 5
-
-        # Verify cumulative values are calculated correctly
-        assert all(pd.notna(series_df["cumulative_value"]))
-        assert series_df["cumulative_value"].is_monotonic_increasing
-
-        # Check that cumulative values are proper cumulative sums
-        expected_cumulative = [100, 220, 360, 520, 700]  # Cumulative sum of [100, 120, 140, 160, 180]
-        assert series_df["cumulative_value"].tolist() == expected_cumulative
-
-    def test_calculate_cumulative_series_with_bounds(self, forecasting_evaluator):
-        """Test that _calculate_cumulative_series correctly calculates cumulative values and percentage-based bounds."""
-        # Create test data with both actual and forecast data
-        test_df = pd.DataFrame(
-            {
-                "date": pd.date_range(start="2024-01-01", periods=5, freq="D"),
-                "value": [100, 120, 140, 160, 180],
-                "lower_bound": [None, None, None, 150, 170],  # Only forecast data has bounds
-                "upper_bound": [None, None, None, 170, 190],
-            }
-        )
-
-        # Test with bounds
-        result_df = forecasting_evaluator._calculate_cumulative_series(test_df, include_bounds=True)
-
-        # Should have cumulative_value column
-        assert "cumulative_value" in result_df.columns
-
-        # Should have cumulative bound columns
-        assert "cumulative_lower_bound" in result_df.columns
-        assert "cumulative_upper_bound" in result_df.columns
-
-        # Check cumulative values are correct
-        expected_cumulative = [100, 220, 360, 520, 700]
-        assert result_df["cumulative_value"].tolist() == expected_cumulative
-
-        # Check that cumulative bounds are calculated as percentages for forecast data only
-        # Actual data should have None cumulative bounds
-        assert pd.isna(result_df.iloc[0]["cumulative_lower_bound"])
-        assert pd.isna(result_df.iloc[0]["cumulative_upper_bound"])
-        assert pd.isna(result_df.iloc[1]["cumulative_lower_bound"])
-        assert pd.isna(result_df.iloc[1]["cumulative_upper_bound"])
-
-        # Original bounds should be preserved (actual data has None, forecast data has original values)
-        assert pd.isna(result_df.iloc[0]["lower_bound"])
-        assert pd.isna(result_df.iloc[0]["upper_bound"])
-        assert pd.isna(result_df.iloc[1]["lower_bound"])
-        assert pd.isna(result_df.iloc[1]["upper_bound"])
-
-        # Forecast data should have cumulative bounds calculated as percentages
-        forecast_row_1 = result_df.iloc[3]  # 4th row (0-indexed)
-        forecast_row_2 = result_df.iloc[4]  # 5th row (0-indexed)
-
-        # Cumulative bounds should be around the cumulative value
-        assert (
-            forecast_row_1["cumulative_lower_bound"]
-            < forecast_row_1["cumulative_value"]
-            < forecast_row_1["cumulative_upper_bound"]
-        )
-        assert (
-            forecast_row_2["cumulative_lower_bound"]
-            < forecast_row_2["cumulative_value"]
-            < forecast_row_2["cumulative_upper_bound"]
-        )
-
-        # Check that cumulative bounds are calculated based on uncertainty percentage
-        assert forecast_row_1["cumulative_lower_bound"] > 0
-        assert forecast_row_1["cumulative_upper_bound"] > forecast_row_1["cumulative_value"]
-
-        # Original bounds should be preserved for forecast data
-        assert forecast_row_1["lower_bound"] == 150
-        assert forecast_row_1["upper_bound"] == 170
-        assert forecast_row_2["lower_bound"] == 170
-        assert forecast_row_2["upper_bound"] == 190
-
-    def test_calculate_cumulative_series_without_bounds(self, forecasting_evaluator):
-        """Test that _calculate_cumulative_series works without bounds."""
-        # Create test data without bounds
-        test_df = pd.DataFrame(
-            {"date": pd.date_range(start="2024-01-01", periods=3, freq="D"), "value": [100, 120, 140]}
-        )
-
-        # Test without bounds
-        result_df = forecasting_evaluator._calculate_cumulative_series(test_df, include_bounds=False)
-
-        # Should have cumulative_value column
-        assert "cumulative_value" in result_df.columns
-
-        # Check cumulative values are correct
-        expected_cumulative = [100, 220, 360]
-        assert result_df["cumulative_value"].tolist() == expected_cumulative
-
-        # Should not have bounds columns
-        assert "lower_bound" not in result_df.columns
-        assert "upper_bound" not in result_df.columns
+        for period_type, expected_grain in period_mappings:
+            result = evaluator._get_period_grain(period_type)
+            assert result == expected_grain

@@ -47,6 +47,7 @@ from .forecasting import (
     PacingProjection,
     RequiredPerformance,
     Forecast,
+    ForecastWindow,
 )
 
 
@@ -98,4 +99,5 @@ __all__ = [
     "PacingProjection",
     "RequiredPerformance",
     "Forecast",
+    "ForecastWindow",
 ]

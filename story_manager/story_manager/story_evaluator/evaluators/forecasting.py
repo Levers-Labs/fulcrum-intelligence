@@ -163,11 +163,11 @@ class ForecastingEvaluator(StoryEvaluatorBase[Forecasting]):
                 {
                     "required_growth": abs(required_perf.required_pop_growth_percent or 0),
                     "remaining_periods": required_perf.remaining_periods,
-                    "target_value": context.get("target_value"),  # Use target from forecast_stats if available
                     "growth_difference": abs(growth_difference),
                     "trend_direction": trend_direction,
                     "previous_growth": abs(required_perf.previous_pop_growth_percent or 0),
                     "previous_periods": required_perf.previous_periods,
+                    "target_value": self._get_target_value(pattern_result, required_perf.period),
                 }
             )
 
@@ -207,8 +207,7 @@ class ForecastingEvaluator(StoryEvaluatorBase[Forecasting]):
         detail = render_story_text(story_type, "detail", context)
 
         # Prepare combined historical + forecast series data
-        series_df = self._prepare_forecast_series_data(pattern_result, grain, forecast_stats)
-        series_data = self.export_dataframe_as_story_series(series_df, story_type, story_group, grain)
+        series_data = self._prepare_forecast_series_data(pattern_result, grain, forecast_stats)
 
         # Prepare the story model
         return self.prepare_story_model(
@@ -253,8 +252,7 @@ class ForecastingEvaluator(StoryEvaluatorBase[Forecasting]):
         detail = render_story_text(story_type, "detail", context)
 
         # Prepare combined historical + forecast series data
-        series_df = self._prepare_forecast_series_data(pattern_result, grain, forecast_stats)
-        series_data = self.export_dataframe_as_story_series(series_df, story_type, story_group, grain)
+        series_data = self._prepare_forecast_series_data(pattern_result, grain, forecast_stats)
 
         # Prepare the story model
         return self.prepare_story_model(
@@ -394,8 +392,7 @@ class ForecastingEvaluator(StoryEvaluatorBase[Forecasting]):
         detail = render_story_text(story_type, "detail", context)
 
         # Prepare required performance series data for visualization
-        series_df = self._prepare_required_performance_series_data(pattern_result, grain, required_perf)
-        series_data = self.export_dataframe_as_story_series(series_df, story_type, story_group, grain)
+        series_data = self._prepare_required_performance_series_data(pattern_result, grain, required_perf)
 
         # Prepare the story model
         return self.prepare_story_model(
@@ -411,13 +408,16 @@ class ForecastingEvaluator(StoryEvaluatorBase[Forecasting]):
             **context,
         )
 
-    def _calculate_cumulative_series(self, df: pd.DataFrame, include_bounds: bool = True) -> pd.DataFrame:
+    def _calculate_cumulative_series(
+        self, df: pd.DataFrame, include_bounds: bool = True, last_cumulative_value: float = 0.0
+    ) -> pd.DataFrame:
         """
         Calculate cumulative sums for a DataFrame.
 
         Args:
             df: DataFrame with columns: date, value, and optionally lower_bound, upper_bound
             include_bounds: Whether to calculate cumulative sums for bounds
+            last_cumulative_value: last cumulative value to add to the sum (default: 0.0)
 
         Returns:
             DataFrame with cumulative sums applied
@@ -427,8 +427,12 @@ class ForecastingEvaluator(StoryEvaluatorBase[Forecasting]):
 
         df = df.copy().sort_values("date")
 
-        # Add cumulative_value column with cumulative sum of values rounded to 2 decimal places
-        df["cumulative_value"] = df["value"].cumsum().round(2)
+        if last_cumulative_value > 0:
+            # Add cumulative_value column with cumulative sum of values rounded to 2 decimal places
+            df["cumulative_value"] = (last_cumulative_value + df["value"].cumsum()).round(2)
+        else:
+            # Add cumulative_value column with cumulative sum of values rounded to 2 decimal places
+            df["cumulative_value"] = df["value"].cumsum().round(2)
 
         if include_bounds:
             if "lower_bound" in df.columns and "upper_bound" in df.columns:
@@ -465,7 +469,7 @@ class ForecastingEvaluator(StoryEvaluatorBase[Forecasting]):
 
     def _prepare_forecast_series_data(
         self, pattern_result: Forecasting, target_grain: Granularity, forecast_stats=None
-    ) -> pd.DataFrame:
+    ) -> list[dict[str, Any]]:
         """
         Prepare combined historical and forecast series data for forecasting stories.
 
@@ -482,11 +486,9 @@ class ForecastingEvaluator(StoryEvaluatorBase[Forecasting]):
             forecast_stats: Specific forecast stats object (used to determine period end date)
 
         Returns:
-            DataFrame with combined historical and forecast data, including:
-            - date: Date of the data point
-            - value: Actual value (for historical) or forecasted_value (for forecast)
-            - lower_bound: Lower confidence bound (forecast only)
-            - upper_bound: Upper confidence bound (forecast only)
+            List of dictionaries with combined historical and forecast data, including:
+            - data: DataFrame with combined historical and forecast data
+            - forecast: DataFrame with forecast data
         """
         analysis_date = pd.to_datetime(pattern_result.analysis_date)
         period_start_date, period_end_date = get_period_range_for_grain(
@@ -536,6 +538,12 @@ class ForecastingEvaluator(StoryEvaluatorBase[Forecasting]):
             if not actual_df.empty
             else pd.DataFrame(columns=["date", "value", "lower_bound", "upper_bound"])
         )
+        period_actuals = self._calculate_cumulative_series(period_actuals, include_bounds=False)
+
+        # Get the last cumulative value from actuals to continue the cumulative series in forecast
+        last_cumulative_value = 0.0
+        if not period_actuals.empty and "cumulative_value" in period_actuals.columns:
+            last_cumulative_value = period_actuals["cumulative_value"].iloc[-1]
 
         if not forecast_df.empty:
             period_forecast = forecast_df[forecast_df["date"] >= analysis_date]
@@ -544,14 +552,31 @@ class ForecastingEvaluator(StoryEvaluatorBase[Forecasting]):
             period_forecast["value"] = period_forecast["value"].astype("float64")
             period_forecast["lower_bound"] = period_forecast["lower_bound"].astype("float64")
             period_forecast["upper_bound"] = period_forecast["upper_bound"].astype("float64")
+        period_forecast = self._calculate_cumulative_series(
+            period_forecast, include_bounds=True, last_cumulative_value=last_cumulative_value
+        )
 
-        # Combine period actuals and forecast data
-        combined_df = pd.concat([period_actuals, period_forecast], ignore_index=True)
+        # Convert DataFrames to JSON-serializable format
+        # Convert date column to ISO format strings
+        if not period_actuals.empty and "date" in period_actuals.columns:
+            period_actuals = period_actuals.copy()
+            period_actuals["date"] = period_actuals["date"].dt.strftime("%Y-%m-%d")
 
-        # Calculate cumulative sums for forecast stories (includes both actual and forecast)
-        combined_df = self._calculate_cumulative_series(combined_df, include_bounds=True)
+        if not period_forecast.empty and "date" in period_forecast.columns:
+            period_forecast = period_forecast.copy()
+            period_forecast["date"] = period_forecast["date"].dt.strftime("%Y-%m-%d")
 
-        return combined_df
+        # Replace inf, -inf, and NaN with None for JSON serialization
+        period_actuals = period_actuals.replace([float("inf"), float("-inf"), pd.NA], 0)  # type: ignore
+        period_forecast = period_forecast.replace([float("inf"), float("-inf"), pd.NA], 0)  # type: ignore
+
+        # Prepare result
+        result = {
+            "data": period_actuals.to_dict(orient="records"),
+            "forecast": period_forecast.to_dict(orient="records"),
+        }
+
+        return [result]
 
     def _convert_daily_forecast_to_grain(
         self, daily_forecast_df: pd.DataFrame, target_grain: Granularity
@@ -607,7 +632,7 @@ class ForecastingEvaluator(StoryEvaluatorBase[Forecasting]):
 
     def _prepare_required_performance_series_data(
         self, pattern_result: Forecasting, grain: Granularity, required_perf=None
-    ) -> pd.DataFrame:
+    ) -> list[dict[str, Any]]:
         """
         Prepare series data for required performance visualization.
 
@@ -623,7 +648,9 @@ class ForecastingEvaluator(StoryEvaluatorBase[Forecasting]):
             required_perf: The specific required performance object
 
         Returns:
-            DataFrame with columns: ["date", "value", "required_growth_percent", "pop_growth_percent"]
+            List of dictionaries with combined historical and forecast data, including:
+            - data: DataFrame with combined historical and forecast data
+            - forecast: DataFrame with forecast data
         """
         analysis_date = pd.to_datetime(pattern_result.analysis_date)
         period_start_date, period_end_date = get_period_range_for_grain(
@@ -634,7 +661,7 @@ class ForecastingEvaluator(StoryEvaluatorBase[Forecasting]):
 
         # Return empty if no series data
         if self.series_df is None or self.series_df.empty:
-            return pd.DataFrame(columns=["date", "value", "required_growth_percent", "pop_growth_percent"])
+            return []
 
         # Prepare historical data with growth rates
         actual_df = self.series_df.copy()
@@ -642,20 +669,19 @@ class ForecastingEvaluator(StoryEvaluatorBase[Forecasting]):
         actual_df = actual_df[actual_df["date"] >= period_start_date]
         actual_df = actual_df.sort_values("date")
         actual_df["pop_growth_percent"] = round(actual_df["value"].pct_change() * 100, 2)
-        actual_df["required_growth_percent"] = None
 
         # Remove first row (NaN growth)
         historical_df = actual_df.iloc[1:].copy()
 
         # Return if no required performance data
         if not required_perf or required_perf.required_pop_growth_percent is None:
-            return historical_df
+            return [{"data": historical_df.to_dict(orient="records"), "required_performance": []}]
 
         # Extract required growth parameters
         required_growth = required_perf.required_pop_growth_percent
         remaining_periods = required_perf.remaining_periods or 0
         if remaining_periods <= 0:
-            return historical_df
+            return [{"data": historical_df.to_dict(orient="records"), "required_performance": []}]
 
         # Get last historical date and period end date
         last_date = (
@@ -672,15 +698,13 @@ class ForecastingEvaluator(StoryEvaluatorBase[Forecasting]):
             daily_future_dates = pd.date_range(start=last_date + pd.Timedelta(days=1), periods=days_ahead, freq="D")
 
         if len(daily_future_dates) == 0:
-            return historical_df
+            return [{"data": historical_df.to_dict(orient="records"), "required_performance": []}]
 
         # Create daily DataFrame with forecast values (placeholder values for conversion)
         daily_forecast_df = pd.DataFrame(
             {
                 "date": daily_future_dates,
                 "value": required_growth,  # Use required growth as placeholder value
-                "lower_bound": None,
-                "upper_bound": None,
             }
         )
 
@@ -693,13 +717,28 @@ class ForecastingEvaluator(StoryEvaluatorBase[Forecasting]):
 
         # Replace forecast values with required performance data
         future_df["value"] = None
-        future_df["required_growth_percent"] = required_growth
-        future_df["pop_growth_percent"] = None
-        future_df = future_df.drop(columns=["lower_bound", "upper_bound"], errors="ignore")
+        future_df["required_pop_growth_percent"] = required_growth
 
-        # Combine historical and future data
-        result_df = pd.concat([historical_df, future_df], ignore_index=True)
-        return result_df.sort_values("date").reset_index(drop=True)
+        # Convert DataFrames to JSON-serializable format
+        # Convert date column to ISO format strings
+        if not historical_df.empty and "date" in historical_df.columns:
+            historical_df = historical_df.copy()
+            historical_df["date"] = historical_df["date"].dt.strftime("%Y-%m-%d")
+
+        if not future_df.empty and "date" in future_df.columns:
+            future_df = future_df.copy()
+            future_df["date"] = future_df["date"].dt.strftime("%Y-%m-%d")
+
+        # Replace inf, -inf, and NaN with None for JSON serialization
+        historical_df = historical_df.replace([float("inf"), float("-inf"), pd.NA], 0)  # type: ignore
+        future_df = future_df.replace([float("inf"), float("-inf"), pd.NA], 0)  # type: ignore
+
+        result = {
+            "data": historical_df.to_dict(orient="records"),
+            "required_performance": future_df.to_dict(orient="records"),
+        }
+
+        return [result]
 
     def _prepare_pacing_series_data(
         self, pattern_result: Forecasting, grain: Granularity, pacing: PacingProjection
@@ -742,3 +781,20 @@ class ForecastingEvaluator(StoryEvaluatorBase[Forecasting]):
             return Granularity.YEAR
         else:
             return Granularity.DAY
+
+    def _get_target_value(self, pattern_result: Forecasting, period: PeriodType) -> float:
+        """
+        Get the target value for a given period.
+
+        Args:
+            pattern_result: Forecasting pattern result
+            period: Period type
+
+        Returns:
+            Target value for the given period
+        """
+        if pattern_result.forecast_vs_target_stats:
+            for forecast_stats in pattern_result.forecast_vs_target_stats:
+                if forecast_stats and forecast_stats.period == period:  # type: ignore
+                    return forecast_stats.target_value  # type: ignore
+        return 0.0
