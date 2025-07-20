@@ -212,7 +212,7 @@ class Pattern(ABC, Generic[T]):
 
         return analysis_window
 
-    def handle_empty_data(self, metric_id: str, analysis_window: AnalysisWindow) -> T:
+    def handle_empty_data(self, metric_id: str, analysis_window: AnalysisWindow, **kwargs) -> T:
         """
         Create a standardized output for empty or insufficient data.
 
@@ -224,16 +224,20 @@ class Pattern(ABC, Generic[T]):
         Returns:
             Empty output with an error message
         """
+        error = kwargs.get(
+            "error",
+            dict(
+                message="Insufficient data for analysis",
+                type="data_error",
+            ),
+        )
         result = {
             "pattern": self.name,
             "version": self.version,
             "metric_id": metric_id,
             "analysis_window": analysis_window,
             # todo: standardize type and schema in future
-            "error": dict(
-                message="Insufficient data for analysis",
-                type="data_error",
-            ),
+            "error": error,
         }
         return self.validate_output(result)
 
