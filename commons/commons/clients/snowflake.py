@@ -1,4 +1,6 @@
+# ruff: noqa: S608
 import logging
+import uuid
 from collections.abc import Generator
 from contextlib import contextmanager
 from datetime import datetime, timedelta
@@ -211,21 +213,36 @@ class SnowflakeClient:
     # Cache-specific methods
     async def _create_cache_table(self, table_name: str, session: snowpark.Session) -> None:
         """Create cache table with predefined schema if it doesn't exist."""
-        # Define schema for time series data - single table per tenant
-        schema_sql = f"""
-        CREATE TABLE IF NOT EXISTS {table_name} (
-            metric_id VARCHAR,
-            grain VARCHAR,
-            date DATE,
-            value FLOAT,
-            cached_at TIMESTAMP,
-            PRIMARY KEY (metric_id, grain, date)
-        )
+        # First check if table exists
+        table_exists_query = f"""
+        SELECT COUNT(*) 
+        FROM INFORMATION_SCHEMA.TABLES 
+        WHERE TABLE_NAME = '{table_name.split('.')[-1].upper()}' 
+        AND TABLE_SCHEMA = '{self.config.db_schema.upper()}'
+        AND TABLE_CATALOG = '{self.config.database.upper()}'
         """
 
-        # Create table if it doesn't exist
-        session.sql(schema_sql).collect()
-        logger.info("Ensured cache table %s exists", table_name)
+        result = session.sql(table_exists_query).collect()
+        table_exists = int(result[0][0]) > 0 if result else False  # type: ignore
+
+        if not table_exists:
+            # Define schema for time series data - single table per tenant
+            schema_sql = f"""
+            CREATE TABLE {table_name} (
+                metric_id VARCHAR,
+                grain VARCHAR,
+                date DATE,
+                value FLOAT,
+                cached_at TIMESTAMP,
+                PRIMARY KEY (metric_id, grain, date)
+            )
+            """
+
+            # Create table
+            session.sql(schema_sql).collect()
+            logger.info("Created cache table %s", table_name)
+        else:
+            logger.debug("Cache table %s already exists, skipping creation", table_name)
 
     async def create_or_update_metric_time_series(
         self,
@@ -244,16 +261,38 @@ class SnowflakeClient:
             # Create DataFrame from the data
             df = session.create_dataframe(data)
 
+            # Create a temporary table for the new data with unique name
+            unique_suffix = f"{int(datetime.now().timestamp())}_{str(uuid.uuid4())[:8]}"
+            temp_table_name = f"{table_name}_temp_{unique_suffix}"
+
+            try:
+                df.write.mode("overwrite").save_as_table(temp_table_name)
+                logger.debug("Created temporary table: %s", temp_table_name)
+            except Exception as e:
+                logger.error("Failed to create temporary table %s: %s", temp_table_name, str(e))
+                raise
+
             if is_full_sync:
-                # For full sync, overwrite all data
-                df.write.mode("overwrite").save_as_table(table_name)
+                # For full sync, delete existing data for these specific metrics, then insert new data
+                # Get unique metric_ids from the new data
+                metric_ids_query = f"SELECT DISTINCT metric_id FROM {temp_table_name}"
+                metric_ids_result = session.sql(metric_ids_query).collect()
+                metric_ids = [row[0] for row in metric_ids_result]  # type: ignore
+
+                if metric_ids:
+                    # Delete existing data for these specific metrics
+                    metric_ids_str = "', '".join(metric_ids)
+                    delete_sql = f"DELETE FROM {table_name} WHERE metric_id IN ('{metric_ids_str}')"
+                    session.sql(delete_sql).collect()
+
+                    # Insert all new data
+                    insert_sql = f"""
+                    INSERT INTO {table_name} (metric_id, grain, date, value, cached_at)
+                    SELECT metric_id, grain, date, value, cached_at FROM {temp_table_name}
+                    """
+                    session.sql(insert_sql).collect()
             else:
                 # For incremental sync, use SQL MERGE for upsert
-                # Create a temporary table for the new data
-                temp_table_name = f"{table_name}_temp_{int(datetime.now().timestamp())}"
-                df.write.mode("overwrite").save_as_table(temp_table_name)
-
-                # Perform merge/upsert using SQL
                 merge_sql = f"""
                 MERGE INTO {table_name} AS target
                 USING {temp_table_name} AS source
@@ -267,12 +306,15 @@ class SnowflakeClient:
                 WHEN NOT MATCHED THEN
                     INSERT (metric_id, grain, date, value, cached_at)
                     VALUES (source.metric_id, source.grain, source.date, source.value, source.cached_at)
-                """  # noqa: S608
-
+                """
                 session.sql(merge_sql).collect()
 
-                # Clean up temporary table
-                session.sql(f"DROP TABLE {temp_table_name}").collect()
+            # Clean up temporary table
+            try:
+                session.sql(f"DROP TABLE IF EXISTS {temp_table_name}").collect()
+                logger.debug("Dropped temporary table: %s", temp_table_name)
+            except Exception as e:
+                logger.warning("Failed to drop temporary table %s: %s", temp_table_name, str(e))
 
         logger.info("Successfully cached %d records to table %s using DataFrame operations", len(data), table_name)
 
