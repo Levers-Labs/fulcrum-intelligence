@@ -57,18 +57,6 @@ class SyncEvent(TypedDict):
     updated_at: str
 
 
-class TenantSyncEvent(TypedDict):
-    """Type definition for tenant sync event entries."""
-
-    sync_status: SyncStatus
-    metrics_processed: int | None
-    metrics_succeeded: int | None
-    metrics_failed: int | None
-    error: str | None
-    last_sync_at: str
-    updated_at: str
-
-
 class MetricSyncStatus(BaseTimeStampedTenantModel, table=True):  # type: ignore
     """
     Stores metadata about metric data synchronization.
@@ -256,14 +244,9 @@ class TenantSyncStatus(BaseTimeStampedTenantModel, table=True):  # type: ignore
     error: str | None = None
     # Prefect run info
     run_info: dict = Field(default_factory=dict, sa_column=Column(JSONB))
-    history: list[TenantSyncEvent] = Field(
-        sa_column=Column(JSONB, nullable=False, server_default="[]"),
-    )
 
     # Define table arguments including schema, indexes and constraints
     __table_args__ = (
-        # Unique constraint
-        UniqueConstraint("tenant_id", "sync_operation", "grain", name="uq_tenant_sync_status"),
         # Indexes
         Index("idx_tenant_sync_status_tenant_operation", "tenant_id", "sync_operation"),
         Index("idx_tenant_sync_status_last_sync", "last_sync_at", postgresql_ops={"last_sync_at": "DESC"}),

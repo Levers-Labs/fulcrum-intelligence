@@ -13,7 +13,12 @@ from commons.models.enums import Granularity
 from commons.utilities.context import get_tenant_id
 from query_manager.core.models import MetricCacheGrainConfig
 from query_manager.semantic_manager.crud import SemanticManager
-from query_manager.semantic_manager.models import SyncOperation, SyncStatus, SyncType
+from query_manager.semantic_manager.models import (
+    SyncOperation,
+    SyncStatus,
+    SyncType,
+    TenantSyncStatus,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -36,9 +41,9 @@ class SnowflakeSemanticCacheManager(SemanticManager):
         sync_operation: SyncOperation,
         grain: Granularity,
         run_info: dict | None = None,
-    ) -> None:
+    ) -> TenantSyncStatus:
         """Start a new tenant cache operation."""
-        await self.tenant_sync_status.start_sync(
+        return await self.tenant_sync_status.start_sync(
             sync_operation=sync_operation,
             grain=grain,
             run_info=run_info,
@@ -54,9 +59,9 @@ class SnowflakeSemanticCacheManager(SemanticManager):
         metrics_failed: int | None = None,
         run_info: dict | None = None,
         error: str | None = None,
-    ) -> None:
+    ) -> TenantSyncStatus:
         """Complete a tenant cache operation."""
-        await self.tenant_sync_status.end_sync(
+        return await self.tenant_sync_status.end_sync(
             sync_operation=sync_operation,
             grain=grain,
             status=status,

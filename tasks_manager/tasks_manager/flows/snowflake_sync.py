@@ -15,7 +15,6 @@ from tasks_manager.config import AppConfig
 from tasks_manager.tasks.common import fetch_tenants
 from tasks_manager.tasks.events import send_tenant_sync_requested_event
 from tasks_manager.tasks.snowflake_sync import (
-    SyncSummary,
     cache_tenant_metrics_to_snowflake,
     get_enabled_grain_config,
     get_enabled_grains_for_tenant,
@@ -34,7 +33,7 @@ async def snowflake_cache_sync_for_tenant(
     tenant_id_str: str,
     grain: Granularity | None = None,
     metrics: list[str] | None = None,
-) -> list[SyncSummary]:
+) -> None:
     """
     Cache tenant metrics to Snowflake for a specific grain or all enabled grains.
 
@@ -65,7 +64,7 @@ async def snowflake_cache_sync_for_tenant(
                 grain_config = await get_enabled_grain_config(grain)
             except NotFoundError:
                 logger.warning("Grain %s is not enabled for tenant %d", grain.value, tenant_id)
-                return []
+                return
             enabled_grains = [grain_config]
         else:
             # Get all enabled grains
@@ -73,7 +72,7 @@ async def snowflake_cache_sync_for_tenant(
 
         if not enabled_grains:
             logger.info("No enabled grains found for tenant %d", tenant_id)
-            return []
+            return
 
         # Process all enabled grains in parallel using map
         logger.info("Processing %d grains in parallel for tenant %d", len(enabled_grains), tenant_id)
@@ -97,8 +96,6 @@ async def snowflake_cache_sync_for_tenant(
             tenant_id,
             len(summaries),
         )
-
-        return summaries
 
     except Exception as e:
         logger.error(

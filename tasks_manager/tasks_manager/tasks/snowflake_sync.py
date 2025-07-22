@@ -21,6 +21,7 @@ from query_manager.db.config import get_async_session
 from query_manager.semantic_manager.cache_manager import SnowflakeSemanticCacheManager
 from query_manager.semantic_manager.models import SyncOperation, SyncStatus, SyncType
 from tasks_manager.config import AppConfig
+from tasks_manager.tasks.artifacts import create_tenant_cache_summary_artifact
 from tasks_manager.tasks.events import send_tenant_sync_finished_event, send_tenant_sync_started_event
 from tasks_manager.tasks.query import fetch_metric_values, get_metric
 from tasks_manager.tasks.semantic_manager import SyncSummary, determine_sync_type, get_error_summary
@@ -288,12 +289,18 @@ async def cache_tenant_metrics_to_snowflake(
             logger.info(
                 "No enabled metrics found for tenant %d from %s metrics", tenant_id, "given" if metrics else "all"
             )
-            return get_error_summary(
+            error_summary = get_error_summary(
                 tenant_id=tenant_id,
                 grain=grain,
                 metric_id=None,
                 error="No enabled metrics found for tenant",
             )
+
+            # Create artifact for the error summary
+            await create_tenant_cache_summary_artifact(error_summary)
+            logger.info("Created artifact for empty metrics summary")
+
+            return error_summary
 
         async with get_async_session() as session:
             cache_manager = SnowflakeSemanticCacheManager(session)
@@ -364,17 +371,19 @@ async def cache_tenant_metrics_to_snowflake(
                         }
                     )
 
-            # Determine overall status
-            # TODO: try to include error as well if failed
+            # Determine overall status and error message
+            error_message = None
             if metrics_failed == 0:
                 status = SyncStatus.SUCCESS
                 overall_status = "success"
             elif metrics_succeeded > 0:
                 status = SyncStatus.SUCCESS  # Partial success is still success for tenant level
                 overall_status = "partial_success"
+                error_message = f"Partial success: {metrics_failed} out of {len(enabled_metric_ids)} metrics failed"
             else:
                 status = SyncStatus.FAILED
                 overall_status = "failed"
+                error_message = f"All {metrics_failed} metrics failed to sync"
 
             # End tenant-level sync operation
             await cache_manager.end_tenant_cache_operation(
@@ -385,6 +394,7 @@ async def cache_tenant_metrics_to_snowflake(
                 metrics_succeeded=metrics_succeeded,
                 metrics_failed=metrics_failed,
                 run_info=run_info,
+                error=error_message,
             )
 
             # Create summary
@@ -428,6 +438,10 @@ async def cache_tenant_metrics_to_snowflake(
                 error=None if status == SyncStatus.SUCCESS else f"Failed metrics: {metrics_failed}",
             )
 
+            # Create artifact for the sync summary
+            await create_tenant_cache_summary_artifact(summary)
+            logger.info("Created artifact for sync summary - Status: %s", overall_status)
+
             return summary
 
     except Exception as e:
@@ -469,7 +483,7 @@ async def cache_tenant_metrics_to_snowflake(
             logger.error("Failed to update tenant sync status for error case: %s", str(session_error))
 
         # Return error summary
-        error_summary: SyncSummary = {
+        error_summary = {
             "metric_id": None,
             "tenant_id": tenant_id,
             "status": "failed",
@@ -499,5 +513,9 @@ async def cache_tenant_metrics_to_snowflake(
             summary=error_summary,
             error=str(e),
         )
+
+        # Create artifact for the error summary
+        await create_tenant_cache_summary_artifact(error_summary)
+        logger.info("Created artifact for error summary")
 
         return error_summary

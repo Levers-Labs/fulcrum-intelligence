@@ -53,9 +53,7 @@ def upgrade() -> None:
         sa.Column("metrics_failed", sa.Integer(), nullable=True),
         sa.Column("error", sqlmodel.sql.sqltypes.AutoString(), nullable=True),
         sa.Column("run_info", postgresql.JSONB(astext_type=sa.Text()), nullable=True),
-        sa.Column("history", postgresql.JSONB(astext_type=sa.Text()), server_default="[]", nullable=False),
         sa.PrimaryKeyConstraint("id"),
-        sa.UniqueConstraint("tenant_id", "sync_operation", "grain", name="uq_tenant_sync_status"),
         schema="query_store",
     )
     op.create_index(

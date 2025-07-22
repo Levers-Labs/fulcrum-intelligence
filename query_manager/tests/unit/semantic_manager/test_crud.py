@@ -21,6 +21,7 @@ from query_manager.semantic_manager.models import (
     MetricDimensionalTimeSeries,
     MetricSyncStatus,
     MetricTimeSeries,
+    SyncOperation,
     SyncStatus,
     SyncType,
 )
@@ -379,6 +380,7 @@ async def test_sync_status_operations(metric_sync_status_crud: CRUDMetricSyncSta
     await metric_sync_status_crud.start_sync(
         metric_id="test_metric",
         grain=Granularity.DAY,
+        sync_operation=SyncOperation.SEMANTIC_SYNC,
         sync_type=SyncType.FULL,
         start_date=date(2024, 1, 1),
         end_date=date(2024, 1, 2),
@@ -388,6 +390,7 @@ async def test_sync_status_operations(metric_sync_status_crud: CRUDMetricSyncSta
     status = await metric_sync_status_crud.get_sync_status(
         tenant_id=1,
         metric_id="test_metric",
+        sync_operation=SyncOperation.SEMANTIC_SYNC,
         grain=Granularity.DAY,
     )
     # Assert
@@ -398,6 +401,7 @@ async def test_sync_status_operations(metric_sync_status_crud: CRUDMetricSyncSta
     await metric_sync_status_crud.end_sync(
         metric_id="test_metric",
         grain=Granularity.DAY,
+        sync_operation=SyncOperation.SEMANTIC_SYNC,
         sync_type=SyncType.FULL,
         status=SyncStatus.SUCCESS,
         records_processed=100,
@@ -407,6 +411,7 @@ async def test_sync_status_operations(metric_sync_status_crud: CRUDMetricSyncSta
     status = await metric_sync_status_crud.get_sync_status(
         tenant_id=1,
         metric_id="test_metric",
+        sync_operation=SyncOperation.SEMANTIC_SYNC,
         grain=Granularity.DAY,
     )
     # Assert
@@ -419,23 +424,23 @@ async def test_sync_status_history(metric_sync_status_crud: CRUDMetricSyncStatus
     """Test sync status history tracking."""
     # Pre-test setup
     set_tenant_id(1)
-    # Create initial sync status
-    sync_status = await metric_sync_status_crud.update_sync_status(
+    # Start sync to create initial status
+    sync_status = await metric_sync_status_crud.start_sync(
         metric_id="test_metric",
         grain=Granularity.DAY,
-        sync_status=SyncStatus.RUNNING,
+        sync_operation=SyncOperation.SEMANTIC_SYNC,
         sync_type=SyncType.FULL,
         start_date=date(2024, 1, 1),
         end_date=date(2024, 1, 2),
-        add_to_history=True,
     )
-    # Assert
+    # Assert initial state
     assert len(sync_status.history) == 0
 
     # Update with history
     sync_status = await metric_sync_status_crud.update_sync_status(
         metric_id="test_metric",
         grain=Granularity.DAY,
+        sync_operation=SyncOperation.SEMANTIC_SYNC,
         sync_status=SyncStatus.SUCCESS,
         sync_type=SyncType.FULL,
         start_date=date(2024, 1, 1),
@@ -545,6 +550,7 @@ async def test_sync_status_not_found(metric_sync_status_crud: CRUDMetricSyncStat
     status = await metric_sync_status_crud.get_sync_status(
         tenant_id=1,
         metric_id="nonexistent_metric",
+        sync_operation=SyncOperation.SEMANTIC_SYNC,
         grain=Granularity.DAY,
     )
 
@@ -557,10 +563,22 @@ async def test_sync_status_with_filters(metric_sync_status_crud: CRUDMetricSyncS
     # Pre-test setup
     set_tenant_id(1)
 
-    # Create test data
+    # Start sync to create test data
+    await metric_sync_status_crud.start_sync(
+        metric_id="test_metric",
+        grain=Granularity.DAY,
+        sync_operation=SyncOperation.SEMANTIC_SYNC,
+        sync_type=SyncType.FULL,
+        start_date=date(2024, 1, 1),
+        end_date=date(2024, 1, 2),
+        dimension_name="region",
+    )
+
+    # Then update to success to have test data
     await metric_sync_status_crud.update_sync_status(
         metric_id="test_metric",
         grain=Granularity.DAY,
+        sync_operation=SyncOperation.SEMANTIC_SYNC,
         sync_status=SyncStatus.SUCCESS,
         sync_type=SyncType.FULL,
         start_date=date(2024, 1, 1),
@@ -572,6 +590,7 @@ async def test_sync_status_with_filters(metric_sync_status_crud: CRUDMetricSyncS
     status = await metric_sync_status_crud.get_sync_status(
         tenant_id=1,
         metric_id="test_metric",
+        sync_operation=SyncOperation.SEMANTIC_SYNC,
         grain=Granularity.DAY,
     )
     assert len(status) == 1
@@ -580,6 +599,7 @@ async def test_sync_status_with_filters(metric_sync_status_crud: CRUDMetricSyncS
     status = await metric_sync_status_crud.get_sync_status(
         tenant_id=1,
         metric_id="test_metric",
+        sync_operation=SyncOperation.SEMANTIC_SYNC,
         dimension_name="region",
     )
     assert len(status) == 1
@@ -588,6 +608,7 @@ async def test_sync_status_with_filters(metric_sync_status_crud: CRUDMetricSyncS
     status = await metric_sync_status_crud.get_sync_status(
         tenant_id=1,
         metric_id="test_metric",
+        sync_operation=SyncOperation.SEMANTIC_SYNC,
         grain=Granularity.WEEK,  # Different grain
         dimension_name="nonexistent",  # Non-existent dimension
     )
@@ -599,10 +620,21 @@ async def test_update_sync_status_create_new(metric_sync_status_crud: CRUDMetric
     # Pre-test setup
     set_tenant_id(1)
 
-    # Act
+    # Start sync first
+    await metric_sync_status_crud.start_sync(
+        metric_id="new_metric",
+        grain=Granularity.DAY,
+        sync_operation=SyncOperation.SEMANTIC_SYNC,
+        sync_type=SyncType.FULL,
+        start_date=date(2024, 1, 1),
+        end_date=date(2024, 1, 2),
+    )
+
+    # Then update the sync status
     sync_status = await metric_sync_status_crud.update_sync_status(
         metric_id="new_metric",
         grain=Granularity.DAY,
+        sync_operation=SyncOperation.SEMANTIC_SYNC,
         sync_status=SyncStatus.RUNNING,
         sync_type=SyncType.FULL,
         start_date=date(2024, 1, 1),
@@ -626,10 +658,21 @@ async def test_update_sync_status_with_error(metric_sync_status_crud: CRUDMetric
     # Pre-test setup
     set_tenant_id(1)
 
-    # Act
+    # Start sync first
+    await metric_sync_status_crud.start_sync(
+        metric_id="test_metric",
+        grain=Granularity.DAY,
+        sync_operation=SyncOperation.SEMANTIC_SYNC,
+        sync_type=SyncType.FULL,
+        start_date=date(2024, 1, 1),
+        end_date=date(2024, 1, 2),
+    )
+
+    # Then update with error
     sync_status = await metric_sync_status_crud.update_sync_status(
         metric_id="test_metric",
         grain=Granularity.DAY,
+        sync_operation=SyncOperation.SEMANTIC_SYNC,
         sync_status=SyncStatus.FAILED,
         sync_type=SyncType.FULL,
         start_date=date(2024, 1, 1),
