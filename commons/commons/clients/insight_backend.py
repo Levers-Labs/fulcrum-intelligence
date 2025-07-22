@@ -75,6 +75,21 @@ class InsightBackendClient(AsyncHttpClient):
                 raise InvalidTenantError(tenant_id) from e
             raise
 
+    async def get_snowflake_config(self) -> dict:
+        """
+        Get Snowflake configuration for tenant from context.
+        Raises an InvalidTenant exception if the tenant is not found.
+        :return: dict
+        """
+        try:
+            config = await self.get("/tenant/snowflake-config/internal")
+            return config
+        except HttpClientError as e:
+            if e.status_code == 404:
+                tenant_id = get_tenant_id()
+                raise InvalidTenantError(tenant_id) from e
+            raise
+
     async def list_alerts(
         self,
         page: int = 1,

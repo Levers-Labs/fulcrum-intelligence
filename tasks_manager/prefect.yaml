@@ -187,3 +187,28 @@ deployments:
   schedules: *daily_5am_pst
   parameters:
     tenant_identifier: "leversdemo"
+
+# Snowflake Cache Sync Deployments
+- name: "snowflake-semantic-sync-all-tenants"
+  version: "1.0.0"
+  description: "Cache semantic data to Snowflake for all tenants"
+  entrypoint: tasks_manager.flows.snowflake_sync:snowflake_semantic_sync_all_tenants
+  work_pool: *managed_work_pool
+  schedules: *daily_2am_pst
+  parameters: {}
+
+- name: "snowflake-semantic-sync-tenant"
+  version: "1.0.0"
+  description: "Cache semantic data to Snowflake for a specific tenant"
+  entrypoint: tasks_manager.flows.snowflake_sync:snowflake_semantic_sync_for_tenant
+  work_pool: *managed_work_pool
+  triggers:
+  - type: event
+    name: "tenant-semantic-sync-trigger"
+    description: "Triggered when tenant semantic sync is requested"
+    enabled: true
+    expect:
+    - tenant.snowflake_cache.requested
+    parameters:
+      tenant_id_str: "{{ event.resource.tenant_id }}"
+      grain: "{{ event.resource.grain }}"

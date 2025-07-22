@@ -35,8 +35,11 @@ from query_manager.semantic_manager.models import (
     MetricTarget,
     MetricTimeSeries,
     SyncEvent,
+    SyncOperation,
     SyncStatus,
     SyncType,
+    TenantSyncEvent,
+    TenantSyncStatus,
 )
 from query_manager.semantic_manager.schemas import (
     MetricTargetStats,
@@ -326,13 +329,15 @@ class CRUDMetricSyncStatus(CRUDSemantic[MetricSyncStatus, BaseModel, BaseModel, 
         self,
         tenant_id: int,
         metric_id: str,
+        sync_operation: SyncOperation,
         grain: Granularity | None = None,
         dimension_name: str | None = None,
     ) -> list[MetricSyncStatus]:
-        """Get sync status for a metric."""
+        """Get sync status for a metric and operation."""
         conditions = [
             self.model.tenant_id == tenant_id,
             self.model.metric_id == metric_id,
+            self.model.sync_operation == sync_operation,
         ]
 
         if grain:
@@ -348,6 +353,7 @@ class CRUDMetricSyncStatus(CRUDSemantic[MetricSyncStatus, BaseModel, BaseModel, 
         self,
         metric_id: str,
         grain: Granularity,
+        sync_operation: SyncOperation,
         sync_status: SyncStatus,
         sync_type: SyncType,
         start_date: date,
@@ -357,11 +363,12 @@ class CRUDMetricSyncStatus(CRUDSemantic[MetricSyncStatus, BaseModel, BaseModel, 
         error: str | None = None,
         add_to_history: bool = False,
     ) -> MetricSyncStatus:
-        """Update sync status for a metric."""
+        """Update sync status for a metric and operation."""
         query = select(self.model).where(
             and_(
                 self.model.metric_id == metric_id,  # type: ignore
                 self.model.grain == grain,  # type: ignore
+                self.model.sync_operation == sync_operation,  # type: ignore
                 self.model.dimension_name == dimension_name,  # type: ignore
                 self.model.sync_type == sync_type,  # type: ignore
             )
@@ -404,9 +411,14 @@ class CRUDMetricSyncStatus(CRUDSemantic[MetricSyncStatus, BaseModel, BaseModel, 
             return await self.update(obj=existing, obj_in=update_data)
         else:
             # Create new record data
+            tenant_id = get_tenant_id()
+            if tenant_id is None:
+                raise ValueError("Tenant ID not set in context")
             create_data = MetricSyncStatus(
                 metric_id=metric_id,
                 grain=grain,
+                tenant_id=tenant_id,
+                sync_operation=sync_operation,
                 dimension_name=dimension_name,
                 sync_status=sync_status,
                 sync_type=sync_type,
@@ -423,6 +435,7 @@ class CRUDMetricSyncStatus(CRUDSemantic[MetricSyncStatus, BaseModel, BaseModel, 
         self,
         metric_id: str,
         grain: Granularity,
+        sync_operation: SyncOperation,
         sync_type: SyncType,
         start_date: date,
         end_date: date,
@@ -432,6 +445,7 @@ class CRUDMetricSyncStatus(CRUDSemantic[MetricSyncStatus, BaseModel, BaseModel, 
         await self.update_sync_status(
             metric_id=metric_id,
             grain=grain,
+            sync_operation=sync_operation,
             sync_status=SyncStatus.RUNNING,
             sync_type=sync_type,
             start_date=start_date,
@@ -444,6 +458,7 @@ class CRUDMetricSyncStatus(CRUDSemantic[MetricSyncStatus, BaseModel, BaseModel, 
         self,
         metric_id: str,
         grain: Granularity,
+        sync_operation: SyncOperation,
         sync_type: SyncType,
         status: SyncStatus,
         records_processed: int | None = None,
@@ -454,6 +469,7 @@ class CRUDMetricSyncStatus(CRUDSemantic[MetricSyncStatus, BaseModel, BaseModel, 
         await self.update_sync_status(
             metric_id=metric_id,
             grain=grain,
+            sync_operation=sync_operation,
             sync_status=status,
             sync_type=sync_type,
             start_date=datetime.now().date(),
@@ -463,6 +479,34 @@ class CRUDMetricSyncStatus(CRUDSemantic[MetricSyncStatus, BaseModel, BaseModel, 
             error=error,
             add_to_history=False,
         )
+
+    async def determine_sync_type(
+        self,
+        metric_id: str,
+        grain: Granularity,
+        sync_operation: SyncOperation,
+        dimension_name: str | None = None,
+    ) -> SyncType:
+        """Determine sync type based on previous sync status."""
+        tenant_id = get_tenant_id()
+        if tenant_id is None:
+            raise ValueError("Tenant ID not set in context")
+
+        sync_statuses = await self.get_sync_status(
+            tenant_id=tenant_id,
+            metric_id=metric_id,
+            sync_operation=sync_operation,
+            grain=grain,
+            dimension_name=dimension_name,
+        )
+
+        # Check if we have a previous successful FULL sync
+        has_successful_full_sync = any(
+            status.sync_status == SyncStatus.SUCCESS and status.sync_type == SyncType.FULL for status in sync_statuses
+        )
+
+        # Default to INCREMENTAL if we have a successful FULL sync, otherwise FULL
+        return SyncType.INCREMENTAL if has_successful_full_sync else SyncType.FULL
 
 
 class CRUDMetricTarget(CRUDSemantic[MetricTarget, TargetCreate, TargetUpdate, TargetFilter]):
@@ -611,6 +655,144 @@ class CRUDMetricTarget(CRUDSemantic[MetricTarget, TargetCreate, TargetUpdate, Ta
         return stats, count or 0
 
 
+class CRUDTenantSyncStatus(CRUDSemantic[TenantSyncStatus, BaseModel, BaseModel, BaseFilter]):
+    """CRUD operations for TenantSyncStatus."""
+
+    async def get_sync_status(
+        self,
+        tenant_id: int,
+        sync_operation: SyncOperation,
+        grain: Granularity | None = None,
+    ) -> list[TenantSyncStatus]:
+        """Get sync status for a tenant and operation."""
+        conditions = [
+            self.model.tenant_id == tenant_id,
+            self.model.sync_operation == sync_operation,
+        ]
+
+        if grain:
+            conditions.append(self.model.grain == grain)
+
+        query = select(self.model).where(and_(*conditions)).order_by(self.model.last_sync_at.desc())  # type: ignore
+        result = await self.session.execute(query)
+        return cast(list[TenantSyncStatus], list(result.scalars().all()))
+
+    async def update_sync_status(
+        self,
+        sync_operation: SyncOperation,
+        grain: Granularity,
+        sync_status: SyncStatus,
+        metrics_processed: int | None = None,
+        metrics_succeeded: int | None = None,
+        metrics_failed: int | None = None,
+        run_info: dict | None = None,
+        error: str | None = None,
+        add_to_history: bool = False,
+    ) -> TenantSyncStatus:
+        """Update sync status for a tenant operation."""
+        query = select(self.model).where(
+            and_(
+                self.model.sync_operation == sync_operation,  # type: ignore
+                self.model.grain == grain,  # type: ignore
+            )
+        )
+        result = await self.session.execute(query)
+        existing = result.scalars().first()
+
+        # Get current time
+        now = datetime.now()
+
+        if existing:
+            # Prepare update data
+            update_data = {
+                "sync_status": sync_status,
+                "last_sync_at": now,
+                "metrics_processed": metrics_processed,
+                "metrics_succeeded": metrics_succeeded,
+                "metrics_failed": metrics_failed,
+                "run_info": run_info or {},
+                "error": error,
+                "updated_at": now,
+            }
+            existing = cast(TenantSyncStatus, existing)
+            # Add to history only if flag is True
+            if add_to_history:
+                history_entry: TenantSyncEvent = {
+                    "sync_status": existing.sync_status,
+                    "metrics_processed": existing.metrics_processed,
+                    "metrics_succeeded": existing.metrics_succeeded,
+                    "metrics_failed": existing.metrics_failed,
+                    "error": existing.error,
+                    "last_sync_at": existing.last_sync_at.isoformat(),
+                    "updated_at": now.isoformat(),
+                }
+
+                current_history = existing.history or []
+                # Keep last 20 entries
+                update_data["history"] = [history_entry] + current_history[:19]
+
+            return await self.update(obj=existing, obj_in=update_data)
+        else:
+            # Create new record data
+            tenant_id = get_tenant_id()
+            if tenant_id is None:
+                raise ValueError("Tenant ID not set in context")
+
+            create_data = TenantSyncStatus(
+                tenant_id=tenant_id,
+                sync_operation=sync_operation,
+                grain=grain,
+                sync_status=sync_status,
+                last_sync_at=now,
+                metrics_processed=metrics_processed,
+                metrics_succeeded=metrics_succeeded,
+                metrics_failed=metrics_failed,
+                run_info=run_info or {},
+                error=error,
+                history=[],
+            )
+            return await self.create(obj_in=create_data)
+
+    async def start_sync(
+        self,
+        sync_operation: SyncOperation,
+        grain: Granularity,
+        run_info: dict | None = None,
+    ) -> None:
+        """Start a new sync operation."""
+        await self.update_sync_status(
+            sync_operation=sync_operation,
+            grain=grain,
+            sync_status=SyncStatus.RUNNING,
+            run_info=run_info,
+            add_to_history=True,
+        )
+
+    async def end_sync(
+        self,
+        sync_operation: SyncOperation,
+        grain: Granularity,
+        status: SyncStatus,
+        metrics_processed: int | None = None,
+        metrics_succeeded: int | None = None,
+        metrics_failed: int | None = None,
+        run_info: dict | None = None,
+        error: str | None = None,
+    ) -> None:
+        """Complete a sync operation."""
+        await self.update_sync_status(
+            sync_operation=sync_operation,
+            grain=grain,
+            sync_status=status,
+            metrics_processed=metrics_processed,
+            metrics_succeeded=metrics_succeeded,
+            metrics_failed=metrics_failed,
+            run_info=run_info,
+            error=error,
+            add_to_history=False,
+        )
+
+
 class SemanticManager:
     """Manager class for semantic operations."""
 
@@ -619,6 +801,7 @@ class SemanticManager:
         self.metric_time_series = CRUDMetricTimeSeries(MetricTimeSeries, session)
         self.metric_dimensional_time_series = CRUDMetricDimensionalTimeSeries(MetricDimensionalTimeSeries, session)
         self.metric_sync_status = CRUDMetricSyncStatus(MetricSyncStatus, session)
+        self.tenant_sync_status = CRUDTenantSyncStatus(TenantSyncStatus, session)
         self.metric_target = CRUDMetricTarget(MetricTarget, session)
 
     async def get_targets(
@@ -707,7 +890,7 @@ class SemanticManager:
         data = []
         for time_series_row in time_series:
             row = dict(date=time_series_row.date, value=time_series_row.value)
-            row["target"] = targets_data.get(time_series_row.date)
+            row["target"] = targets_data.get(time_series_row.date)  # type: ignore
             data.append(row)
 
         return data
