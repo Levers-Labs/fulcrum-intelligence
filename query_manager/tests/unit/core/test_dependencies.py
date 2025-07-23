@@ -103,3 +103,22 @@ async def test_get_query_client(mock_insights_backend_client, mock_async_session
     assert isinstance(query_client, QueryClient)
     # Additional assertion to verify the cube_client in query_client
     assert query_client.cube_client == cube_client
+
+
+# Test the cache CRUD instantiation
+
+
+@pytest.mark.asyncio
+async def test_cache_crud_creation(mock_async_session):
+    """Test cache CRUD instances are created correctly."""
+    cache_crud = await get_metric_cache_config_crud(session=mock_async_session)
+    assert isinstance(cache_crud, CRUDMetricCacheConfig)
+    assert cache_crud.session == mock_async_session
+
+
+@pytest.mark.asyncio
+async def test_cache_grain_crud_creation(mock_async_session):
+    """Test cache grain CRUD instances are created correctly."""
+    grain_crud = await get_metric_cache_grain_config_crud(session=mock_async_session)
+    assert isinstance(grain_crud, CRUDMetricCacheGrainConfig)
+    assert grain_crud.session == mock_async_session

@@ -1237,6 +1237,192 @@ async def test_delete_metric_not_found(async_client: AsyncClient, mocker):
     mock_delete_metric.assert_awaited_once_with(metric_id)
 
 
+# Tests for cache-related routes added in the diff
+
+
+@pytest.mark.asyncio
+async def test_list_grain_configs(async_client: AsyncClient, mocker):
+    """Test listing grain cache configurations."""
+    from query_manager.core.crud import CRUDMetricCacheGrainConfig
+
+    # Mock grain configs
+    mock_configs = [
+        {
+            "id": 1,
+            "grain": "day",
+            "is_enabled": True,
+            "initial_sync_period": 730,
+            "delta_sync_period": 90,
+            "tenant_id": 1,
+        },
+        {
+            "id": 2,
+            "grain": "week",
+            "is_enabled": False,
+            "initial_sync_period": 365,
+            "delta_sync_period": 30,
+            "tenant_id": 1,
+        },
+    ]
+
+    mock_paginate = AsyncMock(return_value=(mock_configs, 2))
+    mocker.patch.object(CRUDMetricCacheGrainConfig, "paginate", mock_paginate)
+
+    response = await async_client.get("/v1/grains/cache-config")
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["count"] == 2
+    assert len(data["results"]) == 2
+    assert data["results"][0]["grain"] == "day"
+    assert data["results"][0]["is_enabled"] is True
+
+
+@pytest.mark.asyncio
+async def test_get_metric_cache_config(async_client: AsyncClient, mocker):
+    """Test getting cache configuration for a specific metric."""
+    from query_manager.core.crud import CRUDMetricCacheConfig
+
+    mock_config = {"id": 1, "metric_id": "test_metric", "is_enabled": True, "last_sync_date": None, "sync_status": None}
+
+    mock_get_by_metric_id = AsyncMock(return_value=mock_config)
+    mocker.patch.object(CRUDMetricCacheConfig, "get_by_metric_id", mock_get_by_metric_id)
+
+    response = await async_client.get("/v1/metrics/test_metric/cache-config")
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["metric_id"] == "test_metric"
+    assert data["is_enabled"] is True
+    mock_get_by_metric_id.assert_awaited_once_with("test_metric")
+
+
+@pytest.mark.asyncio
+async def test_update_metric_cache_config(async_client: AsyncClient, mocker):
+    """Test updating cache configuration for a specific metric."""
+    from query_manager.core.crud import CRUDMetricCacheConfig
+
+    mock_updated_config = {
+        "id": 1,
+        "metric_id": "test_metric",
+        "is_enabled": False,
+        "last_sync_date": None,
+        "sync_status": None,
+    }
+
+    mock_create_or_update = AsyncMock(return_value=mock_updated_config)
+    mocker.patch.object(CRUDMetricCacheConfig, "create_or_update_metric_config", mock_create_or_update)
+
+    response = await async_client.put("/v1/metrics/test_metric/cache-config", json={"is_enabled": False})
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["metric_id"] == "test_metric"
+    assert data["is_enabled"] is False
+    mock_create_or_update.assert_awaited_once_with("test_metric", False)
+
+
+@pytest.mark.asyncio
+async def test_list_metric_cache_configs(async_client: AsyncClient, mocker, app):
+    """Test listing metric cache configurations with sync information."""
+    from query_manager.semantic_manager.dependencies import get_cache_manager
+
+    mock_configs = [
+        {"id": 1, "metric_id": "metric1", "is_enabled": True, "last_sync_date": None, "sync_status": None},
+        {"id": 2, "metric_id": "metric2", "is_enabled": False, "last_sync_date": None, "sync_status": None},
+    ]
+
+    # Create mock cache manager
+    mock_cache_manager = AsyncMock()
+    mock_cache_manager.get_metric_cache_configs = AsyncMock(return_value=(mock_configs, 2))
+
+    # Override the dependency
+    app.dependency_overrides[get_cache_manager] = lambda: mock_cache_manager
+
+    try:
+        response = await async_client.get("/v1/metrics/cache-config/all")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["count"] == 2
+        assert len(data["results"]) == 2
+        assert data["results"][0]["metric_id"] == "metric1"
+        assert data["results"][0]["is_enabled"] is True
+    finally:
+        # Clean up the override
+        app.dependency_overrides.clear()
+
+
+@pytest.mark.asyncio
+async def test_get_tenant_sync_status(async_client: AsyncClient, mocker, app):
+    """Test getting tenant sync status history."""
+    from query_manager.semantic_manager.dependencies import get_cache_manager
+
+    mock_sync_history = [
+        {
+            "id": 1,
+            "sync_operation": "SNOWFLAKE_CACHE",
+            "grain": "day",
+            "last_sync_at": "2024-01-01T10:00:00",
+            "sync_status": "SUCCESS",
+            "metrics_processed": 10,
+            "metrics_succeeded": 8,
+            "metrics_failed": 2,
+            "error": None,
+            "run_info": {},
+            "created_at": "2024-01-01T09:00:00",
+            "updated_at": "2024-01-01T10:00:00",
+        }
+    ]
+
+    # Create mock cache manager
+    mock_cache_manager = AsyncMock()
+    mock_cache_manager.get_tenant_sync_history = AsyncMock(return_value=(mock_sync_history, 1))
+
+    # Override the dependency
+    app.dependency_overrides[get_cache_manager] = lambda: mock_cache_manager
+
+    try:
+        response = await async_client.get("/v1/tenant/sync-status")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["count"] == 1
+        assert len(data["results"]) == 1
+        assert data["results"][0]["sync_operation"] == "SNOWFLAKE_CACHE"
+        assert data["results"][0]["sync_status"] == "SUCCESS"
+    finally:
+        # Clean up the override
+        app.dependency_overrides.clear()
+
+
+@pytest.mark.asyncio
+async def test_bulk_update_metric_cache_configs(async_client: AsyncClient, mocker):
+    """Test bulk updating metric cache configurations."""
+    from query_manager.core.crud import CRUDMetricCacheConfig
+
+    mock_updated_configs = [
+        {"id": 1, "metric_id": "metric1", "is_enabled": False, "last_sync_date": None, "sync_status": None},
+        {"id": 2, "metric_id": "metric2", "is_enabled": False, "last_sync_date": None, "sync_status": None},
+    ]
+
+    mock_bulk_update = AsyncMock(return_value=mock_updated_configs)
+    mocker.patch.object(CRUDMetricCacheConfig, "bulk_update_metric_configs", mock_bulk_update)
+
+    response = await async_client.post(
+        "/v1/metrics/cache-config/bulk", json={"metric_ids": ["metric1", "metric2"], "is_enabled": False}
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data) == 2
+    assert data[0]["metric_id"] == "metric1"
+    assert data[0]["is_enabled"] is False
+    assert data[1]["metric_id"] == "metric2"
+    assert data[1]["is_enabled"] is False
+    mock_bulk_update.assert_awaited_once_with(["metric1", "metric2"], False)
+
+
 @pytest.mark.asyncio
 async def test_delete_dimension_success(async_client: AsyncClient, mocker, dimension):
     """Test successful deletion of a single dimension."""
