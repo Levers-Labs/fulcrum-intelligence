@@ -190,6 +190,18 @@ async def list_tenants(
 
 
 @router.get(
+    "/tenant/details",
+    response_model=TenantRead,
+    dependencies=[Security(oauth2_auth().verify, scopes=[ADMIN_READ])],  # type: ignore
+)
+async def get_tenant_details(tenant_id: Annotated[int, Depends(get_tenant_id)], tenant_crud_client: TenantsCRUDDep):
+    """
+    Retrieve the details for the current tenant.
+    """
+    return await tenant_crud_client.get(tenant_id)
+
+
+@router.get(
     "/tenant/config",
     response_model=TenantConfigRead,
     dependencies=[Security(oauth2_auth().verify, scopes=[ADMIN_READ])],  # type: ignore

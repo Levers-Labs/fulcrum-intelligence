@@ -6,14 +6,19 @@ import logging
 from datetime import date, datetime, timedelta
 from typing import Any
 
+from fastapi import HTTPException
+from sqlalchemy import and_, func, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from commons.clients.snowflake import SnowflakeClient
 from commons.models.enums import Granularity
 from commons.utilities.context import get_tenant_id
-from query_manager.core.models import MetricCacheGrainConfig
+from commons.utilities.pagination import PaginationParams
+from query_manager.core.crud import CRUDMetricCacheConfig
+from query_manager.core.models import MetricCacheConfig, MetricCacheGrainConfig
 from query_manager.semantic_manager.crud import SemanticManager
 from query_manager.semantic_manager.models import (
+    MetricSyncStatus,
     SyncOperation,
     SyncStatus,
     SyncType,
@@ -24,11 +29,23 @@ logger = logging.getLogger(__name__)
 
 
 class SnowflakeSemanticCacheManager(SemanticManager):
-    """Extended SemanticManager with Snowflake cache capabilities."""
+    """Extended SemanticManager with Snowflake cache capabilities.
 
-    def __init__(self, session: AsyncSession, snowflake_client: SnowflakeClient | None = None):
+    Args:
+        session: Async database session
+        snowflake_client: Optional Snowflake client for cache operations
+        tenant_identifier: Optional tenant identifier from insights backend for table naming
+    """
+
+    def __init__(
+        self,
+        session: AsyncSession,
+        snowflake_client: SnowflakeClient | None = None,
+        tenant_identifier: str | None = None,
+    ):
         super().__init__(session)
         self.snowflake_client = snowflake_client
+        self.tenant_identifier = tenant_identifier
 
     def _ensure_snowflake_client(self) -> SnowflakeClient:
         """Ensure snowflake_client is available for methods that require it."""
@@ -72,10 +89,13 @@ class SnowflakeSemanticCacheManager(SemanticManager):
             error=error,
         )
 
-    def _get_tenant_name(self) -> str:
-        """Get tenant name from context or config."""
-        # For now, we'll use tenant_id as tenant_name
-        # TODO: enhance to get actual tenant name from config
+    def _get_tenant_identifier(self) -> str:
+        """Get tenant name from insights backend or fallback to tenant_id."""
+        # Use tenant name from insights backend if available
+        if self.tenant_identifier:
+            return self.tenant_identifier
+
+        # Fallback to tenant_id format for backward compatibility
         tenant_id = get_tenant_id()
         if tenant_id is None:
             raise ValueError("Tenant ID not set in context")
@@ -83,7 +103,7 @@ class SnowflakeSemanticCacheManager(SemanticManager):
 
     def _generate_table_name(self) -> str:
         """Generate Snowflake table name for metric cache."""
-        tenant_name = self._get_tenant_name()
+        tenant_name = self._get_tenant_identifier()
 
         # Clean tenant name to be table name safe
         clean_tenant_name = tenant_name.replace("-", "_").replace(" ", "_").lower()
@@ -110,6 +130,123 @@ class SnowflakeSemanticCacheManager(SemanticManager):
 
         start_date = end_date - timedelta(days=delta_days)
         return start_date, end_date
+
+    async def get_tenant_sync_history(
+        self,
+        params: PaginationParams,
+        sync_operation: SyncOperation | None = None,
+        grain: Granularity | None = None,
+        sync_status: SyncStatus | None = None,
+    ) -> tuple[list[TenantSyncStatus], int]:
+        """Get paginated tenant sync history with optional filtering using ORM-based pagination."""
+        # Build filter parameters
+        filter_params = {}
+        if sync_operation:
+            filter_params["sync_operation"] = sync_operation.value
+        if grain:
+            filter_params["grain"] = grain.value
+        if sync_status:
+            filter_params["sync_status"] = sync_status.value
+
+        # Use the built-in paginate method with proper filtering and ordering
+        return await self.tenant_sync_status.paginate(params, filter_params)
+
+    async def get_comprehensive_cache_info(self) -> dict[str, Any]:
+        """Get comprehensive cache information including table info and performance metrics."""
+        try:
+            # Generate table name
+            table_name = self._generate_table_name()
+
+            self._ensure_snowflake_client()
+            performance_metrics = await self.snowflake_client.get_table_performance_metrics(table_name)  # type: ignore
+            return {
+                "table_name": table_name,
+                "snowflake_connected": True,
+                # Table/data information from Snowflake
+                "date_range_start": performance_metrics.get("date_range", {}).get("min_date"),
+                "date_range_end": performance_metrics.get("date_range", {}).get("max_date"),
+                "total_records": performance_metrics.get("row_count", 0),
+                "unique_dates": performance_metrics.get("unique_dates", 0),
+            }
+
+        except Exception as e:
+            logger.error("Failed to get comprehensive cache info: %s", str(e))
+            raise HTTPException(status_code=500, detail=f"Failed to get comprehensive cache info: {str(e)}") from e
+
+    async def get_metric_cache_configs(
+        self,
+        params: PaginationParams,
+        metric_ids: list[str] | None = None,
+        is_enabled: bool | None = None,
+    ) -> tuple[list[dict[str, Any]], int]:
+        """Get enhanced cache configurations with sync information."""
+        # Create the CRUD instance
+        cache_crud = CRUDMetricCacheConfig(model=MetricCacheConfig, session=self.session)
+
+        # Build filter parameters for ORM-based filtering
+        filter_params: dict[str, Any] = {}
+        if metric_ids:
+            filter_params["metric_ids"] = metric_ids
+        if is_enabled is not None:
+            filter_params["is_enabled"] = is_enabled
+
+        # Get cache configs using built-in paginate method
+        cache_configs, count = await cache_crud.paginate(params, filter_params)
+
+        if not cache_configs:
+            return [], count
+
+        # Get all metric IDs from the cache configs
+        config_metric_ids = [config.metric_id for config in cache_configs]
+        tenant_id = get_tenant_id()
+
+        # Fetch sync data for all metrics in one query to avoid N+1 problem
+        # Use a subquery to get the latest sync status for each metric
+        latest_sync_subquery = (
+            select(
+                MetricSyncStatus.metric_id,
+                MetricSyncStatus.last_sync_at,
+                MetricSyncStatus.sync_status,
+                func.row_number()
+                .over(partition_by=MetricSyncStatus.metric_id, order_by=MetricSyncStatus.last_sync_at.desc())  # type: ignore
+                .label("rn"),
+            )
+            .where(
+                and_(
+                    MetricSyncStatus.tenant_id == tenant_id,  # type: ignore
+                    MetricSyncStatus.metric_id.in_(config_metric_ids),  # type: ignore
+                    MetricSyncStatus.sync_operation == SyncOperation.SNOWFLAKE_CACHE,  # type: ignore
+                )
+            )
+            .subquery()
+        )
+
+        # Get only the latest sync status for each metric (rn = 1)
+        latest_sync_query = select(
+            latest_sync_subquery.c.metric_id,
+            latest_sync_subquery.c.last_sync_at,
+            latest_sync_subquery.c.sync_status,
+        ).where(latest_sync_subquery.c.rn == 1)
+
+        sync_result = await self.session.execute(latest_sync_query)
+        sync_data = {row.metric_id: row for row in sync_result.mappings()}
+
+        # Enhance cache configs with sync information
+        enhanced_configs = []
+        for config in cache_configs:
+            sync_info = sync_data.get(config.metric_id)
+
+            # Convert config to dict while preserving all original fields
+            config_dict = {
+                "id": config.id,
+                "metric_id": config.metric_id,
+                "is_enabled": config.is_enabled,
+                "last_sync_date": sync_info.last_sync_at if sync_info else None,
+                "sync_status": sync_info.sync_status.value if sync_info else None,
+            }
+            enhanced_configs.append(config_dict)
+
+        return enhanced_configs, count
 
     async def cache_metric_time_series(
         self,
@@ -249,29 +386,6 @@ class SnowflakeSemanticCacheManager(SemanticManager):
                 "integrity_ratio": 0.0,
                 "is_valid": False,
                 "validation_status": "ERROR",
-                "error": str(e),
-            }
-
-    async def get_cache_performance_metrics(self) -> dict[str, Any]:
-        """Get performance metrics for cached data."""
-        try:
-            # Generate table name
-            table_name = self._generate_table_name()
-
-            # Get performance metrics using client method
-            snowflake_client = self._ensure_snowflake_client()
-            metrics = await snowflake_client.get_table_performance_metrics(table_name)
-
-            # Add table name to the response
-            metrics["table_name"] = table_name
-
-            return metrics
-
-        except Exception as e:
-            logger.error("Failed to get cache performance metrics: %s", str(e))
-            return {
-                "table_name": table_name if "table_name" in locals() else None,
-                "status": "ERROR",
                 "error": str(e),
             }
 

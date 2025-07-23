@@ -28,7 +28,7 @@ from commons.models.enums import Granularity
 from commons.utilities.context import get_tenant_id
 from commons.utilities.pagination import PaginationParams
 from query_manager.core.models import Metric
-from query_manager.semantic_manager.filters import TargetFilter
+from query_manager.semantic_manager.filters import TargetFilter, TenantSyncStatusFilter
 from query_manager.semantic_manager.models import (
     MetricDimensionalTimeSeries,
     MetricSyncStatus,
@@ -654,8 +654,14 @@ class CRUDMetricTarget(CRUDSemantic[MetricTarget, TargetCreate, TargetUpdate, Ta
         return stats, count or 0
 
 
-class CRUDTenantSyncStatus(CRUDSemantic[TenantSyncStatus, BaseModel, BaseModel, BaseFilter]):
+class CRUDTenantSyncStatus(CRUDSemantic[TenantSyncStatus, BaseModel, BaseModel, TenantSyncStatusFilter]):
     """CRUD operations for TenantSyncStatus."""
+
+    filter_class = TenantSyncStatusFilter
+
+    def get_select_query(self) -> Select:
+        """Get base select query with default ordering by last_sync_at descending."""
+        return select(self.model).order_by(self.model.last_sync_at.desc())  # type: ignore
 
     async def get_sync_status(
         self,

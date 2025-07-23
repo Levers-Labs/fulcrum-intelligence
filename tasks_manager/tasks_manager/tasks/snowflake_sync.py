@@ -85,6 +85,23 @@ async def get_enabled_metrics_for_tenant() -> list[MetricCacheConfig]:
         return enabled_configs
 
 
+@task(name="get_tenant_identifier", retries=1, retry_delay_seconds=30, timeout_seconds=3600)
+async def get_tenant_identifier() -> str | None:
+    """Get tenant identifier from insights backend for table naming."""
+    # Get configuration and auth
+    config = await AppConfig.load("default")
+    auth = get_client_auth_from_config(config)
+
+    # Get insight backend client
+    insight_client = InsightBackendClient(base_url=config.insights_backend_server_host, auth=auth)
+
+    # Get tenant configuration
+    tenant_details = await insight_client.get_tenant_details()
+    tenant_identifier = tenant_details.get("identifier")
+
+    return tenant_identifier
+
+
 @task(name="get_snowflake_client", retries=1, retry_delay_seconds=30, timeout_seconds=3600)
 async def get_snowflake_client() -> SnowflakeClient:
     """Get Snowflake client for a tenant."""
@@ -208,7 +225,8 @@ async def cache_metric_to_snowflake(
         # Cache the data to Snowflake
         async with get_async_session() as session:
             snowflake_client = await get_snowflake_client()
-            cache_manager = SnowflakeSemanticCacheManager(session, snowflake_client)
+            tenant_identifier = await get_tenant_identifier()
+            cache_manager = SnowflakeSemanticCacheManager(session, snowflake_client, tenant_identifier)
 
             # Cache the metric using the fetched values
             result = await cache_manager.cache_metric_time_series(
@@ -303,7 +321,8 @@ async def cache_tenant_metrics_to_snowflake(
             return error_summary
 
         async with get_async_session() as session:
-            cache_manager = SnowflakeSemanticCacheManager(session)
+            tenant_identifier = await get_tenant_identifier()
+            cache_manager = SnowflakeSemanticCacheManager(session, None, tenant_identifier)
 
             # Prepare run info
             run_context: EngineContext = get_run_context()  # type: ignore
@@ -468,7 +487,8 @@ async def cache_tenant_metrics_to_snowflake(
         # Update tenant sync status for error case if session is available
         try:
             async with get_async_session() as session:
-                cache_manager = SnowflakeSemanticCacheManager(session)
+                tenant_identifier = await get_tenant_identifier()
+                cache_manager = SnowflakeSemanticCacheManager(session, None, tenant_identifier)
                 await cache_manager.end_tenant_cache_operation(
                     sync_operation=SyncOperation.SNOWFLAKE_CACHE,
                     grain=grain,

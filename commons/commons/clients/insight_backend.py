@@ -10,6 +10,14 @@ class InsightBackendClient(AsyncHttpClient):
         # headers = {"Authorization": token}
         return await self.get(f"/users/{user_id}")  # , {"headers": headers})
 
+    async def get_tenant_details(self) -> dict:
+        """
+        Get tenant details for tenant from context.
+        Raises an InvalidTenant exception if the tenant is not found.
+        :return: dict
+        """
+        return await self.get("/tenant/details")
+
     async def get_tenant_config(self) -> dict:
         """
         Get tenant configuration for tenant from context.
