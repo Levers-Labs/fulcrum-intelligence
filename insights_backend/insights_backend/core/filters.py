@@ -8,6 +8,11 @@ class TenantConfigFilter(BaseFilter[TenantConfig]):
         operator="is",
         default=None,
     )
+    enable_metric_cache: bool | None = FilterField(
+        field=TenantConfig.enable_metric_cache,  # type: ignore
+        operator="is",
+        default=None,
+    )
     identifier: str | None = FilterField(
         field=Tenant.identifier,  # type: ignore
         operator="eq",

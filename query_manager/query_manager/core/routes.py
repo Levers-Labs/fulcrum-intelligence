@@ -29,10 +29,10 @@ from query_manager.core.dependencies import (
     oauth2_auth,
 )
 from query_manager.core.enums import OutputFormat
-from query_manager.core.filters import MetricCacheConfigFilter
 from query_manager.core.schemas import (
     BulkGrainConfigUpdate,
     BulkMetricCacheUpdate,
+    CacheInfoResponse,
     Cube,
     DeleteResponse,
     Dimension,
@@ -52,6 +52,7 @@ from query_manager.core.schemas import (
     MetricUpdate,
     MetricValuesResponse,
     TargetListResponse,
+    TenantSyncStatusResponse,
 )
 from query_manager.exceptions import (
     DimensionNotFoundError,
@@ -60,6 +61,8 @@ from query_manager.exceptions import (
     QueryManagerError,
 )
 from query_manager.llm.prompts import ParsedExpressionOutput
+from query_manager.semantic_manager.dependencies import CacheManagerDep
+from query_manager.semantic_manager.models import SyncOperation, SyncStatus
 from query_manager.services.cube import CubeClient, CubeJWTAuthType
 from query_manager.services.s3 import NoSuchKeyError
 from query_manager.utils.metric_builder import MetricDataBuilder
@@ -686,18 +689,31 @@ async def update_metric_cache_config(
     dependencies=[Security(oauth2_auth().verify, scopes=[QUERY_MANAGER_ALL])],  # type: ignore
 )
 async def list_metric_cache_configs(
-    cache_crud: CRUDMetricCacheConfigDep,
+    cache_manager: CacheManagerDep,
     params: Annotated[PaginationParams, Depends(PaginationParams)],
     metric_ids: Annotated[list[str] | None, Query(description="List of metric ids")] = None,  # type: ignore
-    is_enabled: Annotated[bool | None, Query(description="Filter to only enabled metrics")] = None,  # type: ignore
+    is_enabled: Annotated[bool | None, Query(description="Filter to only enabled metrics")] = True,  # type: ignore
 ):
     """
-    Get cache configurations for all metrics.
+    Get cache configurations for all metrics with sync information.
+
+    Now includes enhanced sync data:
+    - **last_sync_date**: Timestamp of the last cache sync for each metric
+    - **sync_status**: Current sync status (SUCCESS, FAILED, RUNNING) for each metric
     """
-    filter_obj = MetricCacheConfigFilter(metric_ids=metric_ids, is_enabled=is_enabled)
-    results, count = await cache_crud.paginate(params, filter_obj.model_dump(exclude_unset=True))
-    response_items = [MetricCacheConfigRead.model_validate(result) for result in results]
-    return Page[MetricCacheConfigRead].create(items=response_items, total_count=count, params=params)
+    try:
+        results, count = await cache_manager.get_metric_cache_configs(
+            params=params,
+            metric_ids=metric_ids,
+            is_enabled=is_enabled,
+        )
+
+        # Convert to response models
+        response_items = [MetricCacheConfigRead.model_validate(result) for result in results]
+        return Page[MetricCacheConfigRead].create(items=response_items, total_count=count, params=params)
+    except Exception as e:
+        logger.error("Failed to get metric cache configs: %s", str(e))
+        raise HTTPException(status_code=500, detail=f"Failed to get metric cache configs: {str(e)}") from e
 
 
 @router.post(
@@ -739,3 +755,70 @@ async def enable_all_metric_caching(
         return [MetricCacheConfigRead.model_validate(config) for config in updated_configs]
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to enable caching for all metrics: {str(e)}") from e
+
+
+# Tenant Sync Status Routes
+@router.get(
+    "/tenant/sync-status",
+    response_model=Page[TenantSyncStatusResponse],
+    summary="Get tenant sync status history",
+    dependencies=[Security(oauth2_auth().verify, scopes=[QUERY_MANAGER_ALL])],
+    tags=["metric-cache"],
+)
+async def get_tenant_sync_status(
+    params: Annotated[PaginationParams, Depends(PaginationParams)],
+    cache_manager: CacheManagerDep,
+    grain: Granularity | None = None,
+    sync_status: SyncStatus | None = None,
+) -> Page[TenantSyncStatusResponse]:
+    """
+    Get tenant sync status history with optional filtering.
+
+    - **sync_operation**: Optional sync operation filter (SEMANTIC_SYNC, SNOWFLAKE_CACHE)
+    - **grain**: Optional granularity filter (DAILY, WEEKLY, MONTHLY, etc.)
+    - **sync_status**: Optional sync status filter (SUCCESS, FAILED, RUNNING)
+    """
+    try:
+        results, count = await cache_manager.get_tenant_sync_history(
+            params=params,
+            sync_operation=SyncOperation.SNOWFLAKE_CACHE,
+            grain=grain,
+            sync_status=sync_status,
+        )
+
+        # Convert to response models
+        response_items = [TenantSyncStatusResponse.model_validate(result) for result in results]
+
+        return Page[TenantSyncStatusResponse].create(items=response_items, total_count=count, params=params)
+    except Exception as e:
+        logger.error("Failed to get tenant sync status: %s", str(e))
+        raise HTTPException(status_code=500, detail=f"Failed to get tenant sync status: {str(e)}") from e
+
+
+# Cache Management Routes
+@router.get(
+    "/cache/info",
+    response_model=CacheInfoResponse,
+    summary="Get comprehensive cache information",
+    dependencies=[Security(oauth2_auth().verify, scopes=[QUERY_MANAGER_ALL])],
+    tags=["metric-cache"],
+)
+async def get_cache_info(
+    cache_manager: CacheManagerDep,
+) -> CacheInfoResponse:
+    """
+    Get comprehensive information about the tenant's cache including table info and performance metrics.
+
+    Returns information about:
+    - Table name, tenant details, and status
+    - Number of metrics cached and available grains
+    - Date range of cached data and last sync timestamp
+    - Performance metrics: size, query times, cache hit ratios
+    - Error information if applicable
+    """
+    try:
+        cache_info = await cache_manager.get_comprehensive_cache_info()
+        return CacheInfoResponse.model_validate(cache_info)
+    except Exception as e:
+        logger.error("Failed to get cache info: %s", str(e))
+        raise HTTPException(status_code=500, detail=f"Failed to get cache info: {str(e)}") from e

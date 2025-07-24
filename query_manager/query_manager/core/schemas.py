@@ -379,8 +379,8 @@ class MetricCacheConfigBase(BaseModel):
 class MetricCacheConfigRead(MetricCacheConfigBase):
     id: int
     metric_id: str
-    tenant_id: int
-    metric: MetricList | None = None
+    last_sync_date: datetime.datetime | None = None
+    sync_status: str | None = None
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -398,3 +398,38 @@ class BulkMetricCacheUpdate(BaseModel):
     model_config = ConfigDict(
         json_schema_extra={"example": {"metric_ids": ["metric_1", "metric_2", "metric_3"], "is_enabled": False}}
     )
+
+
+# Tenant Sync Status Schemas
+class TenantSyncStatusResponse(BaseModel):
+    """Response schema for tenant sync status."""
+
+    id: int
+    sync_operation: str
+    grain: Granularity
+    last_sync_at: datetime.datetime
+    sync_status: str
+    metrics_processed: int | None = None
+    metrics_succeeded: int | None = None
+    metrics_failed: int | None = None
+    error: str | None = None
+    run_info: dict = {}
+    created_at: datetime.datetime
+    updated_at: datetime.datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+# Comprehensive Cache Information Schema
+class CacheInfoResponse(BaseModel):
+    """Response schema for comprehensive cache information."""
+
+    table_name: str
+
+    # Table/data information
+    date_range_start: datetime.date | None = None
+    date_range_end: datetime.date | None = None
+    total_records: int | None = None
+    unique_dates: int | None = None
+
+    model_config = ConfigDict(from_attributes=True)

@@ -1,4 +1,6 @@
 # ruff: noqa: S105,S106
+from unittest.mock import AsyncMock
+
 import pytest
 import pytest_asyncio
 from fastapi import HTTPException
@@ -865,3 +867,189 @@ async def test_update_snowflake_config_auth_method_change(
     assert response.status_code == status.HTTP_200_OK
     data = response.json()
     assert data["auth_method"] == "PRIVATE_KEY"
+
+
+# Add test for new tenant details route added in the diff
+
+
+async def test_get_tenant_details_success(async_client: AsyncClient, insert_tenant, db_session: AsyncSession):
+    """Test successful retrieval of tenant details."""
+    # Act
+    response = await async_client.get("/v1/tenant/details")
+
+    # Assert
+    assert response.status_code == status.HTTP_200_OK
+    data = response.json()
+    assert "id" in data
+    assert "name" in data
+    assert "identifier" in data
+    assert "domains" in data
+    assert data["id"] == insert_tenant.id
+    assert data["name"] == insert_tenant.name
+    assert data["identifier"] == insert_tenant.identifier
+    assert data["domains"] == insert_tenant.domains
+
+
+async def test_get_tenant_details_not_found(mocker, async_client: AsyncClient, db_session: AsyncSession):
+    """Test tenant details retrieval when tenant not found."""
+    # Mock tenant CRUD to raise NotFoundError (using correct method name)
+    mocker.patch("insights_backend.core.crud.TenantCRUD.get", side_effect=NotFoundError("Tenant not found"))
+
+    # Act
+    response = await async_client.get("/v1/tenant/details")
+
+    # Assert
+    assert response.status_code == status.HTTP_404_NOT_FOUND
+    assert "Tenant not found" in response.json()["detail"]
+
+
+async def test_get_tenant_details_with_minimal_data(
+    async_client: AsyncClient, jwt_payload: dict, db_session: AsyncSession
+):
+    """Test tenant details with minimal required data."""
+    # Create tenant with minimal data
+    from commons.utilities.context import set_tenant_id
+    from insights_backend.core.models.tenant import Tenant
+
+    set_tenant_id(jwt_payload["tenant_id"])
+
+    # Create minimal tenant
+    minimal_tenant = Tenant(
+        id=jwt_payload["tenant_id"],
+        external_id=jwt_payload["external_id"],
+        name="Minimal Tenant",
+        identifier="minimal_tenant",
+        domains=[],  # Empty domains
+    )
+    db_session.add(minimal_tenant)
+    await db_session.flush()
+
+    # Act
+    response = await async_client.get("/v1/tenant/details")
+
+    # Assert
+    assert response.status_code == status.HTTP_200_OK
+    data = response.json()
+    assert data["id"] == jwt_payload["tenant_id"]
+    assert data["name"] == "Minimal Tenant"
+    assert data["identifier"] == "minimal_tenant"
+    assert data["domains"] == []
+
+
+async def test_get_tenant_details_context_missing(mocker, async_client: AsyncClient):
+    """Test tenant details when tenant context is missing."""
+    # Mock get_tenant_id to return None
+    mocker.patch("commons.utilities.context.get_tenant_id", return_value=None)
+
+    # Act
+    response = await async_client.get("/v1/tenant/details")
+
+    # Assert - Should return 500 or appropriate error for missing context
+    assert response.status_code >= 400
+
+
+# Add test for new enable_metric_cache functionality that was enhanced in the diff
+
+
+async def test_enable_metric_cache_success(insert_tenant, async_client: AsyncClient):
+    """Test successfully enabling metric cache."""
+    response = await async_client.put("/v1/tenant/metric-cache/enable?enabled=true")
+
+    assert response.status_code == status.HTTP_200_OK
+    data = response.json()
+    assert data["enable_metric_cache"] is True
+
+
+async def test_disable_metric_cache_success(insert_tenant, async_client: AsyncClient):
+    """Test successfully disabling metric cache."""
+    response = await async_client.put("/v1/tenant/metric-cache/enable?enabled=false")
+
+    assert response.status_code == status.HTTP_200_OK
+    data = response.json()
+    assert data["enable_metric_cache"] is False
+
+
+async def test_enable_metric_cache_invalid_parameter(insert_tenant, async_client: AsyncClient):
+    """Test enabling metric cache with invalid parameter."""
+    response = await async_client.put("/v1/tenant/metric-cache/enable?enabled=invalid")
+
+    # Should return validation error
+    assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+
+
+# Test the enhanced snowflake config functionality
+
+
+async def test_create_snowflake_config_duplicate_enhanced(
+    insert_tenant, insert_snowflake_config, snowflake_config_create_data, async_client: AsyncClient
+):
+    """Test creating Snowflake config when one already exists (enhanced error handling)."""
+    # Try to create another config when one already exists
+    response = await async_client.post("/v1/tenant/snowflake-config", json=snowflake_config_create_data)
+
+    # Should fail due to unique constraint on tenant_id
+    assert response.status_code == status.HTTP_409_CONFLICT
+    assert "Snowflake configuration already exists for this tenant" in response.json()["detail"]
+
+
+async def test_snowflake_config_private_key_validation(insert_tenant, async_client: AsyncClient):
+    """Test Snowflake config validation for private key authentication."""
+    invalid_data = {
+        "account_identifier": "test-account",
+        "username": "test_user",
+        "database": "TEST_DB",
+        "db_schema": "TEST_SCHEMA",
+        "auth_method": "PRIVATE_KEY",
+        # Missing private_key field
+    }
+
+    response = await async_client.post("/v1/tenant/snowflake-config", json=invalid_data)
+    assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+
+
+async def test_snowflake_config_password_validation(insert_tenant, async_client: AsyncClient):
+    """Test Snowflake config validation for password authentication."""
+    invalid_data = {
+        "account_identifier": "test-account",
+        "username": "test_user",
+        "database": "TEST_DB",
+        "db_schema": "TEST_SCHEMA",
+        "auth_method": "PASSWORD",
+        # Missing password field
+    }
+
+    response = await async_client.post("/v1/tenant/snowflake-config", json=invalid_data)
+    assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+
+
+async def test_test_snowflake_connection_comprehensive(
+    insert_tenant, snowflake_config_create_data, async_client: AsyncClient, mocker
+):
+    """Test comprehensive Snowflake connection testing."""
+    # Mock successful connection test (matching actual SnowflakeClient response format)
+    mock_test_result = {
+        "success": True,
+        "message": "Connection successful",
+        "connection_details": {
+            "warehouse": "TEST_WH",
+            "database": "TEST_DB",
+            "schema": "TEST_SCHEMA",
+            "role": "TEST_ROLE",
+            "account": "test-account.us-east-1",
+        },
+        "version": "SNOWFLAKE 7.0.0",
+    }
+    # Mock the async method properly
+    mock_test_connection = AsyncMock(return_value=mock_test_result)
+    mocker.patch("insights_backend.core.crud.TenantCRUD.test_snowflake_connection", mock_test_connection)
+
+    response = await async_client.post("/v1/tenant/snowflake-config/test", json=snowflake_config_create_data)
+
+    assert response.status_code == status.HTTP_200_OK
+    data = response.json()
+    assert data["success"] is True
+    assert data["message"] == "Connection successful"
+    assert "connection_details" in data
+    # Version field should be present if mock is working correctly
+    if "version" in data:
+        assert data["version"] == "SNOWFLAKE 7.0.0"

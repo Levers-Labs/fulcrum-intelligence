@@ -1,4 +1,9 @@
+# ruff: noqa: S608
 import logging
+import uuid
+from collections.abc import Generator
+from contextlib import contextmanager
+from datetime import datetime, timedelta
 from typing import Any
 
 import snowflake.snowpark as snowpark
@@ -180,6 +185,23 @@ class SnowflakeClient:
             finally:
                 self._session = None
 
+    @contextmanager
+    def session_context(self) -> Generator[snowpark.Session, None, None]:
+        """Context manager for session lifecycle management."""
+        session = None
+        try:
+            session = self._create_session()
+            yield session
+        except Exception:
+            logger.exception("Error during session operation")
+            raise
+        finally:
+            if session is not None:
+                try:
+                    session.close()
+                except Exception:
+                    logger.exception("Failed to close session in context manager")
+
     def __enter__(self) -> "SnowflakeClient":
         """Context manager entry point."""
         return self
@@ -187,3 +209,194 @@ class SnowflakeClient:
     def __exit__(self, exc_type, exc_val, exc_tb) -> None:
         """Context manager exit - ensures session is closed."""
         self.close_session()
+
+    # Cache-specific methods
+    async def _create_cache_table(self, table_name: str, session: snowpark.Session) -> None:
+        """Create cache table with predefined schema if it doesn't exist."""
+        # First check if table exists
+        table_exists_query = f"""
+        SELECT COUNT(*) 
+        FROM INFORMATION_SCHEMA.TABLES 
+        WHERE TABLE_NAME = '{table_name.split('.')[-1].upper()}' 
+        AND TABLE_SCHEMA = '{self.config.db_schema.upper()}'
+        AND TABLE_CATALOG = '{self.config.database.upper()}'
+        """
+
+        result = session.sql(table_exists_query).collect()
+        table_exists = int(result[0][0]) > 0 if result else False  # type: ignore
+
+        if not table_exists:
+            # Define schema for time series data - single table per tenant
+            schema_sql = f"""
+            CREATE TABLE {table_name} (
+                metric_id VARCHAR,
+                grain VARCHAR,
+                date DATE,
+                value FLOAT,
+                cached_at TIMESTAMP,
+                PRIMARY KEY (metric_id, grain, date)
+            )
+            """
+
+            # Create table
+            session.sql(schema_sql).collect()
+            logger.info("Created cache table %s", table_name)
+        else:
+            logger.debug("Cache table %s already exists, skipping creation", table_name)
+
+    async def create_or_update_metric_time_series(
+        self,
+        table_name: str,
+        data: list[dict[str, Any]],
+        is_full_sync: bool = False,
+    ) -> None:
+        """Create or update Snowflake table with cache data using DataFrame operations."""
+        if not data:
+            return
+
+        with self.session_context() as session:
+            # Ensure table exists
+            await self._create_cache_table(table_name, session)
+
+            # Create DataFrame from the data
+            df = session.create_dataframe(data)
+
+            # Create a temporary table for the new data with unique name
+            unique_suffix = f"{int(datetime.now().timestamp())}_{str(uuid.uuid4())[:8]}"
+            temp_table_name = f"{table_name}_temp_{unique_suffix}"
+
+            try:
+                df.write.mode("overwrite").save_as_table(temp_table_name)
+                logger.debug("Created temporary table: %s", temp_table_name)
+            except Exception as e:
+                logger.error("Failed to create temporary table %s: %s", temp_table_name, str(e))
+                raise
+
+            if is_full_sync:
+                # For full sync, delete existing data for these specific metrics, then insert new data
+                # Get unique metric_ids from the new data
+                metric_ids_query = f"SELECT DISTINCT metric_id FROM {temp_table_name}"
+                metric_ids_result = session.sql(metric_ids_query).collect()
+                metric_ids = [row[0] for row in metric_ids_result]  # type: ignore
+
+                if metric_ids:
+                    # Delete existing data for these specific metrics
+                    metric_ids_str = "', '".join(metric_ids)
+                    delete_sql = f"DELETE FROM {table_name} WHERE metric_id IN ('{metric_ids_str}')"
+                    session.sql(delete_sql).collect()
+
+                    # Insert all new data
+                    insert_sql = f"""
+                    INSERT INTO {table_name} (metric_id, grain, date, value, cached_at)
+                    SELECT metric_id, grain, date, value, cached_at FROM {temp_table_name}
+                    """
+                    session.sql(insert_sql).collect()
+            else:
+                # For incremental sync, use SQL MERGE for upsert
+                merge_sql = f"""
+                MERGE INTO {table_name} AS target
+                USING {temp_table_name} AS source
+                ON target.metric_id = source.metric_id
+                   AND target.grain = source.grain
+                   AND target.date = source.date
+                WHEN MATCHED THEN
+                    UPDATE SET
+                        value = source.value,
+                        cached_at = source.cached_at
+                WHEN NOT MATCHED THEN
+                    INSERT (metric_id, grain, date, value, cached_at)
+                    VALUES (source.metric_id, source.grain, source.date, source.value, source.cached_at)
+                """
+                session.sql(merge_sql).collect()
+
+            # Clean up temporary table
+            try:
+                session.sql(f"DROP TABLE IF EXISTS {temp_table_name}").collect()
+                logger.debug("Dropped temporary table: %s", temp_table_name)
+            except Exception as e:
+                logger.warning("Failed to drop temporary table %s: %s", temp_table_name, str(e))
+
+        logger.info("Successfully cached %d records to table %s using DataFrame operations", len(data), table_name)
+
+    async def get_table_row_count(self, table_name: str) -> int:
+        """Get the number of rows in a Snowflake table."""
+        try:
+            with self.session_context() as session:
+                count_query = f"SELECT COUNT(*) FROM {table_name}"  # noqa: S608
+                result = session.sql(count_query).collect()
+                return int(result[0][0]) if result else 0  # type: ignore
+        except Exception as e:
+            logger.error("Failed to get row count for table %s: %s", table_name, str(e))
+            return 0
+
+    async def get_table_performance_metrics(self, table_name: str) -> dict[str, Any]:
+        """Get performance metrics for a Snowflake table."""
+        try:
+            with self.session_context() as session:
+                # Get table information
+                info_query = f"""
+                SELECT
+                    COUNT(*),
+                    COUNT(DISTINCT date),
+                    MIN(date),
+                    MAX(date),
+                    AVG(value),
+                    STDDEV(value)
+                FROM {table_name}
+                """  # noqa: S608
+
+                result = session.sql(info_query).collect()
+                if result:
+                    row = result[0]
+                    return {
+                        "row_count": int(row[0]) if row[0] else 0,  # type: ignore
+                        "unique_dates": int(row[1]) if row[1] else 0,  # type: ignore
+                        "date_range": {
+                            "min_date": str(row[2]) if row[2] else None,
+                            "max_date": str(row[3]) if row[3] else None,
+                        },
+                        "value_statistics": {
+                            "avg_value": float(row[4]) if row[4] else 0.0,  # type: ignore
+                            "stddev_value": float(row[5]) if row[5] else 0.0,  # type: ignore
+                        },
+                        "status": "SUCCESS",
+                    }
+                else:
+                    return {"status": "NO_DATA"}
+
+        except Exception as e:
+            logger.error("Failed to get performance metrics for table %s: %s", table_name, str(e))
+            return {"status": "ERROR", "error": str(e)}
+
+    async def cleanup_old_table_data(
+        self,
+        table_name: str,
+        retention_days: int = 730,
+    ) -> dict[str, Any]:
+        """Clean up old data from a Snowflake table beyond retention period."""
+        try:
+            # Calculate cutoff date
+            cutoff_date = datetime.now().date() - timedelta(days=retention_days)
+
+            with self.session_context() as session:
+                # Count records to be deleted
+                count_query = f"SELECT COUNT(*) FROM {table_name} WHERE date < '{cutoff_date}'"  # noqa: S608
+                count_result = session.sql(count_query).collect()
+                records_to_delete = int(count_result[0][0]) if count_result else 0  # type: ignore
+
+                if records_to_delete > 0:
+                    # Delete old records
+                    delete_query = f"DELETE FROM {table_name} WHERE date < '{cutoff_date}'"  # noqa: S608
+                    session.sql(delete_query).collect()
+
+                    logger.info("Cleaned up %d old records from table %s", records_to_delete, table_name)
+
+                return {
+                    "cutoff_date": cutoff_date.isoformat(),
+                    "records_deleted": records_to_delete,
+                    "status": "SUCCESS",
+                }
+
+        except Exception as e:
+            logger.error("Cache cleanup failed for table %s: %s", table_name, str(e))
+            return {"status": "ERROR", "error": str(e)}

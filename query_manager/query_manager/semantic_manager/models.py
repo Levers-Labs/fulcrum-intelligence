@@ -37,8 +37,15 @@ class SyncType(str, Enum):
     INCREMENTAL = "INCREMENTAL"
 
 
+class SyncOperation(str, Enum):
+    """Operation type for metric data synchronization."""
+
+    SEMANTIC_SYNC = "SEMANTIC_SYNC"
+    SNOWFLAKE_CACHE = "SNOWFLAKE_CACHE"
+
+
 class SyncEvent(TypedDict):
-    """Type definition for sync event entries."""
+    """Type definition for sync event entries (metric-level)."""
 
     sync_status: SyncStatus
     sync_type: SyncType
@@ -59,6 +66,10 @@ class MetricSyncStatus(BaseTimeStampedTenantModel, table=True):  # type: ignore
 
     metric_id: str
     grain: Granularity
+    sync_operation: SyncOperation = Field(
+        default=SyncOperation.SEMANTIC_SYNC,
+        sa_column=Column(SAEnum(SyncOperation, name="syncoperation", inherit_schema=True)),
+    )
     dimension_name: str | None = None
     last_sync_at: datetime
     sync_status: SyncStatus = Field(
@@ -76,16 +87,22 @@ class MetricSyncStatus(BaseTimeStampedTenantModel, table=True):  # type: ignore
 
     # Define table arguments including schema, indexes and constraints
     __table_args__ = (
-        # Unique constraint
+        # Unique constraint - updated to include sync_operation
         UniqueConstraint(
-            "metric_id", "tenant_id", "grain", "dimension_name", "sync_type", name="uq_metric_sync_status"
+            "metric_id",
+            "tenant_id",
+            "grain",
+            "sync_operation",
+            "dimension_name",
+            "sync_type",
+            name="uq_metric_sync_status",
         ),
         # Indexes
         Index("idx_metric_sync_status_metric_tenant", "metric_id", "tenant_id"),
         Index("idx_metric_sync_status_grain_dimension", "grain", "dimension_name"),
+        Index("idx_metric_sync_status_operation", "sync_operation"),
         Index("idx_metric_sync_status_last_sync", "last_sync_at", postgresql_ops={"last_sync_at": "DESC"}),
         Index("idx_metric_sync_status_status", "sync_status"),
-        Index("idx_metric_sync_status_history", "history", postgresql_using="gin"),
         # Schema definition
         {"schema": "query_store"},
     )
@@ -199,6 +216,41 @@ class MetricTarget(BaseTimeStampedTenantModel, table=True):  # type: ignore
             "target_date",
             postgresql_ops={"target_date": "DESC"},
         ),
+        # Schema definition
+        {"schema": "query_store"},
+    )
+
+
+class TenantSyncStatus(BaseTimeStampedTenantModel, table=True):  # type: ignore
+    """
+    Stores metadata about tenant-level sync operations (e.g., Snowflake cache sync).
+    """
+
+    __tablename__ = "tenant_sync_status"
+
+    sync_operation: SyncOperation = Field(
+        default=SyncOperation.SNOWFLAKE_CACHE,
+        sa_column=Column(SAEnum(SyncOperation, name="syncoperation", inherit_schema=True)),
+    )
+    grain: Granularity
+    last_sync_at: datetime
+    sync_status: SyncStatus = Field(
+        default=SyncStatus.RUNNING,
+        sa_column=Column(SAEnum(SyncStatus, name="syncstatus", inherit_schema=True)),
+    )
+    metrics_processed: int | None = None
+    metrics_succeeded: int | None = None
+    metrics_failed: int | None = None
+    error: str | None = None
+    # Prefect run info
+    run_info: dict = Field(default_factory=dict, sa_column=Column(JSONB))
+
+    # Define table arguments including schema, indexes and constraints
+    __table_args__ = (
+        # Indexes
+        Index("idx_tenant_sync_status_tenant_operation", "tenant_id", "sync_operation"),
+        Index("idx_tenant_sync_status_last_sync", "last_sync_at", postgresql_ops={"last_sync_at": "DESC"}),
+        Index("idx_tenant_sync_status_status", "sync_status"),
         # Schema definition
         {"schema": "query_store"},
     )

@@ -231,6 +231,74 @@ class TestSnowflakeClient:
         # After exiting context, session should be closed
         mock_snowpark_session.close.assert_called_once()
 
+    @patch("snowflake.snowpark.Session.builder")
+    def test_context_manager_entry(self, mock_builder, mock_snowpark_session):
+        """Test context manager __enter__ creates session correctly."""
+        mock_builder.configs.return_value.create.return_value = mock_snowpark_session
+
+        config = SnowflakeConfigModel(
+            account_identifier="my_account",
+            username="test_user",
+            password="test_password",
+            database="test_db",
+            db_schema="test_schema",
+            auth_method=SnowflakeAuthMethod.PASSWORD,
+        )
+
+        client = SnowflakeClient(config=config)
+
+        # Context manager doesn't call create_session directly,
+        # it just returns the client and sets up close_session in __exit__
+        with client as context_client:
+            assert context_client == client
+
+    @patch("snowflake.snowpark.Session.builder")
+    def test_context_manager_exit_closes_session(self, mock_builder, mock_snowpark_session):
+        """Test context manager __exit__ closes session properly."""
+        mock_builder.configs.return_value.create.return_value = mock_snowpark_session
+
+        config = SnowflakeConfigModel(
+            account_identifier="my_account",
+            username="test_user",
+            password="test_password",
+            database="test_db",
+            db_schema="test_schema",
+            auth_method=SnowflakeAuthMethod.PASSWORD,
+        )
+
+        client = SnowflakeClient(config=config)
+
+        with patch.object(client, "close_session") as mock_close:
+            with client:
+                pass
+
+            mock_close.assert_called_once()
+
+    @patch("snowflake.snowpark.Session.builder")
+    def test_context_manager_exit_with_exception(self, mock_builder, mock_snowpark_session):
+        """Test context manager __exit__ closes session even with exception."""
+        mock_builder.configs.return_value.create.return_value = mock_snowpark_session
+
+        config = SnowflakeConfigModel(
+            account_identifier="my_account",
+            username="test_user",
+            password="test_password",
+            database="test_db",
+            db_schema="test_schema",
+            auth_method=SnowflakeAuthMethod.PASSWORD,
+        )
+
+        client = SnowflakeClient(config=config)
+
+        with patch.object(client, "close_session") as mock_close:
+            try:
+                with client:
+                    raise ValueError("Test exception")
+            except ValueError:
+                pass
+
+            mock_close.assert_called_once()
+
     @pytest.mark.asyncio
     @patch("snowflake.snowpark.Session.builder")
     async def test_test_connection_success_with_password(self, mock_builder, mock_snowpark_session):
@@ -455,3 +523,218 @@ class TestSnowflakeClient:
 
         session_mock.close.assert_called_once()
         assert client._session is None
+
+
+class TestSnowflakeClientCacheMethods:
+    """Test cache-specific methods added in the diff."""
+
+    @pytest.mark.asyncio
+    @patch("snowflake.snowpark.Session.builder")
+    async def test_create_cache_table_new_table(self, mock_builder, snowflake_config):
+        """Test creating a new cache table."""
+        mock_session = MagicMock()
+        mock_builder.configs.return_value.create.return_value = mock_session
+
+        # Mock table doesn't exist
+        mock_session.sql.return_value.collect.return_value = [[0]]
+
+        client = SnowflakeClient(config=snowflake_config)
+        await client._create_cache_table("test_table", mock_session)
+
+        # Should check if table exists and create it
+        assert mock_session.sql.call_count == 2
+        create_call = mock_session.sql.call_args_list[1][0][0]
+        assert "CREATE TABLE test_table" in create_call
+        assert "metric_id VARCHAR" in create_call
+        assert "PRIMARY KEY (metric_id, grain, date)" in create_call
+
+    @pytest.mark.asyncio
+    @patch("snowflake.snowpark.Session.builder")
+    async def test_create_cache_table_existing_table(self, mock_builder, snowflake_config):
+        """Test handling existing cache table."""
+        mock_session = MagicMock()
+        mock_builder.configs.return_value.create.return_value = mock_session
+
+        # Mock table exists
+        mock_session.sql.return_value.collect.return_value = [[1]]
+
+        client = SnowflakeClient(config=snowflake_config)
+        await client._create_cache_table("test_table", mock_session)
+
+        # Should only check if table exists, not create it
+        assert mock_session.sql.call_count == 1
+
+    @pytest.mark.asyncio
+    @patch("snowflake.snowpark.Session.builder")
+    async def test_create_or_update_metric_time_series_full_sync(self, mock_builder, snowflake_config):
+        """Test creating/updating metric time series with full sync."""
+        test_data = [
+            {
+                "metric_id": "test_metric",
+                "date": "2024-01-01",
+                "grain": "day",
+                "value": 100.0,
+                "cached_at": "2024-01-01T10:00:00",
+            }
+        ]
+
+        mock_session = MagicMock()
+        mock_builder.configs.return_value.create.return_value = mock_session
+
+        # Mock DataFrame and write operations
+        mock_df = MagicMock()
+        mock_session.create_dataframe.return_value = mock_df
+        mock_df.write.mode.return_value.save_as_table.return_value = None
+
+        client = SnowflakeClient(config=snowflake_config)
+
+        with patch.object(client, "_create_cache_table") as mock_create_table:
+            await client.create_or_update_metric_time_series(table_name="test_table", data=test_data, is_full_sync=True)
+
+            # Should create table and write data
+            mock_create_table.assert_called_once_with("test_table", mock_session)
+            mock_session.create_dataframe.assert_called_once_with(test_data)
+
+    @pytest.mark.asyncio
+    @patch("snowflake.snowpark.Session.builder")
+    async def test_create_or_update_metric_time_series_incremental_sync(self, mock_builder, snowflake_config):
+        """Test creating/updating metric time series with incremental sync."""
+        test_data = [
+            {
+                "metric_id": "test_metric",
+                "date": "2024-01-01",
+                "grain": "day",
+                "value": 100.0,
+                "cached_at": "2024-01-01T10:00:00",
+            }
+        ]
+
+        mock_session = MagicMock()
+        mock_builder.configs.return_value.create.return_value = mock_session
+
+        # Mock DataFrame and write operations
+        mock_df = MagicMock()
+        mock_session.create_dataframe.return_value = mock_df
+        mock_df.write.mode.return_value.save_as_table.return_value = None
+
+        client = SnowflakeClient(config=snowflake_config)
+
+        with patch.object(client, "_create_cache_table") as mock_create_table:
+            await client.create_or_update_metric_time_series(
+                table_name="test_table", data=test_data, is_full_sync=False
+            )
+
+            # Should create table and write data
+            mock_create_table.assert_called_once_with("test_table", mock_session)
+            mock_session.create_dataframe.assert_called_once_with(test_data)
+
+    @pytest.mark.asyncio
+    @patch("snowflake.snowpark.Session.builder")
+    async def test_get_table_row_count(self, mock_builder, snowflake_config):
+        """Test getting table row count."""
+        mock_session = MagicMock()
+        mock_builder.configs.return_value.create.return_value = mock_session
+        mock_session.sql.return_value.collect.return_value = [[1500]]
+
+        client = SnowflakeClient(config=snowflake_config)
+        count = await client.get_table_row_count("test_table")
+
+        assert count == 1500
+        mock_session.sql.assert_called_once()
+        sql_query = mock_session.sql.call_args[0][0]
+        assert "SELECT COUNT(*) FROM test_table" in sql_query
+
+    @pytest.mark.asyncio
+    @patch("snowflake.snowpark.Session.builder")
+    async def test_get_table_performance_metrics(self, mock_builder, snowflake_config):
+        """Test getting table performance metrics."""
+        mock_session = MagicMock()
+        mock_builder.configs.return_value.create.return_value = mock_session
+
+        # Mock the single query result (based on actual implementation)
+        mock_session.sql.return_value.collect.return_value = [
+            [1000, 31, "2024-01-01", "2024-01-31", 150.5, 25.3]  # All stats in one query
+        ]
+
+        client = SnowflakeClient(config=snowflake_config)
+        metrics = await client.get_table_performance_metrics("test_table")
+
+        assert metrics["row_count"] == 1000
+        assert metrics["unique_dates"] == 31
+        assert metrics["date_range"]["min_date"] == "2024-01-01"
+        assert metrics["date_range"]["max_date"] == "2024-01-31"
+        assert metrics["value_statistics"]["avg_value"] == 150.5
+        assert metrics["value_statistics"]["stddev_value"] == 25.3
+        assert metrics["status"] == "SUCCESS"
+
+        # Should make 1 SQL query (as per actual implementation)
+        assert mock_session.sql.call_count == 1
+
+    @pytest.mark.asyncio
+    @patch("snowflake.snowpark.Session.builder")
+    async def test_cleanup_old_table_data(self, mock_builder, snowflake_config):
+        """Test cleaning up old table data."""
+        mock_session = MagicMock()
+        mock_builder.configs.return_value.create.return_value = mock_session
+        mock_session.sql.return_value.collect.return_value = [[50]]  # records to delete
+
+        client = SnowflakeClient(config=snowflake_config)
+        result = await client.cleanup_old_table_data(table_name="test_table", retention_days=365)
+
+        assert result["status"] == "SUCCESS"
+        assert result["records_deleted"] == 50  # Correct field name
+        assert "cutoff_date" in result
+
+        # Should execute count and delete queries
+        assert mock_session.sql.call_count == 2
+
+    @pytest.mark.asyncio
+    async def test_create_or_update_metric_time_series_empty_data(self, snowflake_config):
+        """Test handling empty data."""
+        client = SnowflakeClient(config=snowflake_config)
+        # The actual implementation returns None for empty data
+        result = await client.create_or_update_metric_time_series(table_name="test_table", data=[], is_full_sync=True)
+
+        assert result is None
+
+    @pytest.mark.asyncio
+    @patch("snowflake.snowpark.Session.builder")
+    async def test_error_handling_in_cache_methods(self, mock_builder, snowflake_config):
+        """Test error handling in cache methods."""
+        mock_builder.configs.return_value.create.side_effect = Exception("Connection failed")
+
+        client = SnowflakeClient(config=snowflake_config)
+
+        # The actual implementation returns 0 on error, doesn't raise
+        result = await client.get_table_row_count("test_table")
+        assert result == 0
+
+    @pytest.mark.asyncio
+    @patch("snowflake.snowpark.Session.builder")
+    async def test_get_table_performance_metrics_error_handling(self, mock_builder, snowflake_config):
+        """Test error handling in performance metrics."""
+        mock_session = MagicMock()
+        mock_builder.configs.return_value.create.return_value = mock_session
+        mock_session.sql.side_effect = Exception("Query failed")
+
+        client = SnowflakeClient(config=snowflake_config)
+
+        # The actual implementation returns error status, doesn't raise
+        result = await client.get_table_performance_metrics("test_table")
+        assert result["status"] == "ERROR"
+        assert "Query failed" in result["error"]
+
+    @pytest.mark.asyncio
+    @patch("snowflake.snowpark.Session.builder")
+    async def test_cleanup_old_table_data_error_handling(self, mock_builder, snowflake_config):
+        """Test error handling in cleanup operation."""
+        mock_session = MagicMock()
+        mock_builder.configs.return_value.create.return_value = mock_session
+        mock_session.sql.side_effect = Exception("Delete failed")
+
+        client = SnowflakeClient(config=snowflake_config)
+
+        result = await client.cleanup_old_table_data("test_table", 365)
+
+        assert result["status"] == "ERROR"
+        assert "Delete failed" in result["error"]

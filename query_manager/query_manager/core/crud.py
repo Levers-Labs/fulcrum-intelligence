@@ -114,6 +114,15 @@ class CRUDMetricCacheGrainConfig(
             raise NotFoundError(id=f"{grain}")
         return instance
 
+    async def get_enabled_grains(self) -> list[MetricCacheGrainConfig]:
+        """
+        Get all enabled grain cache configurations for a tenant.
+        """
+        statement = select(MetricCacheGrainConfig).filter_by(is_enabled=True)
+
+        result = await self.session.execute(statement)
+        return list(result.scalars().all())
+
     async def create_default_grain_configs(self) -> list[MetricCacheGrainConfig]:
         """
         Create default grain configurations for a new tenant.
