@@ -576,7 +576,7 @@ class TestForecastingEvaluator:
         required_perf = mock_forecasting_pattern.required_performance[0]
 
         series_data = evaluator_with_series._prepare_required_performance_series_data(
-            mock_forecasting_pattern, Granularity.DAY, required_perf
+            mock_forecasting_pattern, required_perf
         )
 
         assert isinstance(series_data, list)
@@ -584,39 +584,14 @@ class TestForecastingEvaluator:
 
         data_dict = series_data[0]
         assert "data" in data_dict
-        assert "required_performance" in data_dict
 
     def test_prepare_required_performance_series_data_no_series(self, evaluator, mock_forecasting_pattern):
         """Test _prepare_required_performance_series_data with no series data."""
         required_perf = mock_forecasting_pattern.required_performance[0]
 
-        series_data = evaluator._prepare_required_performance_series_data(
-            mock_forecasting_pattern, Granularity.DAY, required_perf
-        )
+        series_data = evaluator._prepare_required_performance_series_data(mock_forecasting_pattern, required_perf)
 
         assert series_data == []
-
-    @patch("levers.primitives.get_period_range_for_grain")
-    def test_prepare_required_performance_series_data_no_remaining_periods(
-        self, mock_get_range, evaluator_with_series, mock_forecasting_pattern
-    ):
-        """Test _prepare_required_performance_series_data with no remaining periods."""
-        mock_get_range.return_value = (pd.Timestamp("2024-01-01"), pd.Timestamp("2024-01-31"))
-        required_perf = RequiredPerformance(
-            period=PeriodType.END_OF_MONTH,
-            remaining_periods=0,  # No remaining periods
-            required_pop_growth_percent=15.0,
-        )
-
-        series_data = evaluator_with_series._prepare_required_performance_series_data(
-            mock_forecasting_pattern, Granularity.DAY, required_perf
-        )
-
-        assert isinstance(series_data, list)
-        assert len(series_data) == 1
-        data_dict = series_data[0]
-        assert "required_performance" in data_dict
-        assert data_dict["required_performance"] == []
 
     @patch("levers.primitives.get_period_range_for_grain")
     def test_prepare_pacing_series_data(self, mock_get_range, evaluator_with_series, mock_forecasting_pattern):
@@ -692,7 +667,7 @@ class TestForecastingEvaluator:
                 RequiredPerformance(required_pop_growth_percent=None),  # Invalid: None value
                 RequiredPerformance(remaining_periods=None),  # Invalid: None value
                 RequiredPerformance(remaining_periods=0),  # Invalid: 0 periods
-                RequiredPerformance(required_pop_growth_percent=15.0, remaining_periods=4),  # Valid
+                RequiredPerformance(required_pop_growth_percent=15.0, remaining_periods=4, previous_periods=3),  # Valid
             ],
             forecast=[],
         )
@@ -735,6 +710,7 @@ class TestForecastingEvaluator:
                     period=PeriodType.END_OF_MONTH,
                     remaining_periods=4,
                     required_pop_growth_percent=15.0,
+                    previous_periods=3,
                 )
             ],
             forecast=[
@@ -933,6 +909,7 @@ class TestForecastingEvaluator:
                     period=PeriodType.END_OF_MONTH,
                     remaining_periods=4,
                     required_pop_growth_percent=15.0,
+                    previous_periods=3,
                 )
             ],
             forecast=[],

@@ -5,6 +5,7 @@ Story evaluator for the forecasting pattern.
 import logging
 from typing import Any
 
+import numpy as np
 import pandas as pd
 
 from commons.models.enums import Granularity
@@ -86,6 +87,8 @@ class ForecastingEvaluator(StoryEvaluatorBase[Forecasting]):
                     and required_perf.required_pop_growth_percent is not None
                     and required_perf.remaining_periods is not None
                     and required_perf.remaining_periods > 0
+                    and required_perf.previous_periods is not None
+                    and required_perf.previous_periods > 2
                 ):
                     stories.append(
                         self._create_required_performance_story(pattern_result, metric_id, metric, grain, required_perf)
@@ -392,7 +395,7 @@ class ForecastingEvaluator(StoryEvaluatorBase[Forecasting]):
         detail = render_story_text(story_type, "detail", context)
 
         # Prepare required performance series data for visualization
-        series_data = self._prepare_required_performance_series_data(pattern_result, grain, required_perf)
+        series_data = self._prepare_required_performance_series_data(pattern_result, required_perf)
 
         # Prepare the story model
         return self.prepare_story_model(
@@ -631,7 +634,7 @@ class ForecastingEvaluator(StoryEvaluatorBase[Forecasting]):
         return aggregated
 
     def _prepare_required_performance_series_data(
-        self, pattern_result: Forecasting, grain: Granularity, required_perf=None
+        self, pattern_result: Forecasting, required_perf=None
     ) -> list[dict[str, Any]]:
         """
         Prepare series data for required performance visualization.
@@ -644,98 +647,40 @@ class ForecastingEvaluator(StoryEvaluatorBase[Forecasting]):
 
         Args:
             pattern_result: Forecasting pattern result containing required_performance data
-            grain: Granularity of the analysis
             required_perf: The specific required performance object
 
         Returns:
-            List of dictionaries with combined historical and forecast data, including:
-            - data: DataFrame with combined historical and forecast data
-            - forecast: DataFrame with forecast data
+            List of dictionaries with series data, including:
+            - data: DataFrame with series data and pop_growth_percent
         """
         analysis_date = pd.to_datetime(pattern_result.analysis_date)
-        period_start_date, period_end_date = get_period_range_for_grain(
+        period_start_date, _ = get_period_range_for_grain(
             analysis_date, self._get_period_grain(required_perf.period), include_today=True  # type: ignore
         )
         period_start_date = pd.to_datetime(period_start_date)
-        period_end_date = pd.to_datetime(period_end_date)
 
         # Return empty if no series data
         if self.series_df is None or self.series_df.empty:
             return []
 
         # Prepare historical data with growth rates
-        actual_df = self.series_df.copy()
-        actual_df["date"] = pd.to_datetime(actual_df["date"])
-        actual_df = actual_df[actual_df["date"] >= period_start_date]
-        actual_df = actual_df.sort_values("date")
-        actual_df["pop_growth_percent"] = round(actual_df["value"].pct_change() * 100, 2)
-
-        # Remove first row (NaN growth)
-        historical_df = actual_df.iloc[1:].copy()
-
-        # Return if no required performance data
-        if not required_perf or required_perf.required_pop_growth_percent is None:
-            return [{"data": historical_df.to_dict(orient="records"), "required_performance": []}]
-
-        # Extract required growth parameters
-        required_growth = required_perf.required_pop_growth_percent
-        remaining_periods = required_perf.remaining_periods or 0
-        if remaining_periods <= 0:
-            return [{"data": historical_df.to_dict(orient="records"), "required_performance": []}]
-
-        # Get last historical date and period end date
-        last_date = (
-            historical_df["date"].max() if not historical_df.empty else pd.to_datetime(pattern_result.analysis_date)
-        )
-
-        # Generate daily forecast data for future period (same as forecast method)
-        if period_end_date:
-            # Create daily dates from last_date+1 to period_end_date
-            daily_future_dates = pd.date_range(start=last_date + pd.Timedelta(days=1), end=period_end_date, freq="D")
-        else:
-            # Fallback: generate based on remaining_periods (approximate)
-            days_ahead = remaining_periods * 7 if grain == Granularity.WEEK else remaining_periods
-            daily_future_dates = pd.date_range(start=last_date + pd.Timedelta(days=1), periods=days_ahead, freq="D")
-
-        if len(daily_future_dates) == 0:
-            return [{"data": historical_df.to_dict(orient="records"), "required_performance": []}]
-
-        # Create daily DataFrame with forecast values (placeholder values for conversion)
-        daily_forecast_df = pd.DataFrame(
-            {
-                "date": daily_future_dates,
-                "value": required_growth,  # Use required growth as placeholder value
-            }
-        )
-
-        # Convert daily data to target grain using SAME method as forecast
-        future_df = self._convert_daily_forecast_to_grain(daily_forecast_df, grain)
-
-        # Filter to period end date if specified (same logic as forecast)
-        if period_end_date:
-            future_df = future_df[future_df["date"] <= period_end_date]
-
-        # Replace forecast values with required performance data
-        future_df["value"] = None
-        future_df["required_pop_growth_percent"] = required_growth
+        df = self.series_df.copy()
+        df["date"] = pd.to_datetime(df["date"])
+        df = df[df["date"] >= period_start_date]
+        df = df.sort_values("date")
+        df["pop_growth_percent"] = round(df["value"].pct_change() * 100, 2)
 
         # Convert DataFrames to JSON-serializable format
         # Convert date column to ISO format strings
-        if not historical_df.empty and "date" in historical_df.columns:
-            historical_df = historical_df.copy()
-            historical_df["date"] = historical_df["date"].dt.strftime("%Y-%m-%d")
-
-        if not future_df.empty and "date" in future_df.columns:
-            future_df = future_df.copy()
-            future_df["date"] = future_df["date"].dt.strftime("%Y-%m-%d")
+        if not df.empty and "date" in df.columns:
+            df = df.copy()
+            df["date"] = df["date"].dt.strftime("%Y-%m-%d")
 
         # Replace inf, -inf, and NaN with None for JSON serialization
-        historical_df = historical_df.replace([float("inf"), float("-inf"), pd.NA], 0)  # type: ignore
-        future_df = future_df.replace([float("inf"), float("-inf"), pd.NA], 0)  # type: ignore
+        df = df.replace([float("inf"), float("-inf"), pd.NA, None, np.nan], 0)  # type: ignore
 
         result = {
-            "data": historical_df.to_dict(orient="records"),
-            "required_performance": future_df.to_dict(orient="records"),
+            "data": df.to_dict(orient="records"),
         }
 
         return [result]
