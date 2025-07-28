@@ -1,0 +1,253 @@
+---
+description:
+globs:
+alwaysApply: false
+---
+# Testing Guidelines
+
+## 🧪 Testing Philosophy
+
+**Comprehensive testing** across microservices with fast feedback loops
+
+- **Test Pyramid**: Unit → Integration → End-to-End
+- **Coverage**: 70% minimum, 80%+ target
+- **Isolation**: Independent, reliable tests
+- **Documentation**: Tests as living specs
+
+## 📊 Coverage Standards
+
+```toml
+# .coveragerc
+[run]
+source = service_name
+omit = */tests/*, */migrations/*
+
+[report]
+fail_under = 70
+show_missing = true
+```
+
+## 🏗️ Test Structure
+
+```
+tests/
+├── unit/                  # Fast, isolated tests
+│   ├── conftest.py       # Test configuration
+│   ├── core/             # Core logic tests
+│   └── services/         # Service layer tests
+├── integration/          # Slower, realistic tests
+└── fixtures/             # Shared test data
+```
+
+## 🔧 Pytest Configuration
+
+```toml
+# pyproject.toml
+[tool.pytest.ini_options]
+addopts = "--cov=service_name --cov-report=term-missing"
+testpaths = ["tests"]
+asyncio_mode = "auto"
+```
+
+### Dependencies
+```toml
+pytest = "^8.0.2"
+pytest-cov = "^5.0.0"
+pytest-asyncio = "^0.23.6"
+factory-boy = "^3.3.0"
+```
+
+## 🧱 Unit Testing
+
+### Service Testing
+```python
+class TestMetricService:
+    @pytest.fixture
+    def metric_service(self, mock_session):
+        return MetricService(mock_session)
+
+    async def test_get_metric_success(self, metric_service, mock_session):
+        # Arrange
+        expected_metric = Metric(id="test", name="Test")
+        mock_session.execute.return_value.scalar_one_or_none.return_value = expected_metric
+
+        # Act
+        result = await metric_service.get_metric("test")
+
+        # Assert
+        assert result == expected_metric
+        mock_session.execute.assert_called_once()
+```
+
+### Route Testing
+```python
+@patch('service_name.core.routes.get_metric_service')
+def test_get_metric_success(self, mock_get_service):
+    # Arrange
+    mock_service = Mock()
+    mock_service.get_metric.return_value = {"id": "test", "name": "Test"}
+    mock_get_service.return_value = mock_service
+
+    # Act
+    response = client.get("/v1/metrics/test")
+
+    # Assert
+    assert response.status_code == 200
+    assert response.json()["id"] == "test"
+```
+
+## 🔗 Integration Testing
+
+### Database Integration
+```python
+class TestMetricCRUD:
+    async def test_create_and_get_metric(self, session):
+        # Arrange
+        crud = CRUDMetric(session)
+        metric_data = {"id": "test", "name": "Test Metric"}
+
+        # Act
+        created = await crud.create(metric_data)
+        await session.commit()
+        retrieved = await crud.get("test")
+
+        # Assert
+        assert retrieved.id == "test"
+        assert created.id == retrieved.id
+```
+
+## 🏭 Test Factories
+
+```python
+# tests/factories.py
+import factory
+
+class MetricFactory(factory.Factory):
+    class Meta:
+        model = Metric
+
+    id = factory.Sequence(lambda n: f"metric_{n}")
+    name = factory.Faker("word")
+    description = factory.Faker("text")
+    is_active = True
+
+# Usage
+def test_metric_creation():
+    metric = MetricFactory.build()
+    assert metric.name is not None
+    assert metric.is_active is True
+```
+
+## 🔄 Async Testing
+
+```python
+class TestAsyncService:
+    @pytest.fixture
+    def service(self, mock_client):
+        return AsyncService(mock_client)
+
+    async def test_fetch_data(self, service, mock_client):
+        # Arrange
+        mock_client.get_data.return_value = {"data": "test"}
+
+        # Act
+        result = await service.fetch_data("test-id")
+
+        # Assert
+        assert result["data"] == "test"
+        mock_client.get_data.assert_called_once_with("test-id")
+```
+
+## 🎭 Mocking Strategies
+
+### HTTP Client Mocking
+```python
+@patch('httpx.AsyncClient.get')
+async def test_fetch_data_success(self, mock_get, client):
+    # Arrange
+    mock_response = Mock()
+    mock_response.json.return_value = {"result": "success"}
+    mock_response.status_code = 200
+    mock_get.return_value = mock_response
+
+    # Act
+    result = await client.fetch_data("test-endpoint")
+
+    # Assert
+    assert result["result"] == "success"
+```
+
+## 🚀 Running Tests
+
+```bash
+# Run all tests with coverage
+make test app=service_name
+
+# Run specific tests
+pytest tests/unit/core/test_models.py
+
+# Run with pattern
+pytest -k "test_metric"
+
+# Generate HTML coverage
+pytest --cov=service_name --cov-report=html
+```
+
+## 📈 Performance Testing
+
+```python
+async def test_concurrent_requests(self, session):
+    # Arrange
+    service = MetricService(session)
+    request_count = 100
+
+    # Act
+    start_time = time.time()
+    tasks = [service.get_metric(f"metric_{i}") for i in range(request_count)]
+    await asyncio.gather(*tasks, return_exceptions=True)
+    duration = time.time() - start_time
+
+    # Assert
+    requests_per_second = request_count / duration
+    assert requests_per_second > 50  # Performance threshold
+```
+
+## 🛠️ Test Utilities
+
+```python
+# tests/utils.py
+def load_test_data(filename: str) -> dict:
+    """Load test data from JSON file."""
+    test_data_path = Path(__file__).parent / "fixtures" / filename
+    with open(test_data_path) as f:
+        return json.load(f)
+
+class MockResponse:
+    """Mock HTTP response."""
+    def __init__(self, json_data: dict, status_code: int = 200):
+        self.json_data = json_data
+        self.status_code = status_code
+
+    def json(self):
+        return self.json_data
+```
+
+## 📋 Best Practices
+
+### Test Writing
+- **AAA Pattern**: Arrange, Act, Assert
+- **Descriptive names**: Clear test intent
+- **Single assertion**: One logical check per test
+- **Independent tests**: No dependencies between tests
+
+### Data Management
+- **Clean state**: Each test starts fresh
+- **Realistic data**: Use factories
+- **Edge cases**: Test boundaries
+- **Error scenarios**: Test exceptions
+
+### Performance
+- **Fast tests**: Unit tests < 1s
+- **Parallel execution**: pytest -n auto
+- **Minimal setup**: Efficient fixtures
+- **Mocking**: Avoid external dependencies

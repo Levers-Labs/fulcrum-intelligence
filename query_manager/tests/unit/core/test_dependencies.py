@@ -1,12 +1,19 @@
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from query_manager.core.crud import CRUDDimensions, CRUDMetric
+from query_manager.core.crud import (
+    CRUDDimensions,
+    CRUDMetric,
+    CRUDMetricCacheConfig,
+    CRUDMetricCacheGrainConfig,
+)
 from query_manager.core.dependencies import (
     get_cube_client,
     get_dimensions_crud,
+    get_metric_cache_config_crud,
+    get_metric_cache_grain_config_crud,
     get_metric_crud,
     get_parquet_service,
     get_query_client,
@@ -29,6 +36,13 @@ def mock_insights_backend_client():
         }
     }
     return client
+
+
+@pytest.fixture
+def mock_async_session():
+    # Create a mock session that will pass type checking
+    session = MagicMock(spec=AsyncSession)
+    return session
 
 
 @pytest.mark.asyncio
@@ -55,21 +69,33 @@ async def test_get_parquet_service():
 
 
 @pytest.mark.asyncio
-async def test_get_dimensions_crud():
-    dimensions_crud = await get_dimensions_crud(session=AsyncSession)
+async def test_get_dimensions_crud(mock_async_session):
+    dimensions_crud = await get_dimensions_crud(session=mock_async_session)
     assert isinstance(dimensions_crud, CRUDDimensions)
 
 
 @pytest.mark.asyncio
-async def test_get_metrics_crud():
-    metrics_crud = await get_metric_crud(session=AsyncSession)
+async def test_get_metrics_crud(mock_async_session):
+    metrics_crud = await get_metric_crud(session=mock_async_session)
     assert isinstance(metrics_crud, CRUDMetric)
 
 
 @pytest.mark.asyncio
-async def test_get_query_client(mock_insights_backend_client):
-    dimensions_crud = await get_dimensions_crud(session=AsyncSession)
-    metric_crud = await get_metric_crud(session=AsyncSession)
+async def test_get_metric_cache_grain_config_crud(mock_async_session):
+    metric_cache_grain_config_crud = await get_metric_cache_grain_config_crud(session=mock_async_session)
+    assert isinstance(metric_cache_grain_config_crud, CRUDMetricCacheGrainConfig)
+
+
+@pytest.mark.asyncio
+async def test_get_metric_cache_config_crud(mock_async_session):
+    metric_cache_config_crud = await get_metric_cache_config_crud(session=mock_async_session)
+    assert isinstance(metric_cache_config_crud, CRUDMetricCacheConfig)
+
+
+@pytest.mark.asyncio
+async def test_get_query_client(mock_insights_backend_client, mock_async_session):
+    dimensions_crud = await get_dimensions_crud(session=mock_async_session)
+    metric_crud = await get_metric_crud(session=mock_async_session)
     cube_client = await get_cube_client(mock_insights_backend_client)
     query_client = await get_query_client(
         cube_client=cube_client, dimensions_crud=dimensions_crud, metric_crud=metric_crud
@@ -77,3 +103,22 @@ async def test_get_query_client(mock_insights_backend_client):
     assert isinstance(query_client, QueryClient)
     # Additional assertion to verify the cube_client in query_client
     assert query_client.cube_client == cube_client
+
+
+# Test the cache CRUD instantiation
+
+
+@pytest.mark.asyncio
+async def test_cache_crud_creation(mock_async_session):
+    """Test cache CRUD instances are created correctly."""
+    cache_crud = await get_metric_cache_config_crud(session=mock_async_session)
+    assert isinstance(cache_crud, CRUDMetricCacheConfig)
+    assert cache_crud.session == mock_async_session
+
+
+@pytest.mark.asyncio
+async def test_cache_grain_crud_creation(mock_async_session):
+    """Test cache grain CRUD instances are created correctly."""
+    grain_crud = await get_metric_cache_grain_config_crud(session=mock_async_session)
+    assert isinstance(grain_crud, CRUDMetricCacheGrainConfig)
+    assert grain_crud.session == mock_async_session

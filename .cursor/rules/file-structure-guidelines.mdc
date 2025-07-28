@@ -1,0 +1,199 @@
+---
+description:
+globs:
+alwaysApply: false
+---
+# File Structure Guidelines
+
+## 🏗️ Project Structure
+
+**Microservices monorepo** with clear service boundaries
+
+```
+fulcrum-intelligence/
+├── commons/                # Shared libraries (auth, db, clients)
+├── core/                   # Analytics engine library
+├── levers/                 # Analytics primitives library
+├── analysis_manager/       # FastAPI service (8000)
+├── query_manager/          # FastAPI service (8001)
+├── story_manager/          # FastAPI service (8002)
+├── insights_backend/       # FastAPI service (8004)
+├── tasks_manager/          # Prefect orchestration
+├── docker-compose.yml      # Local development
+├── Makefile                # Development commands
+└── README.md              # Project documentation
+```
+
+## 📦 Service Template
+
+**FastAPI Services** follow consistent structure:
+
+```
+service_name/
+├── service_name/           # Main package
+│   ├── main.py            # FastAPI app
+│   ├── config.py          # Settings
+│   ├── exceptions.py      # Custom exceptions
+│   ├── core/              # Business logic
+│   │   ├── models.py      # SQLModel database models
+│   │   ├── schemas.py     # Pydantic API schemas
+│   │   ├── routes.py      # Route handlers
+│   │   ├── dependencies.py # DI functions
+│   │   └── services/      # Business services
+│   └── db/
+│       └── config.py      # Database session
+├── tests/                 # Test suite
+│   ├── unit/              # Unit tests
+│   └── integration/       # Integration tests
+├── migrations/            # Alembic migrations
+├── Dockerfile            # Container definition
+├── manage.py             # Service CLI
+├── pyproject.toml        # Dependencies
+└── README.md             # Service docs
+```
+
+## 📚 Shared Libraries
+
+### Commons Structure
+```
+commons/
+├── commons/
+│   ├── auth/              # Authentication utilities
+│   ├── clients/           # HTTP clients for services
+│   ├── db/                # Database utilities
+│   ├── exceptions.py      # Common exceptions
+│   ├── middleware/        # FastAPI middleware
+│   ├── models/            # Shared models
+│   └── utilities/         # Utility functions
+└── tests/                 # Commons tests
+```
+
+### Core Structure
+```
+core/
+├── fulcrum_core/
+│   ├── modules/           # Analytics modules
+│   │   ├── describe.py
+│   │   ├── forecast.py
+│   │   └── process_control.py
+│   └── analysis_manager.py # Main interface
+└── tests/                 # Core tests
+```
+
+### Levers Structure
+```
+levers/
+├── levers/
+│   ├── patterns/          # Analysis patterns
+│   ├── primitives/        # Analytics primitives
+│   └── api.py            # Main API
+└── tests/                # Levers tests
+```
+
+## 📄 File Naming
+
+- **Python files**: `user_service.py`, `component_drift.py`
+- **Directories**: `services/`, `models/`, `tests/`
+- **Config files**: `.env.template`, `config.py`
+- **Tests**: `test_` prefix, mirror source structure
+
+## 🎯 Service-Specific Patterns
+
+### Analysis Manager
+```
+analysis_manager/
+├── analysis_manager/
+│   ├── patterns/          # Pattern analysis
+│   │   ├── crud/
+│   │   ├── manager.py
+│   │   └── models/
+│   └── data/
+│       └── pattern_configs.json
+```
+
+### Query Manager
+```
+query_manager/
+├── query_manager/
+│   ├── services/
+│   │   ├── cube.py       # Cube API
+│   │   └── query_client.py
+│   ├── semantic_manager/ # Semantic models
+│   └── data/
+│       ├── metrics.json
+│       └── dimensions.json
+```
+
+### Story Manager
+```
+story_manager/
+├── story_manager/
+│   ├── story_builder/    # Story generation
+│   ├── story_evaluator/  # Story evaluation
+│   └── mocks/            # Mock data
+```
+
+### Tasks Manager (Prefect)
+```
+tasks_manager/
+├── tasks_manager/
+│   ├── flows/            # Prefect flows
+│   ├── tasks/            # Prefect tasks
+│   └── services/         # Service layer
+├── prefect_data/         # Local database
+└── scripts/
+    └── setup_prefect.sh
+```
+
+## 🧪 Test Structure
+
+```
+tests/
+├── unit/                  # Fast, isolated tests
+│   ├── conftest.py       # Test config
+│   ├── core/             # Core logic tests
+│   └── services/         # Service tests
+├── integration/          # Slower, realistic tests
+└── fixtures/             # Test data
+```
+
+## 🔧 Configuration
+
+### Environment Files
+```
+# .env.template (commit)
+ENV=dev
+DATABASE_URL=postgresql://...
+AUTH0_CLIENT_ID=...
+
+# .env (never commit)
+# Copy from template, fill real values
+```
+
+### Poetry Configuration
+```toml
+# pyproject.toml
+[tool.poetry.dependencies]
+python = ">=3.10,<3.12"
+
+[tool.pytest.ini_options]
+addopts = "--cov=service_name"
+```
+
+## 📋 Best Practices
+
+### Organization
+- **Single responsibility** per file
+- **Logical grouping** in directories
+- **Consistent naming** across services
+- **Clear hierarchy** with proper nesting
+
+### Dependencies
+- **Poetry** for dependency management
+- **Local packages** by path reference
+- **Shared dependencies** in commons
+
+### Documentation
+- **README** per service
+- **Docstrings** for functions
+- **API docs** auto-generated

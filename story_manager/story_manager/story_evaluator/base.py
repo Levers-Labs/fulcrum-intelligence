@@ -160,11 +160,11 @@ class StoryEvaluatorBase(Generic[T], ABC):
         if "date" in series_df.columns:
             series_df = format_date_column(series_df)
 
-        # Replace inf, -inf, and NaN with None
-        series_df.replace([float("inf"), float("-inf"), np.NaN], [None, None, None], inplace=True)  # type: ignore
-
         # Get the last n rows
         series = series_df.tail(series_length) if series_length else series_df
+
+        # Final cleanup: Replace any remaining NaN/inf values before converting to dict
+        series = series.replace([float("inf"), float("-inf"), np.NaN], 0.0)
 
         # Add the time series data to the result
         data = series.to_dict(orient="records")

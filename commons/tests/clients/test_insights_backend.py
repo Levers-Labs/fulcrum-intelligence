@@ -183,3 +183,134 @@ async def test_create_notification_execution_http_error(mock_client):
 
     assert exc_info.value.status_code == 500
     mock_client.post.assert_called_once_with("/notification/executions", data=execution_data)
+
+
+# New test methods for functionality added in the diff
+
+
+@pytest.mark.asyncio
+async def test_get_tenant_details_success(mock_client):
+    # Arrange
+    expected_response = {"id": 1, "name": "Test Tenant", "identifier": "test_tenant", "domains": ["test.com"]}
+    mock_client.get = AsyncMock(return_value=expected_response)
+
+    # Act
+    result = await mock_client.get_tenant_details()
+
+    # Assert
+    assert result == expected_response
+    assert result["id"] == 1
+    assert result["name"] == "Test Tenant"
+    assert result["identifier"] == "test_tenant"
+    assert result["domains"] == ["test.com"]
+    mock_client.get.assert_called_once_with("/tenant/details")
+
+
+@pytest.mark.asyncio
+async def test_get_tenant_details_failure(mock_client):
+    # Arrange
+    mock_client.get = AsyncMock(side_effect=HttpClientError("API Error", status_code=500))
+
+    # Act & Assert
+    with pytest.raises(HttpClientError) as exc_info:
+        await mock_client.get_tenant_details()
+
+    assert exc_info.value.status_code == 500
+    mock_client.get.assert_called_once_with("/tenant/details")
+
+
+@pytest.mark.asyncio
+async def test_get_tenant_details_empty_response(mock_client):
+    # Arrange
+    expected_response = {}
+    mock_client.get = AsyncMock(return_value=expected_response)
+
+    # Act
+    result = await mock_client.get_tenant_details()
+
+    # Assert
+    assert result == {}
+    mock_client.get.assert_called_once_with("/tenant/details")
+
+
+@pytest.mark.asyncio
+async def test_get_snowflake_config_success(mock_client):
+    # Arrange
+    expected_response = {
+        "account_identifier": "test-account.us-east-1",
+        "username": "test_user",
+        "warehouse": "TEST_WH",
+        "role": "TEST_ROLE",
+        "database": "TEST_DB",
+        "db_schema": "TEST_SCHEMA",
+        "auth_method": "PASSWORD",
+    }
+    mock_client.get = AsyncMock(return_value=expected_response)
+
+    # Act
+    result = await mock_client.get_snowflake_config()
+
+    # Assert
+    assert result == expected_response
+    assert result["account_identifier"] == "test-account.us-east-1"
+    assert result["username"] == "test_user"
+    assert result["warehouse"] == "TEST_WH"
+    assert result["role"] == "TEST_ROLE"
+    assert result["database"] == "TEST_DB"
+    assert result["db_schema"] == "TEST_SCHEMA"
+    assert result["auth_method"] == "PASSWORD"
+    mock_client.get.assert_called_once_with("/tenant/snowflake-config/internal")
+
+
+@pytest.mark.asyncio
+async def test_get_snowflake_config_failure(mock_client):
+    # Arrange
+    mock_client.get = AsyncMock(side_effect=HttpClientError("Config not found", status_code=404))
+
+    # Act & Assert
+    with pytest.raises(InvalidTenantError) as exc_info:
+        await mock_client.get_snowflake_config()
+
+    assert "not found" in str(exc_info.value)
+    mock_client.get.assert_called_once_with("/tenant/snowflake-config/internal")
+
+
+@pytest.mark.asyncio
+async def test_get_snowflake_config_with_private_key(mock_client):
+    # Arrange
+    expected_response = {
+        "account_identifier": "test-account.us-east-1",
+        "username": "test_user",
+        "warehouse": "TEST_WH",
+        "role": "TEST_ROLE",
+        "database": "TEST_DB",
+        "db_schema": "TEST_SCHEMA",
+        "auth_method": "PRIVATE_KEY",
+        "private_key": "-----BEGIN PRIVATE KEY-----\ntest_key\n-----END PRIVATE KEY-----",
+        "private_key_passphrase": "test_passphrase",
+    }
+    mock_client.get = AsyncMock(return_value=expected_response)
+
+    # Act
+    result = await mock_client.get_snowflake_config()
+
+    # Assert
+    assert result == expected_response
+    assert result["auth_method"] == "PRIVATE_KEY"
+    assert result["private_key"] == "-----BEGIN PRIVATE KEY-----\ntest_key\n-----END PRIVATE KEY-----"
+    assert result["private_key_passphrase"] == "test_passphrase"  # noqa
+    mock_client.get.assert_called_once_with("/tenant/snowflake-config/internal")
+
+
+@pytest.mark.asyncio
+async def test_get_snowflake_config_empty_response(mock_client):
+    # Arrange
+    expected_response = {}
+    mock_client.get = AsyncMock(return_value=expected_response)
+
+    # Act
+    result = await mock_client.get_snowflake_config()
+
+    # Assert
+    assert result == {}
+    mock_client.get.assert_called_once_with("/tenant/snowflake-config/internal")

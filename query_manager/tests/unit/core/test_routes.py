@@ -598,6 +598,511 @@ async def test_preview_metric_from_yaml_missing_fields(async_client: AsyncClient
 
 
 @pytest.mark.asyncio
+async def test_preview_metric_from_yaml_with_aim(async_client: AsyncClient, mocker):
+    """Test metric preview with aim field"""
+    yaml_content = """
+        metric_id: test_with_aim
+        label: test with aim
+        abbreviation: test
+        hypothetical_max: 100
+        definition: test is a metric
+        expression: null
+        aggregation: sum
+        unit_of_measure: quantity
+        unit: 'n'
+        measure: "cube1.revenue"
+        time_dimension: "cube1.created_at"
+        aim: minimize
+    """
+    # Mock data with matching measure name
+    mock_cubes = [
+        {
+            "name": "cube1",
+            "title": "Cube One",
+            "measures": [
+                {
+                    "name": "cube1.revenue",
+                    "title": "Total Revenue",
+                    "shortTitle": "Revenue",
+                    "short_title": "Revenue",
+                    "type": "number",
+                    "description": "Total revenue from all sources",
+                    "metric_id": "Revenue",
+                    "grain_aggregation": "sum",
+                }
+            ],
+            "dimensions": [
+                {
+                    "name": "cube1.created_at",
+                    "title": "Created Date",
+                    "shortTitle": "Created",
+                    "short_title": "Created",
+                    "type": "time",
+                    "description": "Date when record was created",
+                    "dimension_id": "Created",
+                }
+            ],
+        }
+    ]
+
+    # Mock the cube client list_cubes method
+    mock_list_cubes = AsyncMock(return_value=mock_cubes)
+    mocker.patch.object(CubeClient, "list_cubes", mock_list_cubes)
+
+    response = await async_client.post(
+        "/v1/metrics/preview", content=yaml_content, headers={"Content-Type": "application/x-yaml"}
+    )
+
+    assert response.status_code == 200
+    result = response.json()
+
+    assert result["metric_id"] == "test_with_aim"
+    assert result["label"] == "test with aim"
+    assert result["aim"] == "Minimize"
+    assert result["complexity"] == "Atomic"
+
+    # Verify mock was called
+    mock_list_cubes.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_preview_metric_from_yaml_with_cube_filters(async_client: AsyncClient, mocker):
+    """Test metric preview with cube_filters field"""
+    yaml_content = """
+        metric_id: test_with_filters
+        label: test with filters
+        abbreviation: test
+        hypothetical_max: 100
+        definition: test is a metric
+        expression: null
+        aggregation: sum
+        unit_of_measure: quantity
+        unit: 'n'
+        measure: "cube1.revenue"
+        time_dimension: "cube1.created_at"
+        cube_filters:
+            - [region, equals, ["US", "CA"]]
+            - [status, notEquals, ["closed"]]
+            - [category, contains, ["premium", "enterprise"]]
+    """
+    # Mock data with matching measure name
+    mock_cubes = [
+        {
+            "name": "cube1",
+            "title": "Cube One",
+            "measures": [
+                {
+                    "name": "cube1.revenue",
+                    "title": "Total Revenue",
+                    "shortTitle": "Revenue",
+                    "short_title": "Revenue",
+                    "type": "number",
+                    "description": "Total revenue from all sources",
+                    "metric_id": "Revenue",
+                    "grain_aggregation": "sum",
+                }
+            ],
+            "dimensions": [
+                {
+                    "name": "cube1.created_at",
+                    "title": "Created Date",
+                    "shortTitle": "Created",
+                    "short_title": "Created",
+                    "type": "time",
+                    "description": "Date when record was created",
+                    "dimension_id": "Created",
+                }
+            ],
+        }
+    ]
+
+    # Mock the cube client list_cubes method
+    mock_list_cubes = AsyncMock(return_value=mock_cubes)
+    mocker.patch.object(CubeClient, "list_cubes", mock_list_cubes)
+
+    response = await async_client.post(
+        "/v1/metrics/preview", content=yaml_content, headers={"Content-Type": "application/x-yaml"}
+    )
+
+    assert response.status_code == 200
+    result = response.json()
+
+    assert result["metric_id"] == "test_with_filters"
+    assert result["label"] == "test with filters"
+    assert result["complexity"] == "Atomic"
+
+    # Verify cube filters are properly formatted
+    semantic_meta = result["meta_data"]["semantic_meta"]
+    assert "cube_filters" in semantic_meta
+    assert len(semantic_meta["cube_filters"]) == 3
+
+    # Check first filter
+    assert semantic_meta["cube_filters"][0]["dimension"] == "cube1.region"
+    assert semantic_meta["cube_filters"][0]["operator"] == "equals"
+    assert semantic_meta["cube_filters"][0]["values"] == ["US", "CA"]
+
+    # Check second filter
+    assert semantic_meta["cube_filters"][1]["dimension"] == "cube1.status"
+    assert semantic_meta["cube_filters"][1]["operator"] == "notEquals"
+    assert semantic_meta["cube_filters"][1]["values"] == ["closed"]
+
+    # Check third filter
+    assert semantic_meta["cube_filters"][2]["dimension"] == "cube1.category"
+    assert semantic_meta["cube_filters"][2]["operator"] == "contains"
+    assert semantic_meta["cube_filters"][2]["values"] == ["premium", "enterprise"]
+
+    # Verify mock was called
+    mock_list_cubes.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_preview_metric_from_yaml_with_aim_and_cube_filters(async_client: AsyncClient, mocker):
+    """Test metric preview with both aim and cube_filters fields"""
+    yaml_content = """
+        metric_id: test_with_aim_and_filters
+        label: test with aim and filters
+        abbreviation: test
+        hypothetical_max: 100
+        definition: test is a metric
+        expression: null
+        aggregation: sum
+        unit_of_measure: quantity
+        unit: 'n'
+        measure: "cube1.revenue"
+        time_dimension: "cube1.created_at"
+        aim: maximize
+        cube_filters:
+            - [region, equals, ["US", "CA", "UK"]]
+            - [active, equals, [true]]
+    """
+    # Mock data with matching measure name
+    mock_cubes = [
+        {
+            "name": "cube1",
+            "title": "Cube One",
+            "measures": [
+                {
+                    "name": "cube1.revenue",
+                    "title": "Total Revenue",
+                    "shortTitle": "Revenue",
+                    "short_title": "Revenue",
+                    "type": "number",
+                    "description": "Total revenue from all sources",
+                    "metric_id": "Revenue",
+                    "grain_aggregation": "sum",
+                }
+            ],
+            "dimensions": [
+                {
+                    "name": "cube1.created_at",
+                    "title": "Created Date",
+                    "shortTitle": "Created",
+                    "short_title": "Created",
+                    "type": "time",
+                    "description": "Date when record was created",
+                    "dimension_id": "Created",
+                }
+            ],
+        }
+    ]
+
+    # Mock the cube client list_cubes method
+    mock_list_cubes = AsyncMock(return_value=mock_cubes)
+    mocker.patch.object(CubeClient, "list_cubes", mock_list_cubes)
+
+    response = await async_client.post(
+        "/v1/metrics/preview", content=yaml_content, headers={"Content-Type": "application/x-yaml"}
+    )
+
+    assert response.status_code == 200
+    result = response.json()
+
+    assert result["metric_id"] == "test_with_aim_and_filters"
+    assert result["label"] == "test with aim and filters"
+    assert result["aim"] == "Maximize"
+    assert result["complexity"] == "Atomic"
+
+    # Verify cube filters are properly formatted
+    semantic_meta = result["meta_data"]["semantic_meta"]
+    assert "cube_filters" in semantic_meta
+    assert len(semantic_meta["cube_filters"]) == 2
+
+    # Check first filter
+    assert semantic_meta["cube_filters"][0]["dimension"] == "cube1.region"
+    assert semantic_meta["cube_filters"][0]["operator"] == "equals"
+    assert semantic_meta["cube_filters"][0]["values"] == ["US", "CA", "UK"]
+
+    # Check second filter
+    assert semantic_meta["cube_filters"][1]["dimension"] == "cube1.active"
+    assert semantic_meta["cube_filters"][1]["operator"] == "equals"
+    assert semantic_meta["cube_filters"][1]["values"] == [True]
+
+    # Verify mock was called
+    mock_list_cubes.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_preview_metric_from_yaml_invalid_cube_filters_format(async_client: AsyncClient, mocker):
+    """Test metric preview with invalid cube_filters format"""
+    yaml_content = """
+        metric_id: test_invalid_filters
+        label: test invalid filters
+        abbreviation: test
+        hypothetical_max: 100
+        definition: test is a metric
+        expression: null
+        aggregation: sum
+        unit_of_measure: quantity
+        unit: 'n'
+        measure: "cube1.revenue"
+        time_dimension: "cube1.created_at"
+        cube_filters:
+            - [region, equals]
+            - [status, notEquals, ["closed"], "extra_field"]
+    """
+    # Mock data with matching measure name
+    mock_cubes = [
+        {
+            "name": "cube1",
+            "title": "Cube One",
+            "measures": [
+                {
+                    "name": "cube1.revenue",
+                    "title": "Total Revenue",
+                    "shortTitle": "Revenue",
+                    "short_title": "Revenue",
+                    "type": "number",
+                    "description": "Total revenue from all sources",
+                    "metric_id": "Revenue",
+                    "grain_aggregation": "sum",
+                }
+            ],
+            "dimensions": [
+                {
+                    "name": "cube1.created_at",
+                    "title": "Created Date",
+                    "shortTitle": "Created",
+                    "short_title": "Created",
+                    "type": "time",
+                    "description": "Date when record was created",
+                    "dimension_id": "Created",
+                }
+            ],
+        }
+    ]
+
+    # Mock the cube client list_cubes method
+    mock_list_cubes = AsyncMock(return_value=mock_cubes)
+    mocker.patch.object(CubeClient, "list_cubes", mock_list_cubes)
+
+    response = await async_client.post(
+        "/v1/metrics/preview", content=yaml_content, headers={"Content-Type": "application/x-yaml"}
+    )
+
+    assert response.status_code == 422
+    error_detail = response.json()["detail"]
+    assert "Invalid cube filter format" in error_detail
+
+
+@pytest.mark.asyncio
+async def test_preview_metric_from_yaml_cube_filters_invalid_dimension_type(async_client: AsyncClient, mocker):
+    """Test metric preview with invalid dimension type in cube_filters"""
+    yaml_content = """
+        metric_id: test_invalid_dimension_type
+        label: test invalid dimension type
+        abbreviation: test
+        hypothetical_max: 100
+        definition: test is a metric
+        expression: null
+        aggregation: sum
+        unit_of_measure: quantity
+        unit: 'n'
+        measure: "cube1.revenue"
+        time_dimension: "cube1.created_at"
+        cube_filters:
+            - [123, equals, ["US", "CA"]]
+    """
+    # Mock data with matching measure name
+    mock_cubes = [
+        {
+            "name": "cube1",
+            "title": "Cube One",
+            "measures": [
+                {
+                    "name": "cube1.revenue",
+                    "title": "Total Revenue",
+                    "shortTitle": "Revenue",
+                    "short_title": "Revenue",
+                    "type": "number",
+                    "description": "Total revenue from all sources",
+                    "metric_id": "Revenue",
+                    "grain_aggregation": "sum",
+                }
+            ],
+            "dimensions": [
+                {
+                    "name": "cube1.created_at",
+                    "title": "Created Date",
+                    "shortTitle": "Created",
+                    "short_title": "Created",
+                    "type": "time",
+                    "description": "Date when record was created",
+                    "dimension_id": "Created",
+                }
+            ],
+        }
+    ]
+
+    # Mock the cube client list_cubes method
+    mock_list_cubes = AsyncMock(return_value=mock_cubes)
+    mocker.patch.object(CubeClient, "list_cubes", mock_list_cubes)
+
+    response = await async_client.post(
+        "/v1/metrics/preview", content=yaml_content, headers={"Content-Type": "application/x-yaml"}
+    )
+
+    assert response.status_code == 422
+    error_detail = response.json()["detail"]
+    assert "Invalid dimension at index 0" in error_detail
+    assert "Expected string but got int" in error_detail
+
+
+@pytest.mark.asyncio
+async def test_preview_metric_from_yaml_cube_filters_invalid_values_type(async_client: AsyncClient, mocker):
+    """Test metric preview with invalid values type in cube_filters"""
+    yaml_content = """
+        metric_id: test_invalid_values_type
+        label: test invalid values type
+        abbreviation: test
+        hypothetical_max: 100
+        definition: test is a metric
+        expression: null
+        aggregation: sum
+        unit_of_measure: quantity
+        unit: 'n'
+        measure: "cube1.revenue"
+        time_dimension: "cube1.created_at"
+        cube_filters:
+            - [region, equals, "US"]
+    """
+    # Mock data with matching measure name
+    mock_cubes = [
+        {
+            "name": "cube1",
+            "title": "Cube One",
+            "measures": [
+                {
+                    "name": "cube1.revenue",
+                    "title": "Total Revenue",
+                    "shortTitle": "Revenue",
+                    "short_title": "Revenue",
+                    "type": "number",
+                    "description": "Total revenue from all sources",
+                    "metric_id": "Revenue",
+                    "grain_aggregation": "sum",
+                }
+            ],
+            "dimensions": [
+                {
+                    "name": "cube1.created_at",
+                    "title": "Created Date",
+                    "shortTitle": "Created",
+                    "short_title": "Created",
+                    "type": "time",
+                    "description": "Date when record was created",
+                    "dimension_id": "Created",
+                }
+            ],
+        }
+    ]
+
+    # Mock the cube client list_cubes method
+    mock_list_cubes = AsyncMock(return_value=mock_cubes)
+    mocker.patch.object(CubeClient, "list_cubes", mock_list_cubes)
+
+    response = await async_client.post(
+        "/v1/metrics/preview", content=yaml_content, headers={"Content-Type": "application/x-yaml"}
+    )
+
+    assert response.status_code == 422
+    error_detail = response.json()["detail"]
+    assert "Invalid values at index 0" in error_detail
+    assert "Expected list but got str" in error_detail
+
+
+@pytest.mark.asyncio
+async def test_preview_metric_from_yaml_empty_cube_filters(async_client: AsyncClient, mocker):
+    """Test metric preview with empty cube_filters array"""
+    yaml_content = """
+        metric_id: test_empty_filters
+        label: test empty filters
+        abbreviation: test
+        hypothetical_max: 100
+        definition: test is a metric
+        expression: null
+        aggregation: sum
+        unit_of_measure: quantity
+        unit: 'n'
+        measure: "cube1.revenue"
+        time_dimension: "cube1.created_at"
+        cube_filters: []
+    """
+    # Mock data with matching measure name
+    mock_cubes = [
+        {
+            "name": "cube1",
+            "title": "Cube One",
+            "measures": [
+                {
+                    "name": "cube1.revenue",
+                    "title": "Total Revenue",
+                    "shortTitle": "Revenue",
+                    "short_title": "Revenue",
+                    "type": "number",
+                    "description": "Total revenue from all sources",
+                    "metric_id": "Revenue",
+                    "grain_aggregation": "sum",
+                }
+            ],
+            "dimensions": [
+                {
+                    "name": "cube1.created_at",
+                    "title": "Created Date",
+                    "shortTitle": "Created",
+                    "short_title": "Created",
+                    "type": "time",
+                    "description": "Date when record was created",
+                    "dimension_id": "Created",
+                }
+            ],
+        }
+    ]
+
+    # Mock the cube client list_cubes method
+    mock_list_cubes = AsyncMock(return_value=mock_cubes)
+    mocker.patch.object(CubeClient, "list_cubes", mock_list_cubes)
+
+    response = await async_client.post(
+        "/v1/metrics/preview", content=yaml_content, headers={"Content-Type": "application/x-yaml"}
+    )
+
+    assert response.status_code == 200
+    result = response.json()
+
+    assert result["metric_id"] == "test_empty_filters"
+    assert result["label"] == "test empty filters"
+    assert result["complexity"] == "Atomic"
+
+    # Verify cube filters are empty
+    semantic_meta = result["meta_data"]["semantic_meta"]
+    assert "cube_filters" in semantic_meta
+    assert semantic_meta["cube_filters"] == []
+
+    # Verify mock was called
+    mock_list_cubes.assert_called_once()
+
+
+@pytest.mark.asyncio
 async def test_delete_metrics_bulk_success(async_client: AsyncClient, mocker):
     """Test successful bulk deletion of metrics."""
     # Mock data
@@ -730,6 +1235,192 @@ async def test_delete_metric_not_found(async_client: AsyncClient, mocker):
 
     # Verify delete_metric was called once with correct argument
     mock_delete_metric.assert_awaited_once_with(metric_id)
+
+
+# Tests for cache-related routes added in the diff
+
+
+@pytest.mark.asyncio
+async def test_list_grain_configs(async_client: AsyncClient, mocker):
+    """Test listing grain cache configurations."""
+    from query_manager.core.crud import CRUDMetricCacheGrainConfig
+
+    # Mock grain configs
+    mock_configs = [
+        {
+            "id": 1,
+            "grain": "day",
+            "is_enabled": True,
+            "initial_sync_period": 730,
+            "delta_sync_period": 90,
+            "tenant_id": 1,
+        },
+        {
+            "id": 2,
+            "grain": "week",
+            "is_enabled": False,
+            "initial_sync_period": 365,
+            "delta_sync_period": 30,
+            "tenant_id": 1,
+        },
+    ]
+
+    mock_paginate = AsyncMock(return_value=(mock_configs, 2))
+    mocker.patch.object(CRUDMetricCacheGrainConfig, "paginate", mock_paginate)
+
+    response = await async_client.get("/v1/grains/cache-config")
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["count"] == 2
+    assert len(data["results"]) == 2
+    assert data["results"][0]["grain"] == "day"
+    assert data["results"][0]["is_enabled"] is True
+
+
+@pytest.mark.asyncio
+async def test_get_metric_cache_config(async_client: AsyncClient, mocker):
+    """Test getting cache configuration for a specific metric."""
+    from query_manager.core.crud import CRUDMetricCacheConfig
+
+    mock_config = {"id": 1, "metric_id": "test_metric", "is_enabled": True, "last_sync_date": None, "sync_status": None}
+
+    mock_get_by_metric_id = AsyncMock(return_value=mock_config)
+    mocker.patch.object(CRUDMetricCacheConfig, "get_by_metric_id", mock_get_by_metric_id)
+
+    response = await async_client.get("/v1/metrics/test_metric/cache-config")
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["metric_id"] == "test_metric"
+    assert data["is_enabled"] is True
+    mock_get_by_metric_id.assert_awaited_once_with("test_metric")
+
+
+@pytest.mark.asyncio
+async def test_update_metric_cache_config(async_client: AsyncClient, mocker):
+    """Test updating cache configuration for a specific metric."""
+    from query_manager.core.crud import CRUDMetricCacheConfig
+
+    mock_updated_config = {
+        "id": 1,
+        "metric_id": "test_metric",
+        "is_enabled": False,
+        "last_sync_date": None,
+        "sync_status": None,
+    }
+
+    mock_create_or_update = AsyncMock(return_value=mock_updated_config)
+    mocker.patch.object(CRUDMetricCacheConfig, "create_or_update_metric_config", mock_create_or_update)
+
+    response = await async_client.put("/v1/metrics/test_metric/cache-config", json={"is_enabled": False})
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["metric_id"] == "test_metric"
+    assert data["is_enabled"] is False
+    mock_create_or_update.assert_awaited_once_with("test_metric", False)
+
+
+@pytest.mark.asyncio
+async def test_list_metric_cache_configs(async_client: AsyncClient, mocker, app):
+    """Test listing metric cache configurations with sync information."""
+    from query_manager.semantic_manager.dependencies import get_cache_manager
+
+    mock_configs = [
+        {"id": 1, "metric_id": "metric1", "is_enabled": True, "last_sync_date": None, "sync_status": None},
+        {"id": 2, "metric_id": "metric2", "is_enabled": False, "last_sync_date": None, "sync_status": None},
+    ]
+
+    # Create mock cache manager
+    mock_cache_manager = AsyncMock()
+    mock_cache_manager.get_metric_cache_configs = AsyncMock(return_value=(mock_configs, 2))
+
+    # Override the dependency
+    app.dependency_overrides[get_cache_manager] = lambda: mock_cache_manager
+
+    try:
+        response = await async_client.get("/v1/metrics/cache-config/all")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["count"] == 2
+        assert len(data["results"]) == 2
+        assert data["results"][0]["metric_id"] == "metric1"
+        assert data["results"][0]["is_enabled"] is True
+    finally:
+        # Clean up the override
+        app.dependency_overrides.clear()
+
+
+@pytest.mark.asyncio
+async def test_get_tenant_sync_status(async_client: AsyncClient, mocker, app):
+    """Test getting tenant sync status history."""
+    from query_manager.semantic_manager.dependencies import get_cache_manager
+
+    mock_sync_history = [
+        {
+            "id": 1,
+            "sync_operation": "SNOWFLAKE_CACHE",
+            "grain": "day",
+            "last_sync_at": "2024-01-01T10:00:00",
+            "sync_status": "SUCCESS",
+            "metrics_processed": 10,
+            "metrics_succeeded": 8,
+            "metrics_failed": 2,
+            "error": None,
+            "run_info": {},
+            "created_at": "2024-01-01T09:00:00",
+            "updated_at": "2024-01-01T10:00:00",
+        }
+    ]
+
+    # Create mock cache manager
+    mock_cache_manager = AsyncMock()
+    mock_cache_manager.get_tenant_sync_history = AsyncMock(return_value=(mock_sync_history, 1))
+
+    # Override the dependency
+    app.dependency_overrides[get_cache_manager] = lambda: mock_cache_manager
+
+    try:
+        response = await async_client.get("/v1/tenant/sync-status")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["count"] == 1
+        assert len(data["results"]) == 1
+        assert data["results"][0]["sync_operation"] == "SNOWFLAKE_CACHE"
+        assert data["results"][0]["sync_status"] == "SUCCESS"
+    finally:
+        # Clean up the override
+        app.dependency_overrides.clear()
+
+
+@pytest.mark.asyncio
+async def test_bulk_update_metric_cache_configs(async_client: AsyncClient, mocker):
+    """Test bulk updating metric cache configurations."""
+    from query_manager.core.crud import CRUDMetricCacheConfig
+
+    mock_updated_configs = [
+        {"id": 1, "metric_id": "metric1", "is_enabled": False, "last_sync_date": None, "sync_status": None},
+        {"id": 2, "metric_id": "metric2", "is_enabled": False, "last_sync_date": None, "sync_status": None},
+    ]
+
+    mock_bulk_update = AsyncMock(return_value=mock_updated_configs)
+    mocker.patch.object(CRUDMetricCacheConfig, "bulk_update_metric_configs", mock_bulk_update)
+
+    response = await async_client.post(
+        "/v1/metrics/cache-config/bulk", json={"metric_ids": ["metric1", "metric2"], "is_enabled": False}
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data) == 2
+    assert data[0]["metric_id"] == "metric1"
+    assert data[0]["is_enabled"] is False
+    assert data[1]["metric_id"] == "metric2"
+    assert data[1]["is_enabled"] is False
+    mock_bulk_update.assert_awaited_once_with(["metric1", "metric2"], False)
 
 
 @pytest.mark.asyncio

@@ -118,20 +118,23 @@ STORY_TEMPLATES = {
         "actual_direction }} of {{ actual_change|format_percent }}%.",
     },
     StoryType.RECORD_HIGH: {
-        "title": "{{ high_rank|format_ordinal }} highest {{ grain_label }} value over the past {{ high_duration }} {{ "
-        "grain_label }}s",
-        "detail": "The {{ grain_label }} value for {{ metric.label }} of {{ high_value|format_number }} is now the {{ "
-        "high_rank|format_ordinal }} highest value in {{ high_duration }} {{ grain_label }}s.",
+        "title": "{% if high_rank == 1 %}Highest{% else %}{{ high_rank|format_ordinal }} highest {% endif %} {{ "
+        "grain_label }} value over the past {{ high_duration }} {{ grain_label }}s",
+        "detail": "The {{ grain_label }} value for {{ metric.label }} of {{ high_value|format_number }} is now the {% "
+        "if high_rank == 1 %}highest{% else %}{{ high_rank|format_ordinal }} highest {% endif %} value in {"
+        "{ high_duration }} {{ grain_label }}s.",
     },
     StoryType.RECORD_LOW: {
-        "title": "{{ low_rank|format_ordinal }} lowest {{ grain_label }} value over the past {{ low_duration }} {{ "
-        "grain_label }}s",
-        "detail": "The {{ grain_label }} value for {{ metric.label }} of {{ low_value|format_number }} is now the {{ "
-        "low_rank|format_ordinal }} lowest value in {{ low_duration }} {{ grain_label }}s.",
+        "title": "{% if low_rank == 1 %}Lowest{% else %}{{ low_rank|format_ordinal }} lowest {% endif %} {{ "
+        "grain_label }} value over the past {{ low_duration }} {{ grain_label }}s",
+        "detail": "The {{ grain_label }} value for {{ metric.label }} of {{ low_value|format_number }} is now the {% "
+        "if low_rank == 1 %}lowest{% else %}{{ low_rank|format_ordinal }} lowest {% endif %} value in {{ "
+        "low_duration }} {{ grain_label }}s.",
     },
     StoryType.BENCHMARKS: {
         "title": "{{ metric.label }} • Performance Against Historical Benchmarks",
-        "detail": "This {{ grain_label }} marks the {{ high_rank|format_ordinal }} highest-performing "
+        "detail": "This {{ grain_label }} marks the {% if high_rank == 1 %}highest-performing{% else %}{{ "
+        "high_rank|format_ordinal }} highest-performing {% endif %}"
         "{{ grain_label }} in the past {{ high_duration }} {{ grain_label }}s, with the {{ benchmark.current_period }} "
         "performance of {{ metric.label }} at {{ benchmark.current_value|format_number }} coming in "
         "{% for summary in benchmark.comparison_summaries %}{{ summary }}{% if not loop.last %}"

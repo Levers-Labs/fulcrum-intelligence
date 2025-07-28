@@ -41,8 +41,16 @@ from insights_backend.core.models import (
     UserCreate,
     UserList,
 )
+from insights_backend.core.models.tenant import SnowflakeConfig
 from insights_backend.core.models.users import UserRead, UserUpdate
-from insights_backend.core.schemas import SlackChannel, SlackChannelResponse
+from insights_backend.core.schemas import (
+    SlackChannel,
+    SlackChannelResponse,
+    SnowflakeConfigCreate,
+    SnowflakeConfigRead,
+    SnowflakeConfigUpdate,
+    SnowflakeConnectionTest,
+)
 
 user_router = APIRouter(prefix="/users", tags=["users"])
 router = APIRouter(tags=["tenants"])
@@ -136,7 +144,9 @@ async def list_users(
     Retrieve all the users in DB.
     """
     count = await user_crud_client.total_count()
-    results: list[UserRead] = [UserRead.from_orm(user) for user in await user_crud_client.list_results(params=params)]
+    results: list[UserRead] = [
+        UserRead.model_validate(user) for user in await user_crud_client.list_results(params=params)
+    ]
     return UserList(results=results, count=count)
 
 
@@ -172,11 +182,23 @@ async def list_tenants(
     """
     tenant_config_filter = TenantConfigFilter(enable_story_generation=enable_story_generation, identifier=identifier)
     results, count = await tenant_crud_client.paginate(
-        params=params, filter_params=tenant_config_filter.dict(exclude_unset=True)
+        params=params, filter_params=tenant_config_filter.model_dump(exclude_unset=True)
     )
     tenants: list[TenantRead] = [TenantRead.model_validate(tenant) for tenant in results]
 
     return TenantList(results=tenants, count=count)
+
+
+@router.get(
+    "/tenant/details",
+    response_model=TenantRead,
+    dependencies=[Security(oauth2_auth().verify, scopes=[ADMIN_READ])],  # type: ignore
+)
+async def get_tenant_details(tenant_id: Annotated[int, Depends(get_tenant_id)], tenant_crud_client: TenantsCRUDDep):
+    """
+    Retrieve the details for the current tenant.
+    """
+    return await tenant_crud_client.get(tenant_id)
 
 
 @router.get(
@@ -237,6 +259,118 @@ async def update_tenant_config(
         raise HTTPException(status_code=404, detail="Tenant not found") from e
 
 
+# Snowflake Configuration Routes
+@router.post(
+    "/tenant/snowflake-config",
+    response_model=SnowflakeConfigRead,
+    dependencies=[Security(oauth2_auth().verify, scopes=[ADMIN_WRITE])],  # type: ignore
+    tags=["snowflake"],
+)
+async def create_snowflake_config(config: SnowflakeConfigCreate, tenant_crud_client: TenantsCRUDDep):
+    """
+    Create Snowflake configuration for a tenant.
+    """
+    snowflake_config = await tenant_crud_client.create_snowflake_config(config)
+    return snowflake_config
+
+
+@router.get(
+    "/tenant/snowflake-config",
+    response_model=SnowflakeConfigRead,
+    dependencies=[Security(oauth2_auth().verify, scopes=[ADMIN_READ])],  # type: ignore
+    tags=["snowflake"],
+)
+async def get_snowflake_config(tenant_crud_client: TenantsCRUDDep):
+    """
+    Retrieve Snowflake configuration for the current tenant.
+    """
+    try:
+        config = await tenant_crud_client.get_snowflake_config()
+        return config
+    except NotFoundError as e:
+        raise HTTPException(status_code=404, detail="Snowflake configuration not found") from e
+
+
+@router.get(
+    "/tenant/snowflake-config/internal",
+    response_model=SnowflakeConfig,
+    dependencies=[Security(oauth2_auth().verify, scopes=[ADMIN_READ])],  # type: ignore
+    tags=["snowflake"],
+)
+async def get_snowflake_config_internal(tenant_crud_client: TenantsCRUDDep):
+    """
+    Internal endpoint to retrieve the complete Snowflake configuration including sensitive fields.
+    This endpoint should only be used by internal services.
+    """
+    config: SnowflakeConfig = await tenant_crud_client.get_snowflake_config()
+    return config
+
+
+@router.put(
+    "/tenant/snowflake-config",
+    response_model=SnowflakeConfigRead,
+    dependencies=[Security(oauth2_auth().verify, scopes=[ADMIN_WRITE])],  # type: ignore
+    tags=["snowflake"],
+)
+async def update_snowflake_config(config: SnowflakeConfigUpdate, tenant_crud_client: TenantsCRUDDep):
+    """
+    Update Snowflake configuration for a tenant.
+    """
+    try:
+        updated_config = await tenant_crud_client.update_snowflake_config(config)
+        return updated_config
+    except NotFoundError as e:
+        raise HTTPException(status_code=404, detail="Tenant or Snowflake configuration not found") from e
+
+
+@router.delete(
+    "/tenant/snowflake-config",
+    dependencies=[Security(oauth2_auth().verify, scopes=[ADMIN_WRITE])],  # type: ignore
+    tags=["snowflake"],
+)
+async def delete_snowflake_config(tenant_crud_client: TenantsCRUDDep):
+    """
+    Delete Snowflake configuration for a tenant.
+    """
+    success = await tenant_crud_client.delete_snowflake_config()
+    if success:
+        return {"detail": "Snowflake configuration deleted successfully"}
+    else:
+        raise HTTPException(status_code=404, detail="Snowflake configuration not found")
+
+
+@router.post(
+    "/tenant/snowflake-config/test",
+    response_model=SnowflakeConnectionTest,
+    dependencies=[Security(oauth2_auth().verify, scopes=[ADMIN_WRITE])],  # type: ignore
+    tags=["snowflake"],
+)
+async def test_snowflake_connection(config_data: SnowflakeConfigCreate, tenant_crud_client: TenantsCRUDDep):
+    """
+    Test Snowflake connection with provided configuration.
+    This allows testing a connection before saving the configuration.
+    """
+    test_result = await tenant_crud_client.test_snowflake_connection(config_data.model_dump(mode="json"))
+    return test_result
+
+
+@router.put(
+    "/tenant/metric-cache/enable",
+    response_model=TenantConfigRead,
+    dependencies=[Security(oauth2_auth().verify, scopes=[ADMIN_WRITE])],  # type: ignore
+    tags=["snowflake"],
+)
+async def enable_metric_cache(tenant_crud_client: TenantsCRUDDep, enabled: bool = True):
+    """
+    Enable or disable metric cache feature for a tenant.
+    """
+    try:
+        updated_config = await tenant_crud_client.enable_metric_cache(enabled)
+    except NotFoundError as e:
+        raise HTTPException(status_code=404, detail="Tenant or Snowflake configuration not found") from e
+    return updated_config
+
+
 # Slack OAuth Routes
 @slack_router.get(
     "/oauth/authorize",
@@ -292,7 +426,7 @@ async def disconnect_slack(
     if not tenant_config.slack_connection:
         raise HTTPException(status_code=400, detail="Slack connection details not found")
     # call revoke token endpoint
-    slack_connection = SlackConnectionConfig.parse_obj(tenant_config.slack_connection)
+    slack_connection = SlackConnectionConfig.model_validate(tenant_config.slack_connection)
     await service.revoke_oauth_token(slack_connection.bot_token)
     # clear the slack connection details
     tenant_config = await tenant_crud.revoke_slack_connection(tenant_config)

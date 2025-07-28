@@ -1,0 +1,283 @@
+---
+description:
+globs:
+alwaysApply: true
+---
+# Common Commands
+
+## 🚀 Quick Start
+
+```bash
+# Full project setup
+make setup
+
+# Daily development
+source venv/bin/activate
+make run-all
+make test-all
+```
+
+## 🛠️ Development
+
+### Environment Setup
+```bash
+# Install dependencies for specific service
+make install-deps path=analysis_manager
+make install-deps path=query_manager
+
+# Install shared libraries
+make install-deps path=commons
+make install-deps path=core
+```
+
+### Running Services
+```bash
+# Individual services
+make run app=analysis_manager port=8000
+make run app=query_manager port=8001
+make run app=story_manager port=8002
+make run app=insights_backend port=8004
+
+# All services
+make run-all
+```
+
+### Service URLs
+```bash
+# API documentation
+http://localhost:8000/docs  # Analysis Manager
+http://localhost:8001/docs  # Query Manager
+http://localhost:8002/docs  # Story Manager
+http://localhost:8004/docs  # Insights Backend
+```
+
+## 🧪 Testing
+
+```bash
+# Run all tests
+make test-all
+
+# Test specific service
+make test app=analysis_manager
+make test app=query_manager
+
+# Coverage report
+make test app=analysis_manager report=html
+open analysis_manager/htmlcov/index.html
+```
+
+## 🎨 Code Quality
+
+```bash
+# Format all code
+make format-all
+
+# Format specific service
+make format path=analysis_manager
+
+# Lint all code
+make lint-all
+
+# Lint specific service
+make lint path=analysis_manager
+```
+
+## 🗄️ Database Management
+
+### Service-Specific
+```bash
+# Analysis Manager
+cd analysis_manager
+python manage.py db upgrade
+python manage.py db revision -m "description"
+
+# Query Manager
+cd query_manager
+python manage.py db upgrade
+
+# Story Manager
+cd story_manager
+python manage.py db upgrade
+
+# Insights Backend
+cd insights_backend
+python manage.py db upgrade
+```
+
+### Common Operations
+```bash
+# Apply migrations
+python manage.py db upgrade
+
+# Create migration
+python manage.py db revision -m "description"
+
+# Rollback
+python manage.py db downgrade
+
+# View history
+python manage.py db history
+```
+
+## 🐚 Interactive Shells
+
+```bash
+# Start shell for service
+make start-shell app=analysis_manager
+make start-shell app=query_manager
+
+# Or directly
+cd analysis_manager
+python manage.py shell
+```
+
+## 🐳 Docker Commands
+
+```bash
+# Build and run with Docker
+docker-compose build
+docker-compose up
+
+# Run specific service
+docker-compose up analysis-manager
+
+# View logs
+docker-compose logs -f analysis-manager
+
+# Stop services
+docker-compose down
+```
+
+## 🔧 Prefect (Tasks Manager)
+
+```bash
+cd tasks_manager
+
+# Complete setup
+make setup-local
+
+# Individual commands
+make setup           # Initialize
+make server          # Start server (port 4200)
+make create-pool     # Create work pools
+make deploy-local    # Deploy flows
+make worker          # Start worker
+
+# Access UI
+open http://localhost:4200
+```
+
+## 🔍 Health & Debugging
+
+### Health Checks
+```bash
+curl http://localhost:8000/analysis/v1/health
+curl http://localhost:8001/query/v1/health
+curl http://localhost:8002/story/v1/health
+curl http://localhost:8004/insights/v1/health
+```
+
+### Process Management
+```bash
+# Check running processes
+ps aux | grep uvicorn
+netstat -tulpn | grep :8000
+
+# Kill processes
+pkill -f "uvicorn"
+pkill -f "python manage.py"
+```
+
+## 📋 Utility Commands
+
+### Environment
+```bash
+# Check Python version
+python --version
+
+# Install Poetry
+pip install poetry==1.8.2
+
+# Environment files
+cp service/.env.template service/.env
+```
+
+### Git Workflow
+```bash
+# Standard flow
+git checkout -b feature/your-feature
+git add .
+git commit -m "feat: add feature"
+git push origin feature/your-feature
+```
+
+### Cleanup
+```bash
+# Reset environment
+make clean
+make setup
+
+# Clear Python cache
+find . -type d -name "__pycache__" -delete
+find . -name "*.pyc" -delete
+
+# Reset pre-commit
+pre-commit uninstall
+pre-commit install
+```
+
+## 🚀 CI/CD Simulation
+
+```bash
+# Run pre-commit checks
+pre-commit run --all-files
+
+# Full CI simulation
+make format-all
+make lint-all
+make test-all
+```
+
+## 📦 Dependency Management
+
+```bash
+# Update dependencies
+cd service_name
+poetry update
+
+# Add dependency
+poetry add httpx
+poetry add pytest --group dev
+
+# Export requirements
+poetry export --output requirements.txt
+```
+
+## 🛟 Troubleshooting
+
+### Common Fixes
+```bash
+# Reinstall dependencies
+rm -rf venv
+make setup
+
+# Reset Prefect
+cd tasks_manager
+make clean-prefect
+make setup
+
+# Database issues
+brew services restart postgresql
+```
+
+### Performance
+```bash
+# Memory usage
+htop
+
+# Port usage
+lsof -i :8000
+
+# Database connections
+psql -d fulcrum_db -c "SELECT * FROM pg_stat_activity;"
+```

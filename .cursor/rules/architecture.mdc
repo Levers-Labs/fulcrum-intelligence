@@ -1,0 +1,81 @@
+---
+description:
+globs:
+alwaysApply: true
+---
+# Architecture Guide
+
+## 🏗️ System Overview
+
+**Fulcrum Intelligence Engine** - Microservices analytics platform with domain-driven design
+
+### Service Types
+- **Libraries**: `commons/`, `core/`, `levers/` - Shared components
+- **API Services**: FastAPI servers with dedicated databases
+- **Orchestration**: `tasks_manager/` - Prefect workflow management
+
+### Core Services
+| Service | Port | Purpose | Schema |
+|---------|------|---------|--------|
+| Analysis Manager | 8000 | Pattern analysis, drift detection | `analysis_store` |
+| Query Manager | 8001 | Data querying, semantic models | `query_store` |
+| Story Manager | 8002 | Story generation, narratives | `story_store` |
+| Insights Backend | 8004 | User management, notifications | `insights_store` |
+| Tasks Manager | - | Prefect orchestration | SQLite/Cloud |
+
+## 📊 Data Flow
+
+```
+Data Sources → Query Manager → Analysis Manager → Story Manager → Insights Backend
+     ↓              ↓              ↓               ↓              ↓
+   S3/APIs    Semantic Models   Patterns      Narratives   Notifications
+```
+
+## 🔐 Authentication
+
+- **Auth0** OAuth 2.0 with JWT tokens
+- **Multi-tenant** with tenant context in tokens
+- **Service-to-service** authentication
+
+## 🗄️ Database Architecture
+
+- **PostgreSQL** with schema-per-service
+- **Multi-tenant** isolation within schemas
+- **Alembic** migrations per service
+- **Async operations** with SQLModel
+
+## 🚀 Deployment
+
+- **AWS Lambda** serverless functions
+- **Docker** containerized deployments
+- **API Gateway** routing and load balancing
+- **GitHub Actions** CI/CD pipeline
+
+## 📡 Communication
+
+- **HTTP/REST** between services
+- **Client libraries** in `commons/`
+- **Retry logic** and circuit breakers
+- **Async operations** throughout
+
+## 🔧 Key Patterns
+
+- **Domain-driven design** with clear boundaries
+- **Dependency injection** FastAPI pattern
+- **Event-driven** architecture
+- **CQRS** for read/write separation
+- **Multi-tenant** data isolation
+
+## 🧪 Testing Strategy
+
+- **Unit tests** for individual components
+- **Integration tests** for service interactions
+- **Contract tests** for API validation
+- **End-to-end tests** for workflows
+
+## 📈 Scalability
+
+- **Horizontal scaling** with stateless services
+- **Connection pooling** per service
+- **Caching** with Redis
+- **Async I/O** for performance

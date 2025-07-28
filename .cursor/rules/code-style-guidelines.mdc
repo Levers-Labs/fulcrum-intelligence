@@ -1,0 +1,264 @@
+---
+description:
+globs:
+alwaysApply: true
+---
+# Code Style Guidelines
+
+## 🐍 Python Standards
+
+- **Python 3.10+** with modern features
+- **Type hints** required for all functions
+- **Async/await** for I/O operations
+- **Functional programming** over classes
+
+## 🔤 Modern Typing (Python 3.10+)
+
+### Union Types - Use `|` instead of `Union` or `Optional`
+```python
+# ✅ Good - Python 3.10+ style
+def process_data(value: str | None) -> dict[str, int | float]:
+    pass
+
+def get_metrics(ids: list[str]) -> dict[str, Any]:
+    pass
+
+# ❌ Avoid - Old style
+from typing import Optional, Union, Dict, List
+def process_data(value: Optional[str]) -> Dict[str, Union[int, float]]:
+    pass
+```
+
+### Built-in Collections - Use built-in types instead of `typing` module
+```python
+# ✅ Good - Built-in types
+async def fetch_data(
+    metric_ids: list[str],
+    filters: dict[str, Any] = None
+) -> list[dict[str, str | int | float]]:
+    pass
+
+# ❌ Avoid - typing module imports
+from typing import List, Dict
+async def fetch_data(
+    metric_ids: List[str],
+    filters: Dict[str, Any] = None
+) -> List[Dict[str, Union[str, int, float]]]:
+    pass
+```
+
+### Type Aliases
+```python
+# Clean type aliases for complex types
+MetricData = dict[str, str | int | float | None]
+DimensionFilters = dict[str, list[str]]
+TimeSeriesPoint = tuple[datetime, float]
+
+async def process_metrics(
+    data: list[MetricData],
+    filters: DimensionFilters | None = None
+) -> list[TimeSeriesPoint]:
+    pass
+```
+
+## 📝 Naming Conventions
+
+```python
+# Variables & Functions - snake_case with auxiliary verbs
+is_active = True
+has_permission = False
+user_count = 42
+
+# Files & Directories - lowercase with underscores
+user_routes.py
+component_drift/
+
+# Classes & Models - PascalCase
+class UserService:
+    pass
+
+class MetricRequest(BaseModel):
+    pass
+```
+
+## 🎯 FastAPI Patterns
+
+### Route Organization
+```python
+@router.post("/component-drift")
+async def analyze_component_drift(
+    request: ComponentDriftRequest,
+    service: ComponentDriftService = Depends(get_service)
+) -> ComponentDriftResponse:
+    """Analyze component drift for metrics."""
+    return await service.analyze(request)
+```
+
+### Error Handling - Early Returns
+```python
+async def process_metric(metric_id: str) -> MetricResult:
+    if not metric_id:
+        raise HTTPException(status_code=400, detail="Metric ID required")
+
+    try:
+        metric = await get_metric(metric_id)
+    except MetricNotFoundError:
+        raise HTTPException(status_code=404, detail="Metric not found")
+
+    if not metric.is_active:
+        raise HTTPException(status_code=400, detail="Metric is inactive")
+
+    # Happy path last
+    return await analyze_metric(metric)
+```
+
+## 🔧 Function Design
+
+```python
+# Complete type hints with modern syntax
+async def analyze_drift(
+    metric_id: str,
+    start_date: date,
+    end_date: date,
+    grain: Granularity = Granularity.day,
+    dimensions: list[str] | None = None
+) -> ComponentDriftResult:
+    """Analyze component drift for a metric."""
+    pass
+
+# Async for I/O, sync for CPU
+async def fetch_data(url: str) -> dict[str, Any]:
+    async with httpx.AsyncClient() as client:
+        response = await client.get(url)
+        return response.json()
+
+def calculate_stats(data: list[float]) -> dict[str, float]:
+    return {"mean": mean(data), "std": std(data)}
+```
+
+## 📊 Data Models
+
+### Pydantic v2 with Modern Typing
+```python
+class MetricRequest(BaseModel):
+    metric_id: str
+    start_date: date
+    end_date: date
+    grain: Granularity = Granularity.day
+    dimensions: list[str] | None = None
+    filters: dict[str, Any] | None = None
+
+    @field_validator('metric_id')
+    @classmethod
+    def validate_metric_id(cls, v: str) -> str:
+        if not v.strip():
+            raise ValueError('Metric ID cannot be empty')
+        return v.strip()
+```
+
+### SQLModel with Modern Typing
+```python
+class Metric(SQLModel, table=True):
+    __tablename__ = "metrics"
+
+    id: str = Field(primary_key=True)
+    name: str
+    description: str | None = None
+    is_active: bool = True
+    metadata: dict[str, Any] | None = Field(default=None, sa_column=Column(JSON))
+    tags: list[str] = Field(default_factory=list, sa_column=Column(JSON))
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+```
+
+## 🧪 Testing Standards
+
+```python
+class TestMetricService:
+    async def test_get_metric_success(self, session, metric_factory):
+        # Arrange
+        metric = metric_factory()
+        await session.commit()
+
+        # Act
+        service = MetricService(session)
+        result = await service.get_metric(metric.id)
+
+        # Assert
+        assert result.id == metric.id
+        assert result.name == metric.name
+```
+
+## 🔍 Code Quality
+
+### Import Organization
+```python
+# Standard library
+import logging
+from datetime import date
+from collections.abc import Sequence
+
+# Third-party
+import httpx
+from fastapi import APIRouter, Depends
+
+# Local
+from commons.auth import Oauth2Auth
+from service_name.config import settings
+```
+
+### Documentation with Modern Types
+```python
+async def analyze_component_drift(
+    request: ComponentDriftRequest,
+    service: ComponentDriftService = Depends(get_service)
+) -> ComponentDriftResponse:
+    """
+    Analyze component drift for a metric.
+
+    Args:
+        request: Component drift analysis request
+        service: Service for performing drift analysis
+
+    Returns:
+        Component drift analysis results
+
+    Raises:
+        HTTPException: If metric not found or analysis fails
+    """
+    pass
+```
+
+## 📋 Performance
+
+### Async Operations
+```python
+# Good - async for I/O with modern typing
+async def fetch_multiple_metrics(metric_ids: list[str]) -> list[Metric]:
+    tasks = [fetch_metric(metric_id) for metric_id in metric_ids]
+    return await asyncio.gather(*tasks)
+
+# Good - sync for CPU with modern typing
+def calculate_statistics(data: Sequence[float]) -> dict[str, float]:
+    return {"mean": mean(data), "std": std(data)}
+```
+
+### Database Queries with Modern Typing
+```python
+# Efficient queries with proper loading
+async def get_metrics_with_stats(self) -> list[MetricWithStats]:
+    query = (
+        select(Metric, func.count(MetricValue.id))
+        .outerjoin(MetricValue)
+        .group_by(Metric.id)
+        .options(selectinload(Metric.dimensions))
+    )
+    return await self.db.execute(query)
+```
+
+## 🛠️ Tools
+
+- **Black** (120 char lines)
+- **isort** (import sorting)
+- **Ruff** (fast linting)
+- **MyPy** (type checking)
+- **Pre-commit hooks** (automatic)

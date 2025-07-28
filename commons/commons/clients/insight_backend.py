@@ -10,6 +10,14 @@ class InsightBackendClient(AsyncHttpClient):
         # headers = {"Authorization": token}
         return await self.get(f"/users/{user_id}")  # , {"headers": headers})
 
+    async def get_tenant_details(self) -> dict:
+        """
+        Get tenant details for tenant from context.
+        Raises an InvalidTenant exception if the tenant is not found.
+        :return: dict
+        """
+        return await self.get("/tenant/details")
+
     async def get_tenant_config(self) -> dict:
         """
         Get tenant configuration for tenant from context.
@@ -69,6 +77,21 @@ class InsightBackendClient(AsyncHttpClient):
             config = await self.get("/tenant/config/internal")
             slack_config = config["slack_connection"]
             return slack_config
+        except HttpClientError as e:
+            if e.status_code == 404:
+                tenant_id = get_tenant_id()
+                raise InvalidTenantError(tenant_id) from e
+            raise
+
+    async def get_snowflake_config(self) -> dict:
+        """
+        Get Snowflake configuration for tenant from context.
+        Raises an InvalidTenant exception if the tenant is not found.
+        :return: dict
+        """
+        try:
+            config = await self.get("/tenant/snowflake-config/internal")
+            return config
         except HttpClientError as e:
             if e.status_code == 404:
                 tenant_id = get_tenant_id()

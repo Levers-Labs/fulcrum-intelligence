@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from commons.models import BaseModel
 from commons.models.enums import Granularity
-from query_manager.core.enums import Complexity
+from query_manager.core.enums import Complexity, MetricAim
 from query_manager.core.models import (
     Dimension,
     DimensionBase,
@@ -163,6 +163,7 @@ class MetricUpdate(BaseModel):
     influencers: list[str] | None = Field(None, description="List of influencer metric IDs")
     components: list[str] | None = Field(None, description="List of component metric IDs")
     inputs: list[str] | None = Field(None, description="List of input metric IDs")
+    aim: MetricAim | None = None
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -320,3 +321,115 @@ class Cube(BaseModel):
 
 class DeleteResponse(BaseModel):
     message: str
+
+
+# Snowflake Cache Configuration Schemas
+class MetricCacheGrainConfigBase(BaseModel):
+    grain: Granularity = Field(description="Granularity level (day, week, month)")
+    is_enabled: bool = Field(default=True, description="Whether sync is enabled for this grain")
+    initial_sync_period: int = Field(description="Initial sync period in days", ge=1, le=3650)  # Max 10 years
+    delta_sync_period: int = Field(description="Delta sync period in days", ge=1, le=365)  # Max 1 year
+
+    model_config = ConfigDict(
+        from_attributes=True,
+        json_schema_extra={
+            "example": {"grain": "day", "is_enabled": True, "initial_sync_period": 730, "delta_sync_period": 90}
+        },
+    )
+
+
+class MetricCacheGrainConfigCreate(MetricCacheGrainConfigBase):
+    pass
+
+
+class MetricCacheGrainConfigRead(MetricCacheGrainConfigBase):
+    id: int
+    tenant_id: int
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class MetricCacheGrainConfigUpdate(BaseModel):
+    is_enabled: bool | None = None
+    initial_sync_period: int | None = Field(None, ge=1, le=3650)
+    delta_sync_period: int | None = Field(None, ge=1, le=365)
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class BulkGrainConfigUpdate(BaseModel):
+    configs: list[dict] = Field(
+        description="List of grain configurations with grain and update fields",
+        examples=[
+            [
+                {"grain": "day", "is_enabled": True, "initial_sync_period": 730, "delta_sync_period": 90},
+                {"grain": "week", "is_enabled": True, "initial_sync_period": 1095, "delta_sync_period": 90},
+                {"grain": "month", "is_enabled": False},
+            ]
+        ],
+    )
+
+
+class MetricCacheConfigBase(BaseModel):
+    is_enabled: bool = Field(default=True, description="Whether caching is enabled for this metric")
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class MetricCacheConfigRead(MetricCacheConfigBase):
+    id: int
+    metric_id: str
+    last_sync_date: datetime.datetime | None = None
+    sync_status: str | None = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class MetricCacheConfigUpdate(BaseModel):
+    is_enabled: bool
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class BulkMetricCacheUpdate(BaseModel):
+    metric_ids: list[str] = Field(description="List of metric IDs to update")
+    is_enabled: bool = Field(description="Enable or disable caching for all specified metrics")
+
+    model_config = ConfigDict(
+        json_schema_extra={"example": {"metric_ids": ["metric_1", "metric_2", "metric_3"], "is_enabled": False}}
+    )
+
+
+# Tenant Sync Status Schemas
+class TenantSyncStatusResponse(BaseModel):
+    """Response schema for tenant sync status."""
+
+    id: int
+    sync_operation: str
+    grain: Granularity
+    last_sync_at: datetime.datetime
+    sync_status: str
+    metrics_processed: int | None = None
+    metrics_succeeded: int | None = None
+    metrics_failed: int | None = None
+    error: str | None = None
+    run_info: dict = {}
+    created_at: datetime.datetime
+    updated_at: datetime.datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+# Comprehensive Cache Information Schema
+class CacheInfoResponse(BaseModel):
+    """Response schema for comprehensive cache information."""
+
+    table_name: str
+
+    # Table/data information
+    date_range_start: datetime.date | None = None
+    date_range_end: datetime.date | None = None
+    total_records: int | None = None
+    unique_dates: int | None = None
+
+    model_config = ConfigDict(from_attributes=True)

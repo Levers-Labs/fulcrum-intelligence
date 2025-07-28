@@ -11,7 +11,7 @@ from commons.utilities.context import reset_context, set_tenant_id
 from query_manager.core.schemas import MetricDetail
 from query_manager.db.config import get_async_session
 from query_manager.semantic_manager.crud import SemanticManager
-from query_manager.semantic_manager.models import SyncStatus, SyncType
+from query_manager.semantic_manager.models import SyncOperation, SyncStatus, SyncType
 from tasks_manager.config import AppConfig
 from tasks_manager.tasks.query import fetch_metric_values
 
@@ -27,7 +27,8 @@ class SyncStats(TypedDict):
 
 
 class SyncSummary(TypedDict):
-    metric_id: str
+    # will be null for tenant sync summary
+    metric_id: str | None
     tenant_id: int
     status: Literal["success", "failed", "partial_success"]
     sync_type: str
@@ -38,6 +39,37 @@ class SyncSummary(TypedDict):
     dimensional_stats: list[SyncStats]
     failed_tasks: list[dict] | None
     error: str | None
+
+
+def get_error_summary(
+    tenant_id: int,
+    grain: Granularity,
+    metric_id: str | None = None,
+    error: str | None = None,
+    sync_type: SyncType = SyncType.FULL,
+) -> SyncSummary:
+    """Get a summary of the sync error."""
+    return SyncSummary(
+        metric_id=metric_id,
+        tenant_id=tenant_id,
+        status="failed",
+        sync_type=sync_type.value,
+        grain=grain.value,
+        start_date=datetime.now().date().isoformat(),
+        end_date=datetime.now().date().isoformat(),
+        time_series_stats=SyncStats(
+            processed=0,
+            skipped=0,
+            failed=0,
+            total=0,
+            dimension_id=None,
+            sync_type=sync_type.value,
+            error=error,
+        ),
+        dimensional_stats=[],
+        failed_tasks=[],
+        error=error,
+    )
 
 
 def send_metric_semantic_sync_finished_event(
@@ -196,13 +228,17 @@ async def create_sync_summary_artifact(summary: SyncSummary) -> None:
 {error_section}"""  # noqa: E501
 
     await create_markdown_artifact(  # type: ignore
-        key=f"metric-{summary['metric_id'].replace('_', '-').lower()}-{summary['grain'].lower()}-sync-summary",
+        key=f"metric-{summary['metric_id'].replace('_', '-').lower()}-{summary['grain'].lower()}-sync-summary",  # type: ignore
         markdown=markdown,
     )
 
 
 async def determine_sync_type(
-    metric_id: str, tenant_id: int, grain: Granularity, dimension_name: str | None = None
+    metric_id: str,
+    tenant_id: int,
+    grain: Granularity,
+    dimension_name: str | None = None,
+    sync_operation: SyncOperation = SyncOperation.SEMANTIC_SYNC,
 ) -> SyncType:
     """
     Determine the appropriate sync type (FULL or INCREMENTAL) for a metric component.
@@ -215,6 +251,7 @@ async def determine_sync_type(
         tenant_id: The tenant ID
         grain: The granularity level to check
         dimension_name: Optional dimension name to check, if None checks the base metric
+        sync_operation: Sync Operation type
 
     Returns:
         SyncType.FULL if no successful full sync exists, SyncType.INCREMENTAL otherwise
@@ -233,6 +270,7 @@ async def determine_sync_type(
             sync_statuses = await semantic_manager.metric_sync_status.get_sync_status(
                 tenant_id=tenant_id,
                 metric_id=metric_id,
+                sync_operation=sync_operation,
                 grain=grain,
                 dimension_name=dimension_name,
             )
@@ -329,6 +367,7 @@ async def fetch_and_store_metric_time_series(
             await semantic_manager.metric_sync_status.start_sync(
                 metric_id=metric.metric_id,
                 grain=grain,
+                sync_operation=SyncOperation.SEMANTIC_SYNC,
                 sync_type=sync_type,
                 start_date=start_date,
                 end_date=end_date,
@@ -356,6 +395,7 @@ async def fetch_and_store_metric_time_series(
                 await semantic_manager.metric_sync_status.end_sync(
                     metric_id=metric.metric_id,
                     grain=grain,
+                    sync_operation=SyncOperation.SEMANTIC_SYNC,
                     sync_type=sync_type,
                     status=SyncStatus.SUCCESS,
                     records_processed=upsert_stats["processed"],
@@ -390,6 +430,7 @@ async def fetch_and_store_metric_time_series(
                 await semantic_manager.metric_sync_status.end_sync(
                     metric_id=metric.metric_id,
                     grain=grain,
+                    sync_operation=SyncOperation.SEMANTIC_SYNC,
                     sync_type=sync_type,
                     status=SyncStatus.FAILED,
                     error=str(e),
@@ -466,6 +507,7 @@ async def fetch_and_store_metric_dimensional_time_series(
             await semantic_manager.metric_sync_status.start_sync(
                 metric_id=metric.metric_id,
                 grain=grain,
+                sync_operation=SyncOperation.SEMANTIC_SYNC,
                 dimension_name=dimension_id,
                 sync_type=sync_type,
                 start_date=start_date,
@@ -499,6 +541,7 @@ async def fetch_and_store_metric_dimensional_time_series(
                 await semantic_manager.metric_sync_status.end_sync(
                     metric_id=metric.metric_id,
                     grain=grain,
+                    sync_operation=SyncOperation.SEMANTIC_SYNC,
                     dimension_name=dimension_id,
                     sync_type=sync_type,
                     status=SyncStatus.SUCCESS,
@@ -535,6 +578,7 @@ async def fetch_and_store_metric_dimensional_time_series(
                 await semantic_manager.metric_sync_status.end_sync(
                     metric_id=metric.metric_id,
                     grain=grain,
+                    sync_operation=SyncOperation.SEMANTIC_SYNC,
                     dimension_name=dimension_id,
                     status=SyncStatus.FAILED,
                     sync_type=sync_type,

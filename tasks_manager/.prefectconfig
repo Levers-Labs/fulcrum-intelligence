@@ -1,0 +1,17 @@
+# Prefect configuration for Tasks Manager project
+# This file configures Prefect to use a local SQLite database specific to this project
+
+# Use a relative SQLite database path
+PREFECT_API_DATABASE_CONNECTION_URL=sqlite+aiosqlite:///./prefect_data/prefect.db
+
+# Set the API URL to use local server
+PREFECT_API_URL=http://127.0.0.1:4200/api
+
+# Project-specific server host and port (optional, defaults shown)
+PREFECT_SERVER_HOST=127.0.0.1
+PREFECT_SERVER_PORT=4200
+
+# Logging configuration
+PREFECT_LOGGING_LEVEL=INFO
+PREFECT_LOGGING_SERVER_LEVEL=INFO
+PREFECT_LOGGING_EXTRA_LOGGERS=sqlalchemy,tasks_manager
