@@ -1,11 +1,5 @@
 FROM prefecthq/prefect:3.1.7-python3.10
 
-# Install prefect-docker
-RUN pip install prefect-docker>=0.3.1
-
-# Create fulcrum user for security
-RUN groupadd -r fulcrum && useradd -r -g fulcrum fulcrum
-
 # Set working directory
 RUN mkdir -p /opt/prefect/tasks_manager/
 WORKDIR /opt/prefect/tasks_manager/
@@ -29,18 +23,5 @@ RUN pip install --no-cache-dir --upgrade -r requirements.txt
 # Copy application code
 COPY tasks_manager/tasks_manager/ ./tasks_manager
 
-# Copy deployment scripts
-COPY tasks_manager/deployment/ ./deployment/
-
-# Make deployment scripts executable
-RUN chmod +x ./deployment/Makefile
-
-# Set proper permissions
-RUN chown -R fulcrum:fulcrum /opt/prefect/
-
 # Set PYTHONPATH to include all modules
 ENV PYTHONPATH=/opt/prefect
-
-# Default entrypoint uses make to run the worker
-ENTRYPOINT ["make", "-f", "deployment/Makefile"]
-CMD ["run-prefect-worker"]
