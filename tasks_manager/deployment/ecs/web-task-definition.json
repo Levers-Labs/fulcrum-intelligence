@@ -1,0 +1,42 @@
+{
+  "executionRoleArn": "arn:aws:iam::$account:role/fulcrum-ecs-execution-role",
+  "taskRoleArn": "arn:aws:iam::$account:role/fulcrum-ecs-execution-role",
+  "networkMode": "awsvpc",
+  "requiresCompatibilities": [
+    "FARGATE"
+  ],
+  "cpu": "1024",
+  "memory": "2048",
+  "family": "$app-prefect-worker-task-definition",
+  "containerDefinitions": [
+    {
+      "name": "$app",
+      "user": "fulcrum",
+      "image": "",
+      "linuxParameters": {
+        "capabilities": {
+          "drop": [
+            "NET_RAW"
+          ]
+        }
+      },
+      "portMappings": [],
+      "command": [
+        "run-prefect-worker"
+      ],
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "secretOptions": null,
+        "options": {
+          "awslogs-group": "fulcrum/$app/prefect-worker",
+          "awslogs-region": "$region",
+          "awslogs-stream-prefix": "$app-prefect-worker"
+        }
+      },
+      "environment": [],
+      "secrets": [],
+      "memoryReservation": 1024,
+      "essential": true
+    }
+  ]
+}
