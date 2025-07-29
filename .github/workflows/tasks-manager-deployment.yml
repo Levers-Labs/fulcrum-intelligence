@@ -1,4 +1,4 @@
-name: Deploy Tasks Manager to Prefect Cloud
+name: Deploy Tasks Manager Prefect Agent to ECS
 
 on:
   push:
@@ -6,6 +6,9 @@ on:
       - main
     paths:
       - "tasks_manager/**"
+      - "commons/**"
+      - "core/**"
+      - "levers/**"
       - ".github/workflows/tasks-manager-deployment.yml"
 
   workflow_dispatch:
@@ -20,7 +23,8 @@ on:
           - PROD
 
 env:
-  app_name: "tasks_manager"
+  app_name: "tasks-manager"
+  app_folder: "tasks_manager"
 
 permissions:
   id-token: write
@@ -31,12 +35,16 @@ jobs:
     name: set-vars
     runs-on: ubuntu-latest
     outputs:
+      ecr_repo: ${{ steps.set-vars.outputs.ecr_repo }}
+      app_folder: ${{ steps.set-vars.outputs.app_folder }}
       app_name: ${{ steps.set-vars.outputs.app_name }}
       env: ${{ steps.set-vars.outputs.env }}
     steps:
       - name: set-vars
         id: set-vars
         run: |
+          echo "ecr_repo=$app_name" >> $GITHUB_OUTPUT
+          echo "app_folder=$app_folder" >> $GITHUB_OUTPUT
           echo "app_name=$app_name" >> $GITHUB_OUTPUT
           if ${{ github.event.inputs.environment == 'PROD'}}; then
             echo "env=prod" >> $GITHUB_OUTPUT;
@@ -46,7 +54,7 @@ jobs:
             echo "env=dev" >> $GITHUB_OUTPUT;
           fi
 
-  deploy:
+  deploy-flows:
     runs-on: ubuntu-latest
     needs: [set-vars]
     steps:
@@ -70,17 +78,33 @@ jobs:
           pip install -U -r requirements.txt
 
       - name: Register Prefect blocks
-        working-directory: ${{ needs.set-vars.outputs.app_name }}
+        working-directory: ${{ needs.set-vars.outputs.app_folder }}
         env:
           PREFECT_API_KEY: ${{ secrets.PREFECT_API_KEY }}
           PREFECT_API_URL: ${{ secrets.PREFECT_API_URL }}
         run: |
-          prefect blocks register --file ${{ needs.set-vars.outputs.app_name }}/config.py
+          prefect blocks register --file ${{ needs.set-vars.outputs.app_folder }}/config.py
 
-      - name: Deploy to Prefect Cloud
-        working-directory: ${{ needs.set-vars.outputs.app_name }}
+      - name: Deploy flows to Prefect Cloud
+        working-directory: ${{ needs.set-vars.outputs.app_folder }}
         run: |
           prefect --no-prompt deploy --all
         env:
           PREFECT_API_KEY: ${{ secrets.PREFECT_API_KEY }}
           PREFECT_API_URL: ${{ secrets.PREFECT_API_URL }}
+
+  build_and_deploy_agent:
+    needs: [set-vars, deploy-flows]
+    uses: ./.github/workflows/reusable-ci-cd.yml
+    with:
+        ecr_repo: ${{ needs.set-vars.outputs.ecr_repo }}
+        ecs_cluster: "fulcrum-intelligence"
+        app_name: ${{ needs.set-vars.outputs.app_name }}
+        app_folder: ${{ needs.set-vars.outputs.app_folder }}
+        env: ${{ needs.set-vars.outputs.env }}
+
+    secrets:
+      ECR_REGISTRY: ${{ secrets.ECR_REGISTRY }}
+      AWS_REGION: ${{ secrets.AWS_REGION }}
+      DEV_DEPLOYMENT_ROLE: ${{ secrets.DEV_DEPLOYMENT_ROLE }}
+      AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
