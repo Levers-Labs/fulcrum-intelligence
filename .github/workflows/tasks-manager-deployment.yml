@@ -36,12 +36,13 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       app_name: ${{ steps.set-vars.outputs.app_name }}
+      app_folder: ${{ steps.set-vars.outputs.app_folder }}
       env: ${{ steps.set-vars.outputs.env }}
     steps:
       - name: set-vars
         id: set-vars
         run: |
-
+          echo "app_folder=$app_folder" >> $GITHUB_OUTPUT
           echo "app_name=$app_name" >> $GITHUB_OUTPUT
           if ${{ github.event.inputs.environment == 'PROD'}}; then
             echo "env=prod" >> $GITHUB_OUTPUT;
@@ -75,15 +76,15 @@ jobs:
           pip install -U -r requirements.txt
 
       - name: Register Prefect blocks
-        working-directory: ${{ needs.set-vars.outputs.app_name }}
+        working-directory: ${{ needs.set-vars.outputs.app_folder }}
         env:
           PREFECT_API_KEY: ${{ secrets.PREFECT_API_KEY }}
           PREFECT_API_URL: ${{ secrets.PREFECT_API_URL }}
         run: |
-          prefect blocks register --file ${{ needs.set-vars.outputs.app_name }}/config.py
+          prefect blocks register --file tasks_manager/config.py
 
       - name: Deploy to Prefect Cloud
-        working-directory: ${{ needs.set-vars.outputs.app_name }}
+        working-directory: ${{ needs.set-vars.outputs.app_folder }}
         run: |
           prefect --no-prompt deploy --all
         env:
