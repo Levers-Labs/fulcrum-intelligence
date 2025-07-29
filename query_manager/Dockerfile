@@ -1,12 +1,12 @@
-FROM python:3.10-slim-buster AS base-python
+FROM python:3.10-slim-bullseye AS base-python
 
-ENV APP_USER fulcrum
-ENV APP_HOME /home/$APP_USER
+ENV APP_USER=fulcrum
+ENV APP_HOME=/home/$APP_USER
 
-ENV PYTHONPATH $APP_HOME
-ENV PYTHONUNBUFFERED 1
-ENV PYTHONWARNINGS ignore::UserWarning
-ENV PYTHONDONTWRITEBYTECODE 1
+ENV PYTHONPATH=$APP_HOME
+ENV PYTHONUNBUFFERED=1
+ENV PYTHONWARNINGS=ignore::UserWarning
+ENV PYTHONDONTWRITEBYTECODE=1
 
 ## Install System Deps
 RUN apt-get update && apt-get -y install --no-install-recommends git gcc make libpq-dev python3-dev procps curl
