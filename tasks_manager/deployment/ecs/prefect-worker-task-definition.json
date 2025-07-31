@@ -8,7 +8,7 @@
     "memory": "2048",
     "containerDefinitions": [
         {
-            "name": "prefect-worker",
+            "name": "$app-prefect-worker",
             "image": "",
             "essential": true,
             "logConfiguration": {
