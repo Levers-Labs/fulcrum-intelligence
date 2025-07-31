@@ -15,7 +15,7 @@
                 "logDriver": "awslogs",
                 "options": {
                     "awslogs-group": "/ecs/fulcrum-prefect-worker",
-                    "awslogs-region": "{{ AWS_REGION }}",
+                    "awslogs-region": "$region",
                     "awslogs-stream-prefix": "ecs"
                 }
             },
