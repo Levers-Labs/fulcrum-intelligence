@@ -1,8 +1,8 @@
 FROM prefecthq/prefect:3.4.8.dev6-python3.10
 
 # Set working directory
-RUN mkdir -p /opt/prefect/tasks_manager/
-WORKDIR /opt/prefect/tasks_manager/
+RUN mkdir -p /opt/prefect/fulcrum-intelligence/tasks_manager/
+WORKDIR /opt/prefect/fulcrum-intelligence/tasks_manager/
 
 # Install poetry
 RUN pip install --no-cache-dir --upgrade pip "poetry<2.0.0"
