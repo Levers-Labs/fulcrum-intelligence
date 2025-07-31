@@ -7,20 +7,8 @@ build: null
 
 push: null
 
-pull:
-- prefect.deployments.steps.run_shell_script:
-    id: get-github-token
-    script: uv tool run prefect-cloud github token Levers-Labs/fulcrum-intelligence
-- prefect.deployments.steps.git_clone:
-    id: git-clone
-    repository: https://x-access-token:{{ get-github-token.stdout }}@github.com/Levers-Labs/fulcrum-intelligence.git
-- prefect.deployments.steps.run_shell_script:
-    id: setup-environment
-    directory: "{{ git-clone.directory }}"
-    script: bash tasks_manager/scripts/setup_prefect_worker_environment.sh
-    stream_output: true
-- prefect.deployments.steps.set_working_directory:
-    directory: "/opt/prefect/{{ git-clone.directory }}/tasks_manager"
+pull: null
+
 
 # Reusable definitions
 definitions:
