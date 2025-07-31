@@ -1,19 +1,19 @@
 FROM prefecthq/prefect:3.4.8.dev6-python3.10
 
 # Set working directory
-RUN mkdir -p /opt/prefect/tasks_manager/
-WORKDIR /opt/prefect/tasks_manager/
+RUN mkdir -p /opt/prefect/fulcrum-intelligence/tasks_manager/
+WORKDIR /opt/prefect/fulcrum-intelligence/tasks_manager/
 
 # Install poetry
 RUN pip install --no-cache-dir --upgrade pip "poetry<2.0.0"
 
 # Copy the shared dependencies first
-COPY ./commons /opt/prefect/commons
-COPY ./levers /opt/prefect/levers
-COPY ./core /opt/prefect/core
-COPY ./query_manager /opt/prefect/query_manager
-COPY ./story_manager /opt/prefect/story_manager
-COPY ./analysis_manager /opt/prefect/analysis_manager
+COPY ./commons /opt/prefect/fulcrum-intelligence/commons
+COPY ./levers /opt/prefect/fulcrum-intelligence/levers
+COPY ./core /opt/prefect/fulcrum-intelligence/core
+COPY ./query_manager /opt/prefect/fulcrum-intelligence/query_manager
+COPY ./story_manager /opt/prefect/fulcrum-intelligence/story_manager
+COPY ./analysis_manager /opt/prefect/fulcrum-intelligence/analysis_manager
 
 # Install dependencies
 COPY tasks_manager/pyproject.toml ./tasks_manager/poetry.lock* ./
@@ -24,7 +24,7 @@ RUN pip install --no-cache-dir --upgrade -r requirements.txt
 COPY tasks_manager/tasks_manager/ ./tasks_manager
 
 # Set PYTHONPATH to include all modules
-ENV PYTHONPATH=/opt/prefect
+ENV PYTHONPATH=/opt/prefect/fulcrum-intelligence
 
 # Health check to ensure worker is running properly
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
