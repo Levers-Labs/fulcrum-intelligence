@@ -25,7 +25,6 @@ on:
 env:
   app_name: "tasks-manager"
   app_folder: "tasks_manager"
-  ecr_image: "prefect-worker"
 
 permissions:
   id-token: write
@@ -38,7 +37,7 @@ jobs:
     outputs:
       app_name: ${{ steps.set-vars.outputs.app_name }}
       app_folder: ${{ steps.set-vars.outputs.app_folder }}
-      ecr_image: ${{ steps.set-vars.outputs.ecr_image }}
+      ecr_repo: ${{ steps.set-vars.outputs.ecr_repo }}
       env: ${{ steps.set-vars.outputs.env }}
     steps:
       - name: set-vars
@@ -46,7 +45,7 @@ jobs:
         run: |
           echo "app_folder=$app_folder" >> $GITHUB_OUTPUT
           echo "app_name=$app_name" >> $GITHUB_OUTPUT
-          echo "ecr_image=$ecr_image" >> $GITHUB_OUTPUT
+          echo "ecr_repo=$app_name" >> $GITHUB_OUTPUT
           if ${{ github.event.inputs.environment == 'PROD'}}; then
             echo "env=prod" >> $GITHUB_OUTPUT;
           elif ${{ github.event.inputs.environment == 'STAGING' }}; then
@@ -98,7 +97,7 @@ jobs:
     needs: [set-vars, deploy]
     uses: ./.github/workflows/reusable-ci-cd.yml
     with:
-        ecr_repo: ${{ needs.set-vars.outputs.ecr_image }}
+        ecr_repo: ${{ needs.set-vars.outputs.ecr_repo }}
         ecs_cluster: "fulcrum-tasks-orchestrator"
         app_name: ${{ needs.set-vars.outputs.app_name }}
         app_folder: ${{ needs.set-vars.outputs.app_folder }}
