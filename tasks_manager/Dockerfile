@@ -1,4 +1,4 @@
-FROM prefecthq/prefect:3.1.7-python3.10
+FROM prefecthq/prefect:3.4.8.dev6-python3.10
 
 # Set working directory
 RUN mkdir -p /opt/prefect/tasks_manager/
@@ -25,3 +25,10 @@ COPY tasks_manager/tasks_manager/ ./tasks_manager
 
 # Set PYTHONPATH to include all modules
 ENV PYTHONPATH=/opt/prefect
+
+# Health check to ensure worker is running properly
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+    CMD prefect worker status || exit 1
+
+# Command to start the Prefect worker
+CMD ["prefect", "worker", "start", "--pool", "tasks-manager-process-pool"]

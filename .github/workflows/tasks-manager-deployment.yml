@@ -25,6 +25,7 @@ on:
 env:
   app_name: "tasks-manager"
   app_folder: "tasks_manager"
+  ecr_image: "prefect-worker"
 
 permissions:
   id-token: write
@@ -37,6 +38,7 @@ jobs:
     outputs:
       app_name: ${{ steps.set-vars.outputs.app_name }}
       app_folder: ${{ steps.set-vars.outputs.app_folder }}
+      ecr_image: ${{ steps.set-vars.outputs.ecr_image }}
       env: ${{ steps.set-vars.outputs.env }}
     steps:
       - name: set-vars
@@ -44,6 +46,7 @@ jobs:
         run: |
           echo "app_folder=$app_folder" >> $GITHUB_OUTPUT
           echo "app_name=$app_name" >> $GITHUB_OUTPUT
+          echo "ecr_image=$ecr_image" >> $GITHUB_OUTPUT
           if ${{ github.event.inputs.environment == 'PROD'}}; then
             echo "env=prod" >> $GITHUB_OUTPUT;
           elif ${{ github.event.inputs.environment == 'STAGING' }}; then
@@ -90,3 +93,21 @@ jobs:
         env:
           PREFECT_API_KEY: ${{ secrets.PREFECT_API_KEY }}
           PREFECT_API_URL: ${{ secrets.PREFECT_API_URL }}
+
+  build_and_push_image:
+    needs: [set-vars, deploy]
+    uses: ./.github/workflows/reusable-ci-cd.yml
+    with:
+        ecr_repo: ${{ needs.set-vars.outputs.ecr_image }}
+        ecs_cluster: "fulcrum-tasks-orchestrator"
+        app_name: ${{ needs.set-vars.outputs.app_name }}
+        app_folder: ${{ needs.set-vars.outputs.app_folder }}
+        env: ${{ needs.set-vars.outputs.env }}
+        task_definition: "prefect-worker-task-definition.json"
+        service_name: "prefect-worker"
+
+    secrets:
+      ECR_REGISTRY: ${{ secrets.ECR_REGISTRY }}
+      AWS_REGION: ${{ secrets.AWS_REGION }}
+      DEV_DEPLOYMENT_ROLE: ${{ secrets.DEV_DEPLOYMENT_ROLE }}
+      AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}

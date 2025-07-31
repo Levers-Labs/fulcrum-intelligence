@@ -1,6 +1,6 @@
 # Generic metadata about this project
 name: tasks_manager
-prefect-version: 3.1.7
+prefect-version: 3.4.8.dev6
 
 # Build, push, and pull configuration for Git-based storage
 build: null
@@ -25,8 +25,8 @@ pull:
 # Reusable definitions
 definitions:
   work_pools:
-    ecs_work_pool: &ecs_work_pool
-      name: tasks-manager-ecs-pool
+    work_pool: &work_pool
+      name: tasks-manager-process-pool
       work_queue_name: default
   schedules:
     daily_2am_pst: &daily_2am_pst
@@ -49,7 +49,7 @@ deployments:
   version: "1.0.0"
   description: "Create relevant stories for a metric pattern run by analyzing the pattern result"
   entrypoint: tasks_manager.flows.stories:process_metric_pattern_stories
-  work_pool: *ecs_work_pool
+  work_pool: *work_pool
   triggers:
   - type: event
     name: "process-metric-pattern-stories-trigger"
@@ -68,7 +68,7 @@ deployments:
   version: "1.0.0"
   description: "Process stories and trigger relevant alerts"
   entrypoint: tasks_manager.flows.alerts:process_story_alerts
-  work_pool: *ecs_work_pool
+  work_pool: *work_pool
   triggers:
   - type: event
     name: "story-generated-trigger"
@@ -86,7 +86,7 @@ deployments:
   version: "1.0.0"
   description: "Run pattern analysis for a specific metric"
   entrypoint: tasks_manager.flows.pattern_analysis:analyze_metric_patterns
-  work_pool: *ecs_work_pool
+  work_pool: *work_pool
   triggers:
   - type: event
     name: "metric-sync-success-trigger"
@@ -104,7 +104,7 @@ deployments:
   version: "1.0.0"
   description: "Execute a single alert"
   entrypoint: tasks_manager.flows.alerts:execute_alert
-  work_pool: *ecs_work_pool
+  work_pool: *work_pool
   triggers:
   - type: event
     name: "alert-execution-trigger"
@@ -121,7 +121,7 @@ deployments:
   version: "1.0.0"
   description: "Sync semantic data for all tenants - Daily Grain"
   entrypoint: tasks_manager.flows.semantic_sync:semantic_data_sync
-  work_pool: *ecs_work_pool
+  work_pool: *work_pool
   schedules: *daily_2am_pst
   parameters:
     grain: "day"
@@ -130,7 +130,7 @@ deployments:
   version: "1.0.0"
   description: "Sync semantic data for all tenants - Weekly Grain"
   entrypoint: tasks_manager.flows.semantic_sync:semantic_data_sync
-  work_pool: *ecs_work_pool
+  work_pool: *work_pool
   schedules: *weekly_monday_230am_pst
   parameters:
     grain: "week"
@@ -139,7 +139,7 @@ deployments:
   version: "1.0.0"
   description: "Sync semantic data for all tenants - Monthly Grain"
   entrypoint: tasks_manager.flows.semantic_sync:semantic_data_sync
-  work_pool: *ecs_work_pool
+  work_pool: *work_pool
   schedules: *monthly_3am_pst
   parameters:
     grain: "month"
@@ -148,7 +148,7 @@ deployments:
   version: "1.0.0"
   description: "Sync semantic data for a specific tenant"
   entrypoint: tasks_manager.flows.semantic_sync:semantic_data_sync_tenant
-  work_pool: *ecs_work_pool
+  work_pool: *work_pool
   triggers:
   - type: event
     name: "tenant-semantic-sync-trigger"
@@ -164,7 +164,7 @@ deployments:
   version: "1.0.0"
   description: "Sync semantic data for a specific metric"
   entrypoint: tasks_manager.flows.semantic_sync:semantic_data_sync_metric
-  work_pool: *ecs_work_pool
+  work_pool: *work_pool
   triggers:
   - type: event
     name: "metric-semantic-sync-trigger"
@@ -183,7 +183,7 @@ deployments:
   entrypoint: tasks_manager.flows.stories:update_demo_stories
   tags:
   - daily
-  work_pool: *ecs_work_pool
+  work_pool: *work_pool
   schedules: *daily_5am_pst
   parameters:
     tenant_identifier: "leversdemo"
@@ -193,7 +193,7 @@ deployments:
   version: "1.0.0"
   description: "Cache semantic data to Snowflake for all tenants"
   entrypoint: tasks_manager.flows.snowflake_sync:snowflake_cache_sync_all_tenants
-  work_pool: *ecs_work_pool
+  work_pool: *work_pool
   schedules: *daily_2am_pst
   parameters: {}
 
@@ -201,7 +201,7 @@ deployments:
   version: "1.0.0"
   description: "Cache semantic data to Snowflake for a specific tenant"
   entrypoint: tasks_manager.flows.snowflake_sync:snowflake_cache_sync_for_tenant
-  work_pool: *ecs_work_pool
+  work_pool: *work_pool
   triggers:
   - type: event
     name: "tenant-snowflake-cache-sync-trigger"

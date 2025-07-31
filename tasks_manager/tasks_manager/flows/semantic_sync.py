@@ -23,7 +23,9 @@ from tasks_manager.tasks.semantic_manager import (
 @flow(  # type: ignore
     name="semantic_data_sync_metric",
     flow_run_name="semantic_data_sync_metric:tenant={tenant_id_str}_metric={metric_id}_grain={grain}",
-    timeout_seconds=7200,
+    # timeout_seconds=7200,
+    # retries=1,
+    # retry_delay_seconds=30,
 )
 async def semantic_data_sync_metric(tenant_id_str: str, metric_id: str, grain: Granularity) -> SyncSummary:  # type: ignore
     """
