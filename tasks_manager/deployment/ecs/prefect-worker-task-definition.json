@@ -4,11 +4,12 @@
     "taskRoleArn": "arn:aws:iam::177788415680:role/fulcrum-prefect-ecs-task-role",
     "networkMode": "awsvpc",
     "requiresCompatibilities": ["FARGATE"],
-    "cpu": "1024",
-    "memory": "2048",
+    "cpu": "4096",
+    "memory": "8192",
     "containerDefinitions": [
         {
             "name": "$app-prefect-worker",
+            "cpu": 4096,
             "image": "",
             "essential": true,
             "logConfiguration": {
