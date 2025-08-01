@@ -74,7 +74,7 @@ jobs:
 
   deploy:
     runs-on: ubuntu-latest
-    needs: [set-vars]
+    needs: [set-vars, build_and_push_image]
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
