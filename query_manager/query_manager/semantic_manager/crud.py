@@ -361,8 +361,8 @@ class CRUDMetricSyncStatus(CRUDSemantic[MetricSyncStatus, BaseModel, BaseModel, 
         records_processed: int | None = None,
         error: str | None = None,
         add_to_history: bool = False,
-        data_start_date: date | None = None,
-        data_end_date: date | None = None,
+        first_snapshot_date: date | None = None,
+        last_snapshot_date: date | None = None,
     ) -> MetricSyncStatus:
         """Update sync status for a metric and operation."""
         query = select(self.model).where(
@@ -390,8 +390,8 @@ class CRUDMetricSyncStatus(CRUDSemantic[MetricSyncStatus, BaseModel, BaseModel, 
                 "records_processed": records_processed,
                 "error": error,
                 "updated_at": now,
-                "data_start_date": data_start_date,
-                "data_end_date": data_end_date,
+                "first_snapshot_date": first_snapshot_date,
+                "last_snapshot_date": last_snapshot_date,
             }
             existing = cast(MetricSyncStatus, existing)
             # Add to history only if flag is True
@@ -431,8 +431,8 @@ class CRUDMetricSyncStatus(CRUDSemantic[MetricSyncStatus, BaseModel, BaseModel, 
                 records_processed=records_processed,
                 error=error,
                 history=[],
-                data_start_date=data_start_date,
-                data_end_date=data_end_date,
+                first_snapshot_date=first_snapshot_date,
+                last_snapshot_date=last_snapshot_date,
             )
             return await self.create(obj_in=create_data)
 
@@ -469,8 +469,8 @@ class CRUDMetricSyncStatus(CRUDSemantic[MetricSyncStatus, BaseModel, BaseModel, 
         records_processed: int | None = None,
         dimension_name: str | None = None,
         error: str | None = None,
-        data_start_date: date | None = None,
-        data_end_date: date | None = None,
+        first_snapshot_date: date | None = None,
+        last_snapshot_date: date | None = None,
     ) -> MetricSyncStatus:
         """Complete a sync."""
         return await self.update_sync_status(
@@ -485,8 +485,8 @@ class CRUDMetricSyncStatus(CRUDSemantic[MetricSyncStatus, BaseModel, BaseModel, 
             records_processed=records_processed,
             error=error,
             add_to_history=False,
-            data_start_date=data_start_date,
-            data_end_date=data_end_date,
+            first_snapshot_date=first_snapshot_date,
+            last_snapshot_date=last_snapshot_date,
         )
 
     async def determine_sync_type(
