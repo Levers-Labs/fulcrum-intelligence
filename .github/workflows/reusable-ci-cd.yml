@@ -24,6 +24,16 @@ on:
         required: false
         type: string
         default: "dev"
+      task_definition:
+        description: 'The task definition file name'
+        required: false
+        type: string
+        default: "web-task-definition.json"
+      service_name:
+        description: 'The service name'
+        required: false
+        type: string
+        default: "web"
 
     secrets:
       ECR_REGISTRY:
@@ -74,10 +84,10 @@ jobs:
       APP_NAME: ${{ inputs.app_name }}
       APP_FOLDER: ${{ inputs.app_folder }}
       TAG_ID: ${{ needs.generate-tag.outputs.tag_id }}
-      SERVICE_NAME: "web"
+      SERVICE_NAME: ${{ inputs.service_name }}
       ECS_CLUSTER: ${{ inputs.ecs_cluster }}
       ECR_REPOSITORY: ${{ inputs.ecr_repo }}
-      TASK_DEFINITION: "web-task-definition.json"
+      TASK_DEFINITION: ${{ inputs.task_definition }}
       ENV: ${{ inputs.env }}
     secrets:
       ECR_REGISTRY: ${{ secrets.ECR_REGISTRY }}

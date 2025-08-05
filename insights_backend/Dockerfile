@@ -1,4 +1,4 @@
-FROM python:3.10-slim-buster AS base-python
+FROM python:3.10-slim-bullseye AS base-python
 
 ENV APP_USER fulcrum
 ENV APP_HOME /home/$APP_USER

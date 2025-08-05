@@ -1,0 +1,27 @@
+{
+    "family": "fulcrum-prefect-worker",
+    "executionRoleArn": "arn:aws:iam::177788415680:role/fulcrum-prefect-ecs-task-role",
+    "taskRoleArn": "arn:aws:iam::177788415680:role/fulcrum-prefect-ecs-task-role",
+    "networkMode": "awsvpc",
+    "requiresCompatibilities": ["FARGATE"],
+    "cpu": "4096",
+    "memory": "8192",
+    "containerDefinitions": [
+        {
+            "name": "$app-prefect-worker",
+            "cpu": 4096,
+            "image": "",
+            "essential": true,
+            "logConfiguration": {
+                "logDriver": "awslogs",
+                "options": {
+                    "awslogs-group": "/ecs/fulcrum-prefect-worker",
+                    "awslogs-region": "$region",
+                    "awslogs-stream-prefix": "ecs"
+                }
+            },
+            "environment": [],
+            "secrets": []
+        }
+    ]
+}
