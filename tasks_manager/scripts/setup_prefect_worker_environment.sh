@@ -22,7 +22,7 @@ poetry config virtualenvs.create false
 # Install dependencies for tasks_manager only
 echo "Installing tasks_manager dependencies..."
 cd tasks_manager
-poetry install --no-dev --no-interaction
+poetry install --no-interaction --only=main
 
 echo "Environment setup complete!"
 
