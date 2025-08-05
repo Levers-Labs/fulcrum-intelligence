@@ -84,6 +84,8 @@ class MetricSyncStatus(BaseTimeStampedTenantModel, table=True):  # type: ignore
     history: list[SyncEvent] = Field(
         sa_column=Column(JSONB, nullable=False, server_default="[]"),
     )
+    data_start_date: date | None = None
+    data_end_date: date | None = None
 
     # Define table arguments including schema, indexes and constraints
     __table_args__ = (
@@ -103,6 +105,7 @@ class MetricSyncStatus(BaseTimeStampedTenantModel, table=True):  # type: ignore
         Index("idx_metric_sync_status_operation", "sync_operation"),
         Index("idx_metric_sync_status_last_sync", "last_sync_at", postgresql_ops={"last_sync_at": "DESC"}),
         Index("idx_metric_sync_status_status", "sync_status"),
+        Index("idx_metric_sync_status_data_range", "data_start_date", "data_end_date"),
         # Schema definition
         {"schema": "query_store"},
     )

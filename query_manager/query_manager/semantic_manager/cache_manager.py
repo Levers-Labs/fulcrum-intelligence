@@ -225,8 +225,8 @@ class SnowflakeSemanticCacheManager(SemanticManager):
         snapshot_dates_query = (
             select(  # type: ignore
                 MetricSyncStatus.metric_id,
-                func.min(MetricSyncStatus.start_date).label("first_snapshot_date"),
-                func.max(MetricSyncStatus.end_date).label("last_snapshot_date"),
+                func.min(MetricSyncStatus.data_start_date).label("first_snapshot_date"),
+                func.max(MetricSyncStatus.data_end_date).label("last_snapshot_date"),
             )
             .where(
                 and_(
@@ -321,6 +321,9 @@ class SnowflakeSemanticCacheManager(SemanticManager):
             # Calculate cache size (approximate)
             cache_size_mb = len(cache_data) * 0.1  # Rough estimate
 
+            dates = [datetime.fromisoformat(item["date"]).date() for item in cache_data]
+            data_start_date, data_end_date = min(dates), max(dates)
+
             # End sync operation
             await self.metric_sync_status.end_sync(
                 metric_id=metric_id,
@@ -329,6 +332,8 @@ class SnowflakeSemanticCacheManager(SemanticManager):
                 sync_type=sync_type,
                 status=SyncStatus.SUCCESS,
                 records_processed=len(cache_data),
+                data_start_date=data_start_date,
+                data_end_date=data_end_date,
             )
 
             return {

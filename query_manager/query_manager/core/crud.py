@@ -9,6 +9,7 @@ from sqlalchemy.orm import selectinload
 from commons.db.crud import CRUDBase, NotFoundError
 from commons.db.filters import BaseFilter
 from commons.models.enums import Granularity
+from commons.utilities.context import get_tenant_id
 from query_manager.core.filters import DimensionFilter, MetricCacheConfigFilter, MetricFilter
 from query_manager.core.models import (
     Dimension,
@@ -128,6 +129,13 @@ class CRUDMetricCacheGrainConfig(
         Create default grain configurations for a new tenant.
         Sets up standard sync periods for day, week, and month granularities.
         """
+        # TODO: check in if this is really needed
+        # Get tenant_id from context
+        tenant_id = get_tenant_id()
+
+        if tenant_id is None:
+            raise ValueError("Tenant ID not set in context")
+
         # Define default configurations with appropriate sync periods
         default_configs = [
             {
@@ -135,18 +143,21 @@ class CRUDMetricCacheGrainConfig(
                 "is_enabled": True,
                 "initial_sync_period": 730,  # 2 years for daily data
                 "delta_sync_period": 90,  # 90 days for delta sync
+                "tenant_id": tenant_id,
             },
             {
                 "grain": Granularity.WEEK,
                 "is_enabled": True,
                 "initial_sync_period": 1095,  # 3 years for weekly data
                 "delta_sync_period": 120,  # 120 days for delta sync
+                "tenant_id": tenant_id,
             },
             {
                 "grain": Granularity.MONTH,
                 "is_enabled": True,
                 "initial_sync_period": 1825,  # 5 years for monthly data
                 "delta_sync_period": 180,  # 180 days for delta sync
+                "tenant_id": tenant_id,
             },
         ]
 
