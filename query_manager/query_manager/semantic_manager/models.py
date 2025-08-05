@@ -238,6 +238,8 @@ class TenantSyncStatus(BaseTimeStampedTenantModel, table=True):  # type: ignore
         default=SyncStatus.RUNNING,
         sa_column=Column(SAEnum(SyncStatus, name="syncstatus", inherit_schema=True)),
     )
+    started_at: datetime | None = None
+    ended_at: datetime | None = None
     metrics_processed: int | None = None
     metrics_succeeded: int | None = None
     metrics_failed: int | None = None

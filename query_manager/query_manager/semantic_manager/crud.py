@@ -763,6 +763,7 @@ class CRUDTenantSyncStatus(CRUDSemantic[TenantSyncStatus, BaseModel, BaseModel, 
         update_data = {
             "sync_status": sync_status,
             "last_sync_at": now,
+            "ended_at": now if sync_status in [SyncStatus.SUCCESS, SyncStatus.FAILED] else None,
             "metrics_processed": metrics_processed,
             "metrics_succeeded": metrics_succeeded,
             "metrics_failed": metrics_failed,
@@ -791,6 +792,7 @@ class CRUDTenantSyncStatus(CRUDSemantic[TenantSyncStatus, BaseModel, BaseModel, 
             grain=grain,
             sync_status=SyncStatus.RUNNING,
             last_sync_at=now,
+            started_at=now,
             run_info=run_info or {},
         )
         return await self.create(obj_in=create_data)

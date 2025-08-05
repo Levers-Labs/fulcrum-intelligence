@@ -3,7 +3,12 @@ from __future__ import annotations
 import datetime
 from typing import Literal
 
-from pydantic import ConfigDict, Field, field_validator
+from pydantic import (
+    ConfigDict,
+    Field,
+    computed_field,
+    field_validator,
+)
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -381,6 +386,8 @@ class MetricCacheConfigRead(MetricCacheConfigBase):
     metric_id: str
     last_sync_date: datetime.datetime | None = None
     sync_status: str | None = None
+    first_snapshot_date: datetime.datetime | None = None
+    last_snapshot_date: datetime.datetime | None = None
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -414,8 +421,18 @@ class TenantSyncStatusResponse(BaseModel):
     metrics_failed: int | None = None
     error: str | None = None
     run_info: dict = {}
+    started_at: datetime.datetime | None = None
+    ended_at: datetime.datetime | None = None
     created_at: datetime.datetime
     updated_at: datetime.datetime
+
+    @computed_field  # type: ignore[misc]
+    @property
+    def duration_seconds(self) -> int | None:
+        """Calculate duration in seconds from started_at to ended_at."""
+        if self.started_at and self.ended_at:
+            return int((self.ended_at - self.started_at).total_seconds())
+        return None
 
     model_config = ConfigDict(from_attributes=True)
 
