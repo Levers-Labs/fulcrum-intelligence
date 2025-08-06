@@ -338,7 +338,7 @@ class CRUDMetricCacheConfig(
 
         return updated_configs
 
-    async def enable_all_metrics(self) -> list[MetricCacheConfig]:
+    async def enable_all_metrics(self) -> list[MetricCacheConfigRead]:
         """
         Enable caching for all metrics of a tenant.
         """
