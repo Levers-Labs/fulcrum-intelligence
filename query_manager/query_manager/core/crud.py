@@ -323,8 +323,7 @@ class CRUDMetricCacheConfig(
 
         # Commit changes and refresh to get updated data
         await self.session.commit()
-        await self.session.refresh(config)
-        return config
+        return await self.get_by_metric_id(metric_id)
 
     async def bulk_update_metric_configs(self, metric_ids: list[str], is_enabled: bool) -> list[MetricCacheConfig]:
         """
