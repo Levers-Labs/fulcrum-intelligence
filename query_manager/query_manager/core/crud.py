@@ -299,7 +299,7 @@ class CRUDMetricCacheConfig(
 
         return config_read
 
-    async def create_or_update_metric_config(self, metric_id: str, is_enabled: bool) -> MetricCacheConfig:
+    async def create_or_update_metric_config(self, metric_id: str, is_enabled: bool) -> MetricCacheConfigRead:
         """
         Create or update cache configuration for a specific metric.
         Uses upsert pattern to handle both creation and updates.
@@ -325,7 +325,7 @@ class CRUDMetricCacheConfig(
         await self.session.commit()
         return await self.get_by_metric_id(metric_id)
 
-    async def bulk_update_metric_configs(self, metric_ids: list[str], is_enabled: bool) -> list[MetricCacheConfig]:
+    async def bulk_update_metric_configs(self, metric_ids: list[str], is_enabled: bool) -> list[MetricCacheConfigRead]:
         """
         Bulk update cache configurations for multiple metrics.
         """
