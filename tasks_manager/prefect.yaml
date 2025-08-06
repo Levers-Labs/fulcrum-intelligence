@@ -22,6 +22,9 @@ definitions:
     daily_2am_pst: &daily_2am_pst
       - cron: "0 2 * * *"
         timezone: "America/Los_Angeles"
+    daily_330am_pst: &daily_330am_pst
+      - cron: "30 3 * * *"
+        timezone: "America/Los_Angeles"
     daily_5am_pst: &daily_5am_pst
       - cron: "0 5 * * *"
         timezone: "America/Los_Angeles"
@@ -184,7 +187,7 @@ deployments:
   description: "Cache semantic data to Snowflake for all tenants"
   entrypoint: tasks_manager.flows.snowflake_sync:snowflake_cache_sync_all_tenants
   work_pool: *work_pool
-  schedules: *daily_2am_pst
+  schedules: *daily_330am_pst
   parameters: {}
 
 - name: "snowflake-cache-sync-tenant"

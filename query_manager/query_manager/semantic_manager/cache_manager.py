@@ -221,6 +221,23 @@ class SnowflakeSemanticCacheManager(SemanticManager):
             .subquery()
         )
 
+        # Query: Get snapshot date ranges (actual data date ranges across all syncs)
+        snapshot_dates_query = (
+            select(  # type: ignore
+                MetricSyncStatus.metric_id,
+                func.min(MetricSyncStatus.first_snapshot_date).label("first_snapshot_date"),
+                func.max(MetricSyncStatus.last_snapshot_date).label("last_snapshot_date"),
+            )
+            .where(
+                and_(
+                    MetricSyncStatus.tenant_id == tenant_id,  # type: ignore
+                    MetricSyncStatus.metric_id.in_(config_metric_ids),  # type: ignore
+                    MetricSyncStatus.sync_operation == SyncOperation.SNOWFLAKE_CACHE,  # type: ignore
+                )
+            )
+            .group_by(MetricSyncStatus.metric_id)
+        )
+
         # Get only the latest sync status for each metric (rn = 1)
         latest_sync_query = select(
             latest_sync_subquery.c.metric_id,
@@ -231,10 +248,14 @@ class SnowflakeSemanticCacheManager(SemanticManager):
         sync_result = await self.session.execute(latest_sync_query)
         sync_data = {row.metric_id: row for row in sync_result.mappings()}
 
+        snapshot_result = await self.session.execute(snapshot_dates_query)
+        snapshot_data = {row.metric_id: row for row in snapshot_result.mappings()}
+
         # Enhance cache configs with sync information
         enhanced_configs = []
         for config in cache_configs:
             sync_info = sync_data.get(config.metric_id)
+            snapshot_info = snapshot_data.get(config.metric_id)
 
             # Convert config to dict while preserving all original fields
             config_dict = {
@@ -243,6 +264,8 @@ class SnowflakeSemanticCacheManager(SemanticManager):
                 "is_enabled": config.is_enabled,
                 "last_sync_date": sync_info.last_sync_at if sync_info else None,
                 "sync_status": sync_info.sync_status.value if sync_info else None,
+                "first_snapshot_date": snapshot_info.first_snapshot_date if snapshot_info else None,
+                "last_snapshot_date": snapshot_info.last_snapshot_date if snapshot_info else None,
             }
             enhanced_configs.append(config_dict)
 
@@ -298,6 +321,9 @@ class SnowflakeSemanticCacheManager(SemanticManager):
             # Calculate cache size (approximate)
             cache_size_mb = len(cache_data) * 0.1  # Rough estimate
 
+            dates = [datetime.fromisoformat(item["date"]).date() for item in cache_data]
+            first_snapshot_date, last_snapshot_date = min(dates), max(dates)
+
             # End sync operation
             await self.metric_sync_status.end_sync(
                 metric_id=metric_id,
@@ -306,6 +332,8 @@ class SnowflakeSemanticCacheManager(SemanticManager):
                 sync_type=sync_type,
                 status=SyncStatus.SUCCESS,
                 records_processed=len(cache_data),
+                first_snapshot_date=first_snapshot_date,
+                last_snapshot_date=last_snapshot_date,
             )
 
             return {
