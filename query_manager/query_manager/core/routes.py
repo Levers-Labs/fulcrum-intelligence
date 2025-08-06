@@ -708,9 +708,7 @@ async def list_metric_cache_configs(
             is_enabled=is_enabled,
         )
 
-        # Convert to response models
-        response_items = [MetricCacheConfigRead.model_validate(result) for result in results]
-        return Page[MetricCacheConfigRead].create(items=response_items, total_count=count, params=params)
+        return Page[MetricCacheConfigRead].create(items=results, total_count=count, params=params)
     except Exception as e:
         logger.error("Failed to get metric cache configs: %s", str(e))
         raise HTTPException(status_code=500, detail=f"Failed to get metric cache configs: {str(e)}") from e

@@ -386,8 +386,8 @@ class MetricCacheConfigRead(MetricCacheConfigBase):
     metric_id: str
     last_sync_date: datetime.datetime | None = None
     sync_status: str | None = None
-    first_snapshot_date: datetime.datetime | None = None
-    last_snapshot_date: datetime.datetime | None = None
+    first_snapshot_date: datetime.date | None = None
+    last_snapshot_date: datetime.date | None = None
 
     model_config = ConfigDict(from_attributes=True)
 

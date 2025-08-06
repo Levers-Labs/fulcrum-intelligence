@@ -1,5 +1,6 @@
 from sqlalchemy import (
     Select,
+    and_,
     delete,
     func,
     select,
@@ -9,6 +10,7 @@ from sqlalchemy.orm import selectinload
 from commons.db.crud import CRUDBase, NotFoundError
 from commons.db.filters import BaseFilter
 from commons.models.enums import Granularity
+from commons.utilities.context import get_tenant_id
 from query_manager.core.filters import DimensionFilter, MetricCacheConfigFilter, MetricFilter
 from query_manager.core.models import (
     Dimension,
@@ -20,6 +22,8 @@ from query_manager.core.models import (
     MetricInfluence,
     MetricInput,
 )
+from query_manager.core.schemas import MetricCacheConfigRead
+from query_manager.semantic_manager.models import MetricSyncStatus, SyncOperation
 
 
 class CRUDDimensions(CRUDBase[Dimension, Dimension, Dimension, DimensionFilter]):  # noqa
@@ -237,18 +241,63 @@ class CRUDMetricCacheConfig(
 
     filter_class = MetricCacheConfigFilter
 
-    async def get_by_metric_id(self, metric_id: str) -> MetricCacheConfig:
+    async def get_by_metric_id(self, metric_id: str) -> MetricCacheConfigRead:
         """
         Get cache configuration for a specific metric.
         """
         statement = select(MetricCacheConfig).filter_by(metric_id=metric_id)
 
         result = await self.session.execute(statement)
-        instance: MetricCacheConfig | None = result.scalar_one_or_none()
+        config: MetricCacheConfig | None = result.scalar_one_or_none()
 
-        if instance is None:
+        if config is None:
             raise NotFoundError(id=metric_id)
-        return instance
+
+        config_read = MetricCacheConfigRead.model_validate(config, from_attributes=True)
+
+        # Get sync information for this metric
+        tenant_id = get_tenant_id()
+
+        # Query 1: Get latest sync info
+        latest_sync_query = (
+            select(MetricSyncStatus.last_sync_at, MetricSyncStatus.sync_status)  # type: ignore
+            .where(
+                and_(
+                    MetricSyncStatus.tenant_id == tenant_id,
+                    MetricSyncStatus.metric_id == metric_id,  # type: ignore
+                    MetricSyncStatus.sync_operation == SyncOperation.SNOWFLAKE_CACHE,  # type: ignore
+                )
+            )
+            .order_by(MetricSyncStatus.last_sync_at.desc())  # type: ignore
+            .limit(1)
+        )
+
+        # Query 2: Get date range across all syncs
+        snapshot_range_query = select(
+            func.min(MetricSyncStatus.first_snapshot_date).label("first_snapshot_date"),
+            func.max(MetricSyncStatus.last_snapshot_date).label("last_snapshot_date"),
+        ).where(
+            and_(
+                MetricSyncStatus.tenant_id == tenant_id,
+                MetricSyncStatus.metric_id == metric_id,  # type: ignore
+                MetricSyncStatus.sync_operation == SyncOperation.SNOWFLAKE_CACHE,  # type: ignore
+            )
+        )
+
+        # Execute both queries
+        sync_result = await self.session.execute(latest_sync_query)
+        sync_info = sync_result.mappings().first()
+
+        snapshot_result = await self.session.execute(snapshot_range_query)
+        snapshot_info = snapshot_result.mappings().first()
+
+        if sync_info:
+            config_read.last_sync_date = sync_info.last_sync_at
+            config_read.sync_status = sync_info.sync_status
+            config_read.first_snapshot_date = snapshot_info.first_snapshot_date
+            config_read.last_snapshot_date = snapshot_info.last_snapshot_date
+
+        return config_read
 
     async def create_or_update_metric_config(self, metric_id: str, is_enabled: bool) -> MetricCacheConfig:
         """
@@ -257,7 +306,14 @@ class CRUDMetricCacheConfig(
         """
         try:
             # Try to get existing configuration
-            config = await self.get_by_metric_id(metric_id)
+            statement = select(MetricCacheConfig).filter_by(metric_id=metric_id)
+
+            result = await self.session.execute(statement)
+            config: MetricCacheConfig | None = result.scalar_one_or_none()
+
+            if config is None:
+                raise NotFoundError(id=metric_id)
+
             config.is_enabled = is_enabled
             self.session.add(config)
         except NotFoundError:
