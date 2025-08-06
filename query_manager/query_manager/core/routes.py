@@ -702,12 +702,12 @@ async def list_metric_cache_configs(
     - **sync_status**: Current sync status (SUCCESS, FAILED, RUNNING) for each metric
     """
     try:
-        results, count = await cache_manager.get_metric_cache_configs(
+        response_items, count = await cache_manager.get_metric_cache_configs(
             params=params,
             metric_ids=metric_ids,
             is_enabled=is_enabled,
         )
-
+        results = [MetricCacheConfigRead.model_validate(item) for item in response_items]
         return Page[MetricCacheConfigRead].create(items=results, total_count=count, params=params)
     except Exception as e:
         logger.error("Failed to get metric cache configs: %s", str(e))

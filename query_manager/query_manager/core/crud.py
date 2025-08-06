@@ -263,7 +263,7 @@ class CRUDMetricCacheConfig(
             select(MetricSyncStatus.last_sync_at, MetricSyncStatus.sync_status)  # type: ignore
             .where(
                 and_(
-                    MetricSyncStatus.tenant_id == tenant_id,
+                    MetricSyncStatus.tenant_id == tenant_id,  # type: ignore
                     MetricSyncStatus.metric_id == metric_id,  # type: ignore
                     MetricSyncStatus.sync_operation == SyncOperation.SNOWFLAKE_CACHE,  # type: ignore
                 )
@@ -278,7 +278,7 @@ class CRUDMetricCacheConfig(
             func.max(MetricSyncStatus.last_snapshot_date).label("last_snapshot_date"),
         ).where(
             and_(
-                MetricSyncStatus.tenant_id == tenant_id,
+                MetricSyncStatus.tenant_id == tenant_id,  # type: ignore
                 MetricSyncStatus.metric_id == metric_id,  # type: ignore
                 MetricSyncStatus.sync_operation == SyncOperation.SNOWFLAKE_CACHE,  # type: ignore
             )
@@ -294,8 +294,8 @@ class CRUDMetricCacheConfig(
         if sync_info:
             config_read.last_sync_date = sync_info.last_sync_at
             config_read.sync_status = sync_info.sync_status
-            config_read.first_snapshot_date = snapshot_info.first_snapshot_date
-            config_read.last_snapshot_date = snapshot_info.last_snapshot_date
+            config_read.first_snapshot_date = snapshot_info.first_snapshot_date  # type: ignore
+            config_read.last_snapshot_date = snapshot_info.last_snapshot_date  # type: ignore
 
         return config_read
 
