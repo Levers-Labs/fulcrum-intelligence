@@ -692,7 +692,7 @@ async def list_metric_cache_configs(
     cache_manager: CacheManagerDep,
     params: Annotated[PaginationParams, Depends(PaginationParams)],
     metric_ids: Annotated[list[str] | None, Query(description="List of metric ids")] = None,  # type: ignore
-    is_enabled: Annotated[bool | None, Query(description="Filter to only enabled metrics")] = True,  # type: ignore
+    is_enabled: Annotated[bool | None, Query(description="Filter to only enabled metrics")] = None,  # type: ignore
 ):
     """
     Get cache configurations for all metrics with sync information.
