@@ -245,7 +245,10 @@ class CRUDMetricCacheConfig(
         """
         Get cache configuration for a specific metric.
         """
-        statement = select(MetricCacheConfig).filter_by(metric_id=metric_id)
+        # Get sync information for this metric
+        tenant_id = get_tenant_id()
+
+        statement = select(MetricCacheConfig).filter_by(metric_id=metric_id, tenant_id=tenant_id)
 
         result = await self.session.execute(statement)
         config: MetricCacheConfig | None = result.scalar_one_or_none()
@@ -254,9 +257,6 @@ class CRUDMetricCacheConfig(
             raise NotFoundError(id=metric_id)
 
         config_read = MetricCacheConfigRead.model_validate(config, from_attributes=True)
-
-        # Get sync information for this metric
-        tenant_id = get_tenant_id()
 
         # Query 1: Get latest sync info
         latest_sync_query = (
@@ -310,7 +310,6 @@ class CRUDMetricCacheConfig(
 
             result = await self.session.execute(statement)
             config: MetricCacheConfig | None = result.scalar_one_or_none()
-
             if config is None:
                 raise NotFoundError(id=metric_id)
 
