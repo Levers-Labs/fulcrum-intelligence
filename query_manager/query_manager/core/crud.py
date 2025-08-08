@@ -319,6 +319,7 @@ class CRUDMetricCacheConfig(
             # Create new configuration if none exists
             config = MetricCacheConfig(metric_id=metric_id, is_enabled=is_enabled)  # type: ignore
             self.session.add(config)
+            pass
 
         # Commit changes and refresh to get updated data
         await self.session.commit()
