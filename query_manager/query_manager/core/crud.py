@@ -306,7 +306,7 @@ class CRUDMetricCacheConfig(
         """
         try:
             # Try to get existing configuration
-            statement = select(MetricCacheConfig).filter_by(metric_id=metric_id)
+            statement = select(MetricCacheConfig).filter_by(metric_id=metric_id, tenant_id=get_tenant_id())
 
             result = await self.session.execute(statement)
             config: MetricCacheConfig | None = result.scalar_one_or_none()
