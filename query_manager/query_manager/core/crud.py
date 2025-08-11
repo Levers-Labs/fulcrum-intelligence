@@ -168,6 +168,7 @@ class CRUDMetricCacheGrainConfig(
                 configs.append(grain_config)
 
         # Commit all configurations at once
+        await self.session.flush()
         await self.session.commit()
 
         # Refresh each config to get the generated IDs
@@ -321,8 +322,10 @@ class CRUDMetricCacheConfig(
             self.session.add(config)
             pass
 
-        # Commit changes and refresh to get updated data
+        # Commit changes
+        await self.session.flush()
         await self.session.commit()
+
         return await self.get_by_metric_id(metric_id)
 
     async def bulk_update_metric_configs(self, metric_ids: list[str], is_enabled: bool) -> list[MetricCacheConfigRead]:
