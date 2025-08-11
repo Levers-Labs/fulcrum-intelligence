@@ -305,22 +305,18 @@ class CRUDMetricCacheConfig(
         Create or update cache configuration for a specific metric.
         Uses upsert pattern to handle both creation and updates.
         """
-        try:
-            # Try to get existing configuration
-            statement = select(MetricCacheConfig).filter_by(metric_id=metric_id, tenant_id=get_tenant_id())
+        # Try to get existing configuration
+        statement = select(MetricCacheConfig).filter_by(metric_id=metric_id, tenant_id=get_tenant_id())
 
-            result = await self.session.execute(statement)
-            config: MetricCacheConfig | None = result.scalar_one_or_none()
-            if config is None:
-                raise NotFoundError(id=metric_id)
-
-            config.is_enabled = is_enabled
-            self.session.add(config)
-        except NotFoundError:
+        result = await self.session.execute(statement)
+        config: MetricCacheConfig | None = result.scalar_one_or_none()
+        if config is None:
             # Create new configuration if none exists
             config = MetricCacheConfig(metric_id=metric_id, is_enabled=is_enabled)  # type: ignore
             self.session.add(config)
-            pass
+
+        config.is_enabled = is_enabled
+        self.session.add(config)
 
         # Commit changes
         await self.session.flush()
