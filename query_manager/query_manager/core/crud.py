@@ -349,12 +349,12 @@ class CRUDMetricCacheConfig(
         # Enable caching for all found metrics
         return await self.bulk_update_metric_configs(metric_ids, True)
 
-    async def get_enabled_metrics(self) -> list[MetricCacheConfig]:
+    async def get_enabled_metrics(self, tenant_id: int) -> list[MetricCacheConfig]:
         """
         Get all enabled metric cache configurations.
         """
         # Filter for enabled configurations and include metric relationship
-        statement = select(MetricCacheConfig).filter_by(is_enabled=True)  # type: ignore
+        statement = select(MetricCacheConfig).filter_by(is_enabled=True, tenant_id=tenant_id)  # type: ignore
 
         result = await self.session.execute(statement)
         return list(result.scalars().all())
