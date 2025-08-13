@@ -80,6 +80,8 @@ class Settings(BaseSettings):
     AUTH0_CLIENT_ID: str
     AUTH0_CLIENT_SECRET: str
 
+    SENTRY_DSN: str
+
     @field_validator("BACKEND_CORS_ORIGINS", mode="before")
     @classmethod
     def assemble_cors_origins(cls, v: str | list[str]) -> list[str] | str:

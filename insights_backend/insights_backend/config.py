@@ -58,6 +58,9 @@ class Settings(BaseSettings):
     PREFECT_API_URL: str
     PREFECT_API_TOKEN: str
 
+    # Sentry
+    SENTRY_DSN: str
+
     @field_validator("BACKEND_CORS_ORIGINS", mode="before")
     @classmethod
     def assemble_cors_origins(cls, v: str | list[str]) -> list[str] | str:
