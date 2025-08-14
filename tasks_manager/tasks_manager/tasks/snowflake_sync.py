@@ -2,6 +2,7 @@
 Snowflake cache tasks for semantic data operations.
 """
 
+import asyncio
 from datetime import date, datetime, timedelta
 from typing import Any
 
@@ -291,6 +292,7 @@ async def cache_tenant_metrics_to_snowflake(
     grain: Granularity,
     grain_config: MetricCacheGrainConfig,
     metrics: list[str] | None = None,
+    max_concurrent_metrics: int = 5,
 ) -> SyncSummary:
     """Cache all enabled metrics for a tenant to Snowflake using parallel processing."""
     logger = get_run_logger()
@@ -360,16 +362,26 @@ async def cache_tenant_metrics_to_snowflake(
                 grain.value,
             )
 
-            # Process metrics in parallel using .map
-            cache_futures = cache_metric_to_snowflake.map(
-                metric_id=enabled_metric_ids,
-                grain=unmapped(grain),
-                grain_config=unmapped(grain_config),
-            )
+            # Process batch of metrics in parallel
+            results = []
+            batch_size = max_concurrent_metrics
 
-            # Wait for all futures and collect results
-            wait(cache_futures)
-            results: Any = [future.result() for future in cache_futures]
+            for i in range(0, len(enabled_metric_ids), batch_size):
+                batch_metrics = enabled_metric_ids[i : i + batch_size]
+
+                cache_futures = cache_metric_to_snowflake.map(
+                    metric_id=batch_metrics,
+                    grain=unmapped(grain),
+                    grain_config=unmapped(grain_config),
+                )
+
+                wait(cache_futures)
+                batch_results: Any = [future.result() for future in cache_futures]
+                results.extend(batch_results)
+
+                # Small pause between batches
+                if i + batch_size < len(enabled_metric_ids):
+                    await asyncio.sleep(10)
 
             # Analyze results
             metrics_succeeded = 0
