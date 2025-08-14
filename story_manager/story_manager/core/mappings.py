@@ -13,7 +13,9 @@ FILTER_MAPPING = {
     # Portfolio Digest Sections
     (Digest.PORTFOLIO, Section.OVERVIEW): {"story_groups": [StoryGroup.GOAL_VS_ACTUAL, StoryGroup.LONG_RANGE]},
     (Digest.PORTFOLIO, Section.STATUS_CHANGES): {"story_groups": [StoryGroup.STATUS_CHANGE]},
-    (Digest.PORTFOLIO, Section.LIKELY_MISSES): {"story_types": [StoryType.LIKELY_OFF_TRACK]},
+    (Digest.PORTFOLIO, Section.LIKELY_MISSES): {
+        "story_types": [StoryType.LIKELY_OFF_TRACK, StoryType.FORECASTED_OFF_TRACK, StoryType.PACING_OFF_TRACK]
+    },
     (Digest.PORTFOLIO, Section.BIG_MOVES): {"story_groups": [StoryGroup.RECORD_VALUES, StoryGroup.TREND_EXCEPTIONS]},
     # Promising Trends section includes improving performance, accelerating growth, and new upward trends
     (Digest.PORTFOLIO, Section.PROMISING_TRENDS): {
@@ -46,6 +48,8 @@ FILTER_MAPPING = {
             StoryGroup.TREND_EXCEPTIONS,
             StoryGroup.SIGNIFICANT_SEGMENTS,
             StoryGroup.LONG_RANGE,
+            StoryGroup.BENCHMARK_COMPARISONS,
+            StoryGroup.SEGMENT_CHANGES,
         ],
     },
     # Why Is It Happening section focuses on segment and component drift

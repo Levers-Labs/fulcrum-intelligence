@@ -38,6 +38,7 @@ class GrowthStats(BaseModel):
     current_growth_acceleration: float | None = None
     num_periods_accelerating: int = 0
     num_periods_slowing: int = 0
+    overall_growth: float | None = None
 
 
 class RankSummary(BaseModel):

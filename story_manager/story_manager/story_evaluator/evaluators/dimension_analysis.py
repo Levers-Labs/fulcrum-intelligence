@@ -673,6 +673,13 @@ class DimensionAnalysisEvaluator(StoryEvaluatorBase[DimensionAnalysis]):
         if filtered_df.empty:
             return [result]  # Return list with empty result dictionary
 
+        # Debug: Check for duplicates in the source data
+        duplicate_check = filtered_df.groupby(["date", "dimension_slice"]).size()
+        if (duplicate_check > 1).any():
+            logger.warning(
+                f"Found duplicate date/segment combinations in series data: {duplicate_check[duplicate_check > 1]}"
+            )
+
         # Loop through each segment and populate results
         for key, segment in segments.items():
             segment_df = filtered_df[filtered_df["dimension_slice"] == segment]

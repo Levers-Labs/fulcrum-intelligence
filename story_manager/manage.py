@@ -268,9 +268,9 @@ def info():
 
 
 @cli.command("upsert-story-config")
-def upsert_story_config(tenant_id: int):
+def upsert_story_config(tenant_id: int, version: int):
     """
-    Update the story configuration for a specific tenant by running the update_story_config script.
+    Update the story configuration for a specific tenant and version by running the update_story_config script.
 
     This function uses asyncio to run the update_story_config script and provides
     feedback on the success or failure of the operation using typer.
@@ -290,9 +290,9 @@ def upsert_story_config(tenant_id: int):
     )
     asyncio.run(validate_tenant(settings, tenant_id))
 
-    typer.secho(f"Starting story config update for tenant {tenant_id}...", fg=typer.colors.BLUE)
+    typer.secho(f"Starting story config update for tenant {tenant_id} and version {version}...", fg=typer.colors.BLUE)
     try:
-        asyncio.run(upsert_config(tenant_id))
+        asyncio.run(upsert_config(tenant_id, version))
         typer.secho("Story config update completed successfully 🎉", fg=typer.colors.GREEN)
     except Exception as e:
         typer.secho(f"Error during story config update: {str(e)}", fg=typer.colors.RED)

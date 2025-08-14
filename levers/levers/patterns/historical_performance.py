@@ -37,6 +37,7 @@ from levers.primitives import (
     analyze_trend_using_spc_analysis,
     calculate_average_growth,
     calculate_benchmark_comparisons,
+    calculate_overall_growth,
     calculate_pop_growth,
     detect_record_high,
     detect_record_low,
@@ -64,6 +65,7 @@ class HistoricalPerformancePattern(Pattern[HistoricalPerformance]):
         "detect_seasonality_pattern",
         "calculate_benchmark_comparisons",
         "process_control_analysis",
+        "calculate_overall_growth",
     ]
     output_model: type[HistoricalPerformance] = HistoricalPerformance
 
@@ -317,6 +319,9 @@ class HistoricalPerformancePattern(Pattern[HistoricalPerformance]):
         avg_growth_results = calculate_average_growth(period_data, "date", "value", AverageGrowthMethod.ARITHMETIC)
         avg_pop_growth = avg_growth_results.average_growth
 
+        # Calculate overall growth
+        overall_growth = calculate_overall_growth(period_data, "value")
+
         # Current growth acceleration
         current_growth_acceleration = period_metrics[-1].pop_acceleration_percent if len(period_metrics) > 1 else None
 
@@ -344,6 +349,7 @@ class HistoricalPerformancePattern(Pattern[HistoricalPerformance]):
             current_growth_acceleration=current_growth_acceleration,
             num_periods_accelerating=num_periods_accelerating,
             num_periods_slowing=num_periods_slowing,
+            overall_growth=overall_growth,
         )
 
     def _analyze_trends(self, df: pd.DataFrame, avg_pop_growth: float | None) -> dict[str, TrendInfo | None]:

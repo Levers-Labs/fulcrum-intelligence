@@ -97,12 +97,14 @@ STORY_TEMPLATES = {
     StoryType.IMPROVING_PERFORMANCE: {
         "title": "Improved performance over the past {{ trend_duration }} {{ grain_label }}s",
         "detail": "Over the past {{ trend_duration }} {{ grain_label }}s, {{ metric.label }} has been averaging {{ "
-        "trend_avg_growth|format_percent }}% {{ pop }} growth and has grown since {{ trend_start_date }}.",
+        "trend_avg_growth|format_percent }}% {{ pop }} growth and has grown {{ overall_growth|format_percent }}% "
+        "overall since {{ trend_start_date }}.",
     },
     StoryType.WORSENING_PERFORMANCE: {
         "title": "Worsening performance over the past {{ trend_duration }} {{ grain_label }}s",
         "detail": "Over the past {{ trend_duration }} {{ grain_label }}s, {{ metric.label }} has been declining {{ "
-        "trend_avg_growth|format_percent }}% {{ pop }} and has fallen since {{ trend_start_date }}.",
+        "trend_avg_growth|format_percent }}% {{ pop }} and has fallen {{ overall_growth|format_percent }}% overall "
+        "since {{ trend_start_date }}.",
     },
     StoryType.SEASONAL_PATTERN_MATCH: {
         "title": "Expected seasonal behavior",

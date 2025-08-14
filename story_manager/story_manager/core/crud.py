@@ -32,6 +32,7 @@ class CRUDStory(CRUDBase[Story, Story, Story, StoryFilter]):
         grain: Granularity,
         story_date: date,
         tenant_id: int,
+        version: int,
         is_salient: bool | None = None,
         is_cool_off: bool | None = None,
         is_heuristic: bool | None = None,
@@ -45,6 +46,7 @@ class CRUDStory(CRUDBase[Story, Story, Story, StoryFilter]):
         :param story_type: The type of the story.
         :param grain: The granularity of the story.
         :param story_date: The current date to compare against.
+        :param version: The version of the story.
         :param is_salient: Optional filter for salient stories.
         :param is_cool_off: Optional filter for cooled-down stories.
         :param is_heuristic: Optional filter for heuristic stories.
@@ -55,7 +57,7 @@ class CRUDStory(CRUDBase[Story, Story, Story, StoryFilter]):
         statement = (
             self.get_select_query()
             .filter(func.date(Story.story_date) < func.date(story_date))  # type: ignore
-            .filter_by(story_type=story_type, grain=grain, metric_id=metric_id, tenant_id=tenant_id)
+            .filter_by(story_type=story_type, grain=grain, metric_id=metric_id, tenant_id=tenant_id, version=version)
         )
 
         # Apply optional filters
@@ -186,7 +188,7 @@ class CRUDStoryConfig(CRUDBase[StoryConfig, StoryConfig, StoryConfig, StoryConfi
     filter_class = StoryConfigFilter
 
     async def get_story_config(
-        self, story_type: StoryType, grain: Granularity, tenant_id: int
+        self, story_type: StoryType, grain: Granularity, tenant_id: int, version: int
     ) -> StoryConfig | None:  # noqa
         """
         Retrieve the StoryConfig for a specific story type and granularity.
@@ -198,10 +200,13 @@ class CRUDStoryConfig(CRUDBase[StoryConfig, StoryConfig, StoryConfig, StoryConfi
         :param story_type: The type of the story.
         :param grain: The granularity of the story.
         :param tenant_id: The tenant ID
+        :param version: The version of the story config
         :return: A StoryConfig object if found, otherwise None.
         """
         # Create a query to select the story config for the given story type and granularity
-        statement = self.get_select_query().filter_by(story_type=story_type, grain=grain, tenant_id=tenant_id)
+        statement = self.get_select_query().filter_by(
+            story_type=story_type, grain=grain, tenant_id=tenant_id, version=version
+        )
 
         # Execute the query and fetch the results
         results = await self.session.execute(statement=statement)
