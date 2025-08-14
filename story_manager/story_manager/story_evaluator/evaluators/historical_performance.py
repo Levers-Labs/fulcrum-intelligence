@@ -178,6 +178,7 @@ class HistoricalPerformanceEvaluator(StoryEvaluatorBase[HistoricalPerformance]):
                         and pattern_result.current_trend.average_pop_growth > 0
                         else "decrease"
                     ),
+                    "overall_growth": pattern_result.growth_stats.overall_growth or 0,
                 }
             )
 
