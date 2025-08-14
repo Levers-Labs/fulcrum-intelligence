@@ -72,6 +72,7 @@ class Story(StorySchemaBaseModel, table=True):  # type: ignore
             story_date=self.story_date,
             metric_id=self.metric_id,
             tenant_id=self.tenant_id,
+            version=self.version,
         )
 
         # Evaluate the salience of the story and update the 'is_salient', 'in_cool_off', and 'is_heuristic' attributes
@@ -87,8 +88,9 @@ class StoryConfig(StorySchemaBaseModel, table=True):
     grain: Granularity = Field(sa_column=Column(String(255), nullable=False))
     heuristic_expression: str | None = Field(sa_column=Column(String(255), nullable=True))  # type: ignore
     cool_off_duration: int | None = Field(nullable=True)  # type: ignore
+    version: int = Field(default=1, sa_column=Column(Integer, default=1, server_default="1"))
 
     __table_args__ = (
-        UniqueConstraint("story_type", "grain", "tenant_id", name="uix_story_type_grain_tenant_id"),  # type: ignore
+        UniqueConstraint("story_type", "grain", "tenant_id", "version", name="uix_story_type_grain_tenant_id_version"),  # type: ignore
         {"schema": "story_store"},
     )

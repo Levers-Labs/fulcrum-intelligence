@@ -35,6 +35,7 @@ class StoryHeuristicEvaluator:
         story_date: date,
         metric_id: str,
         tenant_id: int,
+        version: int,
     ):
         self.story_type = story_type
         self.grain = grain
@@ -45,6 +46,7 @@ class StoryHeuristicEvaluator:
         self.story_date = story_date
         self.metric_id = metric_id
         self.tenant_id = tenant_id
+        self.version = version
 
     @property
     async def story_config(self) -> StoryConfig | None:
@@ -60,7 +62,7 @@ class StoryHeuristicEvaluator:
         if self._story_config is None:
             # Fetch the story configuration from the database
             self._story_config = await self.story_config_crud.get_story_config(  # type: ignore
-                story_type=self.story_type, grain=self.grain, tenant_id=self.tenant_id
+                story_type=self.story_type, grain=self.grain, tenant_id=self.tenant_id, version=self.version
             )
         # Return the cached story configuration
         return self._story_config
@@ -184,6 +186,7 @@ class StoryHeuristicEvaluator:
             story_date=self.story_date,
             tenant_id=self.tenant_id,
             is_heuristic=True,
+            version=self.version,
         )
 
         # If no previous story is found, return False for in_cool_off and the value of is_salient for is_heuristic
