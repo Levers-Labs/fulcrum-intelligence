@@ -168,6 +168,7 @@ class CRUDMetricCacheGrainConfig(
                 configs.append(grain_config)
 
         # Commit all configurations at once
+        await self.session.flush()
         await self.session.commit()
 
         # Refresh each config to get the generated IDs
@@ -245,7 +246,10 @@ class CRUDMetricCacheConfig(
         """
         Get cache configuration for a specific metric.
         """
-        statement = select(MetricCacheConfig).filter_by(metric_id=metric_id)
+        # Get sync information for this metric
+        tenant_id = get_tenant_id()
+
+        statement = select(MetricCacheConfig).filter_by(metric_id=metric_id, tenant_id=tenant_id)
 
         result = await self.session.execute(statement)
         config: MetricCacheConfig | None = result.scalar_one_or_none()
@@ -254,9 +258,6 @@ class CRUDMetricCacheConfig(
             raise NotFoundError(id=metric_id)
 
         config_read = MetricCacheConfigRead.model_validate(config, from_attributes=True)
-
-        # Get sync information for this metric
-        tenant_id = get_tenant_id()
 
         # Query 1: Get latest sync info
         latest_sync_query = (
@@ -304,25 +305,23 @@ class CRUDMetricCacheConfig(
         Create or update cache configuration for a specific metric.
         Uses upsert pattern to handle both creation and updates.
         """
-        try:
-            # Try to get existing configuration
-            statement = select(MetricCacheConfig).filter_by(metric_id=metric_id)
+        # Try to get existing configuration
+        statement = select(MetricCacheConfig).filter_by(metric_id=metric_id, tenant_id=get_tenant_id())
 
-            result = await self.session.execute(statement)
-            config: MetricCacheConfig | None = result.scalar_one_or_none()
-
-            if config is None:
-                raise NotFoundError(id=metric_id)
-
-            config.is_enabled = is_enabled
-            self.session.add(config)
-        except NotFoundError:
+        result = await self.session.execute(statement)
+        config: MetricCacheConfig | None = result.scalar_one_or_none()
+        if config is None:
             # Create new configuration if none exists
             config = MetricCacheConfig(metric_id=metric_id, is_enabled=is_enabled)  # type: ignore
             self.session.add(config)
 
-        # Commit changes and refresh to get updated data
+        config.is_enabled = is_enabled
+        self.session.add(config)
+
+        # Commit changes
+        await self.session.flush()
         await self.session.commit()
+
         return await self.get_by_metric_id(metric_id)
 
     async def bulk_update_metric_configs(self, metric_ids: list[str], is_enabled: bool) -> list[MetricCacheConfigRead]:
@@ -350,12 +349,12 @@ class CRUDMetricCacheConfig(
         # Enable caching for all found metrics
         return await self.bulk_update_metric_configs(metric_ids, True)
 
-    async def get_enabled_metrics(self) -> list[MetricCacheConfig]:
+    async def get_enabled_metrics(self, tenant_id: int) -> list[MetricCacheConfig]:
         """
         Get all enabled metric cache configurations.
         """
         # Filter for enabled configurations and include metric relationship
-        statement = select(MetricCacheConfig).filter_by(is_enabled=True)  # type: ignore
+        statement = select(MetricCacheConfig).filter_by(is_enabled=True, tenant_id=tenant_id)  # type: ignore
 
         result = await self.session.execute(statement)
         return list(result.scalars().all())
