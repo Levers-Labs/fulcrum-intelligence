@@ -24,7 +24,7 @@ from query_manager.core.models import (
     MetricInput,
 )
 from query_manager.core.schemas import MetricCacheConfigRead
-from query_manager.semantic_manager.models import MetricSyncStatus, SyncOperation
+from query_manager.semantic_manager.models import MetricSyncStatus, SyncOperation, SyncStatus
 
 
 class CRUDDimensions(CRUDBase[Dimension, Dimension, Dimension, DimensionFilter]):  # noqa
@@ -268,6 +268,7 @@ class CRUDMetricCacheConfig(
                     MetricSyncStatus.tenant_id == tenant_id,  # type: ignore
                     MetricSyncStatus.metric_id == metric_id,  # type: ignore
                     MetricSyncStatus.sync_operation == SyncOperation.SNOWFLAKE_CACHE,  # type: ignore
+                    MetricSyncStatus.sync_status == SyncStatus.SUCCESS,  # type: ignore
                 )
             )
             .order_by(MetricSyncStatus.last_sync_at.desc())  # type: ignore
@@ -283,6 +284,7 @@ class CRUDMetricCacheConfig(
                 MetricSyncStatus.tenant_id == tenant_id,  # type: ignore
                 MetricSyncStatus.metric_id == metric_id,  # type: ignore
                 MetricSyncStatus.sync_operation == SyncOperation.SNOWFLAKE_CACHE,  # type: ignore
+                MetricSyncStatus.sync_status == SyncStatus.SUCCESS,  # type: ignore
             )
         )
 
@@ -388,6 +390,7 @@ class CRUDMetricCacheConfig(
                     MetricSyncStatus.tenant_id == tenant_id,  # type: ignore
                     MetricSyncStatus.metric_id.in_(metric_ids),  # type: ignore
                     MetricSyncStatus.sync_operation == SyncOperation.SNOWFLAKE_CACHE,  # type: ignore
+                    MetricSyncStatus.sync_status == SyncStatus.SUCCESS,  # type: ignore
                 )
             )
             # Use window function to get latest sync per metric
@@ -407,6 +410,7 @@ class CRUDMetricCacheConfig(
                     MetricSyncStatus.tenant_id == tenant_id,  # type: ignore
                     MetricSyncStatus.metric_id.in_(metric_ids),  # type: ignore
                     MetricSyncStatus.sync_operation == SyncOperation.SNOWFLAKE_CACHE,  # type: ignore
+                    MetricSyncStatus.sync_status == SyncStatus.SUCCESS,  # type: ignore
                 )
             )
             .group_by(MetricSyncStatus.metric_id)  # type: ignore
@@ -455,12 +459,12 @@ class CRUDMetricCacheConfig(
         # Enable caching for all found metrics
         return await self.bulk_update_metric_configs(metric_ids, True)
 
-    async def get_enabled_metrics(self, tenant_id: int) -> list[MetricCacheConfig]:
+    async def get_enabled_metrics(self) -> list[MetricCacheConfig]:
         """
         Get all enabled metric cache configurations.
         """
         # Filter for enabled configurations and include metric relationship
-        statement = select(MetricCacheConfig).filter_by(is_enabled=True, tenant_id=tenant_id)
+        statement = select(MetricCacheConfig).filter_by(is_enabled=True)
 
         result = await self.session.execute(statement)
         return list(result.scalars().all())

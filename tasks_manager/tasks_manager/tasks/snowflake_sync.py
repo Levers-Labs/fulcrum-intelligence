@@ -73,17 +73,17 @@ async def get_enabled_grain_config(grain: Granularity) -> MetricCacheGrainConfig
 
 @task(
     name="get_enabled_metrics_for_tenant",
-    task_run_name="get_enabled_metrics_for_tenant:tenant={tenant_id}",
+    task_run_name="get_enabled_metrics_for_tenant",
     retries=1,
     retry_delay_seconds=30,
     timeout_seconds=3600,
     cache_key_fn=task_input_hash,
 )
-async def get_enabled_metrics_for_tenant(tenant_id: int) -> list[MetricCacheConfig]:
+async def get_enabled_metrics_for_tenant() -> list[MetricCacheConfig]:
     """Get enabled metric cache configurations for a tenant."""
     async with get_async_session() as session:
         crud = CRUDMetricCacheConfig(MetricCacheConfig, session)
-        enabled_configs = await crud.get_enabled_metrics(tenant_id)
+        enabled_configs = await crud.get_enabled_metrics()
         return enabled_configs
 
 
@@ -299,7 +299,7 @@ async def cache_tenant_metrics_to_snowflake(
 
     try:
         # Get enabled metrics using the CRUD method
-        enabled_metric_configs = await get_enabled_metrics_for_tenant(tenant_id)
+        enabled_metric_configs = await get_enabled_metrics_for_tenant()
         enabled_metric_ids = [config.metric_id for config in enabled_metric_configs]
         if metrics:
             # check if all metrics are enabled
