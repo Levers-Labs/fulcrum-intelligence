@@ -80,7 +80,7 @@ class Settings(BaseSettings):
     AUTH0_CLIENT_ID: str
     AUTH0_CLIENT_SECRET: str
 
-    SENTRY_DSN: str
+    SENTRY_DSN: str | None = None
 
     @field_validator("BACKEND_CORS_ORIGINS", mode="before")
     @classmethod

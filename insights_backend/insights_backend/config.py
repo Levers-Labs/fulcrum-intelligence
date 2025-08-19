@@ -59,7 +59,7 @@ class Settings(BaseSettings):
     PREFECT_API_TOKEN: str
 
     # Sentry
-    SENTRY_DSN: str
+    SENTRY_DSN: str | None = None
 
     @field_validator("BACKEND_CORS_ORIGINS", mode="before")
     @classmethod
