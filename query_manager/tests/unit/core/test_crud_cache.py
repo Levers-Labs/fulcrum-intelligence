@@ -254,7 +254,7 @@ async def test_get_enabled_metrics(db_session, jwt_payload):
     cache_crud = CRUDMetricCacheConfig(model=MetricCacheConfig, session=db_session)
 
     # Execute
-    enabled_configs = await cache_crud.get_enabled_metrics(jwt_payload["tenant_id"])
+    enabled_configs = await cache_crud.get_enabled_metrics()
 
     # Assert
     assert len(enabled_configs) == 2
