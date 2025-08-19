@@ -387,8 +387,6 @@ async def cache_tenant_metrics_to_snowflake(
 
         # Complete tenant sync operation in a new session context
         async with get_async_session() as session:
-            tenant_identifier = await get_tenant_identifier()
-            snowflake_client = await get_snowflake_client()
             cache_manager = SnowflakeSemanticCacheManager(session, snowflake_client, tenant_identifier)
 
             # Analyze results

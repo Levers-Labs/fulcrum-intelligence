@@ -169,7 +169,6 @@ class CRUDMetricCacheGrainConfig(
                 configs.append(grain_config)
 
         # Commit all configurations at once
-        await self.session.flush()
         await self.session.commit()
 
         # Refresh each config to get the generated IDs
@@ -322,7 +321,6 @@ class CRUDMetricCacheConfig(
         self.session.add(config)
 
         # Commit changes
-        await self.session.flush()
         await self.session.commit()
 
         await self.session.refresh(config)
@@ -337,7 +335,6 @@ class CRUDMetricCacheConfig(
         - Single transaction instead of N transactions
         - Bulk queries for sync data instead of N+1 queries
         - Includes complete sync status and snapshot data
-        - ~10x faster for large metric lists
         """
         if not metric_ids:
             return []
