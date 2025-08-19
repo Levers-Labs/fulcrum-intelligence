@@ -409,7 +409,8 @@ async def create_pattern_artifact(pattern_results: list[dict[str, Any]], metric_
 
     # Create the artifact
     await create_markdown_artifact(  # type: ignore
-        key=f"pattern-analysis-{metric_id.lower()}-{grain.value.lower()}-{date.today().isoformat()}", markdown=summary
+        key=f"pattern-analysis-{metric_id.replace('_', '-').lower()}-{grain.value.lower()}-{date.today().isoformat()}",
+        markdown=summary,  # noqa
     )
 
     logger.info("Successfully created artifact for metric %s", metric_id)

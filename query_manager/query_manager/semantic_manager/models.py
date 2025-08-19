@@ -84,6 +84,8 @@ class MetricSyncStatus(BaseTimeStampedTenantModel, table=True):  # type: ignore
     history: list[SyncEvent] = Field(
         sa_column=Column(JSONB, nullable=False, server_default="[]"),
     )
+    first_snapshot_date: date | None = None
+    last_snapshot_date: date | None = None
 
     # Define table arguments including schema, indexes and constraints
     __table_args__ = (
@@ -103,6 +105,7 @@ class MetricSyncStatus(BaseTimeStampedTenantModel, table=True):  # type: ignore
         Index("idx_metric_sync_status_operation", "sync_operation"),
         Index("idx_metric_sync_status_last_sync", "last_sync_at", postgresql_ops={"last_sync_at": "DESC"}),
         Index("idx_metric_sync_status_status", "sync_status"),
+        Index("idx_metric_sync_status_data_range", "first_snapshot_date", "last_snapshot_date"),
         # Schema definition
         {"schema": "query_store"},
     )
@@ -238,6 +241,8 @@ class TenantSyncStatus(BaseTimeStampedTenantModel, table=True):  # type: ignore
         default=SyncStatus.RUNNING,
         sa_column=Column(SAEnum(SyncStatus, name="syncstatus", inherit_schema=True)),
     )
+    started_at: datetime | None = None
+    ended_at: datetime | None = None
     metrics_processed: int | None = None
     metrics_succeeded: int | None = None
     metrics_failed: int | None = None

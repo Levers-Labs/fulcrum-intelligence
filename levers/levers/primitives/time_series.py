@@ -350,9 +350,6 @@ def calculate_cumulative_growth(
         # Calculate cumulative product of growth rates
         df_sorted["cumulative_growth"] = df_sorted["growth_rate"].cumprod() * base_value
 
-        # Remove temporary column
-        df_sorted.drop("growth_rate", axis=1, inplace=True)
-
     return df_sorted
 
 
@@ -654,3 +651,12 @@ def calculate_cumulative_aggregate(
         result = series.median()
 
     return float(result)
+
+def calculate_overall_growth(
+    df: pd.DataFrame,
+    value_col: str = "value",
+) -> float:
+    """Calculate the overall growth of a time series."""
+    if len(df) < 2:
+        return 0.0
+    return calculate_percentage_difference(df[value_col].iloc[-1], df[value_col].iloc[0])

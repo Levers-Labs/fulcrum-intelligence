@@ -204,7 +204,7 @@ async def analyze_metric_patterns(tenant_id_str: str, metric_id: str, grain: str
 
         # Create error artifact
         await create_markdown_artifact(  # type: ignore
-            key=f"pattern-runs-error-{metric_id.lower()}-{date.today().isoformat()}",
+            key=f"pattern-runs-error-{metric_id.replace('_', '-').lower()}-{date.today().isoformat()}",
             markdown=f"# Pattern Analysis Error\n\n"
             f"- **Tenant ID**: {tenant_id}\n"
             f"- **Metric ID**: {metric_id}\n"

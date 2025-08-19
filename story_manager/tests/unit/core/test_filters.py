@@ -72,7 +72,7 @@ def test_combined_filters(base_query):
     assert "story.metric_id IN ('metric1')" in sql
     assert "story.story_date >= '2023-01-01 00:00:00'" in sql
     assert "story.genre IN ('PERFORMANCE')" in sql
-    assert "story.story_type IN ('LIKELY_OFF_TRACK')" in sql
+    assert "story.story_type IN ('LIKELY_OFF_TRACK', 'FORECASTED_OFF_TRACK', 'PACING_OFF_TRACK')" in sql
 
 
 def test_empty_filters(base_query):
