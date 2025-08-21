@@ -296,9 +296,10 @@ class TestPerformanceStatusPattern:
             }
         )
         current_status = MetricGVAStatus.OFF_TRACK
+        target_value = 100
 
         # Act
-        result = pattern._calculate_streak_info(data, current_status)
+        result = pattern._calculate_streak_info(data, current_status, target_value)
 
         # Assert
         assert result is not None
@@ -318,9 +319,10 @@ class TestPerformanceStatusPattern:
             }
         )
         current_status = MetricGVAStatus.OFF_TRACK
+        target_value = 100
 
         # Act
-        result = pattern._calculate_streak_info(data, current_status)
+        result = pattern._calculate_streak_info(data, current_status, target_value)
 
         # Assert
         assert result is not None
@@ -340,11 +342,11 @@ class TestPerformanceStatusPattern:
             }
         )
         current_status = MetricGVAStatus.OFF_TRACK
-
+        target_value = 100
         mocker.patch("levers.patterns.performance_status.calculate_difference", return_value=0.0)
 
         # Act
-        result = pattern._calculate_streak_info(data, current_status)
+        result = pattern._calculate_streak_info(data, current_status, target_value)
 
         # Assert
         assert result is not None
@@ -364,11 +366,11 @@ class TestPerformanceStatusPattern:
             }
         )
         current_status = MetricGVAStatus.OFF_TRACK
-
+        target_value = 100
         mocker.patch("levers.patterns.performance_status.calculate_difference", return_value=3.0)
 
         # Act
-        result = pattern._calculate_streak_info(data, current_status)
+        result = pattern._calculate_streak_info(data, current_status, target_value)
 
         # Assert
         assert result is not None
@@ -381,9 +383,10 @@ class TestPerformanceStatusPattern:
         # Arrange
         data = pd.DataFrame({"date": [pd.Timestamp("2023-01-01")], "value": [95]})  # Only one data point
         current_status = MetricGVAStatus.OFF_TRACK
+        target_value = 100
 
         # Act
-        result = pattern._calculate_streak_info(data, current_status)
+        result = pattern._calculate_streak_info(data, current_status, target_value)
 
         # Assert
         assert result is None  # Cannot detect streak with just one point

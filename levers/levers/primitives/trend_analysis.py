@@ -81,7 +81,7 @@ def analyze_metric_trend(
     trend_confidence = r_value**2  # R-squared
 
     # Calculate normalized slope
-    mean_val = np.mean(y[mask])
+    mean_val = np.mean(y[mask])  # type: ignore
     if mean_val != 0:
         norm_slope = (slope / abs(mean_val)) * 100  # as percentage
     else:
@@ -111,7 +111,7 @@ def analyze_metric_trend(
             try:
                 recent_slope, _, _, _, _ = linregress(recent_x[mask_recent], recent_y[mask_recent])
 
-                recent_mean = np.mean(recent_y[mask_recent])
+                recent_mean = np.mean(recent_y[mask_recent])  # type: ignore
                 if recent_mean != 0:
                     recent_norm_slope = (recent_slope / abs(recent_mean)) * 100
                 else:
@@ -187,11 +187,13 @@ def detect_record_high(df: pd.DataFrame, value_col: str = "value") -> RecordHigh
     prior_max = previous_values.max()
     prior_max_idx = int(previous_values.idxmax())
 
+    is_record_high = (current_value > prior_max) and (current_value not in previous_values)
+
     # Calculate rank (1 = highest, 2 = second highest, etc.)
     rank = df[value_col].rank(method="min", ascending=False).iloc[-1]
 
     return RecordHigh(
-        is_record_high=current_value > prior_max,
+        is_record_high=is_record_high,
         current_value=current_value,
         prior_max=prior_max,
         prior_max_index=prior_max_idx,
@@ -237,11 +239,13 @@ def detect_record_low(df: pd.DataFrame, value_col: str = "value") -> RecordLow:
     prior_min = previous_values.min()
     prior_min_idx = int(previous_values.idxmin())
 
+    is_record_low = (current_value < prior_min) and (current_value not in previous_values)
+
     # Calculate rank (1 = lowest, 2 = second lowest, etc.)
     rank = df[value_col].rank(method="min", ascending=True).iloc[-1]
 
     return RecordLow(
-        is_record_low=current_value < prior_min,
+        is_record_low=is_record_low,
         current_value=current_value,
         prior_min=prior_min,
         prior_min_index=prior_min_idx,
