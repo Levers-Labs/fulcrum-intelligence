@@ -1,0 +1,33 @@
+{
+  "executionRoleArn": "arn:aws:iam::$account:role/fulcrum-ecs-execution-role",
+  "taskRoleArn": "arn:aws:iam::$account:role/fulcrum-ecs-task-role",
+  "networkMode": "awsvpc",
+  "requiresCompatibilities": [
+    "FARGATE"
+  ],
+  "cpu": "512",
+  "memory": "1024",
+  "family": "$app-daemon-task",
+  "containerDefinitions": [
+    {
+      "name": "$app-daemon",
+      "image": "",
+      "command": [
+        "make",
+        "run-prod-daemon"
+      ],
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "dagster/$app/daemon",
+          "awslogs-region": "$region",
+          "awslogs-stream-prefix": "$app-daemon"
+        }
+      },
+      "environment": [],
+      "secrets": [],
+      "memoryReservation": 512,
+      "essential": true
+    }
+  ]
+}
