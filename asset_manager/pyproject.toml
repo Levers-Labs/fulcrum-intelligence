@@ -10,11 +10,15 @@ packages = [{include = "asset_manager"}]
 python = ">=3.10,<3.12"
 dagster = "^1.11.6"
 dagster-webserver = "^1.11.6"
+dagster-aws = "^0.27.7"
 pandas = "^2.0.0"
 requests = "^2.31.0"
 pydantic-settings = "^2.5.2"
-commons = { path = "../commons" }
-query-manager = { path = "../query_manager" }
+story-manager = { path = "../story_manager"}
+query-manager = { path = "../query_manager"}
+analysis-manager = { path = "../analysis_manager"}
+commons = { path = "../commons"}
+levers = { path = "../levers"}
 
 [tool.poetry.group.dev.dependencies]
 dagster-webserver = "^1.7.0"
@@ -25,4 +29,3 @@ module_name = "asset_manager.definitions"
 [build-system]
 requires = ["poetry-core>=1.0.0,<2.0.0"]
 build-backend = "poetry.core.masonry.api"
-
