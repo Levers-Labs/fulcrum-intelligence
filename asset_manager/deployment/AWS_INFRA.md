@@ -159,20 +159,20 @@ Replace `$account` and `$region` with your values:
 
 ```bash
 # Service endpoints
-aws ssm put-parameter --name "/asset_manager/SERVER_HOST" --value "https://dg.leverslabs.com" --type String
+aws ssm put-parameter --name "/asset-manager/SERVER_HOST" --value "https://dg.leverslabs.com" --type String
 # Auth0 (service-specific)
-aws ssm put-parameter --name "/asset_manager/AUTH0_CLIENT_ID" --value "your-auth0-client-id" --type String
-aws ssm put-parameter --name "/asset_manager/AUTH0_CLIENT_SECRET" --value "your-auth0-client-secret" --type SecureString
+aws ssm put-parameter --name "/asset-manager/AUTH0_CLIENT_ID" --value "your-auth0-client-id" --type String
+aws ssm put-parameter --name "/asset-manager/AUTH0_CLIENT_SECRET" --value "your-auth0-client-secret" --type SecureString
 
 # Dagster Postgres (Supabase)
-aws ssm put-parameter --name "/asset_manager/DAGSTER_PG_HOST" --value "db.crzveraijklryabyrras.supabase.co" --type String
-aws ssm put-parameter --name "/asset_manager/DAGSTER_PG_PORT" --value "5432" --type String
-aws ssm put-parameter --name "/asset_manager/DAGSTER_PG_DB" --value "postgres" --type String
-aws ssm put-parameter --name "/asset_manager/DAGSTER_PG_USER" --value "postgres" --type String
-aws ssm put-parameter --name "/asset_manager/DAGSTER_PG_PASSWORD" --value "your-supabase-password" --type SecureString
+aws ssm put-parameter --name "/asset-manager/DAGSTER_PG_HOST" --value "db.crzveraijklryabyrras.supabase.co" --type String
+aws ssm put-parameter --name "/asset-manager/DAGSTER_PG_PORT" --value "5432" --type String
+aws ssm put-parameter --name "/asset-manager/DAGSTER_PG_DB" --value "postgres" --type String
+aws ssm put-parameter --name "/asset-manager/DAGSTER_PG_USER" --value "postgres" --type String
+aws ssm put-parameter --name "/asset-manager/DAGSTER_PG_PASSWORD" --value "your-supabase-password" --type SecureString
 
 # S3 bucket for Dagster
-aws ssm put-parameter --name "/asset_manager/DAGSTER_S3_BUCKET" --value "asset-manager-artifacts" --type String
+aws ssm put-parameter --name "/asset-manager/DAGSTER_S3_BUCKET" --value "asset-manager-artifacts" --type String
 ```
 
 ## Deployment Steps
