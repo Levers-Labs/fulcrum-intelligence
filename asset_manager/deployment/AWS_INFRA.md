@@ -11,13 +11,126 @@ This guide provides manual steps to deploy the Asset Manager (Dagster) on AWS EC
 - **IAM Roles**:
   - `fulcrum-ecs-execution-role`: ECR pull, CloudWatch logs write
   - `fulcrum-ecs-task-role`: SSM parameter read, S3 bucket access
-- **Security Groups**:
-  - ALB SG (443 from internet)
-  - ECS SG (3000 from ALB, egress to internet/NAT)
-- **ALB**: Internet-facing with HTTPS listener (443)
 - **Route53**: Domain with ACM certificate
 
 ### New Resources Needed
+
+#### Security Groups
+Create dedicated security groups for the Asset Manager:
+
+```bash
+# Get VPC ID
+VPC_ID=$(aws ec2 describe-vpcs --filters "Name=tag:Name,Values=fulcrum-vpc" --query 'Vpcs[0].VpcId' --output text)
+
+# Create ALB Security Group
+ALB_SG_ID=$(aws ec2 create-security-group \
+  --group-name asset-manager-alb-sg \
+  --description "Security group for Asset Manager ALB" \
+  --vpc-id $VPC_ID \
+  --query 'GroupId' --output text)
+
+# Allow HTTPS traffic from internet to ALB
+aws ec2 authorize-security-group-ingress \
+  --group-id $ALB_SG_ID \
+  --protocol tcp \
+  --port 443 \
+  --cidr 0.0.0.0/0
+
+# Allow HTTP traffic from internet to ALB (for redirect)
+aws ec2 authorize-security-group-ingress \
+  --group-id $ALB_SG_ID \
+  --protocol tcp \
+  --port 80 \
+  --cidr 0.0.0.0/0
+
+# Create ECS Services Security Group
+ECS_SG_ID=$(aws ec2 create-security-group \
+  --group-name asset-manager-services-sg \
+  --description "Security group for all Asset Manager ECS services" \
+  --vpc-id $VPC_ID \
+  --query 'GroupId' --output text)
+
+# Allow traffic from ALB to ECS services on port 3000
+aws ec2 authorize-security-group-ingress \
+  --group-id $ECS_SG_ID \
+  --protocol tcp \
+  --port 3000 \
+  --source-group $ALB_SG_ID
+
+# Allow ECS services to communicate with each other
+aws ec2 authorize-security-group-ingress \
+  --group-id $ECS_SG_ID \
+  --protocol tcp \
+  --port 0-65535 \
+  --source-group $ECS_SG_ID
+
+# Allow outbound traffic to internet (for dependencies, APIs, etc.)
+aws ec2 authorize-security-group-egress \
+  --group-id $ECS_SG_ID \
+  --protocol tcp \
+  --port 443 \
+  --cidr 0.0.0.0/0
+
+aws ec2 authorize-security-group-egress \
+  --group-id $ECS_SG_ID \
+  --protocol tcp \
+  --port 80 \
+  --cidr 0.0.0.0/0
+
+# Allow outbound traffic to Supabase (PostgreSQL)
+aws ec2 authorize-security-group-egress \
+  --group-id $ECS_SG_ID \
+  --protocol tcp \
+  --port 5432 \
+  --cidr 0.0.0.0/0
+
+echo "ALB Security Group ID: $ALB_SG_ID"
+echo "ECS Services Security Group ID: $ECS_SG_ID"
+```
+
+#### Application Load Balancer
+Create dedicated ALB for Asset Manager:
+
+```bash
+# Get subnet IDs for public subnets (space-separated for ALB command)
+PUBLIC_SUBNET_IDS=$(aws ec2 describe-subnets \
+  --filters "Name=vpc-id,Values=$VPC_ID" "Name=tag:Type,Values=public" \
+  --query 'Subnets[*].SubnetId' --output text)
+
+# Create Application Load Balancer
+ALB_ARN=$(aws elbv2 create-load-balancer \
+  --name asset-manager-alb \
+  --subnets $PUBLIC_SUBNET_IDS \
+  --security-groups $ALB_SG_ID \
+  --scheme internet-facing \
+  --type application \
+  --ip-address-type ipv4 \
+  --query 'LoadBalancers[0].LoadBalancerArn' --output text)
+
+# Get ACM certificate ARN (assuming you have one for your domain)
+CERT_ARN=$(aws acm list-certificates \
+  --query 'CertificateSummaryList[?DomainName==`*.leverslabs.com`].CertificateArn' \
+  --output text)
+
+# Create HTTPS listener
+HTTPS_LISTENER_ARN=$(aws elbv2 create-listener \
+  --load-balancer-arn $ALB_ARN \
+  --protocol HTTPS \
+  --port 443 \
+  --certificates CertificateArn=$CERT_ARN \
+  --default-actions Type=fixed-response,FixedResponseConfig='{MessageBody="Not Found",StatusCode="404",ContentType="text/plain"}' \
+  --query 'Listeners[0].ListenerArn' --output text)
+
+# Create HTTP listener (redirect to HTTPS)
+aws elbv2 create-listener \
+  --load-balancer-arn $ALB_ARN \
+  --protocol HTTP \
+  --port 80 \
+  --default-actions Type=redirect,RedirectConfig='{Protocol="HTTPS",Port="443",StatusCode="HTTP_301"}'
+
+echo "Load Balancer ARN: $ALB_ARN"
+echo "HTTPS Listener ARN: $HTTPS_LISTENER_ARN"
+```
 
 #### S3 Bucket
 Create bucket for Dagster compute logs and IO artifacts:
@@ -149,51 +262,96 @@ run_launcher:
     # ... rest of config
 ```
 
-### 5. Create ECS Services
+### 5. Create Target Group and Listener Rules
 
 ```bash
-# Create web service (with ALB)
-aws ecs create-service \
-  --cluster fulcrum-cluster \
-  --service-name asset-manager-web \
-  --task-definition "$WEB_TASK_ARN" \
-  --desired-count 1 \
-  --launch-type FARGATE \
-  --network-configuration "awsvpcConfiguration={subnets=[subnet-xxx,subnet-yyy],securityGroups=[sg-xxx],assignPublicIp=DISABLED}" \
-  --load-balancers "targetGroupArn=arn:aws:elasticloadbalancing:us-west-1:$account:targetgroup/asset-manager-web/xxx,containerName=asset_manager-web,containerPort=3000"
+# Get private subnet IDs for ECS services
+PRIVATE_SUBNET_IDS=$(aws ec2 describe-subnets \
+  --filters "Name=vpc-id,Values=$VPC_ID" "Name=tag:Type,Values=private" \
+  --query 'Subnets[*].SubnetId' --output text | tr '\t' ' ')
 
-# Create daemon service (no ALB)
-aws ecs create-service \
-  --cluster fulcrum-cluster \
-  --service-name asset-manager-daemon \
-  --task-definition "$DAEMON_TASK_ARN" \
-  --desired-count 1 \
-  --launch-type FARGATE \
-  --network-configuration "awsvpcConfiguration={subnets=[subnet-xxx,subnet-yyy],securityGroups=[sg-xxx],assignPublicIp=DISABLED}"
-```
-
-### 6. Configure ALB Target Group
-
-```bash
 # Create target group for web service
-aws elbv2 create-target-group \
-  --name asset-manager-web \
+TG_ARN=$(aws elbv2 create-target-group \
+  --name asset-manager-web-tg \
   --protocol HTTP \
   --port 3000 \
-  --vpc-id vpc-xxx \
+  --vpc-id $VPC_ID \
   --target-type ip \
   --health-check-path /server_info \
   --health-check-interval-seconds 30 \
   --health-check-timeout-seconds 5 \
   --healthy-threshold-count 2 \
-  --unhealthy-threshold-count 3
+  --unhealthy-threshold-count 3 \
+  --query 'TargetGroups[0].TargetGroupArn' --output text)
 
-# Add listener rule to existing ALB
+# Add listener rule to ALB
 aws elbv2 create-rule \
-  --listener-arn arn:aws:elasticloadbalancing:us-west-1:$account:listener/app/fulcrum-alb/xxx/yyy \
+  --listener-arn $HTTPS_LISTENER_ARN \
   --priority 100 \
-  --conditions Field=host-header,Values=asset-manager.yourdomain.com \
-  --actions Type=forward,TargetGroupArn=arn:aws:elasticloadbalancing:us-west-1:$account:targetgroup/asset-manager-web/xxx
+  --conditions Field=host-header,Values=dg.leverslabs.com \
+  --actions Type=forward,TargetGroupArn=$TG_ARN
+
+echo "Target Group ARN: $TG_ARN"
+```
+
+### 6. Create ECS Services
+
+```bash
+# Create web service (with ALB)
+aws ecs create-service \
+  --cluster asset-manager \
+  --service-name asset-manager-web \
+  --task-definition "$WEB_TASK_ARN" \
+  --desired-count 1 \
+  --launch-type FARGATE \
+  --network-configuration "awsvpcConfiguration={subnets=[$PRIVATE_SUBNET_IDS],securityGroups=[$ECS_SG_ID],assignPublicIp=DISABLED}" \
+  --load-balancers "targetGroupArn=$TG_ARN,containerName=asset-manager-web,containerPort=3000"
+
+# Create daemon service (no ALB)
+aws ecs create-service \
+  --cluster asset-manager \
+  --service-name asset-manager-daemon \
+  --task-definition "$DAEMON_TASK_ARN" \
+  --desired-count 1 \
+  --launch-type FARGATE \
+  --network-configuration "awsvpcConfiguration={subnets=[$PRIVATE_SUBNET_IDS],securityGroups=[$ECS_SG_ID],assignPublicIp=DISABLED}"
+```
+
+### 7. Configure Route53 DNS
+
+```bash
+# Get ALB DNS name
+ALB_DNS_NAME=$(aws elbv2 describe-load-balancers \
+  --load-balancer-arns $ALB_ARN \
+  --query 'LoadBalancers[0].DNSName' --output text)
+
+ALB_HOSTED_ZONE_ID=$(aws elbv2 describe-load-balancers \
+  --load-balancer-arns $ALB_ARN \
+  --query 'LoadBalancers[0].CanonicalHostedZoneId' --output text)
+
+# Get Route53 hosted zone ID
+HOSTED_ZONE_ID=$(aws route53 list-hosted-zones \
+  --query 'HostedZones[?Name==`leverslabs.com.`].Id' --output text | cut -d'/' -f3)
+
+# Create DNS record
+aws route53 change-resource-record-sets \
+  --hosted-zone-id $HOSTED_ZONE_ID \
+  --change-batch '{
+    "Changes": [{
+      "Action": "CREATE",
+      "ResourceRecordSet": {
+        "Name": "dg.leverslabs.com",
+        "Type": "A",
+        "AliasTarget": {
+          "DNSName": "'$ALB_DNS_NAME'",
+          "HostedZoneId": "'$ALB_HOSTED_ZONE_ID'",
+          "EvaluateTargetHealth": false
+        }
+      }
+    }]
+  }'
+
+echo "DNS configured: https://dg.leverslabs.com"
 ```
 
 ## Validation
@@ -201,16 +359,22 @@ aws elbv2 create-rule \
 ### 1. Health Checks
 ```bash
 # Check service status
-aws ecs describe-services --cluster fulcrum-cluster --services asset-manager-web asset-manager-daemon
+aws ecs describe-services --cluster asset-manager --services asset-manager-web asset-manager-daemon
 
 # Check task health
-aws ecs list-tasks --cluster fulcrum-cluster --service-name asset-manager-web
-aws ecs list-tasks --cluster fulcrum-cluster --service-name asset-manager-daemon
+aws ecs list-tasks --cluster asset-manager --service-name asset-manager-web
+aws ecs list-tasks --cluster asset-manager --service-name asset-manager-daemon
+
+# Check ALB target health
+aws elbv2 describe-target-health --target-group-arn $TG_ARN
+
+# Check security group rules
+aws ec2 describe-security-groups --group-ids $ALB_SG_ID $ECS_SG_ID
 ```
 
 ### 2. Application Validation
-1. **Access UI**: Navigate to `https://asset-manager.yourdomain.com`
-2. **Health endpoint**: Check `https://asset-manager.yourdomain.com/server_info` returns 200
+1. **Access UI**: Navigate to `https://dg.leverslabs.com`
+2. **Health endpoint**: Check `https://dg.leverslabs.com/server_info` returns 200
 3. **Dagster UI**: Verify assets, schedules, and sensors are visible
 4. **Schedules**: Confirm `daily_snowflake_cache_schedule` is RUNNING
 5. **Sensors**: Confirm `partition_sync_sensor` is RUNNING and syncing partitions
@@ -235,14 +399,14 @@ docker push $account.dkr.ecr.us-west-1.amazonaws.com/asset-manager:$NEW_TAG
 # ... (repeat steps 2-3 with new tag)
 
 # Update services
-aws ecs update-service --cluster fulcrum-cluster --service asset-manager-web --task-definition $NEW_WEB_TASK_ARN --force-new-deployment
-aws ecs update-service --cluster fulcrum-cluster --service asset-manager-daemon --task-definition $NEW_DAEMON_TASK_ARN --force-new-deployment
+aws ecs update-service --cluster asset-manager --service asset-manager-web --task-definition $NEW_WEB_TASK_ARN --force-new-deployment
+aws ecs update-service --cluster asset-manager --service asset-manager-daemon --task-definition $NEW_DAEMON_TASK_ARN --force-new-deployment
 ```
 
 ### Scaling
 ```bash
 # Scale web service for HA (keep daemon at 1)
-aws ecs update-service --cluster fulcrum-cluster --service asset-manager-web --desired-count 2
+aws ecs update-service --cluster asset-manager --service asset-manager-web --desired-count 2
 ```
 
 ### Troubleshooting
