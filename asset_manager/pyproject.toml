@@ -14,11 +14,11 @@ dagster-aws = "^0.27.7"
 pandas = "^2.0.0"
 requests = "^2.31.0"
 pydantic-settings = "^2.5.2"
+commons = { path = "../commons", extras = ["db"]}
+levers = { path = "../levers"}
 story-manager = { path = "../story_manager"}
 query-manager = { path = "../query_manager"}
 analysis-manager = { path = "../analysis_manager"}
-commons = { path = "../commons"}
-levers = { path = "../levers"}
 
 [tool.poetry.group.dev.dependencies]
 dagster-webserver = "^1.7.0"
