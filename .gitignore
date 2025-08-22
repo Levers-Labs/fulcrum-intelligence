@@ -144,3 +144,6 @@ dmypy.json
 
 # Prefect data
 tasks_manager/prefect_data/**
+
+# Dagster storage
+.dagster/
