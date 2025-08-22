@@ -13,7 +13,6 @@
       "name": "$app-daemon",
       "image": "",
       "command": [
-        "make",
         "run-prod-daemon"
       ],
       "logConfiguration": {
