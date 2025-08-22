@@ -20,7 +20,13 @@
         }
       ],
       "command": [
-        "run-prod-webserver"
+        "dagster-webserver",
+        "-w",
+        "workspace.yaml",
+        "--port",
+        "3000",
+        "--host",
+        "0.0.0.0"
       ],
       "logConfiguration": {
         "logDriver": "awslogs",

@@ -13,7 +13,8 @@
       "name": "$app-daemon",
       "image": "",
       "command": [
-        "run-prod-daemon"
+        "dagster-daemon",
+        "run"
       ],
       "logConfiguration": {
         "logDriver": "awslogs",

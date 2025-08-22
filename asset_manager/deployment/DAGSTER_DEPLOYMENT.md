@@ -105,7 +105,6 @@ run_launcher:
   config:
     task_definition: "arn:aws:ecs:region:account:task-definition/asset-manager-run:1"
     container_name: "asset-manager-run"
-    region: { env: AWS_REGION }
     run_resources:
       cpu: "512"
       memory: "1024"
