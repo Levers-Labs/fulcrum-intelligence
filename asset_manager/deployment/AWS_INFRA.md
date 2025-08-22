@@ -46,18 +46,13 @@ Replace `$account` and `$region` with your values:
 
 ```bash
 # Service endpoints
-aws ssm put-parameter --name "/asset_manager/SERVER_HOST" --value "https://asset-manager.yourdomain.com" --type String
-aws ssm put-parameter --name "/asset_manager/STORY_MANAGER_SERVER_HOST" --value "https://story-manager.yourdomain.com" --type String
-aws ssm put-parameter --name "/asset_manager/ANALYSIS_MANAGER_SERVER_HOST" --value "https://analysis-manager.yourdomain.com" --type String
-aws ssm put-parameter --name "/asset_manager/QUERY_MANAGER_SERVER_HOST" --value "https://query-manager.yourdomain.com" --type String
-aws ssm put-parameter --name "/asset_manager/INSIGHTS_BACKEND_SERVER_HOST" --value "https://insights-backend.yourdomain.com" --type String
-
+aws ssm put-parameter --name "/asset_manager/SERVER_HOST" --value "https://dg.leverslabs.com" --type String
 # Auth0 (service-specific)
 aws ssm put-parameter --name "/asset_manager/AUTH0_CLIENT_ID" --value "your-auth0-client-id" --type String
 aws ssm put-parameter --name "/asset_manager/AUTH0_CLIENT_SECRET" --value "your-auth0-client-secret" --type SecureString
 
 # Dagster Postgres (Supabase)
-aws ssm put-parameter --name "/asset_manager/DAGSTER_PG_HOST" --value "your-supabase-host.supabase.co" --type String
+aws ssm put-parameter --name "/asset_manager/DAGSTER_PG_HOST" --value "db.crzveraijklryabyrras.supabase.co" --type String
 aws ssm put-parameter --name "/asset_manager/DAGSTER_PG_PORT" --value "5432" --type String
 aws ssm put-parameter --name "/asset_manager/DAGSTER_PG_DB" --value "postgres" --type String
 aws ssm put-parameter --name "/asset_manager/DAGSTER_PG_USER" --value "postgres" --type String
@@ -65,12 +60,6 @@ aws ssm put-parameter --name "/asset_manager/DAGSTER_PG_PASSWORD" --value "your-
 
 # S3 bucket for Dagster
 aws ssm put-parameter --name "/asset_manager/DAGSTER_S3_BUCKET" --value "asset-manager-artifacts" --type String
-
-# Shared parameters (if not already created)
-aws ssm put-parameter --name "/fulcrum/DATABASE_URL" --value "postgresql://user:pass@host:5432/db" --type SecureString
-aws ssm put-parameter --name "/fulcrum/SECRET_KEY" --value "your-secret-key" --type SecureString
-aws ssm put-parameter --name "/fulcrum/AUTH0_API_AUDIENCE" --value "your-auth0-audience" --type String
-aws ssm put-parameter --name "/fulcrum/AUTH0_ISSUER" --value "https://your-domain.auth0.com/" --type String
 ```
 
 ## Deployment Steps
