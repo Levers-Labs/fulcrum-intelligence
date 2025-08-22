@@ -20,6 +20,28 @@ class AlertPreviewService(BasePreviewService[AlertRequest]):
         self.template_dir = Path(__file__).parent.parent.parent / "templates" / "story" / "story_templates.json"
         with open(self.template_dir) as f:
             self.story_template = json.load(f)
+        self.story_groups = [
+            "GROWTH_RATES",
+            "TREND_CHANGES",
+            "TREND_EXCEPTIONS",
+            "LONG_RANGE",
+            "GOAL_VS_ACTUAL",
+            "LIKELY_STATUS",
+            "RECORD_VALUES",
+            "STATUS_CHANGE",
+            "REQUIRED_PERFORMANCE",
+            "SIGNIFICANT_SEGMENTS",
+            "BENCHMARK_COMPARISONS",
+            "SEGMENT_CHANGES",
+            "ROOT_CAUSES_SUMMARY",
+        ]
+        self.sample_metrics = [
+            {"metric_id": "ct_inquiries", "label": "Inquiries"},
+            {"metric_id": "ct_won_opportunities", "label": "Won Opportunities"},
+            {"metric_id": "ct_opened_opportunities", "label": "New Business S0 Opportunities"},
+            {"metric_id": "total_won_acv", "label": "New Business Bookings"},
+            {"metric_id": "flat_renewals", "label": "Flat Renewals"},
+        ]
 
     async def _generate_context(self, alert_data: AlertRequest) -> dict[str, Any]:
         """Generate mock context data for alert template rendering"""
@@ -84,8 +106,8 @@ class AlertPreviewService(BasePreviewService[AlertRequest]):
     def _get_story_groups(self, alert_data: AlertRequest) -> list[str]:
         """Get story groups from alert data"""
         if not alert_data.trigger or not alert_data.trigger.condition:
-            return []
-        return getattr(alert_data.trigger.condition, "story_groups", [])
+            return self.story_groups
+        return getattr(alert_data.trigger.condition, "story_groups", self.story_groups)
 
     def _get_metric_info(self, alert_data: AlertRequest) -> dict[str, str]:
         """Get metric information"""
@@ -96,8 +118,9 @@ class AlertPreviewService(BasePreviewService[AlertRequest]):
             if metric_ids:
                 return {"metric_id": metric_ids[0], "label": metric_ids[0]}
 
-        # If no metrics found anywhere, generate fake data
-        return {"metric_id": str(self.faker.random_int(min=1, max=100)), "label": self.faker.word().title()}  # type: ignore
+        # If no metrics found anywhere, generate random data
+        metric = self.faker.random_element(self.sample_metrics)
+        return metric
 
     def _generate_stories(self, story_groups: list[str], variables: dict[str, Any]) -> list[dict[str, str]]:
         """Generate stories for each story group"""
