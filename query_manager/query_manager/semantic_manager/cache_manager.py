@@ -358,17 +358,7 @@ class SnowflakeSemanticCacheManager(SemanticManager):
                 status=SyncStatus.FAILED,
                 error=str(e),
             )
-            return {
-                "status": "failed",
-                "time_series_stats": {
-                    "processed": 0,
-                    "skipped": 0,
-                    "failed": len(values),
-                    "total": len(values),
-                },
-                "table_name": table_name,
-                "error": str(e),
-            }
+            raise e
 
     async def validate_cache_integrity(
         self,
