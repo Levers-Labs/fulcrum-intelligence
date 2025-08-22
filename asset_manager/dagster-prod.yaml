@@ -1,0 +1,55 @@
+storage:
+  postgres:
+    postgres_db:
+      username:
+        env: DAGSTER_PG_USER
+      password:
+        env: DAGSTER_PG_PASSWORD
+      hostname:
+        env: DAGSTER_PG_HOST
+      db_name:
+        env: DAGSTER_PG_DB
+      port:
+        env: DAGSTER_PG_PORT
+
+compute_logs:
+  module: dagster_aws.s3
+  class: S3ComputeLogManager
+  config:
+    bucket:
+      env: DAGSTER_S3_BUCKET
+    prefix: dagster/compute-logs
+
+resources:
+  io_manager:
+    module: dagster_aws.s3
+    class: S3PickleIOManager
+    config:
+      s3_bucket:
+        env: DAGSTER_S3_BUCKET
+      s3_prefix: dagster/io
+
+run_coordinator:
+  module: dagster.core.run_coordinator
+  class: QueuedRunCoordinator
+  config:
+    max_concurrent_runs: 25
+
+run_launcher:
+  module: 'dagster_aws.ecs'
+  class: 'EcsRunLauncher'
+  config:
+    task_definition: '$run_task_def_arn'
+    container_name: 'asset-manager-run'
+
+    # Region for ECS/boto
+    region:
+      env: AWS_REGION
+
+    # Default CPU/Memory for run tasks; can be overridden via job tags per docs
+    run_resources:
+      cpu: '512'
+      memory: '1024'
+
+telemetry:
+  enabled: false

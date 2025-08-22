@@ -1,0 +1,175 @@
+name: Build and Deploy Asset Manager (Dagster)
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "asset_manager/**"
+      - "commons/**"
+      - "levers/**"
+      - "query_manager/**"
+      - "story_manager/**"
+      - "analysis_manager/**"
+
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Asset Manager Deployment environment choices"
+        type: choice
+        required: true
+        options:
+          - DEV
+          - STAGING
+          - PROD
+
+env:
+  app_name: "asset-manager"
+  app_folder: "asset_manager"
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  set-vars:
+    name: set-vars
+    runs-on: ubuntu-latest
+
+    outputs:
+      ecr_repo: ${{ steps.set-vars.outputs.ecr_repo }}
+      app_folder: ${{ steps.set-vars.outputs.app_folder }}
+      app_name: ${{ steps.set-vars.outputs.app_name }}
+      env: ${{ steps.set-vars.outputs.env }}
+
+    steps:
+      - name: set-vars
+        id: set-vars
+        run: |
+          echo "ecr_repo=$app_name" >> $GITHUB_OUTPUT
+          echo "app_folder=$app_folder" >> $GITHUB_OUTPUT
+          echo "app_name=$app_name" >> $GITHUB_OUTPUT
+          if ${{ github.event.inputs.environment == 'PROD'}}; then
+            echo "env=prod" >> $GITHUB_OUTPUT;
+          elif ${{ github.event.inputs.environment == 'STAGING' }}; then
+            echo "env=staging" >> $GITHUB_OUTPUT;
+          else
+            echo "env=dev" >> $GITHUB_OUTPUT;
+          fi
+
+  generate-tag:
+    name: Generate Tag
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Branch
+        uses: actions/checkout@v3
+
+      - name: Generate TAG
+        id: generate-tag
+        run: |
+          COMMIT_HASH=$(git rev-parse HEAD)
+          echo "tag_id=${COMMIT_HASH}_$(date +%Y%m%d_%H%M%S)" >> $GITHUB_OUTPUT
+    outputs:
+      tag_id: ${{ steps.generate-tag.outputs.tag_id }}
+
+  build-image:
+    needs: [generate-tag, set-vars]
+    uses: ./.github/workflows/reusable-build-image.yml
+    with:
+      ecr_repo: ${{ needs.set-vars.outputs.ecr_repo }}
+      app_folder: ${{ needs.set-vars.outputs.app_folder }}
+      tag: ${{ needs.generate-tag.outputs.tag_id }}
+    secrets:
+      ECR_REGISTRY: ${{ secrets.ECR_REGISTRY }}
+      AWS_REGION: ${{ secrets.AWS_REGION }}
+      DEV_DEPLOYMENT_ROLE: ${{ secrets.DEV_DEPLOYMENT_ROLE }}
+
+  deploy-web-service:
+    needs: [build-image, generate-tag, set-vars]
+    uses: ./.github/workflows/reusable-cd-workflow.yml
+    with:
+      APP_NAME: ${{ needs.set-vars.outputs.app_name }}
+      APP_FOLDER: ${{ needs.set-vars.outputs.app_folder }}
+      TAG_ID: ${{ needs.generate-tag.outputs.tag_id }}
+      SERVICE_NAME: "web"
+      ECS_CLUSTER: "asset-manager"
+      ECR_REPOSITORY: ${{ needs.set-vars.outputs.ecr_repo }}
+      TASK_DEFINITION: "web-task-definition.json"
+      ENV: ${{ needs.set-vars.outputs.env }}
+    secrets:
+      ECR_REGISTRY: ${{ secrets.ECR_REGISTRY }}
+      AWS_REGION: ${{ secrets.AWS_REGION }}
+      ASSUME_ROLE: ${{ secrets.DEV_DEPLOYMENT_ROLE }}
+      AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
+
+  deploy-daemon-service:
+    needs: [build-image, generate-tag, set-vars, deploy-web-service]
+    uses: ./.github/workflows/reusable-cd-workflow.yml
+    with:
+      APP_NAME: ${{ needs.set-vars.outputs.app_name }}
+      APP_FOLDER: ${{ needs.set-vars.outputs.app_folder }}
+      TAG_ID: ${{ needs.generate-tag.outputs.tag_id }}
+      SERVICE_NAME: "daemon"
+      ECS_CLUSTER: "asset-manager"
+      ECR_REPOSITORY: ${{ needs.set-vars.outputs.ecr_repo }}
+      TASK_DEFINITION: "daemon-task-definition.json"
+      ENV: ${{ needs.set-vars.outputs.env }}
+    secrets:
+      ECR_REGISTRY: ${{ secrets.ECR_REGISTRY }}
+      AWS_REGION: ${{ secrets.AWS_REGION }}
+      ASSUME_ROLE: ${{ secrets.DEV_DEPLOYMENT_ROLE }}
+      AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
+
+  register-run-task-definition:
+    needs: [build-image, generate-tag, set-vars]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: configure aws credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{secrets.DEV_DEPLOYMENT_ROLE}}
+          role-session-name: github-action-role
+          aws-region: ${{secrets.AWS_REGION}}
+
+      - name: Render Environment Variables and Secret in the Run Task Definition
+        run: |
+          python3 render.py ${{ needs.set-vars.outputs.app_folder }}/deployment/ecs/env.json \
+            ${{ needs.set-vars.outputs.app_folder }}/deployment/ecs/run-task-definition.json \
+            --account ${{ secrets.AWS_ACCOUNT_ID }} \
+            --region ${{ secrets.AWS_REGION }} \
+            --app ${{ needs.set-vars.outputs.app_name }} \
+            --env ${{ needs.set-vars.outputs.env }}
+
+      - name: Update Amazon ECS run task definition with latest image id
+        id: render-run-task-definition
+        uses: aws-actions/amazon-ecs-render-task-definition@v1
+        with:
+          task-definition: ${{ needs.set-vars.outputs.app_folder }}/deployment/ecs/run-task-definition.json
+          container-name: ${{ needs.set-vars.outputs.app_name }}-run
+          image: ${{ secrets.ECR_REGISTRY }}/${{ needs.set-vars.outputs.ecr_repo }}:${{ needs.generate-tag.outputs.tag_id }}
+
+      - name: Register run task definition for EcsRunLauncher
+        run: |
+          aws ecs register-task-definition \
+            --cli-input-json file://${{ steps.render-run-task-definition.outputs.task-definition }}
+
+          # Get the new task definition ARN
+          TASK_DEF_ARN=$(aws ecs describe-task-definition \
+            --task-definition asset-manager-run \
+            --query 'taskDefinition.taskDefinitionArn' \
+            --output text)
+
+          echo "Registered run task definition: $TASK_DEF_ARN"
+
+          # Update dagster-prod.yaml with the new task definition ARN
+          sed -i "s|\$run_task_def_arn|$TASK_DEF_ARN|g" \
+            ${{ needs.set-vars.outputs.app_folder }}/dagster-prod.yaml
+
+          echo "Updated dagster-prod.yaml with new task definition ARN: $TASK_DEF_ARN"
+
+          # Show the updated configuration
+          echo "Updated dagster-prod.yaml run_launcher config:"
+          grep -A 10 "run_launcher:" ${{ needs.set-vars.outputs.app_folder }}/dagster-prod.yaml

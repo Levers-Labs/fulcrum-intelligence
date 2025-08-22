@@ -14,24 +14,24 @@ install:
 dev:
 	@echo "🚀 Starting Dagster dev server..."
 	@echo "📁 Using Dagster home: $(DAGSTER_HOME)"
-	DAGSTER_HOME=$(DAGSTER_HOME) poetry run dagster dev -m asset_manager.definitions
+	DAGSTER_HOME=$(DAGSTER_HOME) poetry run dagster dev -w workspace.yaml
 
 # Start Dagster UI only
 ui:
 	@echo "🚀 Starting Dagster UI..."
 	@echo "📁 Using Dagster home: $(DAGSTER_HOME)"
+	DAGSTER_HOME=$(DAGSTER_HOME) poetry run dagster-webserver -w workspace.yaml
+
+# Alternative module-based commands
+dev-module:
+	@echo "🚀 Starting Dagster dev server (module-based)..."
+	@echo "📁 Using Dagster home: $(DAGSTER_HOME)"
+	DAGSTER_HOME=$(DAGSTER_HOME) poetry run dagster dev -m asset_manager.definitions
+
+ui-module:
+	@echo "🚀 Starting Dagster UI (module-based)..."
+	@echo "📁 Using Dagster home: $(DAGSTER_HOME)"
 	DAGSTER_HOME=$(DAGSTER_HOME) poetry run dagster-webserver -m asset_manager.definitions
-
-# Alternative file-based commands
-dev-file:
-	@echo "🚀 Starting Dagster dev server (file-based)..."
-	@echo "📁 Using Dagster home: $(DAGSTER_HOME)"
-	DAGSTER_HOME=$(DAGSTER_HOME) poetry run dagster dev -f asset_manager/definitions.py
-
-ui-file:
-	@echo "🚀 Starting Dagster UI (file-based)..."
-	@echo "📁 Using Dagster home: $(DAGSTER_HOME)"
-	DAGSTER_HOME=$(DAGSTER_HOME) poetry run dagster-webserver -f asset_manager/definitions.py
 
 # Run assets programmatically
 run:
@@ -41,36 +41,36 @@ run:
 # Materialize all assets
 materialize:
 	@echo "⚡ Materializing all assets..."
-	DAGSTER_HOME=$(DAGSTER_HOME) poetry run dagster asset materialize --select "*" -m asset_manager.definitions
+	DAGSTER_HOME=$(DAGSTER_HOME) poetry run dagster asset materialize --select "*" -w workspace.yaml
 
 # Materialize specific asset
 materialize-asset:
 	@echo "⚡ Materializing asset: $(ASSET)"
-	DAGSTER_HOME=$(DAGSTER_HOME) poetry run dagster asset materialize --select "$(ASSET)" -m asset_manager.definitions
+	DAGSTER_HOME=$(DAGSTER_HOME) poetry run dagster asset materialize --select "$(ASSET)" -w workspace.yaml
 
 # Run specific job manually
 run-job:
 	@echo "🔄 Running job: $(JOB)"
-	DAGSTER_HOME=$(DAGSTER_HOME) poetry run dagster job execute --job "$(JOB)" -m asset_manager.definitions
+	DAGSTER_HOME=$(DAGSTER_HOME) poetry run dagster job execute --job "$(JOB)" -w workspace.yaml
 
 # List all jobs
 list-jobs:
 	@echo "📋 Available jobs:"
-	DAGSTER_HOME=$(DAGSTER_HOME) poetry run dagster job list -m asset_manager.definitions
+	DAGSTER_HOME=$(DAGSTER_HOME) poetry run dagster job list -w workspace.yaml
 
 # List all schedules
 list-schedules:
 	@echo "📅 Available schedules:"
-	DAGSTER_HOME=$(DAGSTER_HOME) poetry run dagster schedule list -m asset_manager.definitions
+	DAGSTER_HOME=$(DAGSTER_HOME) poetry run dagster schedule list -w workspace.yaml
 
 # Start/stop schedules (requires daemon)
 start-schedule:
 	@echo "▶️ Starting schedule: $(SCHEDULE)"
-	DAGSTER_HOME=$(DAGSTER_HOME) poetry run dagster schedule start "$(SCHEDULE)" -m asset_manager.definitions
+	DAGSTER_HOME=$(DAGSTER_HOME) poetry run dagster schedule start "$(SCHEDULE)" -w workspace.yaml
 
 stop-schedule:
 	@echo "⏹️ Stopping schedule: $(SCHEDULE)"
-	DAGSTER_HOME=$(DAGSTER_HOME) poetry run dagster schedule stop "$(SCHEDULE)" -m asset_manager.definitions
+	DAGSTER_HOME=$(DAGSTER_HOME) poetry run dagster schedule stop "$(SCHEDULE)" -w workspace.yaml
 
 # Start Dagster daemon (required for schedules/sensors)
 daemon:
@@ -106,8 +106,8 @@ help:
 	@echo "Development Commands:"
 	@echo "  dev                 - Start development server with UI (recommended)"
 	@echo "  ui                  - Start Dagster UI only"
-	@echo "  dev-file            - Start dev server using file path"
-	@echo "  ui-file             - Start UI using file path"
+	@echo "  dev-module          - Start dev server using module path"
+	@echo "  ui-module           - Start UI using module path"
 	@echo ""
 	@echo "Asset Commands:"
 	@echo "  run                 - Run assets programmatically"
