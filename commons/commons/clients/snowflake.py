@@ -10,7 +10,7 @@ import snowflake.snowpark as snowpark
 from cryptography.hazmat.primitives import serialization
 from pydantic import BaseModel
 
-from commons.models.enums import SnowflakeAuthMethod
+from commons.models.enums import Granularity, SnowflakeAuthMethod
 
 logger = logging.getLogger(__name__)
 
@@ -215,9 +215,9 @@ class SnowflakeClient:
         """Create cache table with predefined schema if it doesn't exist."""
         # First check if table exists
         table_exists_query = f"""
-        SELECT COUNT(*) 
-        FROM INFORMATION_SCHEMA.TABLES 
-        WHERE TABLE_NAME = '{table_name.split('.')[-1].upper()}' 
+        SELECT COUNT(*)
+        FROM INFORMATION_SCHEMA.TABLES
+        WHERE TABLE_NAME = '{table_name.split('.')[-1].upper()}'
         AND TABLE_SCHEMA = '{self.config.db_schema.upper()}'
         AND TABLE_CATALOG = '{self.config.database.upper()}'
         """
@@ -248,6 +248,7 @@ class SnowflakeClient:
         self,
         table_name: str,
         data: list[dict[str, Any]],
+        grain: Granularity,
         is_full_sync: bool = False,
     ) -> None:
         """Create or update Snowflake table with cache data using DataFrame operations."""
@@ -282,7 +283,9 @@ class SnowflakeClient:
                 if metric_ids:
                     # Delete existing data for these specific metrics
                     metric_ids_str = "', '".join(metric_ids)
-                    delete_sql = f"DELETE FROM {table_name} WHERE metric_id IN ('{metric_ids_str}')"
+                    delete_sql = (
+                        f"DELETE FROM {table_name} WHERE metric_id IN ('{metric_ids_str}') AND grain = '{grain.value}'"
+                    )
                     session.sql(delete_sql).collect()
 
                     # Insert all new data

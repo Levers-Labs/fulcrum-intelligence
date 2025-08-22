@@ -315,6 +315,7 @@ class SnowflakeSemanticCacheManager(SemanticManager):
             await snowflake_client.create_or_update_metric_time_series(
                 table_name=table_name,
                 data=cache_data,
+                grain=grain,
                 is_full_sync=(sync_type == SyncType.FULL),
             )
 
