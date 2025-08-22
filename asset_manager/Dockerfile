@@ -43,6 +43,5 @@ ENV PYTHONPATH=/opt/dagster
 # Expose port
 EXPOSE 3000
 
-# Set the entrypoint and command
-ENTRYPOINT ["make", "-s", "-f", "deployment/Makefile"]
-CMD ["run-prod-webserver"]
+# run dagster webserver
+CMD ["dagster-webserver", "-w", "workspace.yaml", "--port", "3000", "--host", "0.0.0.0"]
