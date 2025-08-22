@@ -34,9 +34,16 @@ This service migrates the Snowflake cache sync workflow from Prefect to Dagster,
 ### Installation
 
 ```bash
-# Install dependencies (includes commons and query_manager)
+# Install dependencies and create Dagster home
 make install
+
+# Alternatively, using Poetry directly
+poetry install
+poetry run pip install -e .
+mkdir -p .dagster  # Creates Dagster home directory
 ```
+
+**Note**: The Dagster home directory (`.dagster/`) stores instance metadata, run history, and partition registries locally.
 
 ### Environment Configuration
 
@@ -44,22 +51,26 @@ Create a `.env` file with required settings:
 
 ```bash
 # Service endpoints
-APP_STORY_MANAGER_SERVER_HOST=http://localhost:8002
-APP_ANALYSIS_MANAGER_SERVER_HOST=http://localhost:8000
-APP_QUERY_MANAGER_SERVER_HOST=http://localhost:8001
-APP_INSIGHTS_BACKEND_SERVER_HOST=http://localhost:8004
+STORY_MANAGER_SERVER_HOST=http://localhost:8002
+ANALYSIS_MANAGER_SERVER_HOST=http://localhost:8000
+QUERY_MANAGER_SERVER_HOST=http://localhost:8001
+INSIGHTS_BACKEND_SERVER_HOST=http://localhost:8004
+SERVER_HOST=http://localhost:3000
+
+# Database configuration
+DATABASE_URL=postgresql://user:password@localhost:5432/fulcrum_db
 
 # Auth0 configuration
-APP_AUTH0_API_AUDIENCE=your-audience
-APP_AUTH0_ISSUER=https://your-domain.auth0.com/
-APP_AUTH0_CLIENT_ID=your-client-id
-APP_AUTH0_CLIENT_SECRET=your-client-secret
+AUTH0_API_AUDIENCE=your-audience
+AUTH0_ISSUER=https://your-domain.auth0.com/
+AUTH0_CLIENT_ID=your-client-id
+AUTH0_CLIENT_SECRET=your-client-secret
 
 # Application settings
-APP_SECRET_KEY=your-secret-key
-APP_ENV=dev
-APP_SENDER_EMAIL="Levers Insights <notifications@leverslabs.com>"
-APP_AWS_REGION=us-west-1
+SECRET_KEY=your-secret-key
+ENV=dev
+SENDER_EMAIL="Levers Insights <notifications@leverslabs.com>"
+AWS_REGION=us-west-1
 ```
 
 ## Development
@@ -68,30 +79,49 @@ APP_AWS_REGION=us-west-1
 ```bash
 # Start Dagster dev server with UI (recommended)
 make dev
-```
 
-The UI will be available at http://localhost:3000
-
-### Alternative Commands
-```bash
-# Start UI only
+# Start UI only (if you have daemon running separately)
 make ui
 
 # Start daemon for schedules/sensors
 make daemon
+```
 
+The UI will be available at http://localhost:3000
+
+### Asset & Job Commands
+```bash
 # Materialize all assets
 make materialize
 
-# Materialize specific asset with partition
+# Materialize specific asset
 make materialize-asset ASSET=metric_semantic_values
 
 # Run specific job
-make run-job JOB=full_pipeline
+make run-job JOB=snowflake_cache
+
+# Run assets programmatically (with debugger support)
+make run
 
 # List available jobs and schedules
 make list-jobs
 make list-schedules
+
+# Start/stop specific schedules
+make start-schedule SCHEDULE=daily_snowflake_cache_schedule
+make stop-schedule SCHEDULE=daily_snowflake_cache_schedule
+```
+
+### Cleanup Commands
+```bash
+# Clean Dagster storage only
+make clean
+
+# Clean everything (Dagster + Python cache)
+make clean-all
+
+# Show all available commands
+make help
 ```
 
 ## Pipeline Components
@@ -108,7 +138,7 @@ make list-schedules
    - Loads extracted data into Snowflake cache tables
    - Uses `SnowflakeSemanticCacheManager` for tenant-aware loading
    - Emits load statistics and target table info
-   - Group: `semantic_loading`
+   - Group: `semantic_loader`
 
 ### Dynamic Partitions
 
@@ -134,51 +164,93 @@ make list-schedules
 
 ### Programmatic Usage
 
+#### Using Dagster API
 ```python
-from dagster import DagsterInstance, materialize
+from dagster import DagsterInstance, MultiPartitionKey, materialize
 from asset_manager.definitions import defs
 
 # Materialize specific partition
 instance = DagsterInstance.get()
+partition_key = MultiPartitionKey({
+    "tenant_metric": "123::revenue",  
+    "tenant_grain": "123::day"
+})
 result = materialize(
     [defs.get_asset_def("metric_semantic_values")],
-    partition_key={"tenant": "123", "metric": "revenue", "grain": "day"},
+    partition_key=partition_key,
     instance=instance
 )
 ```
+
+#### Using CLI Script (Debugger-Friendly)
+```bash
+# Run specific asset with full debugging support
+python run.py asset --asset metric_semantic_values --tenant 123 --metric revenue --grain day
+python run.py asset --asset snowflake_metric_cache --tenant 123 --metric revenue --grain day
+
+# Run complete job for a partition
+python run.py job --job snowflake_cache --tenant 123 --metric revenue --grain day
+```
+
+The `run.py` script automatically handles:
+- Dynamic partition registration in Dagster instance
+- Resource configuration from environment
+- Multi-partition key construction
+- Direct asset materialization for IDE debugging
 
 ## Project Structure
 
 ```
 asset_manager/
 ├── asset_manager/
+│   ├── __init__.py
 │   ├── definitions.py           # Main Dagster definitions
 │   ├── partitions.py           # Dynamic partition definitions
 │   ├── assets/
-│   │   └── snowflake_cache.py # Semantic extraction & loading
+│   │   ├── __init__.py
+│   │   └── snowflake_cache.py  # Semantic extraction & loading
 │   ├── resources/
+│   │   ├── __init__.py
 │   │   ├── config.py           # App configuration from env
+│   │   ├── db.py               # Database session manager
 │   │   └── snowflake.py        # Snowflake client resource
 │   ├── services/
+│   │   ├── __init__.py
 │   │   ├── auth.py             # Auth utilities
-│   │   └── snowflake_sync_service.py # Core sync logic
+│   │   ├── semantic_loader.py  # Metric data fetching & processing
+│   │   ├── snowflake_sync_service.py # Core sync logic
+│   │   └── utils.py            # Tenant/metric utilities
 │   ├── jobs/
+│   │   ├── __init__.py
 │   │   └── cache_job.py        # Pipeline job definition
 │   ├── schedules/
+│   │   ├── __init__.py
 │   │   └── daily_cache_schedule.py # 3 AM daily schedule
 │   └── sensors/
+│       ├── __init__.py
 │       └── partition_sync_sensor.py # Dynamic partition sync
-├── run.py                      # Programmatic execution
-└── Makefile                   # Development commands
+├── run.py                      # Programmatic execution (CLI + debugging)
+├── Makefile                    # Development commands
+└── pyproject.toml             # Poetry configuration
 ```
 
 ## Monitoring & Observability
 
 ### Asset Metadata
-- **Row counts** and **date windows** for extractions
-- **Target tables** and **load statistics** for Snowflake
-- **Sync types** (full vs incremental) per partition
-- **Preview data** for debugging
+
+#### Semantic Extraction (`metric_semantic_values`)
+- **Row counts** and **column information**
+- **Date windows** (start/end dates) and **sync types** (full vs incremental)
+- **Processing statistics** (total, processed, skipped records)
+- **Data preview** (first 5 rows in markdown format)
+- **Tenant/metric/grain** context for each partition
+
+#### Snowflake Loading (`snowflake_metric_cache`)
+- **Load timestamps** and **rows loaded**
+- **Target table FQN** (fully qualified name)
+- **Cache size** in MB and **load status**
+- **Date window** and **sync type** information
+- **Processing statistics** from upstream extraction
 
 ### Logging
 - Structured logging with tenant/metric/grain context
@@ -203,15 +275,26 @@ asset_manager/
 ### Debug Commands
 
 ```bash
-# Check partition status
-dagster asset materialize --select "metric_semantic_values" --partition '{"tenant": "123", "metric": "revenue", "grain": "day"}'
+# Check specific partition using CLI runner
+python run.py asset --asset metric_semantic_values --tenant 123 --metric revenue --grain day
+
+# Materialize specific partition using Dagster CLI
+dagster asset materialize --select "metric_semantic_values" \
+  --partition '{"tenant_metric": "123::revenue", "tenant_grain": "123::day"}' \
+  -m asset_manager.definitions
 
 # View sensor evaluation
-dagster sensor list
-dagster sensor logs partition_sync_sensor
+dagster sensor list -m asset_manager.definitions
+dagster sensor logs partition_sync_sensor -m asset_manager.definitions
 
 # Test schedule logic
-dagster schedule preview daily_3am_schedule
+dagster schedule preview daily_snowflake_cache_schedule -m asset_manager.definitions
+
+# List all available jobs
+make list-jobs
+
+# View asset status in UI
+# Navigate to http://localhost:3000 after running `make dev`
 ```
 
 ## Migration from Prefect
