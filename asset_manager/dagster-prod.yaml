@@ -30,7 +30,7 @@ run_launcher:
   module: 'dagster_aws.ecs'
   class: 'EcsRunLauncher'
   config:
-    task_definition: '$run_task_def_arn'
+    task_definition: 'arn:aws:ecs:us-west-1:177788415680:task-definition/asset-manager-run:8'
     container_name: 'asset-manager-run'
 
 telemetry:
