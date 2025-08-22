@@ -172,9 +172,9 @@ INSIGHTS_BACKEND_SERVER_HOST=https://insights-backend.domain.com
 #### Logging Strategy
 ```
 CloudWatch Log Groups:
-├── dagster/asset_manager/web      (Webserver logs)
-├── dagster/asset_manager/daemon   (Daemon logs)
-└── dagster/asset_manager/runs     (Individual run logs)
+├── asset-manager/web      (Webserver logs)
+├── asset-manager/daemon   (Daemon logs)
+└── asset-manager/runs     (Individual run logs)
 
 S3 Compute Logs:
 └── s3://bucket/dagster/compute-logs/  (Structured run output)

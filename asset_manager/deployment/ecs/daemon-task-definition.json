@@ -19,7 +19,7 @@
       "logConfiguration": {
         "logDriver": "awslogs",
         "options": {
-          "awslogs-group": "dagster/$app/daemon",
+          "awslogs-group": "fulcrum/$app/daemon",
           "awslogs-region": "$region",
           "awslogs-stream-prefix": "$app-daemon"
         }

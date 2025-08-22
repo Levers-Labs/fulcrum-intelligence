@@ -19,7 +19,7 @@
       "logConfiguration": {
         "logDriver": "awslogs",
         "options": {
-          "awslogs-group": "dagster/asset_manager/runs",
+          "awslogs-group": "fulcrum/asset_manager/runs",
           "awslogs-region": "$region",
           "awslogs-stream-prefix": "asset-manager-run"
         }
