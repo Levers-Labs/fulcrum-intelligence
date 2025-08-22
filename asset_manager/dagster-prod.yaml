@@ -33,14 +33,5 @@ run_launcher:
     task_definition: '$run_task_def_arn'
     container_name: 'asset-manager-run'
 
-    # Region for ECS/boto
-    region:
-      env: AWS_REGION
-
-    # Default CPU/Memory for run tasks; can be overridden via job tags per docs
-    run_resources:
-      cpu: '512'
-      memory: '1024'
-
 telemetry:
   enabled: false
