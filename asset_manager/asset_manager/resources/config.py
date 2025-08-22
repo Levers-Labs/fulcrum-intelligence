@@ -5,7 +5,7 @@ process environment variables (prefixed with APP_).
 """
 
 from dagster import ConfigurableResource
-from pydantic import SecretStr
+from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -34,6 +34,9 @@ class Settings(BaseSettings):
     # Notifications
     sender_email: str = "Levers Insights <notifications@leverslabs.com>"
     aws_region: str = "us-west-1"
+
+    # Dagster S3 Storage (optional - only required for prod)
+    dagster_s3_bucket: str | None = Field(default=None)
 
 
 class AppConfigResource(ConfigurableResource):

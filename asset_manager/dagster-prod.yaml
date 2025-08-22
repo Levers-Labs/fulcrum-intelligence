@@ -20,15 +20,6 @@ compute_logs:
       env: DAGSTER_S3_BUCKET
     prefix: dagster/compute-logs
 
-resources:
-  io_manager:
-    module: dagster_aws.s3
-    class: S3PickleIOManager
-    config:
-      s3_bucket:
-        env: DAGSTER_S3_BUCKET
-      s3_prefix: dagster/io
-
 run_coordinator:
   module: dagster.core.run_coordinator
   class: QueuedRunCoordinator

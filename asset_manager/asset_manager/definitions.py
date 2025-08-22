@@ -1,6 +1,7 @@
 """Main Dagster definitions for asset manager."""
 
 from dagster import Definitions
+from dagster_aws.s3 import S3PickleIOManager
 
 from asset_manager.assets import metric_semantic_values, snowflake_metric_cache
 from asset_manager.jobs import snowflake_cache_job
@@ -24,6 +25,13 @@ resources = {
     # unpooled engine for sensors/schedules
     "sync_db": DbResource(app_config=app_config, profile="prod", engine_overrides_json='{"poolclass": "NullPool"}'),
 }
+
+# Add S3 IO Manager only if S3 bucket is configured (prod environment)
+if app_config.settings.dagster_s3_bucket:
+    resources["io_manager"] = S3PickleIOManager(
+        s3_bucket=app_config.settings.dagster_s3_bucket,
+        s3_prefix="dagster/io",
+    )
 
 # Define jobs
 jobs = [snowflake_cache_job]
