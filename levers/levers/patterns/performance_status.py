@@ -161,8 +161,8 @@ class PerformanceStatusPattern(Pattern[MetricPerformance]):
                     result["status_change"] = status_change_info
 
             # Calculate streak info if historical data is available and target value is available
-            if len(df) > 1 and target_value is not None:
-                streak_info = self._calculate_streak_info(df, status, target_value)
+            if len(df) > 1:
+                streak_info = self._calculate_streak_info(df, status)
                 if streak_info:
                     result["streak"] = streak_info
 
@@ -248,16 +248,13 @@ class PerformanceStatusPattern(Pattern[MetricPerformance]):
             logger.error("Error calculating status change: %s", exc)
             return None
 
-    def _calculate_streak_info(
-        self, data: pd.DataFrame, current_status: MetricGVAStatus, target_value: float
-    ) -> Streak | None:
+    def _calculate_streak_info(self, data: pd.DataFrame, current_status: MetricGVAStatus) -> Streak | None:
         """
         Calculate information about the current streak.
 
         Args:
             data: DataFrame with historical value data
             current_status: Current status value
-            target_value: Target value
 
         Returns:
             Streak object containing streak details,
@@ -272,15 +269,16 @@ class PerformanceStatusPattern(Pattern[MetricPerformance]):
             return None
 
         values = data["value"].values
+        targets = data["target"].values
 
         # Find the streak length
-        streak_length = 1
+        streak_length = 0
         current_direction = None
 
         for i in range(len(values) - 1, 0, -1):
-            if values[i] > target_value:
+            if targets[i] is not None and values[i] > targets[i]:
                 direction = "increasing"
-            elif values[i] < target_value:
+            elif targets[i] is not None and values[i] < targets[i]:
                 direction = "decreasing"
             else:
                 direction = "stable"
