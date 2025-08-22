@@ -1,7 +1,7 @@
 """Main Dagster definitions for asset manager."""
 
 from dagster import Definitions
-from dagster_aws.s3 import S3PickleIOManager
+from dagster_aws.s3 import S3PickleIOManager, S3Resource
 
 from asset_manager.assets import metric_semantic_values, snowflake_metric_cache
 from asset_manager.jobs import snowflake_cache_job
@@ -28,7 +28,11 @@ resources = {
 
 # Add S3 IO Manager only if S3 bucket is configured (prod environment)
 if app_config.settings.dagster_s3_bucket:
+    # Add the missing S3 resource
+    s3_resource = S3Resource()
+    resources["s3"] = s3_resource
     resources["io_manager"] = S3PickleIOManager(
+        s3_resource=s3_resource,
         s3_bucket=app_config.settings.dagster_s3_bucket,
         s3_prefix="dagster/io",
     )
