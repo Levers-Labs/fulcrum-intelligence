@@ -30,8 +30,7 @@ RUN poetry export -f requirements.txt --output requirements.txt --without-hashes
 RUN pip install --no-cache-dir --upgrade -r requirements.txt
 
 # Copy application code
-COPY asset_manager/asset_manager/ ./asset_manager/
-COPY asset_manager/workspace.yaml ./workspace.yaml
+COPY asset_manager/ .
 
 # Dagster instance home and config
 ENV DAGSTER_HOME=/opt/dagster/asset_manager/.dagster
