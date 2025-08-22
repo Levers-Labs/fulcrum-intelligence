@@ -1217,6 +1217,21 @@ files = [
 stubs = ["google-cloud-storage"]
 
 [[package]]
+name = "dagster-postgres"
+version = "0.27.7"
+description = "A Dagster integration for postgres"
+optional = false
+python-versions = "<3.14,>=3.9"
+files = [
+    {file = "dagster_postgres-0.27.7-py3-none-any.whl", hash = "sha256:8c1cb4f41a15e2fdaa6db98adca497d8111ba79897ae8ebbdde972c0cc7b988a"},
+    {file = "dagster_postgres-0.27.7.tar.gz", hash = "sha256:cbac06990a1ef943541d1df567d351d099cee658695b29c80836de462017b69e"},
+]
+
+[package.dependencies]
+dagster = "1.11.7"
+psycopg2-binary = "*"
+
+[[package]]
 name = "dagster-shared"
 version = "1.11.7"
 description = "Shared code between dagster and dagster-dg-core."
@@ -5852,4 +5867,4 @@ cffi = ["cffi (>=1.17)"]
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.10,<3.12"
-content-hash = "39edae8a26795c6b6ac8375d61fc4af335ebfcac77ea9f0263d22fb62904771d"
+content-hash = "b73f123960292637570412e4c84a07e282aed8bfe0dc1430829eae31abbb5275"
