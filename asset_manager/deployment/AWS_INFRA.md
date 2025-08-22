@@ -149,9 +149,9 @@ aws s3api put-bucket-encryption \
 
 #### CloudWatch Log Groups
 ```bash
-aws logs create-log-group --log-group-name "dagster/asset_manager/web"
-aws logs create-log-group --log-group-name "dagster/asset_manager/daemon"
-aws logs create-log-group --log-group-name "dagster/asset_manager/runs"
+aws logs create-log-group --log-group-name "fulcrum/asset-manager/web"
+aws logs create-log-group --log-group-name "fulcrum/asset-manager/daemon"
+aws logs create-log-group --log-group-name "fulcrum/asset-manager/runs"
 ```
 
 #### SSM Parameters
