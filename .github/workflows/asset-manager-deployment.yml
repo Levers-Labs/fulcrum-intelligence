@@ -104,7 +104,7 @@ jobs:
       AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
 
   deploy-daemon-service:
-    needs: [build-image, generate-tag, set-vars, deploy-web-service]
+    needs: [build-image, generate-tag, set-vars]
     uses: ./.github/workflows/reusable-cd-workflow.yml
     with:
       APP_NAME: ${{ needs.set-vars.outputs.app_name }}
