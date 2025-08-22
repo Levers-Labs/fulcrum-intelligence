@@ -7,10 +7,10 @@
   ],
   "cpu": "512",
   "memory": "1024",
-  "family": "asset-manager-run",
+  "family": "$app-run",
   "containerDefinitions": [
     {
-      "name": "asset-manager-run",
+      "name": "$app-run",
       "image": "",
       "command": [
         "echo",
@@ -19,9 +19,9 @@
       "logConfiguration": {
         "logDriver": "awslogs",
         "options": {
-          "awslogs-group": "fulcrum/asset_manager/runs",
+          "awslogs-group": "fulcrum/$app/runs",
           "awslogs-region": "$region",
-          "awslogs-stream-prefix": "asset-manager-run"
+          "awslogs-stream-prefix": "$app-run"
         }
       },
       "environment": [],

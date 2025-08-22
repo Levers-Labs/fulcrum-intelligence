@@ -20,7 +20,6 @@
         }
       ],
       "command": [
-        "make",
         "run-prod-webserver"
       ],
       "logConfiguration": {
