@@ -1,6 +1,6 @@
 """Daily schedule to materialize all active tenant/metric/grain partitions at 3 AM.
 
-Emits runs using two dynamic dimensions: `tenant_metric` and `tenant_grain`.
+Emits runs using a single dynamic dimension: `tenant_metric_grain`.
 Only valid combinations per tenant are scheduled (tenant-specific metrics and grains).
 """
 
@@ -8,14 +8,13 @@ import asyncio
 
 from dagster import (
     DefaultScheduleStatus,
-    MultiPartitionKey,
     RunRequest,
     ScheduleEvaluationContext,
     schedule,
 )
 
 from asset_manager.jobs import snowflake_cache_job
-from asset_manager.partitions import to_tenant_grain_key, to_tenant_metric_key
+from asset_manager.partitions import to_tenant_metric_grain_key
 from asset_manager.resources.config import AppConfigResource
 from asset_manager.resources.db import DbResource
 from asset_manager.services.snowflake_sync_service import get_tenant_partition_sets
@@ -39,14 +38,11 @@ def daily_snowflake_cache_schedule(
             for g in grains:
                 # Create unique run_key for each combination
                 run_key = f"{t}_{m}_{g}_{context.scheduled_execution_time.strftime('%Y%m%d')}"
+                partition_key = to_tenant_metric_grain_key(t, m, g)
 
                 yield RunRequest(
-                    partition_key=MultiPartitionKey(
-                        {
-                            "tenant_metric": to_tenant_metric_key(t, m),
-                            "tenant_grain": to_tenant_grain_key(t, g),
-                        }
-                    ),
+                    partition_key=partition_key,
                     run_key=run_key,
+                    tags={"tenant": t, "metric": m, "grain": g},
                 )
                 context.log.info(f"Scheduled Run: {run_key}")

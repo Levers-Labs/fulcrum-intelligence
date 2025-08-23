@@ -1,43 +1,25 @@
-"""Partition definitions using two dynamic dimensions.
+"""Partition definitions for Snowflake cache assets.
 
-We compress three logical dimensions (tenant, metric, grain) into two physical
-ones supported by Dagster's MultiPartitionsDefinition:
-
-- tenant_metric: "<tenant_id>::<metric_id>"
-- tenant_grain:  "<tenant_id>::<grain>"
+Uses a single dynamic partition dimension that combines tenant, metric, and grain:
+- cache_tenant_metric_grain: "<tenant_id>::<metric_id>::<grain>"
 
 Helper functions are provided to compose and parse keys consistently.
 """
 
-from dagster import DynamicPartitionsDefinition, MultiPartitionsDefinition
+from dagster import DynamicPartitionsDefinition
 
 KEY_SEP = "::"
 
 
-def to_tenant_metric_key(tenant_identifier: str, metric_id: str) -> str:
-    return f"{tenant_identifier}{KEY_SEP}{metric_id}"
+def to_tenant_metric_grain_key(tenant_identifier: str, metric_id: str, grain: str) -> str:
+    """Combine tenant, metric, and grain into a single partition key."""
+    return KEY_SEP.join([tenant_identifier, metric_id, grain])
 
 
-def to_tenant_grain_key(tenant_identifier: str, grain: str) -> str:
-    return f"{tenant_identifier}{KEY_SEP}{grain}"
+def parse_tenant_metric_grain_key(key: str) -> tuple[str, str, str]:
+    """Parse combined partition key into tenant, metric, and grain components."""
+    tenant_identifier, metric_id, grain = key.split(KEY_SEP, 2)
+    return tenant_identifier, metric_id, grain
 
 
-def parse_tenant_metric_key(key: str) -> tuple[str, str]:
-    tenant_identifier, metric_id = key.split(KEY_SEP, 1)
-    return tenant_identifier, metric_id
-
-
-def parse_tenant_grain_key(key: str) -> tuple[str, str]:
-    tenant_identifier, grain = key.split(KEY_SEP, 1)
-    return tenant_identifier, grain
-
-
-tenant_metric_partition = DynamicPartitionsDefinition(name="tenant_metric")
-tenant_grain_partition = DynamicPartitionsDefinition(name="tenant_grain")
-
-multi_partitions_def = MultiPartitionsDefinition(
-    {
-        "tenant_metric": tenant_metric_partition,
-        "tenant_grain": tenant_grain_partition,
-    }
-)
+cache_tenant_metric_grain_partition = DynamicPartitionsDefinition(name="cache_tenant_metric_grain")
