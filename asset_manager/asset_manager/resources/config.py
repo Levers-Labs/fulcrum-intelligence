@@ -50,7 +50,7 @@ class AppConfigResource(ConfigurableResource):
     @property
     def settings(self) -> Settings:
         """Load settings from environment and .env lazily (not a Dagster config field)."""
-        return Settings()
+        return Settings()  # type: ignore
 
     @classmethod
     def from_env(cls) -> "AppConfigResource":

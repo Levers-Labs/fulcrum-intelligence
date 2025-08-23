@@ -11,34 +11,28 @@ import argparse
 import os
 import sys
 
-from dagster import DagsterInstance, MultiPartitionKey, materialize
+from dagster import DagsterInstance, materialize
 
 # Assets and definitions
 from asset_manager.assets import metric_semantic_values, snowflake_metric_cache
 from asset_manager.definitions import defs
-from asset_manager.partitions import tenant_grain_partition, tenant_metric_partition
+from asset_manager.partitions import cache_tenant_metric_grain_partition, to_tenant_metric_grain_key
 from asset_manager.resources import AppConfigResource, DbResource, SnowflakeResource
 
 sys.path.append(os.path.dirname(__file__))
 
 
-def build_mp_key(tenant: str | int, metric: str, grain: str) -> MultiPartitionKey:
-    return MultiPartitionKey(
-        {
-            "tenant_metric": f"{tenant}::{metric}",
-            "tenant_grain": f"{tenant}::{grain}",
-        }
-    )
+def build_partition_key(tenant: str, metric: str, grain: str) -> str:
+    return to_tenant_metric_grain_key(tenant, metric, grain)
 
 
 def run_job(job_name: str, tenant: str, metric: str, grain: str) -> int:
     job = defs.get_job_def(job_name)
-    mp_key = build_mp_key(tenant, metric, grain)
-    # Ensure dynamic partition keys exist in instance
+    partition_key = build_partition_key(tenant, metric, grain)
+    # Ensure dynamic partition key exists in instance
     instance = DagsterInstance.get()
-    instance.add_dynamic_partitions(tenant_metric_partition.name, [f"{tenant}::{metric}"])
-    instance.add_dynamic_partitions(tenant_grain_partition.name, [f"{tenant}::{grain}"])
-    result = job.execute_in_process(partition_key=mp_key, instance=instance)
+    instance.add_dynamic_partitions(cache_tenant_metric_grain_partition.name, [partition_key])
+    result = job.execute_in_process(partition_key=partition_key, instance=instance)
     return 0 if result.success else 1
 
 
@@ -51,17 +45,16 @@ def run_asset(asset_name: str, tenant: str, metric: str, grain: str) -> int:
     if asset is None:
         raise SystemExit(f"Unknown asset: {asset_name}")
 
-    mp_key = build_mp_key(tenant, metric, grain)
+    partition_key = build_partition_key(tenant, metric, grain)
 
     # Use direct materialize with resources to allow IDE debugging
     app_config = AppConfigResource.from_env()
     snowflake = SnowflakeResource(app_config=app_config)
     db_ = DbResource(app_config=app_config)
 
-    # Ensure dynamic partition keys exist in instance
+    # Ensure dynamic partition key exists in instance
     instance = DagsterInstance.get()
-    instance.add_dynamic_partitions(tenant_metric_partition.name, [f"{tenant}::{metric}"])
-    instance.add_dynamic_partitions(tenant_grain_partition.name, [f"{tenant}::{grain}"])
+    instance.add_dynamic_partitions(cache_tenant_metric_grain_partition.name, [partition_key])
 
     result = materialize(
         [asset],
@@ -70,7 +63,7 @@ def run_asset(asset_name: str, tenant: str, metric: str, grain: str) -> int:
             "snowflake": snowflake,
             "db": db_,
         },
-        partition_key=mp_key,
+        partition_key=partition_key,
         instance=instance,
     )
     return 0 if result.success else 1

@@ -13,10 +13,17 @@ import logging
 from datetime import datetime
 
 import pandas as pd
-from dagster import MaterializeResult, MetadataValue, asset
+from dagster import (
+    Backoff,
+    Jitter,
+    MaterializeResult,
+    MetadataValue,
+    RetryPolicy,
+    asset,
+)
 from pytz import utc
 
-from asset_manager.partitions import multi_partitions_def, parse_tenant_grain_key, parse_tenant_metric_key
+from asset_manager.partitions import cache_tenant_metric_grain_partition, parse_tenant_metric_grain_key
 from asset_manager.resources import AppConfigResource, DbResource, SnowflakeResource
 from asset_manager.services.semantic_loader import fetch_metric_values
 from asset_manager.services.snowflake_sync_service import SyncType, compute_date_window
@@ -31,8 +38,14 @@ logger = logging.getLogger(__name__)
 @asset(
     name="metric_semantic_values",
     description="Raw metric values from cube for a tenant/metric/grain partition",
-    partitions_def=multi_partitions_def,
+    partitions_def=cache_tenant_metric_grain_partition,
     group_name="semantic_extraction",
+    retry_policy=RetryPolicy(
+        max_retries=2,
+        delay=2.0,  # 2 seconds base delay
+        backoff=Backoff.EXPONENTIAL,
+        jitter=Jitter.PLUS_MINUS,
+    ),
 )
 async def metric_semantic_values(context, app_config: AppConfigResource, db: DbResource) -> pd.DataFrame:
     """Extract metric time series values for the current partition.
@@ -40,12 +53,8 @@ async def metric_semantic_values(context, app_config: AppConfigResource, db: DbR
     Emits metadata including date window, sync type, and preview rows.
     """
 
-    keys = context.partition_key.keys_by_dimension
-    tm_tenant, metric_id = parse_tenant_metric_key(keys["tenant_metric"])  # "<tenant>::<metric>"
-    tg_tenant, grain_value = parse_tenant_grain_key(keys["tenant_grain"])  # "<tenant>::<grain>"
-    if tm_tenant != tg_tenant:
-        raise ValueError(f"Mismatched tenants across partitions: {tm_tenant} vs {tg_tenant}")
-    tenant_identifier = tm_tenant
+    key = context.partition_key
+    tenant_identifier, metric_id, grain_value = parse_tenant_metric_grain_key(key)
     # Get tenant id to set tenant id context
     tenant_id = await get_tenant_id_by_identifier(config=app_config, identifier=tenant_identifier)
     context.log.info("Tenant ID: %s", tenant_id)
@@ -96,9 +105,15 @@ async def metric_semantic_values(context, app_config: AppConfigResource, db: DbR
 @asset(
     name="snowflake_metric_cache",
     description="Load semantic metric values into Snowflake cache tables per partition",
-    partitions_def=multi_partitions_def,
+    partitions_def=cache_tenant_metric_grain_partition,
     group_name="semantic_loader",
     deps=[metric_semantic_values],
+    retry_policy=RetryPolicy(
+        max_retries=2,
+        delay=5.0,  # 5 seconds base delay
+        backoff=Backoff.EXPONENTIAL,
+        jitter=Jitter.PLUS_MINUS,
+    ),
 )
 async def snowflake_metric_cache(
     context,
@@ -112,12 +127,8 @@ async def snowflake_metric_cache(
     Emits metadata including rows loaded and target table.
     """
 
-    keys = context.partition_key.keys_by_dimension
-    tm_tenant, metric_id = parse_tenant_metric_key(keys["tenant_metric"])  # "<tenant>::<metric>"
-    tg_tenant, grain_value = parse_tenant_grain_key(keys["tenant_grain"])  # "<tenant>::<grain>"
-    if tm_tenant != tg_tenant:
-        raise ValueError(f"Mismatched tenants across partitions: {tm_tenant} vs {tg_tenant}")
-    tenant_identifier = tm_tenant
+    key = context.partition_key
+    tenant_identifier, metric_id, grain_value = parse_tenant_metric_grain_key(key)
     # Get tenant id to set tenant id context
     tenant_id = await get_tenant_id_by_identifier(app_config, tenant_identifier)
     grain = Granularity(grain_value)

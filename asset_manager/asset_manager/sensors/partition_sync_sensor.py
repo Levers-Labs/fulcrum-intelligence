@@ -1,8 +1,9 @@
 """Sensor to keep dynamic partitions in sync with config.
 
-This populates two dynamic partition dimensions:
-- tenant_metric: "<tenant_id>::<metric_id>"
-- tenant_grain:  "<tenant_id>::<grain>"
+This populates a single dynamic partition dimension:
+- tenant_metric_grain: "<tenant_id>::<metric_id>::<grain>"
+
+Automatically adds missing partitions and removes stale ones.
 """
 
 import asyncio
@@ -10,12 +11,7 @@ import logging
 
 from dagster import DefaultSensorStatus, SensorEvaluationContext, sensor
 
-from asset_manager.partitions import (
-    tenant_grain_partition,
-    tenant_metric_partition,
-    to_tenant_grain_key,
-    to_tenant_metric_key,
-)
+from asset_manager.partitions import cache_tenant_metric_grain_partition, to_tenant_metric_grain_key
 from asset_manager.resources.config import AppConfigResource
 from asset_manager.resources.db import DbResource
 from asset_manager.services.snowflake_sync_service import get_tenant_partition_sets
@@ -23,14 +19,15 @@ from asset_manager.services.snowflake_sync_service import get_tenant_partition_s
 logger = logging.getLogger(__name__)
 
 
-async def _compute_partition_keys(app_config: AppConfigResource, db: DbResource) -> tuple[list[str], list[str]]:
-    """Compute global dynamic partition keys for both dimensions."""
+async def _compute_triplet_keys(app_config: AppConfigResource, db: DbResource) -> list[str]:
+    """Compute desired combined triplet partition keys."""
     tenant_keys, tenant_metrics_map, tenant_grains_map = await get_tenant_partition_sets(app_config, db)
-    tenant_metric_keys = sorted(
-        {to_tenant_metric_key(t, m) for t in tenant_keys for m in tenant_metrics_map.get(t, [])}
+    return sorted(
+        to_tenant_metric_grain_key(t, m, g)
+        for t in tenant_keys
+        for m in tenant_metrics_map.get(t, [])
+        for g in tenant_grains_map.get(t, [])
     )
-    tenant_grain_keys = sorted({to_tenant_grain_key(t, g) for t in tenant_keys for g in tenant_grains_map.get(t, [])})
-    return tenant_metric_keys, tenant_grain_keys
 
 
 @sensor(
@@ -39,13 +36,27 @@ async def _compute_partition_keys(app_config: AppConfigResource, db: DbResource)
     default_status=DefaultSensorStatus.RUNNING,
 )
 def sync_dynamic_partitions(context: SensorEvaluationContext, app_config: AppConfigResource, sync_db: DbResource):
-    """Ensure dynamic partition registries contain the union of keys for both dims."""
-    tenant_metric_keys, tenant_grain_keys = asyncio.run(_compute_partition_keys(app_config, sync_db))
-    context.instance.add_dynamic_partitions(tenant_metric_partition.name, tenant_metric_keys)
-    context.instance.add_dynamic_partitions(tenant_grain_partition.name, tenant_grain_keys)
-    logger.info(
-        "Synced dynamic partitions: tenant_metric=%d tenant_grain=%d",
-        len(tenant_metric_keys),
-        len(tenant_grain_keys),
+    """Ensure dynamic partition registry contains exactly the desired triplet keys."""
+    desired = set(asyncio.run(_compute_triplet_keys(app_config, sync_db)))
+    existing = set(context.instance.get_dynamic_partitions(cache_tenant_metric_grain_partition.name))
+
+    to_add = sorted(desired - existing)
+    to_delete = sorted(existing - desired)
+
+    if to_add:
+        context.instance.add_dynamic_partitions(cache_tenant_metric_grain_partition.name, to_add)
+        context.log.info("Added %d dynamic partitions", len(to_add))
+
+    if to_delete:
+        for key in to_delete:
+            # Delete per-key for broader Dagster version compatibility
+            context.instance.delete_dynamic_partition(cache_tenant_metric_grain_partition.name, key)
+        context.log.info("Deleted %d stale dynamic partitions", len(to_delete))
+
+    context.log.info(
+        "Synced dynamic partitions: tenant_metric_grain added=%d deleted=%d total=%d",
+        len(to_add),
+        len(to_delete),
+        len(desired),
     )
     yield
