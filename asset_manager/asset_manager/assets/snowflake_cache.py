@@ -23,7 +23,7 @@ from dagster import (
 )
 from pytz import utc
 
-from asset_manager.partitions import cache_tenant_metric_grain_partition, parse_tenant_metric_grain_key
+from asset_manager.partitions import cache_tenant_grain_metric_partition, parse_tenant_grain_metric_key
 from asset_manager.resources import AppConfigResource, DbResource, SnowflakeResource
 from asset_manager.services.semantic_loader import fetch_metric_values
 from asset_manager.services.snowflake_sync_service import SyncType, compute_date_window
@@ -37,8 +37,8 @@ logger = logging.getLogger(__name__)
 
 @asset(
     name="metric_semantic_values",
-    description="Raw metric values from cube for a tenant/metric/grain partition",
-    partitions_def=cache_tenant_metric_grain_partition,
+    description="Raw metric values from cube for a tenant/grain/metric partition",
+    partitions_def=cache_tenant_grain_metric_partition,
     group_name="semantic_extraction",
     retry_policy=RetryPolicy(
         max_retries=2,
@@ -54,7 +54,7 @@ async def metric_semantic_values(context, app_config: AppConfigResource, db: DbR
     """
 
     key = context.partition_key
-    tenant_identifier, metric_id, grain_value = parse_tenant_metric_grain_key(key)
+    tenant_identifier, grain_value, metric_id = parse_tenant_grain_metric_key(key)
     # Get tenant id to set tenant id context
     tenant_id = await get_tenant_id_by_identifier(config=app_config, identifier=tenant_identifier)
     context.log.info("Tenant ID: %s", tenant_id)
@@ -105,7 +105,7 @@ async def metric_semantic_values(context, app_config: AppConfigResource, db: DbR
 @asset(
     name="snowflake_metric_cache",
     description="Load semantic metric values into Snowflake cache tables per partition",
-    partitions_def=cache_tenant_metric_grain_partition,
+    partitions_def=cache_tenant_grain_metric_partition,
     group_name="semantic_loader",
     deps=[metric_semantic_values],
     retry_policy=RetryPolicy(
@@ -128,7 +128,7 @@ async def snowflake_metric_cache(
     """
 
     key = context.partition_key
-    tenant_identifier, metric_id, grain_value = parse_tenant_metric_grain_key(key)
+    tenant_identifier, grain_value, metric_id = parse_tenant_grain_metric_key(key)
     # Get tenant id to set tenant id context
     tenant_id = await get_tenant_id_by_identifier(app_config, tenant_identifier)
     grain = Granularity(grain_value)
