@@ -13,6 +13,56 @@ This guide provides manual steps to deploy the Asset Manager (Dagster) on AWS EC
   - `fulcrum-ecs-task-role`: SSM parameter read, S3 bucket access
 - **Route53**: Domain with ACM certificate
 
+### Auth0 Configuration (Required)
+
+Before deploying the infrastructure, configure Auth0 for OIDC authentication:
+
+#### Step 1: Create Auth0 Application
+
+1. **Login to Auth0 Dashboard**
+   - Navigate to [Auth0 Dashboard](https://manage.auth0.com/)
+   - Select your tenant (e.g., `leverslabs.us.auth0.com`)
+
+2. **Create Regular Web Application**
+   - Go to **Applications** → **Create Application**
+   - **Name**: `Asset Manager`
+   - **Type**: `Regular Web Applications`
+   - Click **Create**
+
+#### Step 2: Configure Application Settings
+
+1. **Note Configuration Details**
+   ```
+   Domain: leverslabs.us.auth0.com
+   Client ID: [Copy from Auth0 dashboard]
+   Client Secret: [Click "Show" to reveal]
+   ```
+
+2. **Application URIs Configuration**
+   ```
+   Allowed Callback URLs: https://dg.leverslabs.com/oauth2/idpresponse
+   Allowed Logout URLs: https://dg.leverslabs.com
+   Allowed Web Origins: https://dg.leverslabs.com
+   Allowed Origins (CORS): https://dg.leverslabs.com
+   ```
+
+3. **Advanced Settings**
+   - **Grant Types**: Ensure `Authorization Code` is checked
+   - **JsonWebToken Signature Algorithm**: RS256 (default)
+
+#### Step 3: User Management Setup
+
+1. **Create Users**
+   - Go to **User Management** → **Users**
+   - Add users who should have access to Dagster UI
+
+2. **Optional Enhancements**
+   - Enable MFA for additional security
+   - Configure password policies
+   - Set up social connections (Google, GitHub) if needed
+
+**Important**: Save the Client ID and Client Secret - you'll need them for the SSM parameters below.
+
 ### New Resources Needed
 
 #### Security Groups
@@ -112,7 +162,7 @@ CERT_ARN=$(aws acm list-certificates \
   --query 'CertificateSummaryList[?DomainName==`*.leverslabs.com`].CertificateArn' \
   --output text)
 
-# Create HTTPS listener
+# Create HTTPS listener (will add authentication rules later)
 HTTPS_LISTENER_ARN=$(aws elbv2 create-listener \
   --load-balancer-arn $ALB_ARN \
   --protocol HTTPS \
@@ -155,7 +205,7 @@ aws logs create-log-group --log-group-name "fulcrum/asset-manager/runs"
 ```
 
 #### SSM Parameters
-Replace `$account` and `$region` with your values:
+Replace `$account` and `$region` with your values, and update Auth0 credentials from previous configuration:
 
 ```bash
 # Service endpoints
@@ -284,14 +334,37 @@ TG_ARN=$(aws elbv2 create-target-group \
   --unhealthy-threshold-count 3 \
   --query 'TargetGroups[0].TargetGroupArn' --output text)
 
-# Add listener rule to ALB
+# Add listener rule with Auth0 authentication to ALB
 aws elbv2 create-rule \
   --listener-arn $HTTPS_LISTENER_ARN \
   --priority 100 \
   --conditions Field=host-header,Values=dg.leverslabs.com \
-  --actions Type=forward,TargetGroupArn=$TG_ARN
+  --actions '[
+    {
+      "Type": "authenticate-oidc",
+      "Order": 1,
+      "AuthenticateOidcConfig": {
+        "Issuer": "https://leverslabs.us.auth0.com/",
+        "AuthorizationEndpoint": "https://leverslabs.us.auth0.com/authorize",
+        "TokenEndpoint": "https://leverslabs.us.auth0.com/oauth/token",
+        "UserInfoEndpoint": "https://leverslabs.us.auth0.com/userinfo",
+        "ClientId": "'$(aws ssm get-parameter --name "/asset-manager/AUTH0_CLIENT_ID" --query "Parameter.Value" --output text)'",
+        "ClientSecret": "'$(aws ssm get-parameter --name "/asset-manager/AUTH0_CLIENT_SECRET" --with-decryption --query "Parameter.Value" --output text)'",
+        "SessionCookieName": "AWSELBAuthSessionCookie",
+        "SessionTimeout": 604800,
+        "Scope": "openid email profile",
+        "OnUnauthenticatedRequest": "authenticate"
+      }
+    },
+    {
+      "Type": "forward",
+      "Order": 2,
+      "TargetGroupArn": "'$TG_ARN'"
+    }
+  ]'
 
 echo "Target Group ARN: $TG_ARN"
+echo "Authentication configured with Auth0 OIDC"
 ```
 
 ### 6. Create ECS Services
@@ -373,11 +446,40 @@ aws ec2 describe-security-groups --group-ids $ALB_SG_ID $ECS_SG_ID
 ```
 
 ### 2. Application Validation
+
+#### Authentication Testing
 1. **Access UI**: Navigate to `https://dg.leverslabs.com`
-2. **Health endpoint**: Check `https://dg.leverslabs.com/server_info` returns 200
-3. **Dagster UI**: Verify assets, schedules, and sensors are visible
-4. **Schedules**: Confirm `daily_snowflake_cache_schedule` is RUNNING
-5. **Sensors**: Confirm `partition_sync_sensor` is RUNNING and syncing partitions
+   - Should redirect to Auth0 login page
+   - Login with authorized user credentials
+   - Should redirect back to Dagster interface
+
+2. **Session Management Test**
+   - Refresh page - should remain logged in
+   - Clear session for testing: visit `https://leverslabs.us.auth0.com/v2/logout`
+   - Navigate to Dagster again - should prompt for re-authentication
+
+#### Application Testing
+3. **Health endpoint**: After authentication, check `https://dg.leverslabs.com/server_info` returns 200
+4. **Dagster UI**: Verify assets, schedules, and sensors are visible
+5. **Schedules**: Confirm `daily_snowflake_cache_schedule` is RUNNING
+6. **Sensors**: Confirm `partition_sync_sensor` is RUNNING and syncing partitions
+
+#### Authentication Troubleshooting
+If authentication fails:
+```bash
+# Check Auth0 configuration
+curl https://leverslabs.us.auth0.com/.well-known/openid_configuration
+
+# Test unauthenticated access (should return 302 redirect)
+curl -I https://dg.leverslabs.com
+
+# Check ALB listener rules
+aws elbv2 describe-rules --listener-arn $HTTPS_LISTENER_ARN
+
+# Verify SSM parameters
+aws ssm get-parameter --name "/asset-manager/AUTH0_CLIENT_ID"
+aws ssm get-parameter --name "/asset-manager/AUTH0_CLIENT_SECRET" --with-decryption
+```
 
 ### 3. Test Run Execution
 1. In Dagster UI, manually trigger a partition materialization
@@ -410,15 +512,48 @@ aws ecs update-service --cluster asset-manager --service asset-manager-web --des
 ```
 
 ### Troubleshooting
-- **Connection issues**: Check security groups allow traffic between ALB → ECS, ECS → NAT → Internet
+
+#### Common Issues
+
+**Authentication Problems**:
+- **Redirect loops**: Verify Auth0 callback URL exactly matches `https://dg.leverslabs.com/oauth2/idpresponse`
+- **Access denied**: Check Auth0 client credentials in SSM parameters
+- **Certificate errors**: Ensure ACM certificate is validated and in same region as ALB
+- **Invalid issuer**: Confirm Auth0 domain matches `https://leverslabs.us.auth0.com/`
+
+**Connection Issues**:
+- **ALB → ECS**: Check security groups allow traffic between ALB and ECS services
+- **ECS → Internet**: Verify NAT gateways and route tables for outbound connectivity
 - **Database connection**: Verify Supabase allows connections from NAT gateway IPs, SSL is enabled
-- **Run tasks failing**: Check ECS task role has permissions for S3, SSM, and task definition is correct
-- **Logs**: Check CloudWatch log groups for container logs and S3 bucket for compute logs
+
+**Run Tasks Failing**:
+- **Permissions**: Check ECS task role has permissions for S3, SSM, and ECS task execution
+- **Task definition**: Verify task definition ARN is correct in Dagster configuration
+- **Network**: Ensure ECS tasks can reach external dependencies
+
+**Logs and Debugging**:
+- **ALB logs**: Enable ALB access logs to S3 for detailed request analysis
+- **CloudWatch**: Check log groups for container logs and S3 bucket for compute logs
+- **Auth0 logs**: Review Auth0 dashboard logs for authentication events and failures
 
 ## Security Notes
 
-- All secrets stored in SSM Parameter Store with SecureString encryption
-- ECS tasks use IAM roles for AWS service access (no hardcoded credentials)
-- Supabase connection requires SSL (`PGSSLMODE=require`)
-- ALB terminates SSL; internal communication over HTTP in private subnets
-- S3 bucket has server-side encryption enabled
+### Authentication Security
+- **Auth0 OIDC**: Enterprise-grade authentication at ALB level
+- **No hardcoded credentials**: Auth0 secrets stored in SSM Parameter Store with SecureString encryption
+- **Session management**: 7-day session timeout with secure cookie settings
+- **HTTPS enforcement**: All authentication flows over TLS
+- **Audit trail**: Complete authentication logs in Auth0 dashboard
+
+### Infrastructure Security
+- **ECS tasks**: Use IAM roles for AWS service access (no hardcoded credentials)
+- **Database**: Supabase connection requires SSL (`PGSSLMODE=require`)
+- **ALB**: Terminates SSL; internal communication over HTTP in private subnets
+- **S3 bucket**: Server-side encryption enabled for compute logs and artifacts
+- **Network isolation**: ECS tasks in private subnets with NAT gateway for outbound access
+
+### Access Control
+- **User management**: Centralized through Auth0 dashboard
+- **MFA support**: Optional multi-factor authentication enforcement
+- **Role-based access**: Auth0 rules for granular permission control
+- **Session control**: Centralized logout and session management

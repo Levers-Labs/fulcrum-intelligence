@@ -117,6 +117,63 @@ run_launcher:
 - Cost efficiency: Pay only for run duration
 - Resource control: CPU/memory limits per run
 
+## Authentication
+
+### ALB + Auth0 Integration
+
+Dagster Web UI is secured using AWS Application Load Balancer (ALB) OpenID Connect (OIDC) authentication with Auth0 as the identity provider. This provides enterprise-grade authentication without requiring modifications to the Dagster application itself.
+
+#### Architecture Overview
+
+```
+┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+│   Browser       │    │      ALB        │    │  Dagster Web    │
+│                 │    │  (Auth Layer)   │    │   (Port 3000)   │
+└─────────────────┘    └─────────────────┘    └─────────────────┘
+         │                       │                       │
+         │  1. Request           │                       │
+         ├──────────────────────►│                       │
+         │                       │                       │
+         │  2. Redirect to Auth0 │                       │
+         ◄──────────────────────┤                       │
+         │                       │                       │
+         │  3. Auth0 Login       │                       │
+         ├───────────────────────┼───────────────────────│
+         │                       │                       │
+         │  4. Callback          │                       │
+         ├──────────────────────►│                       │
+         │                       │  5. Forward Request   │
+         │                       ├──────────────────────►│
+         │                       │                       │
+         │  6. Response          │  7. Response          │
+         ◄──────────────────────┼◄──────────────────────┤
+```
+
+#### Authentication Flow
+
+1. **User Request**: User navigates to `https://dg.leverslabs.com`
+2. **ALB Authentication**: ALB checks for valid session cookie
+3. **Auth0 Redirect**: If no valid session, ALB redirects to Auth0
+4. **User Authentication**: User logs in via Auth0
+5. **Callback Processing**: Auth0 redirects back to ALB callback URL
+6. **Session Creation**: ALB creates session cookie and forwards to Dagster
+7. **Dagster Access**: Subsequent requests include session cookie for seamless access
+
+#### Session Management
+
+- **Session Cookie**: `AWSELBAuthSessionCookie`
+- **Session Timeout**: 7 days (configurable)
+- **Session Reset**: Visit `https://leverslabs.us.auth0.com/v2/logout` to clear session
+- **Scope**: `openid email profile` - provides user identity information
+
+#### Security Benefits
+
+- **No Application Changes**: Authentication handled at infrastructure level
+- **Enterprise Integration**: Supports SAML, LDAP, Active Directory via Auth0
+- **Multi-Factor Authentication**: Optional MFA enforcement
+- **Audit Logging**: Complete authentication audit trail
+- **Session Management**: Centralized session control and timeout policies
+
 ## Deployment Patterns
 
 ### Service Architecture
@@ -246,6 +303,9 @@ def heavy_computation_job():
 - **SSM Permissions**: Least-privilege parameter access
 - **S3 Policies**: Bucket-specific permissions
 - **Database Users**: Dedicated Dagster user with minimal privileges
+- **Auth0 Authentication**: OIDC-based user authentication at ALB level
+- **User Management**: Centralized user provisioning and deprovisioning
+- **Role-Based Access**: Auth0 rules for granular permission control
 
 #### Data Protection
 
@@ -354,6 +414,26 @@ aws ecs describe-tasks --cluster fulcrum-cluster --tasks task-id
 
 # Check task definition
 aws ecs describe-task-definition --task-definition asset-manager-run
+
+# Authentication debugging
+# Test DNS resolution
+nslookup dg.leverslabs.com
+
+# Test HTTPS certificate
+curl -I https://dg.leverslabs.com
+# Should return 302 with Auth0 redirect location
+
+# Check ALB listener configuration
+aws elbv2 describe-listeners --load-balancer-arn $ALB_ARN
+
+# Check ALB target health
+aws elbv2 describe-target-health --target-group-arn $TARGET_GROUP_ARN
+
+# Reset authentication session for testing
+# Visit: https://leverslabs.us.auth0.com/v2/logout
+
+# Verify Auth0 configuration endpoints
+curl https://leverslabs.us.auth0.com/.well-known/openid_configuration
 ```
 
 ### Log Analysis
