@@ -26,7 +26,10 @@ run_coordinator:
   config:
     max_concurrent_runs: 50
     dequeue_use_threads: true
-    dequeue_num_workers: 8
+    dequeue_num_workers: 12
+
+run_queue:
+  max_concurrent_runs: 50
 
 run_launcher:
   module: 'dagster_aws.ecs'
@@ -37,3 +40,15 @@ run_launcher:
 
 telemetry:
   enabled: false
+
+run_monitoring:
+  enabled: true
+  poll_interval_seconds: 45
+
+backfills:
+  use_threads: true
+  num_workers: 12
+
+schedules:
+  use_threads: true
+  num_workers: 12
