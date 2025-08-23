@@ -25,6 +25,8 @@ run_coordinator:
   class: QueuedRunCoordinator
   config:
     max_concurrent_runs: 50
+    dequeue_use_threads: true
+    dequeue_num_workers: 8
 
 run_launcher:
   module: 'dagster_aws.ecs'
