@@ -6,7 +6,11 @@ from dagster_aws.s3 import S3PickleIOManager, S3Resource
 from asset_manager.assets import metric_semantic_values, snowflake_metric_cache
 from asset_manager.jobs import snowflake_cache_job
 from asset_manager.resources import AppConfigResource, DbResource, SnowflakeResource
-from asset_manager.schedules import daily_snowflake_cache_schedule
+from asset_manager.schedules import (
+    daily_snowflake_cache_schedule,
+    monthly_snowflake_cache_schedule,
+    weekly_snowflake_cache_schedule,
+)
 from asset_manager.sensors import sync_dynamic_partitions
 
 # Define all assets
@@ -41,7 +45,11 @@ if app_config.settings.dagster_s3_bucket:
 jobs = [snowflake_cache_job]
 
 # Define schedules
-schedules = [daily_snowflake_cache_schedule]
+schedules = [
+    daily_snowflake_cache_schedule,
+    weekly_snowflake_cache_schedule,
+    monthly_snowflake_cache_schedule,
+]
 
 # Define sensors
 sensors = [sync_dynamic_partitions]
