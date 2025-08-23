@@ -164,13 +164,3 @@ jobs:
             --output text)
 
           echo "Registered run task definition: $TASK_DEF_ARN"
-
-          # Update dagster-prod.yaml with the new task definition ARN
-          sed -i "s|\$run_task_def_arn|$TASK_DEF_ARN|g" \
-            ${{ needs.set-vars.outputs.app_folder }}/dagster-prod.yaml
-
-          echo "Updated dagster-prod.yaml with new task definition ARN: $TASK_DEF_ARN"
-
-          # Show the updated configuration
-          echo "Updated dagster-prod.yaml run_launcher config:"
-          grep -A 10 "run_launcher:" ${{ needs.set-vars.outputs.app_folder }}/dagster-prod.yaml

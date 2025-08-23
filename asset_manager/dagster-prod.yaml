@@ -24,13 +24,13 @@ run_coordinator:
   module: dagster.core.run_coordinator
   class: QueuedRunCoordinator
   config:
-    max_concurrent_runs: 25
+    max_concurrent_runs: 50
 
 run_launcher:
   module: 'dagster_aws.ecs'
   class: 'EcsRunLauncher'
   config:
-    task_definition: 'arn:aws:ecs:us-west-1:177788415680:task-definition/asset-manager-run:10'
+    task_definition: ${DAGSTER_TASK_DEFINITION:-asset-manager-run}
     container_name: 'asset-manager-run'
 
 telemetry:
