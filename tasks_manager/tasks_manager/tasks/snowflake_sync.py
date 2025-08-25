@@ -2,6 +2,7 @@
 Snowflake cache tasks for semantic data operations.
 """
 
+import asyncio
 from datetime import date, datetime, timedelta
 from typing import Any
 
@@ -72,6 +73,7 @@ async def get_enabled_grain_config(grain: Granularity) -> MetricCacheGrainConfig
 
 @task(
     name="get_enabled_metrics_for_tenant",
+    task_run_name="get_enabled_metrics_for_tenant",
     retries=1,
     retry_delay_seconds=30,
     timeout_seconds=3600,
@@ -290,6 +292,7 @@ async def cache_tenant_metrics_to_snowflake(
     grain: Granularity,
     grain_config: MetricCacheGrainConfig,
     metrics: list[str] | None = None,
+    max_concurrent_metrics: int = 5,
 ) -> SyncSummary:
     """Cache all enabled metrics for a tenant to Snowflake using parallel processing."""
     logger = get_run_logger()
@@ -320,9 +323,11 @@ async def cache_tenant_metrics_to_snowflake(
 
             return error_summary
 
+        # Start tenant sync operation - close session immediately
         async with get_async_session() as session:
             tenant_identifier = await get_tenant_identifier()
-            cache_manager = SnowflakeSemanticCacheManager(session, None, tenant_identifier)
+            snowflake_client = await get_snowflake_client()
+            cache_manager = SnowflakeSemanticCacheManager(session, snowflake_client, tenant_identifier)
 
             # Prepare run info
             run_context: EngineContext = get_run_context()  # type: ignore
@@ -344,31 +349,45 @@ async def cache_tenant_metrics_to_snowflake(
                 run_info=run_info,
             )
 
-            # Send tenant sync started event
-            send_tenant_sync_started_event(
-                tenant_id=tenant_id,
-                sync_operation=SyncOperation.SNOWFLAKE_CACHE,
-                grain=grain,
-                metrics_count=len(enabled_metric_ids),
-            )
+        # Send tenant sync started event
+        send_tenant_sync_started_event(
+            tenant_id=tenant_id,
+            sync_operation=SyncOperation.SNOWFLAKE_CACHE,
+            grain=grain,
+            metrics_count=len(enabled_metric_ids),
+        )
 
-            logger.info(
-                "Starting parallel cache sync for %d enabled metrics - Tenant: %d, Grain: %s",
-                len(enabled_metric_ids),
-                tenant_id,
-                grain.value,
-            )
+        logger.info(
+            "Starting parallel cache sync for %d enabled metrics - Tenant: %d, Grain: %s",
+            len(enabled_metric_ids),
+            tenant_id,
+            grain.value,
+        )
 
-            # Process metrics in parallel using .map
+        # Process metrics in parallel
+        results = []
+        batch_size = max_concurrent_metrics
+
+        for i in range(0, len(enabled_metric_ids), batch_size):
+            batch_metrics = enabled_metric_ids[i : i + batch_size]
+
             cache_futures = cache_metric_to_snowflake.map(
-                metric_id=enabled_metric_ids,
+                metric_id=batch_metrics,
                 grain=unmapped(grain),
                 grain_config=unmapped(grain_config),
             )
 
-            # Wait for all futures and collect results
             wait(cache_futures)
-            results: Any = [future.result() for future in cache_futures]
+            batch_results: Any = [future.result() for future in cache_futures]
+            results.extend(batch_results)
+
+            # Small pause between batches
+            if i + batch_size < len(enabled_metric_ids):
+                await asyncio.sleep(3)
+
+        # Complete tenant sync operation in a new session context
+        async with get_async_session() as session:
+            cache_manager = SnowflakeSemanticCacheManager(session, snowflake_client, tenant_identifier)
 
             # Analyze results
             metrics_succeeded = 0
@@ -377,7 +396,7 @@ async def cache_tenant_metrics_to_snowflake(
             failed_tasks = []
 
             for result in results:
-                if result["status"] == "success":
+                if result.get("status") == "success":
                     metrics_succeeded += 1
                     total_records_processed += result["time_series_stats"]["processed"]
                 else:
@@ -488,7 +507,8 @@ async def cache_tenant_metrics_to_snowflake(
         try:
             async with get_async_session() as session:
                 tenant_identifier = await get_tenant_identifier()
-                cache_manager = SnowflakeSemanticCacheManager(session, None, tenant_identifier)
+                snowflake_client = await get_snowflake_client()
+                cache_manager = SnowflakeSemanticCacheManager(session, snowflake_client, tenant_identifier)
                 await cache_manager.end_tenant_cache_operation(
                     sync_operation=SyncOperation.SNOWFLAKE_CACHE,
                     grain=grain,
