@@ -12,14 +12,6 @@ storage:
       port:
         env: DAGSTER_PG_PORT
 
-compute_logs:
-  module: dagster_aws.s3
-  class: S3ComputeLogManager
-  config:
-    bucket:
-      env: DAGSTER_S3_BUCKET
-    prefix: dagster/compute-logs
-
 run_coordinator:
   module: dagster.core.run_coordinator
   class: QueuedRunCoordinator
