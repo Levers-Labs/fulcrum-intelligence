@@ -47,5 +47,5 @@ backfills:
   num_workers: 12
 
 schedules:
-  use_threads: true
-  num_workers: 12
+  use_threads: false
+  num_workers: 1
