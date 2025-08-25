@@ -10,7 +10,7 @@ from dagster import (
 )
 
 from asset_manager.jobs import snowflake_cache_job
-from asset_manager.partitions import to_tenant_grain_metric_key
+from asset_manager.partitions import cache_tenant_grain_metric_partition, to_tenant_grain_metric_key
 from asset_manager.resources.config import AppConfigResource
 from asset_manager.resources.db import DbResource
 from asset_manager.services.snowflake_sync_service import get_tenant_partition_sets
@@ -38,19 +38,33 @@ def _iter_cache_run_requests(
     context.log.info(f"Total tenants: {len(tenant_keys)}")
     date_str = _date_str(context)
 
+    # Pre-compute all partition keys for this evaluation
+    triplets: list[tuple[str, str, str]] = []  # (tenant, metric, grain)
     for t in tenant_keys:
         metrics = tenant_metrics_map.get(t, [])
         grains = [g for g in tenant_grains_map.get(t, []) if g in allowed_grains]
         for m in metrics:
             for g in grains:
-                run_key = f"{t}_{m}_{g}_{date_str}"
-                partition_key = to_tenant_grain_metric_key(t, g, m)
-                yield RunRequest(
-                    partition_key=partition_key,
-                    run_key=run_key,
-                    tags={"tenant": t, "metric": m, "grain": g, "schedule": schedule_label},
-                )
-                context.log.info(f"Scheduled Run: {run_key}")
+                triplets.append((t, m, g))
+
+    partition_keys = [to_tenant_grain_metric_key(t, g, m) for (t, m, g) in triplets]
+
+    # Ensure dynamic partitions exist before yielding RunRequests
+    existing = set(context.instance.get_dynamic_partitions(cache_tenant_grain_metric_partition.name))
+    missing = sorted(set(partition_keys) - existing)
+    if missing:
+        context.instance.add_dynamic_partitions(cache_tenant_grain_metric_partition.name, missing)
+        context.log.info("Added %d missing dynamic partitions for schedule run", len(missing))
+
+    # Yield RunRequests
+    for (t, m, g), partition_key in zip(triplets, partition_keys):
+        run_key = f"{t}_{m}_{g}_{date_str}"
+        yield RunRequest(
+            partition_key=partition_key,
+            run_key=run_key,
+            tags={"tenant": t, "metric": m, "grain": g, "schedule": schedule_label},
+        )
+        context.log.info(f"Scheduled Run: {run_key}")
 
 
 @schedule(job=snowflake_cache_job, cron_schedule=DAILY_CRON_SCHEDULE, default_status=DefaultScheduleStatus.RUNNING)
