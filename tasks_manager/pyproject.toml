@@ -10,6 +10,7 @@ package-mode = false
 python = ">=3.10,<3.12"
 prefect = "3.4.8.dev6"
 cloudpickle = "3.0.0"
+sentry-sdk = "^2.34.1"
 story-manager = { path = "../story_manager"}
 query-manager = { path = "../query_manager"}
 analysis-manager = { path = "../analysis_manager"}

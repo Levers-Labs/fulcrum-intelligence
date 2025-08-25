@@ -1,3 +1,4 @@
+import sentry_sdk
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -13,6 +14,10 @@ from commons.utilities.logger import setup_rich_logger
 
 def get_application() -> FastAPI:
     settings = get_settings()
+    sentry_sdk.init(
+        dsn=settings.SENTRY_DSN,
+        traces_sample_rate=1.0,
+    )
     _app = FastAPI(
         title="Analysis Manager",
         description="Analysis Manager for Fulcrum Intelligence",
