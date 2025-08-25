@@ -80,7 +80,39 @@ def weekly_snowflake_cache_schedule(
     context: ScheduleEvaluationContext, app_config: AppConfigResource, sync_db: DbResource
 ):
     """Weekly schedule to materialize only 'week' grain partitions every Monday at 04:00."""
-    yield from _iter_cache_run_requests(context, app_config, sync_db, {"week"}, "weekly")
+    tenant_keys, tenant_metrics_map, tenant_grains_map = asyncio.run(get_tenant_partition_sets(app_config, sync_db))
+    context.log.info(f"Total tenants: {len(tenant_keys)}")
+    date_str = _date_str(context)
+
+    # Pre-compute all partition keys for this evaluation
+    triplets: list[tuple[str, str, str]] = []  # (tenant, metric, grain)
+    for t in tenant_keys:
+        metrics = tenant_metrics_map.get(t, [])
+        grains = [g for g in tenant_grains_map.get(t, []) if g == "week"]
+        for m in metrics:
+            for g in grains:
+                triplets.append((t, m, g))
+
+    partition_keys = [to_tenant_grain_metric_key(t, g, m) for (t, m, g) in triplets]
+
+    # Ensure dynamic partitions exist before yielding RunRequests
+    existing = set(context.instance.get_dynamic_partitions(cache_tenant_grain_metric_partition.name))
+    missing = sorted(set(partition_keys) - existing)
+    if missing:
+        context.instance.add_dynamic_partitions(cache_tenant_grain_metric_partition.name, missing)
+        context.log.info("Added %d missing dynamic partitions for schedule run", len(missing))
+
+    # Yield RunRequests
+    for (t, m, g), partition_key in zip(triplets, partition_keys):
+        run_key = f"{t}_{m}_{g}_{date_str}"
+        yield RunRequest(
+            partition_key=partition_key,
+            run_key=run_key,
+            tags={"tenant": t, "metric": m, "grain": g, "schedule": "weekly"},
+        )
+        context.log.info(f"Scheduled Run: {run_key}")
+
+    context.log.info(f"Total runs scheduled: {len(triplets)}")
 
 
 @schedule(job=snowflake_cache_job, cron_schedule=MONTHLY_CRON_SCHEDULE, default_status=DefaultScheduleStatus.RUNNING)
