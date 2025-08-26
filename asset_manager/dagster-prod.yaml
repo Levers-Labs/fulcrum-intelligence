@@ -44,7 +44,14 @@ run_monitoring:
   enabled: true
   poll_interval_seconds: 45
 
+sensors:
+  use_threads: true
+  num_workers: 2
+
 schedules:
   use_threads: true
-  num_workers: 10
-  num_submit_workers: 10
+  num_workers: 2
+  num_submit_workers: 2
+
+code_servers:
+  local_startup_timeout: 360
