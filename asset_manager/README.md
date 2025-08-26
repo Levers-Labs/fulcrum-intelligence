@@ -75,42 +75,30 @@ AWS_REGION=us-west-1
 
 ## Development
 
-### Start Development Server
+### Option 1: Docker Compose (Recommended)
+
+For a complete local development environment with all dependencies:
+
+```bash
+# Setup and start all services (PostgreSQL + Dagster)
+make setup    # Verify environment
+make up       # Start all services
+
+# The UI will be available at http://localhost:3000
+```
+
+Uses the existing `.env` file for configuration. Includes PostgreSQL (port 5439), Dagster Web UI, and Daemon services.
+
+### Option 2: Local Development
+
+For development without Docker:
+
 ```bash
 # Start Dagster dev server with UI (recommended)
 make dev
-
-# Start UI only (if you have daemon running separately)
-make ui
-
-# Start daemon for schedules/sensors
-make daemon
 ```
 
 The UI will be available at http://localhost:3000
-
-### Asset & Job Commands
-```bash
-# Materialize all assets
-make materialize
-
-# Materialize specific asset
-make materialize-asset ASSET=metric_semantic_values
-
-# Run specific job
-make run-job JOB=snowflake_cache
-
-# Run assets programmatically (with debugger support)
-make run
-
-# List available jobs and schedules
-make list-jobs
-make list-schedules
-
-# Start/stop specific schedules
-make start-schedule SCHEDULE=daily_snowflake_cache_schedule
-make stop-schedule SCHEDULE=daily_snowflake_cache_schedule
-```
 
 ### Cleanup Commands
 ```bash
@@ -172,7 +160,7 @@ from asset_manager.definitions import defs
 # Materialize specific partition
 instance = DagsterInstance.get()
 partition_key = MultiPartitionKey({
-    "tenant_metric": "123::revenue",  
+    "tenant_metric": "123::revenue",
     "tenant_grain": "123::day"
 })
 result = materialize(

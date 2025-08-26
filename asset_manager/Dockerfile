@@ -10,7 +10,7 @@ ENV PYTHONWARNINGS ignore::UserWarning
 ENV PYTHONDONTWRITEBYTECODE 1
 
 ## Install System Deps
-RUN apt-get update && apt-get -y install --no-install-recommends git gcc make libpq-dev python3-dev procps curl
+RUN apt-get update && apt-get -y install --no-install-recommends git gcc g++ make libpq-dev python3-dev procps curl build-essential
 RUN rm -rf /var/lib/apt/lists/*
 
 # Install Poetry

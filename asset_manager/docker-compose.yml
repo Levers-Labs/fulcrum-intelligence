@@ -1,0 +1,123 @@
+# Docker Compose for Asset Manager Local Development
+# Provides Dagster Web UI, Daemon, and PostgreSQL database
+
+version: '3.8'
+
+services:
+  # PostgreSQL database for Dagster instance storage
+  postgres:
+    image: postgres:15-alpine
+    container_name: asset-manager-postgres
+    environment:
+      POSTGRES_DB: dagster
+      POSTGRES_USER: dagster
+      POSTGRES_PASSWORD: dagster_password
+      POSTGRES_INITDB_ARGS: "--auth-host=scram-sha-256"
+    ports:
+      - "5439:5432"  # Custom port for Dagster PostgreSQL
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U dagster -d dagster"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - asset-manager-network
+
+  # Dagster Web Server (UI + GraphQL API)
+  web:
+    build:
+      context: ..
+      dockerfile: asset_manager/Dockerfile
+    container_name: web
+    ports:
+      - "3000:3000"
+    env_file:
+      - .env
+    environment:
+      # Dagster Core
+      - DAGSTER_HOME=/opt/dagster/asset_manager/.dagster
+      - PYTHONPATH=/opt/dagster
+      - PYTHONUNBUFFERED=1
+      - DEBUG=true
+
+      # Database (local PostgreSQL)
+      - DAGSTER_PG_HOST=postgres
+      - DAGSTER_PG_PORT=5432
+      - DAGSTER_PG_DB=dagster
+      - DAGSTER_PG_USER=dagster
+      - DAGSTER_PG_PASSWORD=dagster_password
+    command: >
+      sh -c "
+        echo 'Starting Dagster Web Server...'
+        dagster-webserver -w workspace.yaml --port 3000 --host 0.0.0.0
+      "
+    volumes:
+      - dagster_home:/opt/dagster/asset_manager/.dagster
+      - ./logs:/opt/dagster/asset_manager/logs
+      - ./dagster-local.yaml:/opt/dagster/asset_manager/.dagster/dagster.yaml
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/server_info"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    networks:
+      - asset-manager-network
+    restart: unless-stopped
+
+  # Dagster Daemon (Schedules, Sensors, Run Queue)
+  daemon:
+    build:
+      context: ..
+      dockerfile: asset_manager/Dockerfile
+    container_name: daemon
+    env_file:
+      - .env
+    environment:
+      # Dagster Core
+      - DAGSTER_HOME=/opt/dagster/asset_manager/.dagster
+      - PYTHONPATH=/opt/dagster
+      - PYTHONUNBUFFERED=1
+      - DEBUG=true
+
+      # Database (local PostgreSQL)
+      - DAGSTER_PG_HOST=postgres
+      - DAGSTER_PG_PORT=5432
+      - DAGSTER_PG_DB=dagster
+      - DAGSTER_PG_USER=dagster
+      - DAGSTER_PG_PASSWORD=dagster_password
+    command: >
+      sh -c "
+        echo 'Waiting for web server to be ready...'
+        sleep 10
+        echo 'Starting Dagster Daemon...'
+        dagster-daemon run
+      "
+    volumes:
+      - dagster_home:/opt/dagster/asset_manager/.dagster
+      - ./logs:/opt/dagster/asset_manager/logs
+      - ./dagster-local.yaml:/opt/dagster/asset_manager/.dagster/dagster.yaml
+    depends_on:
+      postgres:
+        condition: service_healthy
+      web:
+        condition: service_healthy
+    networks:
+      - asset-manager-network
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+    name: asset_manager_postgres_data
+  dagster_home:
+    name: asset_manager_dagster_home
+
+networks:
+  asset-manager-network:
+    name: asset-manager-network
+    driver: bridge

@@ -10,7 +10,7 @@ from dagster import (
 from asset_manager.jobs import snowflake_cache_job
 from asset_manager.partitions import cache_tenant_grain_metric_partition, parse_tenant_grain_metric_key
 
-DAILY_CRON_SCHEDULE = "*/5 * * * *"  # every 5 mins
+DAILY_CRON_SCHEDULE = "0 3 * * *"  # every day at 3 am
 WEEKLY_CRON_SCHEDULE = "0 6 * * 1"  # 6 AM on Monday
 MONTHLY_CRON_SCHEDULE = "0 8 1 * *"  # 8 AM on the first day of the month
 
