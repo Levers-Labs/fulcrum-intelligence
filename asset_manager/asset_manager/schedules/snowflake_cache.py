@@ -31,7 +31,6 @@ def _iter_cache_run_requests(context: ScheduleEvaluationContext, allowed_grains:
 
     # Get existing partitions (managed by sensor)
     existing_partitions = context.instance.get_dynamic_partitions(cache_tenant_grain_metric_partition.name)
-    context.log.info(f"Found {len(existing_partitions)} existing partitions")
 
     # Filter partitions by allowed grains
     filtered_partitions = []
@@ -44,8 +43,6 @@ def _iter_cache_run_requests(context: ScheduleEvaluationContext, allowed_grains:
             context.log.warning(f"Invalid partition key format: {partition_key}")
             continue
 
-    context.log.info(f"Filtered to {len(filtered_partitions)} partitions for grains: {allowed_grains}")
-
     # Yield RunRequests for filtered partitions
     for partition_key, tenant_id, grain, metric_id in filtered_partitions:
         run_key = f"{tenant_id}_{metric_id}_{grain}_{date_str}"
@@ -54,7 +51,6 @@ def _iter_cache_run_requests(context: ScheduleEvaluationContext, allowed_grains:
             run_key=run_key,
             tags={"tenant": tenant_id, "metric": metric_id, "grain": grain, "schedule": schedule_label},
         )
-        context.log.info(f"Scheduled Run: {run_key}")
 
 
 @schedule(job=snowflake_cache_job, cron_schedule=DAILY_CRON_SCHEDULE, default_status=DefaultScheduleStatus.RUNNING)
