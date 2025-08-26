@@ -85,15 +85,18 @@ def weekly_snowflake_cache_schedule(
     partition_keys = set(context.instance.get_dynamic_partitions(cache_tenant_grain_metric_partition.name))
     partition_keys = list(partition_keys)
     # Yield RunRequests
-    for partition_key in partition_keys[:10]:
+    run_requests = []
+    for partition_key in partition_keys[:50]:
         run_key = f"{partition_key}::{date_str}"
-        yield RunRequest(
-            partition_key=partition_key,
-            run_key=run_key,
-            tags={"schedule": "weekly"},
+        run_requests.append(
+            RunRequest(
+                partition_key=partition_key,
+                run_key=run_key,
+                tags={"schedule": "weekly"},
+            )
         )
-    context.log.info(f"Total runs scheduled: {len(partition_keys[:10])}")
-    return
+    context.log.info(f"Total runs scheduled: {len(run_requests)}")
+    return run_requests
 
 
 @schedule(job=snowflake_cache_job, cron_schedule=MONTHLY_CRON_SCHEDULE, default_status=DefaultScheduleStatus.RUNNING)
