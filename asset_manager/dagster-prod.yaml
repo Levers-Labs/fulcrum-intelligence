@@ -43,3 +43,8 @@ telemetry:
 run_monitoring:
   enabled: true
   poll_interval_seconds: 45
+
+schedules:
+  use_threads: true
+  num_workers: 10
+  num_submit_workers: 10
