@@ -83,6 +83,7 @@ def weekly_snowflake_cache_schedule(
     date_str = _date_str(context)
     # Ensure dynamic partitions exist before yielding RunRequests
     partition_keys = set(context.instance.get_dynamic_partitions(cache_tenant_grain_metric_partition.name))
+    partition_keys = list(partition_keys)
     # Yield RunRequests
     for partition_key in partition_keys[:10]:
         run_key = f"{partition_key}::{date_str}"
