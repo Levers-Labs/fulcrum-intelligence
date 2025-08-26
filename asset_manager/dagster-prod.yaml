@@ -12,6 +12,18 @@ storage:
       port:
         env: DAGSTER_PG_PORT
 
+compute_logs:
+  module: dagster_aws.s3.compute_log_manager
+  class: S3ComputeLogManager
+  config:
+    bucket:
+      env: DAGSTER_S3_BUCKET
+    prefix: dagster/compute-logs
+    upload_interval: 30 # Upload every 30 seconds
+    skip_empty_files: true # Don't upload empty log files
+    local_dir: "/tmp/dagster-logs"
+    show_url_only: true # Show S3 URLs instead of content in UI
+
 run_coordinator:
   module: dagster.core.run_coordinator
   class: QueuedRunCoordinator
