@@ -30,27 +30,17 @@ def _iter_cache_run_requests(context: ScheduleEvaluationContext, allowed_grains:
     date_str = _date_str(context)
 
     # Get existing partitions (managed by sensor)
-    existing_partitions = context.instance.get_dynamic_partitions(cache_tenant_grain_metric_partition.name)
+    partitions = cache_tenant_grain_metric_partition.get_partition_keys(dynamic_partitions_store=context.instance)
 
-    # Filter partitions by allowed grains
-    filtered_partitions = []
-    for partition_key in existing_partitions:
+    # Yield RunRequests for filtered partitions
+    for partition_key in partitions:
         try:
             tenant_id, grain, metric_id = parse_tenant_grain_metric_key(partition_key)
             if grain in allowed_grains:
-                filtered_partitions.append((partition_key, tenant_id, grain, metric_id))
+                yield RunRequest(partition_key=partition_key, run_key=f"{tenant_id}_{metric_id}_{grain}_{date_str}")
         except ValueError:
             context.log.warning(f"Invalid partition key format: {partition_key}")
             continue
-
-    # Yield RunRequests for filtered partitions
-    for partition_key, tenant_id, grain, metric_id in filtered_partitions:
-        run_key = f"{tenant_id}_{metric_id}_{grain}_{date_str}"
-        yield RunRequest(
-            partition_key=partition_key,
-            run_key=run_key,
-            tags={"tenant": tenant_id, "metric": metric_id, "grain": grain, "schedule": schedule_label},
-        )
 
 
 @schedule(job=snowflake_cache_job, cron_schedule=DAILY_CRON_SCHEDULE, default_status=DefaultScheduleStatus.RUNNING)

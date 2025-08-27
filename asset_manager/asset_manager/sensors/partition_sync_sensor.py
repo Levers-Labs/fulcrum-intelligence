@@ -7,16 +7,25 @@ Automatically adds missing partitions and removes stale ones.
 """
 
 import asyncio
-import logging
+from datetime import datetime
 
-from dagster import DefaultSensorStatus, SensorEvaluationContext, sensor
+from dagster import (
+    DefaultSensorStatus,
+    RunRequest,
+    ScheduleEvaluationContext,
+    SensorEvaluationContext,
+    sensor,
+)
 
-from asset_manager.partitions import cache_tenant_grain_metric_partition, to_tenant_grain_metric_key
+from asset_manager.jobs import snowflake_cache_job
+from asset_manager.partitions import (
+    cache_tenant_grain_metric_partition,
+    parse_tenant_grain_metric_key,
+    to_tenant_grain_metric_key,
+)
 from asset_manager.resources.config import AppConfigResource
 from asset_manager.resources.db import DbResource
 from asset_manager.services.snowflake_sync_service import get_tenant_partition_sets
-
-logger = logging.getLogger(__name__)
 
 
 async def _compute_triplet_keys(app_config: AppConfigResource, db: DbResource) -> list[str]:
@@ -60,3 +69,27 @@ def sync_dynamic_partitions(context: SensorEvaluationContext, app_config: AppCon
         len(desired),
     )
     yield
+
+
+@sensor(
+    name="daily_snowflake_cache_sensor",
+    minimum_interval_seconds=300,
+    default_status=DefaultSensorStatus.RUNNING,
+    job=snowflake_cache_job,
+)
+def daily_snowflake_cache_sensor(context: ScheduleEvaluationContext):
+    """Daily schedule to materialize only 'day' grain partitions at 03:00."""
+    date_str = datetime.now().strftime("%Y%m%d")
+
+    # Get existing partitions (managed by sensor)
+    partitions = cache_tenant_grain_metric_partition.get_partition_keys(dynamic_partitions_store=context.instance)
+
+    # Yield RunRequests for filtered partitions
+    for partition_key in partitions:
+        try:
+            tenant_id, grain, metric_id = parse_tenant_grain_metric_key(partition_key)
+            if grain in ["day"]:
+                yield RunRequest(partition_key=partition_key, run_key=f"{tenant_id}_{metric_id}_{grain}_{date_str}")
+        except ValueError:
+            context.log.warning(f"Invalid partition key format: {partition_key}")
+            continue

@@ -12,6 +12,7 @@ from asset_manager.schedules import (
     weekly_snowflake_cache_schedule,
 )
 from asset_manager.sensors import sync_dynamic_partitions
+from asset_manager.sensors.partition_sync_sensor import daily_snowflake_cache_sensor
 
 # Define all assets
 all_assets = [
@@ -52,7 +53,7 @@ schedules = [
 ]
 
 # Define sensors
-sensors = [sync_dynamic_partitions]
+sensors = [sync_dynamic_partitions, daily_snowflake_cache_sensor]
 
 # Main definitions object that Dagster will discover
 defs = Definitions(assets=all_assets, resources=resources, jobs=jobs, schedules=schedules, sensors=sensors)
