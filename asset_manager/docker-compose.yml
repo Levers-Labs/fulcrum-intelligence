@@ -1,8 +1,5 @@
 # Docker Compose for Asset Manager Local Development
 # Provides Dagster Web UI, Daemon, and PostgreSQL database
-
-version: '3.8'
-
 services:
   # PostgreSQL database for Dagster instance storage
   postgres:

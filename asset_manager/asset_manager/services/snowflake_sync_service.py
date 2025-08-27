@@ -88,7 +88,7 @@ async def get_tenant_partition_sets(
     tenants_resp = await insights.get_tenants(enable_metric_cache=True)  # type: ignore[arg-type]
     tenants = tenants_resp.get("results", tenants_resp)  # support both formats
     tenant_map = {str(t["identifier"]): t["id"] for t in tenants}
-    tenant_keys = tenant_map.keys()
+    tenant_keys = list(tenant_map.keys())
 
     tenant_metrics_map: dict[str, list[str]] = {}
     tenant_grains_map: dict[str, list[str]] = {}

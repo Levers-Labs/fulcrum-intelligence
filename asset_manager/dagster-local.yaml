@@ -56,5 +56,15 @@ run_monitoring:
 # Schedule configuration for local development
 schedules:
   use_threads: true
-  num_workers: 2 # Fewer workers for local resources
+  num_workers: 3
+  num_submit_workers: 3
+
+sensors:
+  use_threads: true
+  num_workers: 2
+  num_submit_workers: 2
+
+backfills:
+  use_threads: true
+  num_workers: 2
   num_submit_workers: 2

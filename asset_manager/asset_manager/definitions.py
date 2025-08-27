@@ -1,5 +1,7 @@
 """Main Dagster definitions for asset manager."""
 
+from typing import Any, cast
+
 from dagster import Definitions
 from dagster_aws.s3 import S3PickleIOManager, S3Resource
 
@@ -35,10 +37,13 @@ if app_config.settings.dagster_s3_bucket:
     # Add the missing S3 resource
     s3_resource = S3Resource()
     resources["s3"] = s3_resource
-    resources["io_manager"] = S3PickleIOManager(
-        s3_resource=s3_resource,
-        s3_bucket=app_config.settings.dagster_s3_bucket,
-        s3_prefix="dagster/io",
+    resources["io_manager"] = cast(
+        Any,
+        S3PickleIOManager(
+            s3_resource=s3_resource,
+            s3_bucket=app_config.settings.dagster_s3_bucket,
+            s3_prefix="dagster/io",
+        ),
     )
 
 # Define jobs

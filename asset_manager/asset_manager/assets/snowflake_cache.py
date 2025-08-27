@@ -10,7 +10,7 @@ Both assets include structured logging and output metadata for observability.
 from __future__ import annotations
 
 import logging
-from datetime import datetime
+from datetime import date, datetime
 
 import pandas as pd
 from dagster import (
@@ -155,8 +155,8 @@ async def snowflake_metric_cache(
 
         if sync_type_str and start_date_str and end_date_str:
             sync_type = SyncType(sync_type_str)
-            start_date = datetime.fromisoformat(start_date_str)
-            end_date = datetime.fromisoformat(end_date_str)
+            start_date = date.fromisoformat(start_date_str)
+            end_date = date.fromisoformat(end_date_str)
             context.log.info("Using date window from upstream attrs: %s, %s - %s", sync_type, start_date, end_date)
         else:
             async with db.session() as session:
@@ -172,7 +172,7 @@ async def snowflake_metric_cache(
                 sync_type=sync_type,
                 start_date=start_date,
                 end_date=end_date,
-                values=rows,
+                values=rows,  # type: ignore[arg-type]
             )
     finally:
         reset_context()
@@ -188,9 +188,9 @@ async def snowflake_metric_cache(
             "load_timestamp": MetadataValue.timestamp(datetime.now(tz=utc)),
             "date_window": MetadataValue.text(f"{start_date.isoformat()} to {end_date.isoformat()}"),
             "rows_loaded": MetadataValue.int(rows_loaded),
-            "cache_size_mb": MetadataValue.float(cache_size_mb),
-            "status": MetadataValue.text(status),
-            "table_fqn": MetadataValue.text(table_fqn),
+            "cache_size_mb": MetadataValue.float(cache_size_mb or 0.0),
+            "status": MetadataValue.text(status or "unknown"),
+            "table_fqn": MetadataValue.text(table_fqn or "unknown"),
             "tenant": MetadataValue.text(tenant_identifier),
             "metric": MetadataValue.text(metric_id),
             "grain": MetadataValue.text(grain.value),
