@@ -5,8 +5,8 @@
   "requiresCompatibilities": [
     "FARGATE"
   ],
-  "cpu": "1024",
-  "memory": "2048",
+  "cpu": "2048",
+  "memory": "4096",
   "family": "$app-web-task",
   "containerDefinitions": [
     {
@@ -38,7 +38,7 @@
       },
       "environment": [],
       "secrets": [],
-      "memoryReservation": 1024,
+      "memoryReservation": 2048,
       "essential": true
     }
   ]

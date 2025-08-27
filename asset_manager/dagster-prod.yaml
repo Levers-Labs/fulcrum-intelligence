@@ -19,16 +19,40 @@ compute_logs:
     bucket:
       env: DAGSTER_S3_BUCKET
     prefix: dagster/compute-logs
-    upload_interval: 30 # Upload every 30 seconds
-    skip_empty_files: true # Don't upload empty log files
+    upload_interval: 30
+    skip_empty_files: true
     local_dir: "/tmp/dagster-logs"
-    show_url_only: true # Show S3 URLs instead of content in UI
+    show_url_only: true
 
 run_coordinator:
   module: dagster.core.run_coordinator
   class: QueuedRunCoordinator
   config:
-    max_concurrent_runs: 50
+    dequeue_use_threads: true
+    dequeue_num_workers: 4
+    dequeue_interval_seconds: 2
+    max_concurrent_runs: 35
+
+sensors:
+  use_threads: true
+  num_workers: 2
+  num_submit_workers: 2
+
+schedules:
+  use_threads: true
+  num_workers: 6
+  num_submit_workers: 4
+
+backfills:
+  use_threads: true
+  num_workers: 2
+  num_submit_workers: 2
+
+code_servers:
+  local_startup_timeout: 360
+
+telemetry:
+  enabled: false
 
 run_launcher:
   module: 'dagster_aws.ecs'
@@ -37,21 +61,6 @@ run_launcher:
     task_definition: 'asset-manager-run'
     container_name: 'asset-manager-run'
 
-telemetry:
-  enabled: false
-
 run_monitoring:
   enabled: true
   poll_interval_seconds: 45
-
-sensors:
-  use_threads: true
-  num_workers: 2
-
-schedules:
-  use_threads: true
-  num_workers: 2
-  num_submit_workers: 2
-
-code_servers:
-  local_startup_timeout: 360
