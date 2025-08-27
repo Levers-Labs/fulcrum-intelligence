@@ -22,7 +22,8 @@ class DbResource(ConfigurableResource):
 
     app_config: AppConfigResource
 
-    profile: str = "prod"
+    profile: str = "micro"
+    app_name: str = "asset_manager"
     engine_overrides_json: str | None = None
     max_concurrent_sessions: int = 80
 
@@ -30,7 +31,7 @@ class DbResource(ConfigurableResource):
 
     def _engine_options(self) -> dict[str, Any]:
         overrides = json.loads(self.engine_overrides_json) if self.engine_overrides_json else None
-        return build_engine_options(self.profile, overrides, app_name="asset_manager")
+        return build_engine_options(self.profile, overrides, app_name=self.app_name)
 
     def _get_manager(self) -> AsyncSessionManager:
         if self._manager is None:

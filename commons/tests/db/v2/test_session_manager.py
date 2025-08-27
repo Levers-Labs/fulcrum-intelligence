@@ -73,12 +73,8 @@ class TestAsyncSessionManager:
 
     @pytest.mark.asyncio
     @patch("commons.db.v2.session_manager._build_session_factory")
-    @patch("commons.db.v2.session_manager.set_tenant_id")
     @patch("commons.db.v2.session_manager.get_tenant_id")
-    @patch("commons.db.v2.session_manager.reset_context")
-    async def test_session_context_manager_basic(
-        self, mock_reset_context, mock_get_tenant_id, mock_set_tenant_id, mock_build_session_factory
-    ):
+    async def test_session_context_manager_basic(self, mock_get_tenant_id, mock_build_session_factory):
         """Test basic session context manager functionality."""
         # Setup mocks
         mock_session = AsyncMock(spec=AsyncSession)
@@ -97,18 +93,14 @@ class TestAsyncSessionManager:
         assert manager._active == 0
         mock_session.commit.assert_called_once()
         mock_session.close.assert_called_once()
-        mock_reset_context.assert_called_once()
 
     @pytest.mark.asyncio
     @patch("commons.db.v2.session_manager._build_session_factory")
-    @patch("commons.db.v2.session_manager.set_tenant_id")
     @patch("commons.db.v2.session_manager.get_tenant_id")
-    @patch("commons.db.v2.session_manager.reset_context")
-    async def test_session_with_tenant_id(
-        self, mock_reset_context, mock_get_tenant_id, mock_set_tenant_id, mock_build_session_factory
-    ):
+    async def test_session_with_tenant_id(self, mock_get_tenant_id, mock_build_session_factory):
         """Test session with tenant ID setup."""
         mock_session = AsyncMock(spec=AsyncSession)
+        mock_session.execute = AsyncMock()
         mock_factory = MagicMock()
         mock_factory.return_value = mock_session
         mock_build_session_factory.return_value = mock_factory
@@ -119,7 +111,6 @@ class TestAsyncSessionManager:
         async with manager.session(tenant_id=123) as session:
             assert session == mock_session
 
-        mock_set_tenant_id.assert_called_once_with(123)
         # Should execute tenant setup SQL
         expected_calls = [mock_session.execute.call_args_list[0][0][0], mock_session.execute.call_args_list[1][0][0]]
         assert any("SET SESSION ROLE tenant_user" in str(call) for call in expected_calls)
@@ -128,12 +119,10 @@ class TestAsyncSessionManager:
     @pytest.mark.asyncio
     @patch("commons.db.v2.session_manager._build_session_factory")
     @patch("commons.db.v2.session_manager.get_tenant_id")
-    @patch("commons.db.v2.session_manager.reset_context")
-    async def test_session_with_local_settings(
-        self, mock_reset_context, mock_get_tenant_id, mock_build_session_factory
-    ):
+    async def test_session_with_local_settings(self, mock_get_tenant_id, mock_build_session_factory):
         """Test session with local settings."""
         mock_session = AsyncMock(spec=AsyncSession)
+        mock_session.execute = AsyncMock()
         mock_factory = MagicMock()
         mock_factory.return_value = mock_session
         mock_build_session_factory.return_value = mock_factory
@@ -152,8 +141,7 @@ class TestAsyncSessionManager:
 
     @pytest.mark.asyncio
     @patch("commons.db.v2.session_manager._build_session_factory")
-    @patch("commons.db.v2.session_manager.reset_context")
-    async def test_session_no_commit(self, mock_reset_context, mock_build_session_factory):
+    async def test_session_no_commit(self, mock_build_session_factory):
         """Test session without auto-commit."""
         mock_session = AsyncMock(spec=AsyncSession)
         mock_factory = MagicMock()
@@ -170,8 +158,7 @@ class TestAsyncSessionManager:
 
     @pytest.mark.asyncio
     @patch("commons.db.v2.session_manager._build_session_factory")
-    @patch("commons.db.v2.session_manager.reset_context")
-    async def test_session_exception_rollback(self, mock_reset_context, mock_build_session_factory):
+    async def test_session_exception_rollback(self, mock_build_session_factory):
         """Test session rollback on exception."""
         mock_session = AsyncMock(spec=AsyncSession)
         mock_factory = MagicMock()
@@ -212,10 +199,10 @@ class TestAsyncSessionManager:
 
     @pytest.mark.asyncio
     @patch("commons.db.v2.session_manager._build_session_factory")
-    @patch("commons.db.v2.session_manager.reset_context")
-    async def test_batch_session(self, mock_reset_context, mock_build_session_factory):
+    async def test_batch_session(self, mock_build_session_factory):
         """Test batch_session context manager."""
         mock_session = AsyncMock(spec=AsyncSession)
+        mock_session.execute = AsyncMock()
         mock_factory = MagicMock()
         mock_factory.return_value = mock_session
         mock_build_session_factory.return_value = mock_factory
@@ -232,10 +219,10 @@ class TestAsyncSessionManager:
 
     @pytest.mark.asyncio
     @patch("commons.db.v2.session_manager._build_session_factory")
-    @patch("commons.db.v2.session_manager.reset_context")
-    async def test_batch_session_defaults(self, mock_reset_context, mock_build_session_factory):
+    async def test_batch_session_defaults(self, mock_build_session_factory):
         """Test batch_session with default settings."""
         mock_session = AsyncMock(spec=AsyncSession)
+        mock_session.execute = AsyncMock()
         mock_factory = MagicMock()
         mock_factory.return_value = mock_session
         mock_build_session_factory.return_value = mock_factory
@@ -251,10 +238,10 @@ class TestAsyncSessionManager:
 
     @pytest.mark.asyncio
     @patch("commons.db.v2.session_manager._build_session_factory")
-    @patch("commons.db.v2.session_manager.reset_context")
-    async def test_batch_session_no_commit(self, mock_reset_context, mock_build_session_factory):
+    async def test_batch_session_no_commit(self, mock_build_session_factory):
         """Test batch_session without auto-commit."""
         mock_session = AsyncMock(spec=AsyncSession)
+        mock_session.execute = AsyncMock()
         mock_factory = MagicMock()
         mock_factory.return_value = mock_session
         mock_build_session_factory.return_value = mock_factory

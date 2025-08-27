@@ -27,9 +27,14 @@ app_config = AppConfigResource.from_env()
 resources = {
     "app_config": app_config,
     "snowflake": SnowflakeResource(app_config=app_config),  # pooled engine for assets/jobs
-    "db": DbResource(app_config=app_config, profile="prod"),
-    # unpooled engine for sensors/schedules
-    "sync_db": DbResource(app_config=app_config, profile="prod", engine_overrides_json='{"poolclass": "NullPool"}'),
+    "db": DbResource(app_config=app_config, profile="micro"),
+    # un-pooled engine for sensors/schedules
+    "sync_db": DbResource(
+        app_config=app_config,
+        profile="micro",
+        engine_overrides_json='{"poolclass": "NullPool"}',
+        app_name="asset_manager_daemon",
+    ),
 }
 
 # Add S3 IO Manager only if S3 bucket is configured (prod environment)
