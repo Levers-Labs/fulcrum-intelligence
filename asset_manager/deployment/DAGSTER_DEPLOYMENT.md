@@ -30,6 +30,45 @@ This guide covers deploying Dagster in a self-hosted environment on AWS ECS, fol
                 └────────────────────────────────┘
 ```
 
+## Application Architecture
+
+### Asset Pipeline Overview
+
+The Asset Manager implements a two-stage pipeline for Snowflake cache synchronization:
+
+```
+┌─────────────────────────┐    ┌──────────────────────────┐
+│  metric_semantic_values │───▶│  snowflake_metric_cache  │
+│                         │    │                          │
+│ • Extract from Cube API │    │ • Load to Snowflake      │
+│ • Per tenant/metric/    │    │ • Cache tables per       │
+│   grain partition       │    │   tenant/metric/grain    │
+└─────────────────────────┘    └──────────────────────────┘
+```
+
+### Dynamic Partitioning
+
+The pipeline uses a single dynamic partition dimension that combines:
+- **Tenant identifier**: `tenant123`
+- **Granularity**: `day`, `week`, `month`
+- **Metric ID**: `metric_revenue`
+
+Combined as: `tenant123::day::metric_revenue`
+
+### Scheduling Strategy
+
+- **Daily Schedule** (3 AM UTC): Processes all `day` grain partitions
+- **Weekly Schedule** (Monday 6 AM UTC): Processes all `week` grain partitions
+- **Monthly Schedule** (1st of month 8 AM UTC): Processes all `month` grain partitions
+- **Partition Sync Sensor**: Updates partition registry every 5 minutes
+
+### Multi-Tenant Support
+
+Each tenant has independent:
+- **Metric configurations**: Enabled metrics for caching
+- **Grain configurations**: Enabled granularities with sync periods
+- **Snowflake schemas**: Isolated cache tables
+
 ## Dagster Configuration
 
 ### Instance Configuration (dagster-prod.yaml)
@@ -55,14 +94,18 @@ storage:
 
 ```yaml
 compute_logs:
-  module: dagster_aws.s3
+  module: dagster_aws.s3.compute_log_manager
   class: S3ComputeLogManager
   config:
     bucket: { env: DAGSTER_S3_BUCKET }
     prefix: dagster/compute-logs
+    upload_interval: 30
+    skip_empty_files: true
+    local_dir: "/tmp/dagster-logs"
+    show_url_only: true
 ```
 
-**Why S3**: Durable storage for stdout/stderr from pipeline runs, accessible from Dagster UI, automatic retention policies.
+**Why S3**: Durable storage for stdout/stderr from pipeline runs, accessible from Dagster UI, automatic retention policies. Configuration includes optimized upload intervals and local staging for performance.
 
 #### IO Management
 
@@ -91,23 +134,23 @@ run_coordinator:
   module: dagster.core.run_coordinator
   class: QueuedRunCoordinator
   config:
-    max_concurrent_runs: 25
+    dequeue_use_threads: true
+    dequeue_num_workers: 4
+    dequeue_interval_seconds: 2
+    max_concurrent_runs: 35
 ```
 
-**Purpose**: Manages run queue, prevents resource exhaustion, enables backpressure control.
+**Purpose**: Manages run queue, prevents resource exhaustion, enables backpressure control. Multi-threaded dequeue processing improves throughput with 4 worker threads and 2-second polling intervals.
 
 #### Run Launcher
 
 ```yaml
 run_launcher:
-  module: "dagster_aws.ecs"
-  class: "EcsRunLauncher"
+  module: 'dagster_aws.ecs'
+  class: 'EcsRunLauncher'
   config:
-    task_definition: "arn:aws:ecs:region:account:task-definition/asset-manager-run:1"
-    container_name: "asset-manager-run"
-    run_resources:
-      cpu: "512"
-      memory: "1024"
+    task_definition: 'asset-manager-run'
+    container_name: 'asset-manager-run'
 ```
 
 **Why ECS Run Launcher**:
@@ -116,6 +159,46 @@ run_launcher:
 - Scalability: Automatic task provisioning
 - Cost efficiency: Pay only for run duration
 - Resource control: CPU/memory limits per run
+
+#### Worker Process Configuration
+
+```yaml
+sensors:
+  use_threads: true
+  num_workers: 2
+  num_submit_workers: 2
+
+schedules:
+  use_threads: true
+  num_workers: 6
+  num_submit_workers: 4
+
+backfills:
+  use_threads: true
+  num_workers: 2
+  num_submit_workers: 2
+```
+
+**Purpose**: Configures multi-threaded workers for sensors, schedules, and backfills to improve daemon performance and concurrent processing capabilities.
+
+#### Additional Configuration
+
+```yaml
+code_servers:
+  local_startup_timeout: 360
+
+run_monitoring:
+  enabled: true
+  poll_interval_seconds: 45
+
+telemetry:
+  enabled: false
+```
+
+**Features**:
+- Extended code server startup timeout for complex asset loading
+- Run monitoring for automatic run status updates
+- Telemetry disabled for privacy
 
 ## Authentication
 
@@ -205,12 +288,19 @@ Dagster Web UI is secured using AWS Application Load Balancer (ALB) OpenID Conne
 #### Required Environment Variables
 
 ```bash
-# Dagster Core
-DAGSTER_HOME=/opt/dagster
+# Core Application Settings
+ENV=prod
+DEBUG=true
+PYTHONUNBUFFERED=1
 AWS_REGION=us-west-1
 PGSSLMODE=require
 
-# Database Connection
+# Dagster Configuration
+DAGSTER_SENSOR_GRPC_TIMEOUT_SECONDS=300
+DAGSTER_GRPC_TIMEOUT_SECONDS=300
+DAGSTER_GRPC_MAX_WORKERS=4
+
+# Database Connection (via SSM)
 DAGSTER_PG_HOST=your-db-host
 DAGSTER_PG_PORT=5432
 DAGSTER_PG_DB=postgres
@@ -220,11 +310,22 @@ DAGSTER_PG_PASSWORD=secure_password
 # AWS Resources
 DAGSTER_S3_BUCKET=your-dagster-bucket
 
-# Application Services
+# Application Services (via SSM)
+SERVER_HOST=https://dg.leverslabs.com
 STORY_MANAGER_SERVER_HOST=https://story-manager.domain.com
 ANALYSIS_MANAGER_SERVER_HOST=https://analysis-manager.domain.com
 QUERY_MANAGER_SERVER_HOST=https://query-manager.domain.com
 INSIGHTS_BACKEND_SERVER_HOST=https://insights-backend.domain.com
+
+# Auth0 Configuration (via SSM)
+AUTH0_API_AUDIENCE=your-audience
+AUTH0_ISSUER=https://your-domain.auth0.com/
+AUTH0_CLIENT_ID=your-client-id
+AUTH0_CLIENT_SECRET=your-client-secret
+
+# Fulcrum Platform (via SSM)
+DATABASE_URL=postgresql://user:pass@host:port/db
+SECRET_KEY=your-secret-key
 ```
 
 #### Secrets Management

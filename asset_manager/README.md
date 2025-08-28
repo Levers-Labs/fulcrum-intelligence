@@ -6,10 +6,10 @@ Dagster-based orchestration service for Fulcrum Intelligence Engine's Snowflake 
 
 This service migrates the Snowflake cache sync workflow from Prefect to Dagster, implementing:
 
-- **Dynamic multi-dimensional partitions**: `tenant × metric × grain` combinations
+- **Dynamic single-dimension partitions**: Combined `tenant::grain::metric` partition keys
 - **Two-stage pipeline**: Semantic extraction → Snowflake loading
 - **Tenant-aware partitioning**: Each tenant has specific metrics and grains
-- **Automated scheduling**: Daily 3 AM runs for all active partitions
+- **Multi-granularity scheduling**: Daily, weekly, and monthly schedules for different grain types
 - **Real-time partition sync**: Sensor keeps partitions aligned with database config
 
 ## Pipeline Architecture
@@ -136,9 +136,11 @@ make help
 
 ### Scheduling & Sensors
 
-- **Daily Schedule**: Runs at 3 AM UTC for all active tenant/metric/grain combinations
+- **Daily Schedule**: Runs daily at 3 AM UTC for 'day' grain partitions
+- **Weekly Schedule**: Runs Mondays at 6 AM UTC for 'week' grain partitions
+- **Monthly Schedule**: Runs 1st of month at 8 AM UTC for 'month' grain partitions
 - **Partition Sync Sensor**: Updates dynamic partitions every 5 minutes based on database config
-- **Smart Scheduling**: Only schedules valid combinations per tenant
+- **Smart Scheduling**: Only schedules valid grain combinations per tenant
 
 ## Usage
 
@@ -154,15 +156,13 @@ make help
 
 #### Using Dagster API
 ```python
-from dagster import DagsterInstance, MultiPartitionKey, materialize
+from dagster import DagsterInstance, materialize
 from asset_manager.definitions import defs
+from asset_manager.partitions import to_tenant_grain_metric_key
 
 # Materialize specific partition
 instance = DagsterInstance.get()
-partition_key = MultiPartitionKey({
-    "tenant_metric": "123::revenue",
-    "tenant_grain": "123::day"
-})
+partition_key = to_tenant_grain_metric_key("tenant123", "day", "metric_revenue")
 result = materialize(
     [defs.get_asset_def("metric_semantic_values")],
     partition_key=partition_key,
@@ -213,7 +213,7 @@ asset_manager/
 │   │   └── cache_job.py        # Pipeline job definition
 │   ├── schedules/
 │   │   ├── __init__.py
-│   │   └── daily_cache_schedule.py # 3 AM daily schedule
+│   │   └── snowflake_cache.py      # Daily/weekly/monthly schedules
 │   └── sensors/
 │       ├── __init__.py
 │       └── partition_sync_sensor.py # Dynamic partition sync
@@ -268,7 +268,7 @@ python run.py asset --asset metric_semantic_values --tenant 123 --metric revenue
 
 # Materialize specific partition using Dagster CLI
 dagster asset materialize --select "metric_semantic_values" \
-  --partition '{"tenant_metric": "123::revenue", "tenant_grain": "123::day"}' \
+  --partition "tenant123::day::metric_revenue" \
   -m asset_manager.definitions
 
 # View sensor evaluation
@@ -277,6 +277,8 @@ dagster sensor logs partition_sync_sensor -m asset_manager.definitions
 
 # Test schedule logic
 dagster schedule preview daily_snowflake_cache_schedule -m asset_manager.definitions
+dagster schedule preview weekly_snowflake_cache_schedule -m asset_manager.definitions
+dagster schedule preview monthly_snowflake_cache_schedule -m asset_manager.definitions
 
 # List all available jobs
 make list-jobs
