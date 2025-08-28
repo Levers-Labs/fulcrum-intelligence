@@ -436,3 +436,49 @@ class CubeClient(AsyncHttpClient):
             cubes.append(cube_meta)
 
         return cubes
+
+    async def get_cube_measures(self, cube_name: str | None = None) -> list[dict]:
+        """
+        Get measures from cube(s).
+
+        Args:
+            cube_name: Optional name of specific cube. If None, returns measures from all cubes.
+
+        Returns:
+            List of measure dictionaries with cube information
+        """
+        cubes = await self.list_cubes()
+        if cube_name:
+            cubes = [cube for cube in cubes if cube["name"] == cube_name]
+
+        measures = []
+        for cube in cubes:
+            for measure in cube["measures"]:
+                measure_with_cube = measure.copy()
+                measure_with_cube["cube"] = cube["name"]
+                measures.append(measure_with_cube)
+
+        return measures
+
+    async def get_cube_dimensions(self, cube_name: str | None = None) -> list[dict]:
+        """
+        Get dimensions from cube(s).
+
+        Args:
+            cube_name: Optional name of specific cube. If None, returns dimensions from all cubes.
+
+        Returns:
+            List of dimension dictionaries with cube information
+        """
+        cubes = await self.list_cubes()
+        if cube_name:
+            cubes = [cube for cube in cubes if cube["name"] == cube_name]
+
+        dimensions = []
+        for cube in cubes:
+            for dimension in cube["dimensions"]:
+                dimension_with_cube = dimension.copy()
+                dimension_with_cube["cube"] = cube["name"]
+                dimensions.append(dimension_with_cube)
+
+        return dimensions
