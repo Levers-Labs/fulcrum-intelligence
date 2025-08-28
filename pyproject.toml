@@ -87,6 +87,9 @@ exclude = [
     "analysis_manager/migrations/",
     "story_manager/migrations/",
     "insights_backend/migrations/",
+    # run
+    "asset_manager/run.py",
+    "tasks_manager/run.py",
 ]
 
 [tool.ruff]

@@ -4,6 +4,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from commons.clients.snowflake import SnowflakeAuthMethod, SnowflakeClient, SnowflakeConfigModel
+from commons.models.enums import Granularity
 
 
 @pytest.fixture
@@ -589,7 +590,9 @@ class TestSnowflakeClientCacheMethods:
         client = SnowflakeClient(config=snowflake_config)
 
         with patch.object(client, "_create_cache_table") as mock_create_table:
-            await client.create_or_update_metric_time_series(table_name="test_table", data=test_data, is_full_sync=True)
+            await client.create_or_update_metric_time_series(
+                table_name="test_table", data=test_data, grain=Granularity.DAY, is_full_sync=True
+            )
 
             # Should create table and write data
             mock_create_table.assert_called_once_with("test_table", mock_session)
@@ -621,7 +624,7 @@ class TestSnowflakeClientCacheMethods:
 
         with patch.object(client, "_create_cache_table") as mock_create_table:
             await client.create_or_update_metric_time_series(
-                table_name="test_table", data=test_data, is_full_sync=False
+                table_name="test_table", data=test_data, grain=Granularity.DAY, is_full_sync=False
             )
 
             # Should create table and write data
@@ -693,7 +696,9 @@ class TestSnowflakeClientCacheMethods:
         """Test handling empty data."""
         client = SnowflakeClient(config=snowflake_config)
         # The actual implementation returns None for empty data
-        result = await client.create_or_update_metric_time_series(table_name="test_table", data=[], is_full_sync=True)
+        result = await client.create_or_update_metric_time_series(
+            table_name="test_table", data=[], grain=Granularity.DAY, is_full_sync=True
+        )
 
         assert result is None
 

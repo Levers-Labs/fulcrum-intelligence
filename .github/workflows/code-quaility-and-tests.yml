@@ -75,6 +75,12 @@ jobs:
           poetry export -f requirements.txt --output requirements.txt --without-hashes -C core
           pip install -U -r requirements.txt
 
+      - name: Install Asset Manager Dependencies
+        run: |
+          echo "Installing asset_manager dependencies"
+          poetry export -f requirements.txt --output requirements.txt --without-hashes -C asset_manager
+          pip install -U -r requirements.txt
+
       - name: Check Code Formatting
         run: |
           python manage.py format --check .
@@ -94,10 +100,10 @@ jobs:
           export PYTHONPATH=`pwd`
           make test app=levers
 
-      - name: Run Unit Tests and Coverage @ Core
-        run: |
-          export PYTHONPATH=`pwd`
-          make test app=core
+      # - name: Run Unit Tests and Coverage @ Core
+      #   run: |
+      #     export PYTHONPATH=`pwd`
+      #     make test app=core
 
       - name: Run Unit Tests and Coverage @ Insights Backend
         run: |

@@ -315,6 +315,7 @@ class SnowflakeSemanticCacheManager(SemanticManager):
             await snowflake_client.create_or_update_metric_time_series(
                 table_name=table_name,
                 data=cache_data,
+                grain=grain,
                 is_full_sync=(sync_type == SyncType.FULL),
             )
 
@@ -358,17 +359,7 @@ class SnowflakeSemanticCacheManager(SemanticManager):
                 status=SyncStatus.FAILED,
                 error=str(e),
             )
-            return {
-                "status": "failed",
-                "time_series_stats": {
-                    "processed": 0,
-                    "skipped": 0,
-                    "failed": len(values),
-                    "total": len(values),
-                },
-                "table_name": table_name,
-                "error": str(e),
-            }
+            raise e
 
     async def validate_cache_integrity(
         self,

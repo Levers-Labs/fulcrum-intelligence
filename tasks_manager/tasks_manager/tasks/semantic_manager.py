@@ -229,7 +229,7 @@ async def create_sync_summary_artifact(summary: SyncSummary) -> None:
 
     await create_markdown_artifact(  # type: ignore
         key=f"metric-{summary['metric_id'].replace('_', '-').lower()}-{summary['grain'].lower()}-sync-summary",  # type: ignore
-        markdown=markdown
+        markdown=markdown,
     )
 
 
