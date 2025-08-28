@@ -1,4 +1,3 @@
-import asyncio
 from typing import Any, TypeVar
 
 from sqlalchemy import (
@@ -141,8 +140,9 @@ class CRUDNotifications:
         # Get total count for pagination
         count_query = select(func.count()).select_from(alerts.union(reports).subquery())  # type: ignore
 
-        # Execute queries
-        results, total_count = await asyncio.gather(self.session.execute(combined), self.session.scalar(count_query))
+        # Execute queries sequentially to avoid concurrent use of same session
+        results = await self.session.execute(combined)
+        total_count = await self.session.scalar(count_query)
         notifications = [NotificationList.model_validate(row, from_attributes=True) for row in results]
 
         return notifications, total_count or 0
