@@ -1019,13 +1019,11 @@ class TestSnowflakeSemanticCacheManager:
 
         values = [{"metric_id": "test_metric", "date": date(2024, 1, 1), "grain": Granularity.DAY, "value": 100.0}]
 
-        result = await cache_manager.cache_metric_time_series(
-            "test_metric", Granularity.DAY, SyncType.FULL, date(2024, 1, 1), date(2024, 1, 2), values
-        )
-
-        assert result["table_name"] == "test_tenant_metric_time_series"
-        assert result["status"] == "failed"
-        assert "error" in result
+        # The cache manager re-raises exceptions, so we need to catch it
+        with pytest.raises(Exception, match="Snowflake error"):
+            await cache_manager.cache_metric_time_series(
+                "test_metric", Granularity.DAY, SyncType.FULL, date(2024, 1, 1), date(2024, 1, 2), values
+            )
 
         mock_start_sync.assert_called_once()
         mock_end_sync.assert_called_once()
