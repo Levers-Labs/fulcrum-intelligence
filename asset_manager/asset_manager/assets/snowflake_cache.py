@@ -26,11 +26,12 @@ from pytz import utc
 from asset_manager.partitions import cache_tenant_grain_metric_partition, parse_tenant_grain_metric_key
 from asset_manager.resources import AppConfigResource, DbResource, SnowflakeResource
 from asset_manager.services.semantic_loader import fetch_metric_values
-from asset_manager.services.snowflake_sync_service import SyncType, compute_date_window
+from asset_manager.services.snowflake_sync_service import SyncType, compute_date_window, record_sync_status
 from asset_manager.services.utils import get_metric, get_tenant_id_by_identifier
 from commons.models.enums import Granularity
 from commons.utilities.context import reset_context, set_tenant_id
 from query_manager.semantic_manager.cache_manager import SnowflakeSemanticCacheManager
+from query_manager.semantic_manager.models import SyncOperation, SyncStatus
 
 logger = logging.getLogger(__name__)
 
@@ -63,6 +64,11 @@ async def metric_semantic_values(context, app_config: AppConfigResource, db: DbR
     context.log.info("Extracting values: tenant=%s metric=%s grain=%s", tenant_identifier, metric_id, grain.value)
     # set tenant id context
     set_tenant_id(tenant_id)
+
+    sync_type = None
+    start_date = None
+    end_date = None
+
     try:
         # compute date window using DB-backed helpers
         async with db.session() as session:
@@ -98,6 +104,27 @@ async def metric_semantic_values(context, app_config: AppConfigResource, db: DbR
         )
 
         return df
+    except Exception as e:
+        error_message = f"Failed to extract semantic values: {str(e)}"
+        context.log.error(error_message, exc_info=True)
+
+        # Record sync failure if we have the necessary info
+        if sync_type and start_date and end_date:
+            await record_sync_status(
+                db=db,
+                tenant_id=tenant_id,
+                metric_id=metric_id,
+                grain=grain,
+                sync_operation=SyncOperation.SNOWFLAKE_CACHE,
+                sync_status=SyncStatus.FAILED,
+                sync_type=sync_type,
+                start_date=start_date,
+                end_date=end_date,
+                error_message=error_message,
+            )
+
+        # Re-raise the exception to fail the asset
+        raise
     finally:
         reset_context()
 

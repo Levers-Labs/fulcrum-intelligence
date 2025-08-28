@@ -20,11 +20,59 @@ from commons.utilities.context import reset_context, set_tenant_id
 from query_manager.core.crud import CRUDMetricCacheConfig, CRUDMetricCacheGrainConfig
 from query_manager.core.models import MetricCacheConfig, MetricCacheGrainConfig
 from query_manager.semantic_manager.cache_manager import SnowflakeSemanticCacheManager
-from query_manager.semantic_manager.models import SyncOperation, SyncType
+from query_manager.semantic_manager.crud import CRUDMetricSyncStatus
+from query_manager.semantic_manager.models import (
+    MetricSyncStatus,
+    SyncOperation,
+    SyncStatus,
+    SyncType,
+)
 
 logger = logging.getLogger(__name__)
 
 DATE_FORMAT = "%Y-%m-%d"
+
+
+async def record_sync_status(
+    db: DbResource,
+    tenant_id: int,
+    metric_id: str,
+    grain: Granularity,
+    sync_operation: SyncOperation,
+    sync_status: SyncStatus,
+    sync_type: SyncType,
+    start_date: date,
+    end_date: date,
+    records_processed: int | None = None,
+    error_message: str | None = None,
+) -> None:
+    """Record sync status (success or failure) in the metric_sync_status table."""
+    try:
+        async with db.session() as session:
+            crud = CRUDMetricSyncStatus(MetricSyncStatus, session)
+            await crud.update_sync_status(
+                metric_id=metric_id,
+                grain=grain,
+                sync_operation=sync_operation,
+                sync_status=sync_status,
+                sync_type=sync_type,
+                start_date=start_date,
+                end_date=end_date,
+                records_processed=records_processed,
+                error=error_message,
+                dimension_name=None,  # Snowflake cache doesn't use dimensions
+            )
+            await session.commit()
+            logger.info(
+                "Recorded sync status: tenant=%s metric=%s grain=%s operation=%s status=%s",
+                tenant_id,
+                metric_id,
+                grain.value,
+                sync_operation.value,
+                sync_status.value,
+            )
+    except Exception as record_error:
+        logger.error("Failed to record sync status for metric %s: %s", metric_id, str(record_error), exc_info=True)
 
 
 async def get_enabled_grains_for_tenant(session: AsyncSession) -> list[MetricCacheGrainConfig]:
