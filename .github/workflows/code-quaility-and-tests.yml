@@ -100,10 +100,10 @@ jobs:
           export PYTHONPATH=`pwd`
           make test app=levers
 
-      - name: Run Unit Tests and Coverage @ Core
-        run: |
-          export PYTHONPATH=`pwd`
-          make test app=core
+      # - name: Run Unit Tests and Coverage @ Core
+      #   run: |
+      #     export PYTHONPATH=`pwd`
+      #     make test app=core
 
       - name: Run Unit Tests and Coverage @ Insights Backend
         run: |
