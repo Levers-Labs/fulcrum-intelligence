@@ -1,0 +1,45 @@
+{
+  "executionRoleArn": "arn:aws:iam::$account:role/fulcrum-ecs-execution-role",
+  "taskRoleArn": "arn:aws:iam::$account:role/fulcrum-ecs-execution-role",
+  "networkMode": "awsvpc",
+  "requiresCompatibilities": [
+    "FARGATE"
+  ],
+  "cpu": "2048",
+  "memory": "4096",
+  "family": "$app-web-task",
+  "containerDefinitions": [
+    {
+      "name": "$app-web",
+      "image": "",
+      "portMappings": [
+        {
+          "hostPort": 3000,
+          "protocol": "tcp",
+          "containerPort": 3000
+        }
+      ],
+      "command": [
+        "dagster-webserver",
+        "-w",
+        "workspace.yaml",
+        "--port",
+        "3000",
+        "--host",
+        "0.0.0.0"
+      ],
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "fulcrum/$app/web",
+          "awslogs-region": "$region",
+          "awslogs-stream-prefix": "$app-web"
+        }
+      },
+      "environment": [],
+      "secrets": [],
+      "memoryReservation": 2048,
+      "essential": true
+    }
+  ]
+}
