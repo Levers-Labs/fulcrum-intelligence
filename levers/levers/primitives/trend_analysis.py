@@ -68,7 +68,7 @@ def analyze_metric_trend(
         return None
 
     # Full dataset trend analysis
-    y = df_sorted[value_col].values
+    y = np.asarray(df_sorted[value_col].values)
     x = np.arange(len(y))
 
     # Handle missing values
@@ -102,7 +102,7 @@ def analyze_metric_trend(
     # Get recent window for analysis if enough data points
     if len(df_sorted) >= window_size:
         recent_df = df_sorted.tail(window_size)
-        recent_y = recent_df[value_col].values
+        recent_y = np.asarray(recent_df[value_col].values)
         recent_x = np.arange(len(recent_y))
 
         mask_recent = ~np.isnan(recent_y)  # type: ignore
