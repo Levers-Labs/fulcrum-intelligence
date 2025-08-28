@@ -190,4 +190,3 @@ deployments:
     - tenant.snowflake_cache.requested
     parameters:
       tenant_id_str: "{{ event.resource.tenant_id }}"
-      grain: "{{ event.resource.grain }}"

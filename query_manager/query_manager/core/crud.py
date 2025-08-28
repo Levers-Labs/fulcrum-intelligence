@@ -5,6 +5,7 @@ from sqlalchemy import (
     func,
     select,
 )
+from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import selectinload
 
 from commons.db.crud import CRUDBase, NotFoundError
@@ -23,7 +24,7 @@ from query_manager.core.models import (
     MetricInput,
 )
 from query_manager.core.schemas import MetricCacheConfigRead
-from query_manager.semantic_manager.models import MetricSyncStatus, SyncOperation
+from query_manager.semantic_manager.models import MetricSyncStatus, SyncOperation, SyncStatus
 
 
 class CRUDDimensions(CRUDBase[Dimension, Dimension, Dimension, DimensionFilter]):  # noqa
@@ -245,7 +246,10 @@ class CRUDMetricCacheConfig(
         """
         Get cache configuration for a specific metric.
         """
-        statement = select(MetricCacheConfig).filter_by(metric_id=metric_id)
+        # Get sync information for this metric
+        tenant_id = get_tenant_id()
+
+        statement = select(MetricCacheConfig).filter_by(metric_id=metric_id, tenant_id=tenant_id)
 
         result = await self.session.execute(statement)
         config: MetricCacheConfig | None = result.scalar_one_or_none()
@@ -255,9 +259,6 @@ class CRUDMetricCacheConfig(
 
         config_read = MetricCacheConfigRead.model_validate(config, from_attributes=True)
 
-        # Get sync information for this metric
-        tenant_id = get_tenant_id()
-
         # Query 1: Get latest sync info
         latest_sync_query = (
             select(MetricSyncStatus.last_sync_at, MetricSyncStatus.sync_status)  # type: ignore
@@ -266,6 +267,7 @@ class CRUDMetricCacheConfig(
                     MetricSyncStatus.tenant_id == tenant_id,  # type: ignore
                     MetricSyncStatus.metric_id == metric_id,  # type: ignore
                     MetricSyncStatus.sync_operation == SyncOperation.SNOWFLAKE_CACHE,  # type: ignore
+                    MetricSyncStatus.sync_status == SyncStatus.SUCCESS,  # type: ignore
                 )
             )
             .order_by(MetricSyncStatus.last_sync_at.desc())  # type: ignore
@@ -281,6 +283,7 @@ class CRUDMetricCacheConfig(
                 MetricSyncStatus.tenant_id == tenant_id,  # type: ignore
                 MetricSyncStatus.metric_id == metric_id,  # type: ignore
                 MetricSyncStatus.sync_operation == SyncOperation.SNOWFLAKE_CACHE,  # type: ignore
+                MetricSyncStatus.sync_status == SyncStatus.SUCCESS,  # type: ignore
             )
         )
 
@@ -304,39 +307,142 @@ class CRUDMetricCacheConfig(
         Create or update cache configuration for a specific metric.
         Uses upsert pattern to handle both creation and updates.
         """
-        try:
-            # Try to get existing configuration
-            statement = select(MetricCacheConfig).filter_by(metric_id=metric_id)
+        # Try to get existing configuration
+        statement = select(MetricCacheConfig).filter_by(metric_id=metric_id, tenant_id=get_tenant_id())
 
-            result = await self.session.execute(statement)
-            config: MetricCacheConfig | None = result.scalar_one_or_none()
-
-            if config is None:
-                raise NotFoundError(id=metric_id)
-
-            config.is_enabled = is_enabled
-            self.session.add(config)
-        except NotFoundError:
+        result = await self.session.execute(statement)
+        config: MetricCacheConfig | None = result.scalar_one_or_none()
+        if config is None:
             # Create new configuration if none exists
             config = MetricCacheConfig(metric_id=metric_id, is_enabled=is_enabled)  # type: ignore
             self.session.add(config)
 
-        # Commit changes and refresh to get updated data
+        config.is_enabled = is_enabled
+        self.session.add(config)
+
+        # Commit changes
         await self.session.commit()
+
+        await self.session.refresh(config)
+
         return await self.get_by_metric_id(metric_id)
 
     async def bulk_update_metric_configs(self, metric_ids: list[str], is_enabled: bool) -> list[MetricCacheConfigRead]:
         """
-        Bulk update cache configurations for multiple metrics.
+        Bulk update cache configurations for multiple metrics using efficient UPSERT.
+
+        This implementation uses PostgreSQL's INSERT ... ON CONFLICT for optimal performance:
+        - Single transaction instead of N transactions
+        - Bulk queries for sync data instead of N+1 queries
+        - Includes complete sync status and snapshot data
         """
-        updated_configs = []
+        if not metric_ids:
+            return []
 
-        # Process each metric ID individually
+        tenant_id = get_tenant_id()
+
+        # Prepare bulk data for UPSERT operation
+        bulk_data = [
+            {
+                "metric_id": metric_id,
+                "tenant_id": tenant_id,
+                "is_enabled": is_enabled,
+            }
+            for metric_id in metric_ids
+        ]
+
+        stmt = insert(MetricCacheConfig).values(bulk_data)
+        stmt = stmt.on_conflict_do_update(
+            constraint="uq_metric_cache_tenant_id",
+            set_={
+                "is_enabled": stmt.excluded.is_enabled,
+            },
+        )
+
+        # Execute bulk UPSERT in single transaction
+        await self.session.execute(stmt)
+        await self.session.commit()
+
+        # Fetch updated configs in single query
+        configs_result = await self.session.execute(
+            select(MetricCacheConfig)
+            .filter(MetricCacheConfig.metric_id.in_(metric_ids), MetricCacheConfig.tenant_id == tenant_id)  # type: ignore
+            .order_by(MetricCacheConfig.metric_id)
+        )
+        configs = configs_result.scalars().all()
+
+        # Build config map for quick lookup
+        config_map = {config.metric_id: config for config in configs}
+
+        # Bulk fetch sync data for all metrics
+        # Query 1: Get latest sync info for all metrics
+        latest_sync_query = (
+            select(
+                MetricSyncStatus.metric_id,  # type: ignore
+                MetricSyncStatus.last_sync_at,  # type: ignore
+                MetricSyncStatus.sync_status,  # type: ignore
+            )
+            .filter(
+                and_(
+                    MetricSyncStatus.tenant_id == tenant_id,  # type: ignore
+                    MetricSyncStatus.metric_id.in_(metric_ids),  # type: ignore
+                    MetricSyncStatus.sync_operation == SyncOperation.SNOWFLAKE_CACHE,  # type: ignore
+                    MetricSyncStatus.sync_status == SyncStatus.SUCCESS,  # type: ignore
+                )
+            )
+            # Use window function to get latest sync per metric
+            .distinct(MetricSyncStatus.metric_id)  # type: ignore
+            .order_by(MetricSyncStatus.metric_id, MetricSyncStatus.last_sync_at.desc())  # type: ignore
+        )
+
+        # Query 2: Get snapshot date ranges for all metrics
+        snapshot_range_query = (
+            select(
+                MetricSyncStatus.metric_id,  # type: ignore
+                func.min(MetricSyncStatus.first_snapshot_date).label("first_snapshot_date"),
+                func.max(MetricSyncStatus.last_snapshot_date).label("last_snapshot_date"),
+            )
+            .filter(
+                and_(
+                    MetricSyncStatus.tenant_id == tenant_id,  # type: ignore
+                    MetricSyncStatus.metric_id.in_(metric_ids),  # type: ignore
+                    MetricSyncStatus.sync_operation == SyncOperation.SNOWFLAKE_CACHE,  # type: ignore
+                    MetricSyncStatus.sync_status == SyncStatus.SUCCESS,  # type: ignore
+                )
+            )
+            .group_by(MetricSyncStatus.metric_id)  # type: ignore
+        )
+
+        # Execute bulk sync queries
+        sync_results = await self.session.execute(latest_sync_query)
+        sync_data = {row.metric_id: row for row in sync_results.mappings().all()}
+
+        snapshot_results = await self.session.execute(snapshot_range_query)
+        snapshot_data = {row.metric_id: row for row in snapshot_results.mappings().all()}
+
+        # Build complete responses with sync data
+        response_configs = []
         for metric_id in metric_ids:
-            config = await self.create_or_update_metric_config(metric_id, is_enabled)
-            updated_configs.append(config)
+            config = config_map[metric_id]
 
-        return updated_configs
+            # Start with basic config
+            config_read = MetricCacheConfigRead.model_validate(config, from_attributes=True)
+
+            # Add sync data if available
+            sync_info = sync_data.get(metric_id)
+            snapshot_info = snapshot_data.get(metric_id)
+
+            if sync_info:
+                config_read.last_sync_date = sync_info.last_sync_at
+                config_read.sync_status = sync_info.sync_status
+
+            if snapshot_info:
+                config_read.first_snapshot_date = snapshot_info.first_snapshot_date
+                config_read.last_snapshot_date = snapshot_info.last_snapshot_date
+
+            response_configs.append(config_read)
+
+        return response_configs
 
     async def enable_all_metrics(self) -> list[MetricCacheConfigRead]:
         """
@@ -355,7 +461,7 @@ class CRUDMetricCacheConfig(
         Get all enabled metric cache configurations.
         """
         # Filter for enabled configurations and include metric relationship
-        statement = select(MetricCacheConfig).filter_by(is_enabled=True)  # type: ignore
+        statement = select(MetricCacheConfig).filter_by(is_enabled=True)
 
         result = await self.session.execute(statement)
         return list(result.scalars().all())

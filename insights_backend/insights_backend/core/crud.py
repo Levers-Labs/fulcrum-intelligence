@@ -295,5 +295,4 @@ class TenantCRUD(CRUDBase[Tenant, Tenant, Tenant, TenantConfigFilter]):  # type:
         # Persist the updated configuration to database
         self.session.add(tenant_config)
         await self.session.commit()
-        await self.session.refresh(tenant_config)
         return tenant_config

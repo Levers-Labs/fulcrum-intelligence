@@ -90,8 +90,8 @@ async def fetch_metrics_for_tenant(tenant_id: int, limit: int = 100, **params) -
 @task(  # type: ignore
     name="get_metric",
     task_run_name="get_metric:metric={metric_id}",
-    retries=5,
-    retry_delay_seconds=60,
+    retries=3,
+    retry_delay_seconds=30,
     timeout_seconds=120,  # 2 minutes
 )
 async def get_metric(metric_id: str) -> MetricDetail:
