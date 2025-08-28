@@ -194,7 +194,7 @@ class Dimension(DimensionBase, QuerySchemaBaseModel, table=True):  # type: ignor
 
 class MetricBase(BaseSQLModel):
     metric_id: str = Field(sa_column=Column(String(255), index=True))
-    label: str = Field(sa_column=Column(String(255)))
+    label: str = Field(sa_column=Column(String(255), nullable=False))
     abbreviation: str | None = Field(sa_column=Column(String(255), nullable=True))
     definition: str | None = Field(sa_column=Column(Text, nullable=True))
     unit_of_measure: str | None = Field(sa_column=Column(String(255), nullable=True))

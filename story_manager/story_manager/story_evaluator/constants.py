@@ -14,10 +14,10 @@ STORY_TEMPLATES = {
         "detail": "{{ metric.label }} is at {{ current_value|format_number }}, "
         "{{ trend_direction }} {{ change_percent|format_percent }}% {{ pop }} "
         "and beating its target of {{ target_value|format_number }} "
-        "by {{ performance_percent|format_percent }}%. This continues a "
+        "by {{ performance_percent|format_percent }}%. {% if streak_length %} This continues a "
         "{{ streak_length }}-{{ grain_label }} streak of exceeding target, "
         "with performance {{ performance_trend }} by "
-        "{{ change_percent|format_percent }}% over this period.",
+        "{{ change_percent|format_percent }}% over this period.{% endif %}",
     },
     StoryType.OFF_TRACK: {
         "title": "{{ metric.label }} is off track",

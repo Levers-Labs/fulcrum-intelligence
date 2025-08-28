@@ -127,10 +127,8 @@ class MetricDataBuilder:
                 status_code=422, detail=f"Time dimension '{time_dimension}' not found in cube {measure_cube}"
             )
 
-        # TODO: should we filter out dimensions here? based on the length of values?
-        dimensions = [
-            dimension["dimension_id"] for dimension in cube.get("dimensions", []) if "dimension_id" in dimension
-        ]
+        # TODO: should we filter out dimensions here? based on the length of values? for now, not including dimensions
+        dimensions: list = []  # type: ignore
 
         return measure_details, dimensions
 

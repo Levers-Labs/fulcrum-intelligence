@@ -450,7 +450,12 @@ async def list_channels(
     """
     List Slack channels with optional name filtering and pagination support.
     """
-    return slack_client.list_channels(cursor=cursor, limit=limit, name=name)
+    try:
+        return slack_client.list_channels(cursor=cursor, limit=limit, name=name)
+    except SlackApiError as SlackErr:
+        raise HTTPException(
+            status_code=500, detail=f"Error listing channels: {SlackErr.response['error']}"
+        ) from SlackErr
 
 
 @slack_router.get(

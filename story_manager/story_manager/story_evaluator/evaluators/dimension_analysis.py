@@ -49,11 +49,20 @@ class DimensionAnalysisEvaluator(StoryEvaluatorBase[DimensionAnalysis]):
         grain = Granularity(pattern_result.analysis_window.grain)
 
         # Check for top segments
-        if pattern_result.top_slices and len(pattern_result.top_slices) >= 4:
+        if (
+            pattern_result.top_slices
+            and len(pattern_result.top_slices) >= 4
+            and all((s.avg_other_slices_value or 0) > 0 for s in pattern_result.top_slices)
+        ):
+
             stories.append(self._create_top_segments_story(pattern_result, metric_id, metric, grain))
 
         # Check for bottom segments
-        if pattern_result.bottom_slices and len(pattern_result.bottom_slices) >= 4:
+        if (
+            pattern_result.bottom_slices
+            and len(pattern_result.bottom_slices) >= 4
+            and all((s.avg_other_slices_value or 0) > 0 for s in pattern_result.bottom_slices)
+        ):
             stories.append(self._create_bottom_segments_story(pattern_result, metric_id, metric, grain))
 
         # Check for notable segment comparisons in comparison highlights
