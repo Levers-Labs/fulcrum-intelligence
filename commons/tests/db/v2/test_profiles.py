@@ -77,7 +77,7 @@ class TestBuildEngineOptions:
                     "application_name": "fulcrum-intellegence",  # From env default
                     "statement_timeout": "300000",
                     "idle_in_transaction_session_timeout": "300000",
-                    "lock_timeout": "30s",
+                    "lock_timeout": "30000",
                 },
             },
         }
@@ -90,8 +90,8 @@ class TestBuildEngineOptions:
         assert result["pool_size"] == 12
         assert result["max_overflow"] == 18
         assert result["pool_timeout"] == 45
-        assert result["pool_recycle"] == 180
-        assert result["connect_args"]["command_timeout"] == 180
+        assert result["pool_recycle"] == 3600
+        assert result["connect_args"]["command_timeout"] == 60
         assert "fulcrum-intellegence" in result["connect_args"]["server_settings"]["application_name"]
 
     def test_dev_profile(self):
@@ -118,8 +118,8 @@ class TestBuildEngineOptions:
         assert result["pool_size"] == 20
         assert result["max_overflow"] == 30
         assert result["pool_timeout"] == 30
-        assert result["pool_recycle"] == 180
-        assert result["connect_args"]["command_timeout"] == 180
+        assert result["pool_recycle"] == 3600
+        assert result["connect_args"]["command_timeout"] == 60
 
     def test_micro_profile(self):
         """Test micro profile includes low-resource settings."""
@@ -147,7 +147,7 @@ class TestBuildEngineOptions:
                     "application_name": "fulcrum-intellegence",  # From env default
                     "statement_timeout": "300000",
                     "idle_in_transaction_session_timeout": "300000",
-                    "lock_timeout": "30s",
+                    "lock_timeout": "30000",
                 },
             },
         }
