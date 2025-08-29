@@ -24,7 +24,7 @@ _BASE: dict[str, Any] = {
 # Default for dev/local environment
 _DEV: dict[str, Any] = {
     "pool_size": 5,
-    "max_overflow": 20,
+    "max_overflow": 10,
     "pool_timeout": 30,
     "pool_recycle": 600,  # Override base - longer for dev
     "echo": True,
@@ -32,8 +32,8 @@ _DEV: dict[str, Any] = {
 
 # Default for prod environment
 _PROD: dict[str, Any] = {
-    "pool_size": 12,
-    "max_overflow": 18,
+    "pool_size": 5,
+    "max_overflow": 10,
     "pool_timeout": 45,
     "pool_recycle": 3600,  # 1 hour
     "connect_args": {
@@ -49,8 +49,8 @@ _PROD: dict[str, Any] = {
 
 # Heavy traffic environment
 _LARGE: dict[str, Any] = {
-    "pool_size": 20,
-    "max_overflow": 30,
+    "pool_size": 10,
+    "max_overflow": 20,
     "pool_timeout": 30,
     "pool_recycle": 3600,  # 1 hour
     "connect_args": {
@@ -67,8 +67,8 @@ _LARGE: dict[str, Any] = {
 
 # Short-lived tasks (Background jobs, ephemeral tasks)
 _MICRO: dict[str, Any] = {
-    "pool_size": 3,
-    "max_overflow": 5,
+    "pool_size": 2,
+    "max_overflow": 3,
     "pool_timeout": 30,
 }
 
