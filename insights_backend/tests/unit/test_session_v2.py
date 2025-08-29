@@ -91,10 +91,12 @@ def test_db_stats_endpoint_includes_session_count():
 
 @pytest.mark.asyncio
 async def test_session_manager_initialization():
-    """Test that session manager is properly initialized with LARGE profile."""
-    with patch("insights_backend.lifespan.build_engine_options") as mock_build_opts, patch(
-        "insights_backend.lifespan.AsyncSessionManager"
-    ) as mock_manager_class, patch("insights_backend.lifespan.get_settings") as mock_get_settings:
+    """Test that session manager is properly initialized via commons lifecycle."""
+    with patch("commons.db.v2.lifecycle.build_engine_options") as mock_build_opts, patch(
+        "commons.db.v2.lifecycle.AsyncSessionManager"
+    ) as mock_manager_class, patch("insights_backend.lifespan.get_settings") as mock_get_settings, patch(
+        "commons.db.v2.lifecycle.dispose_async_engine"
+    ) as mock_dispose:
 
         # Mock settings
         mock_settings = MagicMock()
@@ -102,11 +104,16 @@ async def test_session_manager_initialization():
         mock_settings.DATABASE_URL = "postgresql://test"
         mock_settings.SQLALCHEMY_ENGINE_OPTIONS = {"echo": True}
         mock_settings.DB_MAX_CONCURRENT_SESSIONS = 50
+        mock_settings.PATHS.BASE_DIR.name = "insights_backend"
         mock_get_settings.return_value = mock_settings
 
         # Mock build_engine_options return
-        mock_engine_opts = {"pool_size": 20, "max_overflow": 30}
+        mock_engine_opts = {"pool_size": 10, "max_overflow": 20}
         mock_build_opts.return_value = mock_engine_opts
+
+        # Mock the manager instance
+        mock_manager_instance = MagicMock()
+        mock_manager_class.return_value = mock_manager_instance
 
         # Import and test lifespan initialization
         from insights_backend.lifespan import lifespan
@@ -119,7 +126,7 @@ async def test_session_manager_initialization():
         mock_build_opts.assert_called_once_with(
             profile="large",
             overrides={"echo": True},
-            app_name="insights_backend",
+            app_name="insights-backend",
         )
 
         # Verify AsyncSessionManager was initialized with correct parameters
@@ -128,6 +135,9 @@ async def test_session_manager_initialization():
             engine_options=mock_engine_opts,
             max_concurrent_sessions=50,
         )
+
+        # Verify dispose was called on shutdown
+        mock_dispose.assert_called_once_with("postgresql://test", mock_engine_opts)
 
 
 @pytest.mark.asyncio
