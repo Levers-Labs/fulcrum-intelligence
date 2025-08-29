@@ -9,8 +9,8 @@ import pandas as pd
 from sqlalchemy import select
 
 from commons.models.enums import Granularity
-from commons.utilities.context import set_tenant_id
-from query_manager.db.config import get_async_session
+from commons.utilities.context import reset_context, set_tenant_id
+from query_manager.scripts.db_utils import async_db_session
 from query_manager.semantic_manager.crud import SemanticManager
 from query_manager.semantic_manager.models import MetricTimeSeries
 
@@ -90,16 +90,17 @@ async def get_time_series_data(
     return df.sort_values("date")
 
 
-async def get_all_metrics(semantic_manager: SemanticManager) -> list[str]:
+async def get_all_metrics(session) -> list[str]:
     """Get all unique metric IDs from time series data."""
-    async with get_async_session() as session:
-        # Query to get distinct metric_ids from metric_time_series
-        query = select(MetricTimeSeries.metric_id).distinct()  # type: ignore
-        result = await session.execute(query)
-        return [row[0] for row in result]
+    # Query to get distinct metric_ids from metric_time_series
+    query = select(MetricTimeSeries.metric_id).distinct()  # type: ignore
+    result = await session.execute(query)
+    return [row[0] for row in result]
 
 
+@async_db_session()
 async def generate_metric_targets(
+    session,
     metric_id: str,
     tenant_id: int,
     start_date: date,
@@ -111,6 +112,7 @@ async def generate_metric_targets(
     Generate metric target values based on existing time series data.
 
     Args:
+        session: Database session
         metric_id: ID of the metric
         tenant_id: ID of the tenant
         start_date: Start date for the targets
@@ -121,60 +123,60 @@ async def generate_metric_targets(
     Returns:
         List of target dictionaries ready for bulk upsert
     """
-    async with get_async_session() as session:
-        semantic_manager = SemanticManager(session)
+    semantic_manager = SemanticManager(session)
 
-        # Get existing time series data
-        time_series_data = await get_time_series_data(
-            semantic_manager,
-            metric_id,
-            tenant_id,
-            start_date,
-            end_date,
-            grain,
+    # Get existing time series data
+    time_series_data = await get_time_series_data(
+        semantic_manager,
+        metric_id,
+        tenant_id,
+        start_date,
+        end_date,
+        grain,
+    )
+
+    if time_series_data.empty:
+        logger.warning("No time series data found for metric %s with grain %s", metric_id, grain)
+        return []
+
+    target_data = []
+    current_date = start_date
+
+    while current_date <= end_date:
+        # Generate a streak
+        streak_length = generate_streak_length()
+        # Randomly decide if this streak should be stable or varying
+        is_stable = random.random() < 0.7  # 70% chance of being stable # noqa
+
+        # Generate target values for the streak
+        streak_targets = generate_streak_targets(
+            current_date,
+            streak_length,
+            time_series_data,
+            is_stable,
+            variance_percent,
         )
 
-        if time_series_data.empty:
-            logger.warning("No time series data found for metric %s with grain %s", metric_id, grain)
-            return []
+        # Add the streak targets to our target data
+        for date_value, value in streak_targets:
+            if date_value <= end_date:  # Only add values within our date range
+                target_data.append(
+                    {
+                        "metric_id": metric_id,
+                        "grain": grain,
+                        "target_date": date_value,
+                        "target_value": value,
+                    }
+                )
 
-        target_data = []
-        current_date = start_date
+        # Move to the next date after the streak
+        current_date += timedelta(days=streak_length)
 
-        while current_date <= end_date:
-            # Generate a streak
-            streak_length = generate_streak_length()
-            # Randomly decide if this streak should be stable or varying
-            is_stable = random.random() < 0.7  # 70% chance of being stable # noqa
-
-            # Generate target values for the streak
-            streak_targets = generate_streak_targets(
-                current_date,
-                streak_length,
-                time_series_data,
-                is_stable,
-                variance_percent,
-            )
-
-            # Add the streak targets to our target data
-            for date_value, value in streak_targets:
-                if date_value <= end_date:  # Only add values within our date range
-                    target_data.append(
-                        {
-                            "metric_id": metric_id,
-                            "grain": grain,
-                            "target_date": date_value,
-                            "target_value": value,
-                        }
-                    )
-
-            # Move to the next date after the streak
-            current_date += timedelta(days=streak_length)
-
-        return target_data
+    return target_data
 
 
-async def main():
+@async_db_session()
+async def main(session):
     """Main function to generate and store metric target values."""
     tenant_id = 1
     start_date = date(2024, 1, 1)
@@ -183,11 +185,11 @@ async def main():
 
     set_tenant_id(tenant_id)
 
-    async with get_async_session() as session:
+    try:
         semantic_manager = SemanticManager(session)
 
         # Get all metrics
-        metrics = await get_all_metrics(semantic_manager)
+        metrics = await get_all_metrics(session)
         logger.info("Found %d metrics to process", len(metrics))
 
         total_processed = 0
@@ -202,6 +204,7 @@ async def main():
 
                 # Generate target data
                 target_data = await generate_metric_targets(
+                    session,
                     metric_id=metric_id,
                     tenant_id=tenant_id,
                     start_date=start_date,
@@ -228,6 +231,8 @@ async def main():
         logger.info("Summary:")
         logger.info("Total targets processed: %d", total_processed)
         logger.info("Total targets failed: %d", total_failed)
+    finally:
+        reset_context()
 
 
 if __name__ == "__main__":

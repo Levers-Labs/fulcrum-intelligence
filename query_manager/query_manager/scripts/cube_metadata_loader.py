@@ -10,7 +10,7 @@ from commons.utilities.json_utils import serialize_json
 from commons.utilities.tenant_utils import validate_tenant
 from query_manager.config import get_settings
 from query_manager.core.models import Dimension, Metric
-from query_manager.db.config import get_async_session
+from query_manager.scripts.db_utils import async_db_session
 from query_manager.services.cube_metadata_service import CSVMetricData, CubeMetadataService
 
 logger = logging.getLogger(__name__)
@@ -96,7 +96,8 @@ async def save_metrics_to_json_with_dimensions(
     logger.info(f"Saved {len(metrics)} metrics with dimensions to: {output_path}")
 
 
-async def save_metrics_to_db(metrics: list[Metric], tenant_id: int) -> int:
+@async_db_session()
+async def save_metrics_to_db(session, metrics: list[Metric], tenant_id: int) -> int:
     """
     Save metrics to database using established patterns.
 
@@ -120,42 +121,43 @@ async def save_metrics_to_db(metrics: list[Metric], tenant_id: int) -> int:
     saved_count = 0
     cube_service = CubeMetadataService()
 
-    async with get_async_session() as session:
-        logger.info(f"Saving {len(metrics)} metrics to database for tenant {tenant_id}...")
+    logger.info(f"Saving {len(metrics)} metrics to database for tenant {tenant_id}...")
 
-        for i, metric in enumerate(metrics, 1):
-            try:
-                # Use consolidated data preparation from service
-                defaults = cube_service._prepare_metric_data(metric, include_metric_id=False)
+    for i, metric in enumerate(metrics, 1):
+        try:
+            # Use consolidated data preparation from service
+            defaults = cube_service._prepare_metric_data(metric, include_metric_id=False)
 
-                # Use established upsert pattern
-                stmt = insert(Metric).values(metric_id=metric.metric_id, tenant_id=tenant_id, **defaults)
-                stmt = stmt.on_conflict_do_update(index_elements=["metric_id", "tenant_id"], set_=defaults)
-                await session.execute(stmt)
-                saved_count += 1
+            # Use established upsert pattern
+            stmt = insert(Metric).values(metric_id=metric.metric_id, tenant_id=tenant_id, **defaults)
+            stmt = stmt.on_conflict_do_update(index_elements=["metric_id", "tenant_id"], set_=defaults)
+            await session.execute(stmt)
+            saved_count += 1
 
-                # Log progress following existing pattern
-                if i % 10 == 0 or i == len(metrics):
-                    logger.info(f"Processed {i}/{len(metrics)} metrics")
+            # Log progress following existing pattern
+            if i % 10 == 0 or i == len(metrics):
+                logger.info(f"Processed {i}/{len(metrics)} metrics")
 
-            except Exception as e:
-                logger.error(f"Error saving metric {metric.metric_id}: {str(e)}")
-                continue
+        except Exception as e:
+            logger.error(f"Error saving metric {metric.metric_id}: {str(e)}")
+            continue
 
-        await session.commit()
-        logger.info(f"Successfully saved {saved_count}/{len(metrics)} metrics to database")
+    await session.commit()
+    logger.info(f"Successfully saved {saved_count}/{len(metrics)} metrics to database")
 
-        # Clean up context following existing pattern
-        reset_context()
+    # Clean up context following existing pattern
+    reset_context()
 
     return saved_count
 
 
-async def save_dimensions_to_db(dimensions: list[dict[str, Any]], tenant_id: int) -> int:
+@async_db_session()
+async def save_dimensions_to_db(session, dimensions: list[dict[str, Any]], tenant_id: int) -> int:
     """
     Save filtered dimensions to the database for a specific tenant.
 
     Args:
+        session: Database session
         dimensions: List of filtered dimension dictionaries
         tenant_id: ID of the tenant to save dimensions for
 
@@ -175,36 +177,35 @@ async def save_dimensions_to_db(dimensions: list[dict[str, Any]], tenant_id: int
     saved_count = 0
 
     try:
-        async with get_async_session() as session:
-            logger.info(f"Saving {len(dimensions)} dimensions to database for tenant {tenant_id}...")
+        logger.info(f"Saving {len(dimensions)} dimensions to database for tenant {tenant_id}...")
 
-            for i, dim in enumerate(dimensions, 1):
-                try:
-                    # Prepare dimension data
-                    defaults = {
-                        "label": dim["label"],
-                        "reference": dim.get("reference"),
-                        "definition": dim.get("definition"),
-                        "meta_data": dim["metadata"],
-                    }
+        for i, dim in enumerate(dimensions, 1):
+            try:
+                # Prepare dimension data
+                defaults = {
+                    "label": dim["label"],
+                    "reference": dim.get("reference"),
+                    "definition": dim.get("definition"),
+                    "meta_data": dim["metadata"],
+                }
 
-                    # Use upsert pattern
-                    stmt = insert(Dimension).values(dimension_id=dim["id"], tenant_id=tenant_id, **defaults)
-                    stmt = stmt.on_conflict_do_update(index_elements=["dimension_id", "tenant_id"], set_=defaults)
+                # Use upsert pattern
+                stmt = insert(Dimension).values(dimension_id=dim["id"], tenant_id=tenant_id, **defaults)
+                stmt = stmt.on_conflict_do_update(index_elements=["dimension_id", "tenant_id"], set_=defaults)
 
-                    await session.execute(stmt)
-                    saved_count += 1
+                await session.execute(stmt)
+                saved_count += 1
 
-                    # Log progress
-                    if i % 10 == 0 or i == len(dimensions):
-                        logger.info(f"Processed {i}/{len(dimensions)} dimensions")
+                # Log progress
+                if i % 10 == 0 or i == len(dimensions):
+                    logger.info(f"Processed {i}/{len(dimensions)} dimensions")
 
-                except Exception as e:
-                    logger.error(f"Error saving dimension {dim['id']}: {str(e)}")
-                    continue
+            except Exception as e:
+                logger.error(f"Error saving dimension {dim['id']}: {str(e)}")
+                continue
 
-            await session.commit()
-            logger.info(f"Successfully saved {saved_count}/{len(dimensions)} dimensions to database")
+        await session.commit()
+        logger.info(f"Successfully saved {saved_count}/{len(dimensions)} dimensions to database")
 
     except Exception as e:
         logger.error(f"Error saving dimensions to database: {str(e)}")
@@ -216,8 +217,10 @@ async def save_dimensions_to_db(dimensions: list[dict[str, Any]], tenant_id: int
     return saved_count
 
 
+@async_db_session()
 async def load_metrics_main(
     tenant_id: int,
+    session,
     cube_name: str | None = None,
     csv_file_path: str | Path | None = None,
     output: str | None = None,
@@ -256,14 +259,16 @@ async def load_metrics_main(
 
     # Save to DB if save_to_db is True
     if save_to_db:
-        saved_count = await save_metrics_to_db(metrics, tenant_id)
+        saved_count = await save_metrics_to_db(session, metrics, tenant_id)
         logger.info(f"Saved {saved_count} metrics to database for tenant {tenant_id}")
 
     return metrics
 
 
+@async_db_session()
 async def load_metrics_with_dimensions_main(
     tenant_id: int,
+    session,
     csv_file_path: str | Path,
     cube_name: str | None = None,
     max_values: int = 15,
@@ -361,8 +366,8 @@ async def load_metrics_with_dimensions_main(
     # Save to DB if save_to_db is True
     if save_to_db:
         # Save dimensions first
-        await save_dimensions_to_db(filtered_dimensions, tenant_id)
+        await save_dimensions_to_db(session, filtered_dimensions, tenant_id)
         # Save metrics
-        await save_metrics_to_db(metrics, tenant_id)
+        await save_metrics_to_db(session, metrics, tenant_id)
 
     return metrics, filtered_dimensions
