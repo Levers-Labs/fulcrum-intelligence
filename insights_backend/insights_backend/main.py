@@ -10,6 +10,7 @@ from insights_backend.config import get_settings
 from insights_backend.core.routes import router, slack_router, user_router
 from insights_backend.exceptions import add_exception_handlers
 from insights_backend.health import router as health_check_router
+from insights_backend.lifespan import lifespan
 from insights_backend.notifications.routes import notification_router
 
 
@@ -27,6 +28,7 @@ def get_application() -> FastAPI:
         root_path=settings.URL_PREFIX,
         docs_url=None,
         redoc_url=None,
+        lifespan=lifespan,
     )
     _app.include_router(user_router, prefix="/v1")
     _app.include_router(router, prefix="/v1")

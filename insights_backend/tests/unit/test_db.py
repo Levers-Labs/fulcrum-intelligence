@@ -24,8 +24,14 @@ def test_get_session(mock_sync_session):
 
 
 @pytest.mark.asyncio
-async def test_get_async_session(mock_sync_session):
-    session_generator = get_async_session()
+async def test_get_async_session(mock_sync_session, mocker):
+    # Mock the session manager
+    mock_manager = mocker.MagicMock()
+    mock_session = AsyncSession()
+    mock_manager.session.return_value.__aenter__.return_value = mock_session
+    mock_manager.session.return_value.__aexit__.return_value = None
+
+    session_generator = get_async_session(mock_manager)
     session = await session_generator.__anext__()
 
-    assert isinstance(session, AsyncSession)
+    assert session == mock_session

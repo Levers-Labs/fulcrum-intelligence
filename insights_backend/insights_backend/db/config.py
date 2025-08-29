@@ -5,8 +5,10 @@ from fastapi import Depends
 from sqlmodel import Session
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from commons.db.session import get_async_session as _get_async_session, get_session as _get_session
+from commons.db.session import get_session as _get_session
+from commons.db.v2 import AsyncSessionManager
 from insights_backend.config import get_settings
+from insights_backend.lifespan import get_session_manager
 
 # Used to load models for alembic migrations
 MODEL_PATHS = ["insights_backend.core.models", "insights_backend.notifications.models"]
@@ -19,10 +21,24 @@ def get_session() -> Generator[Session, None, None]:
         yield session
 
 
+# async session manager
+async def get_async_session_manager() -> AsyncSessionManager:
+    return get_session_manager()
+
+
+AsyncSessionManagerDep = Annotated[AsyncSessionManager, Depends(get_async_session_manager)]
+
+
 # async session
-async def get_async_session() -> AsyncGenerator[AsyncSession, None]:
-    settings = get_settings()
-    async for session in _get_async_session(settings.DATABASE_URL, settings.SQLALCHEMY_ENGINE_OPTIONS):  # type: ignore
+async def get_async_session(mgr: AsyncSessionManagerDep) -> AsyncGenerator[AsyncSession, None]:
+    """Get a Session v2 async session with isolated connection per request."""
+    async with mgr.session(commit=False) as session:
+        yield session
+
+
+async def get_batch_session(mgr: AsyncSessionManagerDep) -> AsyncGenerator[AsyncSession, None]:
+    """Get a Session v2 batch session for long-running queries with elevated timeouts."""
+    async with mgr.batch_session(commit=False) as session:
         yield session
 
 
