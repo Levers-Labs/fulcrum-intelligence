@@ -43,6 +43,7 @@ class PatternDataOrganiser:
             DataSourceType.METRIC_WITH_TARGETS: self._fetch_metric_with_targets,
             DataSourceType.DIMENSIONAL_TIME_SERIES: self._fetch_dimensional_time_series,
             DataSourceType.MULTI_METRIC: self._fetch_multi_metric,
+            DataSourceType.TARGETS: self._fetch_targets,
         }
 
     async def fetch_data_for_pattern(
@@ -73,22 +74,10 @@ class PatternDataOrganiser:
             grain,
         )
 
-        # Calculate date range from pattern configuration
-        start_date, end_date = config.analysis_window.get_date_range(grain)
-
-        logger.debug(
-            "Using date range %s to %s for pattern %s",
-            start_date,
-            end_date,
-            config.pattern_name,
-        )
-
         return await self._fetch_data_sources(
             config=config,
             metric_id=metric_id,
             grain=grain,
-            start_date=start_date,
-            end_date=end_date,
             metric_definition=metric_definition,
             **fetch_kwargs,
         )
@@ -98,8 +87,6 @@ class PatternDataOrganiser:
         config: PatternConfig,
         metric_id: str,
         grain: Granularity,
-        start_date: date,
-        end_date: date,
         metric_definition: MetricDetail | None = None,
         **fetch_kwargs,
     ) -> DataDict:
@@ -110,8 +97,6 @@ class PatternDataOrganiser:
             config: Pattern configuration
             metric_id: The metric ID
             grain: Data granularity
-            start_date: Start date for data fetching
-            end_date: End date for data fetching
             metric_definition: Optional metric definition
             kwargs: Additional keyword arguments
 
@@ -124,10 +109,17 @@ class PatternDataOrganiser:
             data_key = data_source.data_key
             source_type = data_source.source_type
 
+            # Calculate date range using the centralized method in AnalysisWindowConfig
+            start_date, end_date = config.analysis_window.get_date_range(
+                grain=grain, look_forward=data_source.look_forward
+            )
+
             logger.debug(
-                "Fetching %s data for pattern %s",
+                "Fetching %s data for pattern %s, date range %s to %s",
                 source_type,
                 config.pattern_name,
+                start_date,
+                end_date,
             )
 
             # Get the appropriate fetcher for this source type
@@ -159,7 +151,6 @@ class PatternDataOrganiser:
             df = self._convert_to_dataframe(data, source_type)
 
             result[data_key] = df
-
             logger.debug(
                 "Fetched %d rows for %s data in pattern %s",
                 len(df),
@@ -243,6 +234,22 @@ class PatternDataOrganiser:
         )
         return [dict(date=item.date, value=item.value, metric_id=item.metric_id) for item in result]
 
+    async def _fetch_targets(
+        self, metric_id: str, grain: Granularity, start_date: date, end_date: date, **kwargs
+    ) -> list[dict[str, Any]]:
+        """Fetch metric targets only no."""
+
+        targets = await self.semantic_manager.get_targets(metric_id=metric_id, start_date=start_date, end_date=end_date)
+        return [
+            dict(
+                date=target.target_date,
+                target_value=target.target_value,
+                metric_id=target.metric_id,
+                grain=target.grain.value,
+            )
+            for target in targets
+        ]
+
     async def _handle_multi_metric_fetch(
         self,
         fetcher: DataFetcher,
@@ -316,10 +323,14 @@ class PatternDataOrganiser:
             Dictionary with data source keys and boolean availability
         """
         result = {}
-        start_date, end_date = config.analysis_window.get_date_range(grain)
 
         for data_source in config.data_sources:
             source_type = data_source.source_type
+
+            # Calculate date range using the centralized method
+            start_date, end_date = config.analysis_window.get_date_range(
+                grain=grain, look_forward=data_source.look_forward
+            )
 
             try:
                 has_data = await self._check_data_availability(

@@ -19,6 +19,7 @@ import pandas as pd
 
 from levers.exceptions import ValidationError
 from levers.models import Granularity
+from levers.models.enums import PeriodType
 
 # Optional dictionary of grain metadata for reuse
 GRAIN_META: dict[str, Any] = {
@@ -397,6 +398,138 @@ def get_period_length_for_grain(grain: Granularity | str) -> int:
         return 90
     elif grain == Granularity.YEAR:
         return 365
+    else:
+        raise ValidationError(
+            f"Unsupported grain '{grain}'",
+            invalid_fields={"grain": grain, "valid_grains": list(Granularity)},
+        )
+
+
+def get_period_end_date(analysis_dt: pd.Timestamp, period: str | PeriodType) -> date:
+    """
+    Calculate the end date for named periods relative to analysis_dt.
+
+    Args:
+        analysis_dt: The analysis timestamp
+        period_name: The period name (string or PeriodType enum)
+
+    Returns:
+        The end date of the specified period as a date
+
+    Raises:
+        ValueError: If period_name is not recognized
+    """
+    # Convert string to enum if needed
+    if isinstance(period, str):
+        try:
+            period = PeriodType(period)
+        except ValueError as err:
+            raise ValueError(f"Unknown period: {period}") from err
+
+    if period == PeriodType.END_OF_WEEK:
+        return (analysis_dt + pd.offsets.Week(weekday=6)).date()  # Sunday
+    elif period == PeriodType.END_OF_MONTH:
+        return (analysis_dt + pd.offsets.MonthEnd(0)).date()
+    elif period == PeriodType.END_OF_QUARTER:
+        return (analysis_dt + pd.offsets.QuarterEnd(0)).date()
+    elif period == PeriodType.END_OF_YEAR:
+        return (analysis_dt + pd.offsets.YearEnd(0)).date()
+    elif period == PeriodType.END_OF_NEXT_MONTH:
+        return (analysis_dt + pd.offsets.MonthEnd(1)).date()
+    else:
+        raise ValueError(f"Unknown period: {period}")
+
+
+def calculate_remaining_periods(current_date: pd.Timestamp, end_date: pd.Timestamp, grain: Granularity) -> int:
+    """
+    Calculate remaining periods count based on the grain.
+
+    Args:
+        current_date: The current date
+        end_date: The end date
+        grain: The grain to use for the calculation
+
+    Returns:
+        The number of remaining periods
+
+    Raises:
+        ValidationError: If the calculation fails
+    """
+    remaining_periods_count = 0
+
+    try:
+        if grain == Granularity.DAY:
+            remaining_periods_count = (end_date - current_date).days
+        elif grain == Granularity.WEEK:
+            # Count weeks from next week start to target date's week
+            # Find Monday of current week, then add 1 week to get next Monday
+            days_since_monday = current_date.weekday()  # Monday=0, Sunday=6
+            current_week_monday = current_date - pd.Timedelta(days=days_since_monday)
+            next_week_start = (current_week_monday + pd.Timedelta(weeks=1)).normalize()
+
+            if next_week_start <= end_date:
+                temp_date = next_week_start
+                while temp_date <= end_date:
+                    remaining_periods_count += 1
+                    temp_date += pd.Timedelta(weeks=1)
+
+        elif grain == Granularity.MONTH:
+            # Count months from next month start to target date's month
+            next_month_start = (current_date.replace(day=1) + pd.offsets.MonthBegin(1)).normalize()
+            if next_month_start <= end_date:
+                temp_date = next_month_start
+                while temp_date <= end_date:
+                    remaining_periods_count += 1
+                    temp_date = (temp_date.replace(day=1) + pd.offsets.MonthBegin(1)).normalize()
+        elif grain == Granularity.QUARTER:
+            # Count quarters from next quarter start to target date's quarter
+            next_quarter_start = (
+                current_date.replace(day=1, month=((current_date.month - 1) // 3) * 3 + 1)
+            ).normalize()
+            if next_quarter_start <= end_date:
+                temp_date = next_quarter_start
+                while temp_date <= end_date:
+                    remaining_periods_count += 1
+                    temp_date = (temp_date.replace(day=1, month=((temp_date.month - 1) // 3) * 3 + 1)).normalize()
+        elif grain == Granularity.YEAR:
+            # Count years from next year start to target date's year
+            next_year_start = (current_date.replace(day=1, month=1)).normalize()
+            if next_year_start <= end_date:
+                temp_date = next_year_start
+                while temp_date <= end_date:
+                    remaining_periods_count += 1
+                    temp_date = (temp_date.replace(day=1, month=1)).normalize()
+    except Exception as e:
+        raise ValidationError(
+            f"Error calculating remaining periods count: {str(e)}",
+            invalid_fields={"current_date": current_date, "end_date": end_date, "grain": grain},
+        ) from e
+
+    return max(0, remaining_periods_count)
+
+
+def get_dates_for_a_range(start_date: pd.Timestamp, end_date: pd.Timestamp, grain: Granularity) -> list[pd.Timestamp]:
+    """
+    Get the dates for a range of dates.
+
+    Family: period_grains
+    Version: 1.0
+
+    Args:
+        start_date: The start date
+        end_date: The end date
+        grain: The grain to use for the calculation
+    """
+    if grain == Granularity.DAY:
+        return [start_date + pd.Timedelta(days=i) for i in range((end_date - start_date).days + 1)]
+    elif grain == Granularity.WEEK:
+        return [start_date + pd.Timedelta(weeks=i) for i in range((end_date - start_date).days // 7 + 1)]
+    elif grain == Granularity.MONTH:
+        return [start_date + pd.DateOffset(months=i) for i in range((end_date - start_date).days // 30 + 1)]
+    elif grain == Granularity.QUARTER:
+        return [start_date + pd.DateOffset(months=i * 3) for i in range((end_date - start_date).days // 90 + 1)]
+    elif grain == Granularity.YEAR:
+        return [start_date + pd.DateOffset(years=i) for i in range((end_date - start_date).days // 365 + 1)]
     else:
         raise ValidationError(
             f"Unsupported grain '{grain}'",

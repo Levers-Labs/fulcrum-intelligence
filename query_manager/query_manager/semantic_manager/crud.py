@@ -530,13 +530,15 @@ class CRUDMetricTarget(CRUDSemantic[MetricTarget, TargetCreate, TargetUpdate, Ta
     async def get_targets(
         self,
         metric_id: str,
-        grain: Granularity,
+        grain: Granularity | None = None,
         start_date: date | None = None,
         end_date: date | None = None,
     ) -> list[MetricTarget]:
         """Get targets for a metric, grain, and optional date range."""
         query = self.get_select_query()
-        query = query.where(and_(self.model.metric_id == metric_id, self.model.grain == grain))  # type: ignore
+        query = query.where(self.model.metric_id == metric_id)  # type: ignore
+        if grain:
+            query = query.where(self.model.grain == grain)  # type: ignore
         if start_date:
             query = query.where(self.model.target_date >= start_date)  # type: ignore
         if end_date:
@@ -845,7 +847,7 @@ class SemanticManager:
     async def get_targets(
         self,
         metric_id: str,
-        grain: Granularity,
+        grain: Granularity | None = None,
         start_date: date | None = None,
         end_date: date | None = None,
     ) -> list[MetricTarget]:

@@ -20,6 +20,7 @@ from .enums import (
     WindowStrategy,
     ConcentrationMethod,
     ComparisonType,
+    PeriodType,
 )
 from .common import AnalysisWindow, BaseModel, BasePattern
 from .pattern_config import AnalysisWindowConfig, DataSource, PatternConfig
@@ -41,6 +42,13 @@ from .dimensional_analysis import (
     TopSlice,
     HistoricalPeriodRanking,
 )
+from .forecasting import (
+    ForecastVsTargetStats,
+    PacingProjection,
+    RequiredPerformance,
+    Forecast,
+    ForecastWindow,
+)
 
 
 __all__ = [
@@ -60,6 +68,7 @@ __all__ = [
     "WindowStrategy",
     "ConcentrationMethod",
     "ComparisonType",
+    "PeriodType",
     # Common models
     "AnalysisWindow",
     "BaseModel",
@@ -85,4 +94,10 @@ __all__ = [
     "SliceComparison",
     "TopSlice",
     "HistoricalPeriodRanking",
+    # Forecasting models
+    "ForecastVsTargetStats",
+    "PacingProjection",
+    "RequiredPerformance",
+    "Forecast",
+    "ForecastWindow",
 ]
