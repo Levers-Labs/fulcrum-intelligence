@@ -1,0 +1,70 @@
+# Dagster instance configuration for local development
+# This configuration is optimized for local Docker Compose usage
+
+# Python logging configuration for debug level
+python_logs:
+  python_log_level: DEBUG
+  dagster_handler_config:
+    handlers:
+      console:
+        class: logging.StreamHandler
+        stream: ext://sys.stdout
+        level: DEBUG
+
+# Use PostgreSQL for run and event storage (dockerized)
+storage:
+  postgres:
+    postgres_db:
+      username:
+        env: DAGSTER_PG_USER
+      password:
+        env: DAGSTER_PG_PASSWORD
+      hostname:
+        env: DAGSTER_PG_HOST
+      db_name:
+        env: DAGSTER_PG_DB
+      port:
+        env: DAGSTER_PG_PORT
+
+# Use local filesystem for compute logs (no S3 required)
+compute_logs:
+  module: dagster._core.storage.local_compute_log_manager
+  class: LocalComputeLogManager
+  config:
+    base_dir: "/opt/dagster/asset_manager/.dagster/logs"
+
+# Simple run coordination for local development
+run_coordinator:
+  module: dagster.core.run_coordinator
+  class: QueuedRunCoordinator
+  config:
+    max_concurrent_runs: 15 # Lower limit for local resources
+
+# Use local process launcher (no ECS required)
+run_launcher:
+  module: dagster.core.launcher
+  class: DefaultRunLauncher
+
+telemetry:
+  enabled: false
+
+# Enable run monitoring with shorter intervals for local dev
+run_monitoring:
+  enabled: true
+  poll_interval_seconds: 10 # More frequent polling for local development
+
+# Schedule configuration for local development
+schedules:
+  use_threads: true
+  num_workers: 3
+  num_submit_workers: 3
+
+sensors:
+  use_threads: true
+  num_workers: 2
+  num_submit_workers: 2
+
+backfills:
+  use_threads: true
+  num_workers: 2
+  num_submit_workers: 2

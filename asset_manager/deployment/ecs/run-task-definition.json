@@ -1,0 +1,33 @@
+{
+  "executionRoleArn": "arn:aws:iam::$account:role/fulcrum-ecs-execution-role",
+  "taskRoleArn": "arn:aws:iam::$account:role/fulcrum-ecs-execution-role",
+  "networkMode": "awsvpc",
+  "requiresCompatibilities": [
+    "FARGATE"
+  ],
+  "cpu": "512",
+  "memory": "1024",
+  "family": "$app-run",
+  "containerDefinitions": [
+    {
+      "name": "$app-run",
+      "image": "",
+      "command": [
+        "echo",
+        "This command will be overridden by Dagster EcsRunLauncher"
+      ],
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "fulcrum/$app/runs",
+          "awslogs-region": "$region",
+          "awslogs-stream-prefix": "$app-run"
+        }
+      },
+      "environment": [],
+      "secrets": [],
+      "memoryReservation": 512,
+      "essential": true
+    }
+  ]
+}

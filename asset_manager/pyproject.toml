@@ -1,0 +1,32 @@
+[tool.poetry]
+name = "asset-manager"
+version = "0.1.0"
+description = "Dagster code location for Fulcrum snowflake cache orchestration"
+authors = ["leverslabs"]
+readme = "README.md"
+packages = [{include = "asset_manager"}]
+
+[tool.poetry.dependencies]
+python = ">=3.10,<3.12"
+dagster = "^1.11.6"
+dagster-webserver = "^1.11.6"
+dagster-aws = "^0.27.7"
+dagster-postgres = "^0.27.7"
+pandas = "^2.0.0"
+requests = "^2.31.0"
+pydantic-settings = "^2.5.2"
+commons = { path = "../commons", extras = ["db"]}
+levers = { path = "../levers"}
+story-manager = { path = "../story_manager"}
+query-manager = { path = "../query_manager"}
+analysis-manager = { path = "../analysis_manager"}
+
+[tool.poetry.group.dev.dependencies]
+dagster-webserver = "^1.7.0"
+
+[tool.dagster]
+module_name = "asset_manager.definitions"
+
+[build-system]
+requires = ["poetry-core>=1.0.0,<2.0.0"]
+build-backend = "poetry.core.masonry.api"

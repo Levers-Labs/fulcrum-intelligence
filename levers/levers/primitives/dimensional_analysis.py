@@ -434,7 +434,7 @@ def calculate_concentration_index(
 
         # Gini coefficient using area under Lorenz curve
         B = np.trapz(cum_income, cum_people)  # Area under the Lorenz curve  # noqa
-        gini = 1 - 2 * B  # Gini = 1 - 2B
+        gini = 1 - 2 * B  # Gini = 1 - 2B  # type: ignore
 
         return float(gini)
 

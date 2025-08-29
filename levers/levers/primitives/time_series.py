@@ -613,6 +613,45 @@ def calculate_benchmark_comparisons(
     return benchmark_comparison
 
 
+def calculate_cumulative_aggregate(
+    series: pd.Series,
+    aggregation_method: str = "sum",
+) -> float:
+    """
+    Calculate cumulative aggregate value for the time series.
+
+    Family: time_series
+    Version: 1.0
+
+    Args:
+        series: Series containing data
+        aggregation_method: Method to aggregate values ('sum', 'mean', 'min', 'max', 'median')
+
+    Returns:
+        Cumulative aggregate value for the time series
+    """
+
+    valid_methods = ["sum", "mean", "min", "max", "median"]
+    if aggregation_method not in valid_methods:
+        raise ValidationError(f"Invalid aggregation method '{aggregation_method}'. Must be one of {valid_methods}")
+
+    if series.empty:
+        return 0.0
+
+    # Calculate cumulative aggregate based on method
+    if aggregation_method == "sum":
+        result = series.cumsum().iloc[-1]
+    elif aggregation_method == "mean":
+        result = series.mean()
+    elif aggregation_method == "min":
+        result = series.cummin().iloc[-1]
+    elif aggregation_method == "max":
+        result = series.cummax().iloc[-1]
+    elif aggregation_method == "median":
+        result = series.median()
+
+    return float(result)
+
 def calculate_overall_growth(
     df: pd.DataFrame,
     value_col: str = "value",

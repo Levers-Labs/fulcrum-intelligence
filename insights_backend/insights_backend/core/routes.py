@@ -175,12 +175,15 @@ async def list_tenants(
         Depends(PaginationParams),
     ],
     enable_story_generation: bool | None = None,
+    enable_metric_cache: bool | None = None,
     identifier: str | None = None,
 ):
     """
     Retrieve all tenants in DB.
     """
-    tenant_config_filter = TenantConfigFilter(enable_story_generation=enable_story_generation, identifier=identifier)
+    tenant_config_filter = TenantConfigFilter(
+        enable_story_generation=enable_story_generation, enable_metric_cache=enable_metric_cache, identifier=identifier
+    )
     results, count = await tenant_crud_client.paginate(
         params=params, filter_params=tenant_config_filter.model_dump(exclude_unset=True)
     )
