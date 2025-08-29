@@ -10,6 +10,7 @@ from query_manager.config import get_settings
 from query_manager.core.routes import router as core_router
 from query_manager.exceptions import add_exception_handlers
 from query_manager.health import router as health_check_router
+from query_manager.lifespan import lifespan
 from query_manager.semantic_manager.routes import router as semantic_router
 
 
@@ -28,6 +29,7 @@ def get_application() -> FastAPI:
         root_path=settings.URL_PREFIX,
         docs_url=None,
         redoc_url=None,
+        lifespan=lifespan,
     )
     _app.include_router(core_router, prefix="/v1")
     _app.include_router(health_check_router, prefix="/v1")
