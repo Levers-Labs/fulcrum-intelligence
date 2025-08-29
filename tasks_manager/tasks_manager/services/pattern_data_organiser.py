@@ -74,20 +74,13 @@ class PatternDataOrganiser:
             grain,
         )
 
-        # Set the pattern name in context for grain mapping
-        self._current_pattern_name = config.pattern_name
-
-        try:
-            return await self._fetch_data_sources(
-                config=config,
-                metric_id=metric_id,
-                grain=grain,
-                metric_definition=metric_definition,
-                **fetch_kwargs,
-            )
-        finally:
-            # Clean up context
-            self._current_pattern_name = None  # type: ignore
+        return await self._fetch_data_sources(
+            config=config,
+            metric_id=metric_id,
+            grain=grain,
+            metric_definition=metric_definition,
+            **fetch_kwargs,
+        )
 
     async def _fetch_data_sources(
         self,
