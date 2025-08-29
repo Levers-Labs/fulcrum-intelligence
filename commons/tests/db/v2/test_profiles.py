@@ -227,4 +227,4 @@ class TestBuildEngineOptions:
 
         # Preserved prod values
         assert result["max_overflow"] == 18
-        assert result["connect_args"]["command_timeout"] == 180
+        assert result["connect_args"]["command_timeout"] == 60
