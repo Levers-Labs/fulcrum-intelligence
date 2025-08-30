@@ -11,6 +11,7 @@ from story_manager.core.routes import router as core_router
 from story_manager.core.v2.routes import router as stories_v2_router
 from story_manager.exceptions import add_exception_handlers
 from story_manager.health import router as health_check_router
+from story_manager.lifespan import lifespan
 
 
 def get_application() -> FastAPI:
@@ -26,6 +27,7 @@ def get_application() -> FastAPI:
         root_path=settings.URL_PREFIX,
         docs_url=None,
         redoc_url=None,
+        lifespan=lifespan,
     )
     _app.include_router(core_router, prefix="/v1")
     _app.include_router(health_check_router, prefix="/v1")

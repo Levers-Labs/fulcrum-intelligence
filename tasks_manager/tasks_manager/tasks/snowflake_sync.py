@@ -18,7 +18,7 @@ from commons.utilities.context import get_tenant_id
 from query_manager.core.crud import CRUDMetricCacheConfig, CRUDMetricCacheGrainConfig
 from query_manager.core.models import MetricCacheConfig, MetricCacheGrainConfig
 from query_manager.core.schemas import MetricDetail
-from query_manager.db.config import get_async_session
+from query_manager.db.config import open_async_session
 from query_manager.semantic_manager.cache_manager import SnowflakeSemanticCacheManager
 from query_manager.semantic_manager.models import SyncOperation, SyncStatus, SyncType
 from tasks_manager.config import AppConfig
@@ -49,7 +49,7 @@ def calculate_snowflake_grain_lookback(sync_type: SyncType, grain_config: Metric
 )
 async def get_enabled_grains_for_tenant() -> list[MetricCacheGrainConfig]:
     """Get enabled grain cache configurations for a tenant."""
-    async with get_async_session() as session:
+    async with open_async_session("tasks_manager") as session:
         crud = CRUDMetricCacheGrainConfig(MetricCacheGrainConfig, session)
         enabled_grains = await crud.get_enabled_grains()
         return enabled_grains
@@ -65,7 +65,7 @@ async def get_enabled_grains_for_tenant() -> list[MetricCacheGrainConfig]:
 )
 async def get_enabled_grain_config(grain: Granularity) -> MetricCacheGrainConfig:
     """Get enabled grain cache configurations for a tenant."""
-    async with get_async_session() as session:
+    async with open_async_session("tasks_manager") as session:
         crud = CRUDMetricCacheGrainConfig(MetricCacheGrainConfig, session)
         config = await crud.get_by_grain(grain)
         return config
@@ -81,7 +81,7 @@ async def get_enabled_grain_config(grain: Granularity) -> MetricCacheGrainConfig
 )
 async def get_enabled_metrics_for_tenant() -> list[MetricCacheConfig]:
     """Get enabled metric cache configurations for a tenant."""
-    async with get_async_session() as session:
+    async with open_async_session("tasks_manager") as session:
         crud = CRUDMetricCacheConfig(MetricCacheConfig, session)
         enabled_configs = await crud.get_enabled_metrics()
         return enabled_configs
@@ -225,7 +225,7 @@ async def cache_metric_to_snowflake(
             }
 
         # Cache the data to Snowflake
-        async with get_async_session() as session:
+        async with open_async_session("tasks_manager") as session:
             snowflake_client = await get_snowflake_client()
             tenant_identifier = await get_tenant_identifier()
             cache_manager = SnowflakeSemanticCacheManager(session, snowflake_client, tenant_identifier)
@@ -324,7 +324,7 @@ async def cache_tenant_metrics_to_snowflake(
             return error_summary
 
         # Start tenant sync operation - close session immediately
-        async with get_async_session() as session:
+        async with open_async_session("tasks_manager") as session:
             tenant_identifier = await get_tenant_identifier()
             snowflake_client = await get_snowflake_client()
             cache_manager = SnowflakeSemanticCacheManager(session, snowflake_client, tenant_identifier)
@@ -386,7 +386,7 @@ async def cache_tenant_metrics_to_snowflake(
                 await asyncio.sleep(3)
 
         # Complete tenant sync operation in a new session context
-        async with get_async_session() as session:
+        async with open_async_session("tasks_manager") as session:
             cache_manager = SnowflakeSemanticCacheManager(session, snowflake_client, tenant_identifier)
 
             # Analyze results
@@ -505,7 +505,7 @@ async def cache_tenant_metrics_to_snowflake(
 
         # Update tenant sync status for error case if session is available
         try:
-            async with get_async_session() as session:
+            async with open_async_session("tasks_manager") as session:
                 tenant_identifier = await get_tenant_identifier()
                 snowflake_client = await get_snowflake_client()
                 cache_manager = SnowflakeSemanticCacheManager(session, snowflake_client, tenant_identifier)

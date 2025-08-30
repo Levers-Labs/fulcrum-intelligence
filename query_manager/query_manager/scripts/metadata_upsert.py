@@ -11,7 +11,7 @@ from commons.utilities.context import reset_context, set_tenant_id
 from commons.utilities.tenant_utils import validate_tenant
 from query_manager.config import get_settings
 from query_manager.core.models import Dimension, Metric
-from query_manager.db.config import get_async_session
+from query_manager.db.config import open_async_session
 
 # Set up logging
 logger = logging.getLogger(__name__)
@@ -112,9 +112,10 @@ async def main(tenant_id: int) -> None:
     Main function to run the upsert process.
 
     Args:
+        session: Database session
         tenant_id (int): The tenant identifier.
     """
-    # Set tenant id context in the db session
+    # Set tenant id context
     logger.info("Setting tenant context, Tenant ID: %s", tenant_id)
     set_tenant_id(tenant_id)
 
@@ -125,9 +126,11 @@ async def main(tenant_id: int) -> None:
 
     dimensions_file_path = settings.PATHS.BASE_DIR / "data/dimensions.json"
     metrics_file_path = settings.PATHS.BASE_DIR / "data/metrics.json"
-    async with get_async_session() as db_session:
-        await upsert_data(db_session, str(dimensions_file_path), str(metrics_file_path), tenant_id)
-        # Clean up
+
+    try:
+        async with open_async_session("query_metadata_upsert") as session:
+            await upsert_data(session, str(dimensions_file_path), str(metrics_file_path), tenant_id)
+    finally:
         # clear context
         reset_context()
 

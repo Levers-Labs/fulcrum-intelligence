@@ -9,7 +9,7 @@ from commons.utilities.context import reset_context, set_tenant_id
 from story_manager.core.mappings import STORY_TYPE_HEURISTIC_MAPPING
 from story_manager.core.models import StoryConfig
 from story_manager.core.v2.heuristics_mappings import STORY_TYPE_HEURISTIC_MAPPING_V2
-from story_manager.db.config import get_async_session
+from story_manager.db.config import open_async_session
 
 # Set up logging
 logger = logging.getLogger(__name__)
@@ -53,9 +53,10 @@ async def main(tenant_id: int, version: int) -> None:
     logger.info("Setting tenant context, Tenant ID: %s", tenant_id)
     set_tenant_id(tenant_id)
 
-    async with get_async_session() as db_session:
-        await upsert_story_config(db_session, tenant_id, version)
-        # Clean up
+    try:
+        async with open_async_session("story_config_upsert") as session:
+            await upsert_story_config(session, tenant_id, version)
+    finally:
         # clear context
         reset_context()
 

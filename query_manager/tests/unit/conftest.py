@@ -107,10 +107,16 @@ def override_get_async_session(db_session: AsyncSession) -> Callable:
 @pytest.fixture()
 def app(setup_env, override_get_async_session: Callable) -> FastAPI:
     # Import only after setting up the environment
-    from query_manager.db.config import get_async_session_gen  # noqa
+    from query_manager.db.config import get_async_session  # noqa
     from query_manager.main import app  # noqa
 
-    app.dependency_overrides[get_async_session_gen] = override_get_async_session
+    # Override the get_async_session function to use test database session
+    # The manager parameter is ignored in tests
+    async def override_async_session_with_manager(mgr=None):
+        async for session in override_get_async_session():
+            yield session
+
+    app.dependency_overrides[get_async_session] = override_async_session_with_manager
     return app
 
 

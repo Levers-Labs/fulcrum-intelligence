@@ -4,13 +4,14 @@ from pathlib import Path
 from typing import Any
 
 from sqlalchemy.dialects.postgresql import insert
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from commons.utilities.context import reset_context, set_tenant_id
 from commons.utilities.json_utils import serialize_json
 from commons.utilities.tenant_utils import validate_tenant
 from query_manager.config import get_settings
 from query_manager.core.models import Dimension, Metric
-from query_manager.db.config import get_async_session
+from query_manager.db.config import open_async_session
 from query_manager.services.cube_metadata_service import CSVMetricData, CubeMetadataService
 
 logger = logging.getLogger(__name__)
@@ -96,7 +97,7 @@ async def save_metrics_to_json_with_dimensions(
     logger.info(f"Saved {len(metrics)} metrics with dimensions to: {output_path}")
 
 
-async def save_metrics_to_db(metrics: list[Metric], tenant_id: int) -> int:
+async def save_metrics_to_db(session: AsyncSession, metrics: list[Metric], tenant_id: int) -> int:
     """
     Save metrics to database using established patterns.
 
@@ -120,38 +121,37 @@ async def save_metrics_to_db(metrics: list[Metric], tenant_id: int) -> int:
     saved_count = 0
     cube_service = CubeMetadataService()
 
-    async with get_async_session() as session:
-        logger.info(f"Saving {len(metrics)} metrics to database for tenant {tenant_id}...")
+    logger.info(f"Saving {len(metrics)} metrics to database for tenant {tenant_id}...")
 
-        for i, metric in enumerate(metrics, 1):
-            try:
-                # Use consolidated data preparation from service
-                defaults = cube_service._prepare_metric_data(metric, include_metric_id=False)
+    for i, metric in enumerate(metrics, 1):
+        try:
+            # Use consolidated data preparation from service
+            defaults = cube_service._prepare_metric_data(metric, include_metric_id=False)
 
-                # Use established upsert pattern
-                stmt = insert(Metric).values(metric_id=metric.metric_id, tenant_id=tenant_id, **defaults)
-                stmt = stmt.on_conflict_do_update(index_elements=["metric_id", "tenant_id"], set_=defaults)
-                await session.execute(stmt)
-                saved_count += 1
+            # Use established upsert pattern
+            stmt = insert(Metric).values(metric_id=metric.metric_id, tenant_id=tenant_id, **defaults)
+            stmt = stmt.on_conflict_do_update(index_elements=["metric_id", "tenant_id"], set_=defaults)
+            await session.execute(stmt)
+            saved_count += 1
 
-                # Log progress following existing pattern
-                if i % 10 == 0 or i == len(metrics):
-                    logger.info(f"Processed {i}/{len(metrics)} metrics")
+            # Log progress following existing pattern
+            if i % 10 == 0 or i == len(metrics):
+                logger.info(f"Processed {i}/{len(metrics)} metrics")
 
-            except Exception as e:
-                logger.error(f"Error saving metric {metric.metric_id}: {str(e)}")
-                continue
+        except Exception as e:
+            logger.error(f"Error saving metric {metric.metric_id}: {str(e)}")
+            continue
 
-        await session.commit()
-        logger.info(f"Successfully saved {saved_count}/{len(metrics)} metrics to database")
+    await session.commit()
+    logger.info(f"Successfully saved {saved_count}/{len(metrics)} metrics to database")
 
-        # Clean up context following existing pattern
-        reset_context()
+    # Clean up context following existing pattern
+    reset_context()
 
     return saved_count
 
 
-async def save_dimensions_to_db(dimensions: list[dict[str, Any]], tenant_id: int) -> int:
+async def save_dimensions_to_db(session: AsyncSession, dimensions: list[dict[str, Any]], tenant_id: int) -> int:
     """
     Save filtered dimensions to the database for a specific tenant.
 
@@ -175,36 +175,35 @@ async def save_dimensions_to_db(dimensions: list[dict[str, Any]], tenant_id: int
     saved_count = 0
 
     try:
-        async with get_async_session() as session:
-            logger.info(f"Saving {len(dimensions)} dimensions to database for tenant {tenant_id}...")
+        logger.info(f"Saving {len(dimensions)} dimensions to database for tenant {tenant_id}...")
 
-            for i, dim in enumerate(dimensions, 1):
-                try:
-                    # Prepare dimension data
-                    defaults = {
-                        "label": dim["label"],
-                        "reference": dim.get("reference"),
-                        "definition": dim.get("definition"),
-                        "meta_data": dim["metadata"],
-                    }
+        for i, dim in enumerate(dimensions, 1):
+            try:
+                # Prepare dimension data
+                defaults = {
+                    "label": dim["label"],
+                    "reference": dim.get("reference"),
+                    "definition": dim.get("definition"),
+                    "meta_data": dim["metadata"],
+                }
 
-                    # Use upsert pattern
-                    stmt = insert(Dimension).values(dimension_id=dim["id"], tenant_id=tenant_id, **defaults)
-                    stmt = stmt.on_conflict_do_update(index_elements=["dimension_id", "tenant_id"], set_=defaults)
+                # Use upsert pattern
+                stmt = insert(Dimension).values(dimension_id=dim["id"], tenant_id=tenant_id, **defaults)
+                stmt = stmt.on_conflict_do_update(index_elements=["dimension_id", "tenant_id"], set_=defaults)
 
-                    await session.execute(stmt)
-                    saved_count += 1
+                await session.execute(stmt)
+                saved_count += 1
 
-                    # Log progress
-                    if i % 10 == 0 or i == len(dimensions):
-                        logger.info(f"Processed {i}/{len(dimensions)} dimensions")
+                # Log progress
+                if i % 10 == 0 or i == len(dimensions):
+                    logger.info(f"Processed {i}/{len(dimensions)} dimensions")
 
-                except Exception as e:
-                    logger.error(f"Error saving dimension {dim['id']}: {str(e)}")
-                    continue
+            except Exception as e:
+                logger.error(f"Error saving dimension {dim['id']}: {str(e)}")
+                continue
 
-            await session.commit()
-            logger.info(f"Successfully saved {saved_count}/{len(dimensions)} dimensions to database")
+        await session.commit()
+        logger.info(f"Successfully saved {saved_count}/{len(dimensions)} dimensions to database")
 
     except Exception as e:
         logger.error(f"Error saving dimensions to database: {str(e)}")
@@ -217,6 +216,7 @@ async def save_dimensions_to_db(dimensions: list[dict[str, Any]], tenant_id: int
 
 
 async def load_metrics_main(
+    session: AsyncSession,
     tenant_id: int,
     cube_name: str | None = None,
     csv_file_path: str | Path | None = None,
@@ -256,13 +256,14 @@ async def load_metrics_main(
 
     # Save to DB if save_to_db is True
     if save_to_db:
-        saved_count = await save_metrics_to_db(metrics, tenant_id)
+        saved_count = await save_metrics_to_db(session, metrics, tenant_id)
         logger.info(f"Saved {saved_count} metrics to database for tenant {tenant_id}")
 
     return metrics
 
 
 async def load_metrics_with_dimensions_main(
+    session: AsyncSession,
     tenant_id: int,
     csv_file_path: str | Path,
     cube_name: str | None = None,
@@ -361,8 +362,44 @@ async def load_metrics_with_dimensions_main(
     # Save to DB if save_to_db is True
     if save_to_db:
         # Save dimensions first
-        await save_dimensions_to_db(filtered_dimensions, tenant_id)
+        await save_dimensions_to_db(session, filtered_dimensions, tenant_id)
         # Save metrics
-        await save_metrics_to_db(metrics, tenant_id)
+        await save_metrics_to_db(session, metrics, tenant_id)
 
     return metrics, filtered_dimensions
+
+
+# Example usage with session context manager
+async def main(tenant_id: int):
+    """
+    Example usage of the cube metadata functions with open_async_session.
+    This demonstrates how to call these functions from external code or scripts.
+    """
+
+    async with open_async_session("query_cube_metadata_loader") as session:
+        # Example: Load metrics only
+        metrics = await load_metrics_main(
+            session=session, tenant_id=tenant_id, cube_name="your_cube_name", output="metrics.json", save_to_db=True
+        )
+
+        # Example: Load metrics with dimensions
+        metrics, dimensions = await load_metrics_with_dimensions_main(
+            session=session,
+            tenant_id=tenant_id,
+            csv_file_path="path/to/metrics.csv",
+            cube_name="your_cube_name",
+            max_values=15,
+            metrics_output="metrics_with_dims.json",
+            dimensions_output="dimensions.json",
+            save_to_db=True,
+        )
+
+
+if __name__ == "__main__":
+    import argparse
+    import asyncio
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--tenant_id", type=int, required=True)
+    args = parser.parse_args()
+    asyncio.run(main(args.tenant_id))
