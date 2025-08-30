@@ -10,7 +10,7 @@ from sqlalchemy import select
 
 from commons.models.enums import Granularity
 from commons.utilities.context import reset_context, set_tenant_id
-from query_manager.scripts.db_utils import async_db_session
+from query_manager.db.config import open_async_session
 from query_manager.semantic_manager.crud import SemanticManager
 from query_manager.semantic_manager.models import MetricTimeSeries
 
@@ -98,7 +98,6 @@ async def get_all_metrics(session) -> list[str]:
     return [row[0] for row in result]
 
 
-@async_db_session()
 async def generate_metric_targets(
     session,
     metric_id: str,
@@ -175,8 +174,7 @@ async def generate_metric_targets(
     return target_data
 
 
-@async_db_session()
-async def main(session):
+async def main():
     """Main function to generate and store metric target values."""
     tenant_id = 1
     start_date = date(2024, 1, 1)
@@ -185,54 +183,57 @@ async def main(session):
 
     set_tenant_id(tenant_id)
 
-    try:
-        semantic_manager = SemanticManager(session)
+    async with open_async_session("query_metric_targets") as session:
+        try:
+            semantic_manager = SemanticManager(session)
 
-        # Get all metrics
-        metrics = await get_all_metrics(session)
-        logger.info("Found %d metrics to process", len(metrics))
+            # Get all metrics
+            metrics = await get_all_metrics(session)
+            logger.info("Found %d metrics to process", len(metrics))
 
-        total_processed = 0
-        total_failed = 0
+            total_processed = 0
+            total_failed = 0
 
-        # Process each metric and grain combination
-        for metric_id in metrics:
-            logger.info("Processing metric: %s", metric_id)
+            # Process each metric and grain combination
+            for metric_id in metrics:
+                logger.info("Processing metric: %s", metric_id)
 
-            for grain in grains:
-                logger.info("Generating targets for grain: %s", grain)
+                for grain in grains:
+                    logger.info("Generating targets for grain: %s", grain)
 
-                # Generate target data
-                target_data = await generate_metric_targets(
-                    session,
-                    metric_id=metric_id,
-                    tenant_id=tenant_id,
-                    start_date=start_date,
-                    end_date=end_date,
-                    grain=grain,
-                )
+                    # Generate target data
+                    target_data = await generate_metric_targets(
+                        session,
+                        metric_id=metric_id,
+                        tenant_id=tenant_id,
+                        start_date=start_date,
+                        end_date=end_date,
+                        grain=grain,
+                    )
 
-                if not target_data:
-                    logger.warning("No target data generated for %s with grain %s", metric_id, grain)
-                    continue
+                    if not target_data:
+                        logger.warning("No target data generated for %s with grain %s", metric_id, grain)
+                        continue
 
-                # Store the data using bulk upsert
-                stats = await semantic_manager.metric_target.bulk_upsert_targets(
-                    targets=target_data, batch_size=1000  # Process in batches of 1000
-                )
+                    # Store the data using bulk upsert
+                    stats = await semantic_manager.metric_target.bulk_upsert_targets(
+                        targets=target_data, batch_size=1000  # Process in batches of 1000
+                    )
 
-                total_processed += stats["processed"]
-                total_failed += stats["failed"]
+                    total_processed += stats["processed"]
+                    total_failed += stats["failed"]
 
-                logger.info("Processed %d targets for %s with grain %s", stats["processed"], metric_id, grain)
-                if stats["failed"] > 0:
-                    logger.warning("Warning: %d targets failed for %s with grain %s", stats["failed"], metric_id, grain)
+                    logger.info("Processed %d targets for %s with grain %s", stats["processed"], metric_id, grain)
+                    if stats["failed"] > 0:
+                        logger.warning(
+                            "Warning: %d targets failed for %s with grain %s", stats["failed"], metric_id, grain
+                        )
 
-        logger.info("Summary:")
-        logger.info("Total targets processed: %d", total_processed)
-        logger.info("Total targets failed: %d", total_failed)
-    finally:
-        reset_context()
+            logger.info("Summary:")
+            logger.info("Total targets processed: %d", total_processed)
+            logger.info("Total targets failed: %d", total_failed)
+        finally:
+            reset_context()
 
 
 if __name__ == "__main__":

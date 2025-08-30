@@ -13,21 +13,19 @@ import logging
 import sys
 
 from analysis_manager.config import get_settings
+from analysis_manager.db.config import open_async_session
 from analysis_manager.patterns.manager import PatternManager
-from analysis_manager.scripts.db_utils import async_db_session
 from commons.utilities.context import set_tenant_id
 from levers.models import PatternConfig
 
 logger = logging.getLogger(__name__)
 
 
-@async_db_session()
-async def load_pattern_configs_for_tenant(session, tenant_id: int) -> None:
+async def load_pattern_configs_for_tenant(tenant_id: int) -> None:
     """
     Load default pattern configurations for a specific tenant.
 
     Args:
-        session: Database session
         tenant_id: The tenant ID to load configurations for
     """
     logger.info(f"Loading pattern configurations for tenant {tenant_id}")
@@ -50,28 +48,29 @@ async def load_pattern_configs_for_tenant(session, tenant_id: int) -> None:
 
         logger.info("Loaded %d pattern configurations from %s", len(configs), config_file)
 
-        pattern_manager = PatternManager(session)
+        async with open_async_session("pattern_configs_loader") as session:
+            pattern_manager = PatternManager(session)
 
-        # Load each configuration (create or update)
-        processed_count = 0
-        for config_data in configs:
-            pattern_name = config_data["pattern_name"]
+            # Load each configuration (create or update)
+            processed_count = 0
+            for config_data in configs:
+                pattern_name = config_data["pattern_name"]
 
-            # Create PatternConfig from data
-            try:
-                config = PatternConfig.model_validate(config_data)
+                # Create PatternConfig from data
+                try:
+                    config = PatternConfig.model_validate(config_data)
 
-                # Store configuration for the tenant (upsert operation)
-                _ = await pattern_manager.store_pattern_config(config)
-                processed_count += 1
-                logger.info("Processed configuration for pattern '%s' for tenant %d", pattern_name, tenant_id)
-            except Exception as e:
-                logger.error("Failed to load configuration for pattern '%s': %s", pattern_name, e)
+                    # Store configuration for the tenant (upsert operation)
+                    _ = await pattern_manager.store_pattern_config(config)
+                    processed_count += 1
+                    logger.info("Processed configuration for pattern '%s' for tenant %d", pattern_name, tenant_id)
+                except Exception as e:
+                    logger.error("Failed to load configuration for pattern '%s': %s", pattern_name, e)
 
-        logger.info("Processed %d pattern configurations for tenant %d", processed_count, tenant_id)
+            logger.info("Processed %d pattern configurations for tenant %d", processed_count, tenant_id)
 
-        # Commit session to ensure changes are persisted
-        await session.commit()
+            # Commit session to ensure changes are persisted
+            await session.commit()
 
     except Exception as e:
         logger.error("Error loading pattern configurations: %s", e)

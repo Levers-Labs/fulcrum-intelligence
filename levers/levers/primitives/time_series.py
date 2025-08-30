@@ -652,6 +652,7 @@ def calculate_cumulative_aggregate(
 
     return float(result)
 
+
 def calculate_overall_growth(
     df: pd.DataFrame,
     value_col: str = "value",

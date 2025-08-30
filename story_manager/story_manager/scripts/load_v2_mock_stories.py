@@ -23,19 +23,20 @@ import logging
 from datetime import date, datetime, timedelta
 from typing import Any
 
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from commons.models.enums import Granularity
 from commons.utilities.context import reset_context, set_tenant_id
 from commons.utilities.grain_utils import GrainPeriodCalculator
 from story_manager.core.dependencies import get_query_manager_client
+from story_manager.db.config import open_async_session
 from story_manager.mocks.v2.main import MockStoryServiceV2
-from story_manager.scripts.db_utils import async_db_session
 
 logger = logging.getLogger(__name__)
 
 
-@async_db_session()
 async def load_mock_stories_v2(
-    db_session,
+    db_session: AsyncSession,
     tenant_id: int,
     metric: dict[str, Any],
     pattern: str | None = None,
@@ -253,14 +254,16 @@ async def main(
         raise ValueError("start_date must be provided when end_date is provided")
 
     # Load v2 mock stories
-    await load_mock_stories_v2(
-        tenant_id=tenant_id,
-        metric=metric,
-        pattern=pattern,
-        grain=grain,
-        start_date=parsed_start_date,
-        end_date=parsed_end_date,
-    )
+    async with open_async_session("story_mock_stories_v2_loader") as session:
+        await load_mock_stories_v2(
+            db_session=session,
+            tenant_id=tenant_id,
+            metric=metric,
+            pattern=pattern,
+            grain=grain,
+            start_date=parsed_start_date,
+            end_date=parsed_end_date,
+        )
 
     # Clean up
     reset_context()

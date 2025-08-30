@@ -9,14 +9,13 @@ from commons.utilities.context import reset_context, set_tenant_id
 from commons.utilities.grain_utils import GrainPeriodCalculator
 from story_manager.core.dependencies import get_query_manager_client
 from story_manager.core.enums import StoryGroup
+from story_manager.db.config import open_async_session
 from story_manager.mocks.services.story_loader import MockStoryLoader
-from story_manager.scripts.db_utils import async_db_session
 
 # Set up logging
 logger = logging.getLogger(__name__)
 
 
-@async_db_session()
 async def load_mock_stories(
     db_session,
     tenant_id: int,
@@ -176,14 +175,16 @@ async def main(
         raise ValueError("start_date must be provided when end_date is provided")
 
     # Load v1 mock stories
-    await load_mock_stories(
-        tenant_id=tenant_id,
-        metric=metric,
-        story_groups=parsed_story_groups,
-        grains=parsed_grains,
-        start_date=parsed_start_date,
-        end_date=parsed_end_date,
-    )
+    async with open_async_session("story_mock_stories_loader") as session:
+        await load_mock_stories(
+            db_session=session,
+            tenant_id=tenant_id,
+            metric=metric,
+            story_groups=parsed_story_groups,
+            grains=parsed_grains,
+            start_date=parsed_start_date,
+            end_date=parsed_end_date,
+        )
 
     # Clean up
     reset_context()

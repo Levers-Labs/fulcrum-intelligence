@@ -5,6 +5,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from fastapi.testclient import TestClient
 
+from commons.db.v2.lifecycle import dispose_session_manager
 from story_manager.db.config import get_async_session, get_batch_session
 
 
@@ -92,8 +93,11 @@ def test_db_stats_endpoint_includes_session_count():
 @pytest.mark.asyncio
 async def test_session_manager_initialization():
     """Test that session manager is properly initialized with LARGE profile."""
-    with patch("story_manager.lifespan.build_engine_options") as mock_build_opts, patch(
-        "story_manager.lifespan.AsyncSessionManager"
+    # Clean up any existing global state first
+    await dispose_session_manager()
+
+    with patch("commons.db.v2.lifecycle.build_engine_options") as mock_build_opts, patch(
+        "commons.db.v2.lifecycle.AsyncSessionManager"
     ) as mock_manager_class, patch("story_manager.lifespan.get_settings") as mock_get_settings:
 
         # Mock settings

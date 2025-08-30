@@ -4,13 +4,14 @@ from pathlib import Path
 from typing import Any
 
 from sqlalchemy.dialects.postgresql import insert
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from commons.utilities.context import reset_context, set_tenant_id
 from commons.utilities.json_utils import serialize_json
 from commons.utilities.tenant_utils import validate_tenant
 from query_manager.config import get_settings
 from query_manager.core.models import Dimension, Metric
-from query_manager.scripts.db_utils import async_db_session
+from query_manager.db.config import open_async_session
 from query_manager.services.cube_metadata_service import CSVMetricData, CubeMetadataService
 
 logger = logging.getLogger(__name__)
@@ -96,8 +97,7 @@ async def save_metrics_to_json_with_dimensions(
     logger.info(f"Saved {len(metrics)} metrics with dimensions to: {output_path}")
 
 
-@async_db_session()
-async def save_metrics_to_db(session, metrics: list[Metric], tenant_id: int) -> int:
+async def save_metrics_to_db(session: AsyncSession, metrics: list[Metric], tenant_id: int) -> int:
     """
     Save metrics to database using established patterns.
 
@@ -151,13 +151,11 @@ async def save_metrics_to_db(session, metrics: list[Metric], tenant_id: int) -> 
     return saved_count
 
 
-@async_db_session()
-async def save_dimensions_to_db(session, dimensions: list[dict[str, Any]], tenant_id: int) -> int:
+async def save_dimensions_to_db(session: AsyncSession, dimensions: list[dict[str, Any]], tenant_id: int) -> int:
     """
     Save filtered dimensions to the database for a specific tenant.
 
     Args:
-        session: Database session
         dimensions: List of filtered dimension dictionaries
         tenant_id: ID of the tenant to save dimensions for
 
@@ -217,10 +215,9 @@ async def save_dimensions_to_db(session, dimensions: list[dict[str, Any]], tenan
     return saved_count
 
 
-@async_db_session()
 async def load_metrics_main(
+    session: AsyncSession,
     tenant_id: int,
-    session,
     cube_name: str | None = None,
     csv_file_path: str | Path | None = None,
     output: str | None = None,
@@ -265,10 +262,9 @@ async def load_metrics_main(
     return metrics
 
 
-@async_db_session()
 async def load_metrics_with_dimensions_main(
+    session: AsyncSession,
     tenant_id: int,
-    session,
     csv_file_path: str | Path,
     cube_name: str | None = None,
     max_values: int = 15,
@@ -371,3 +367,39 @@ async def load_metrics_with_dimensions_main(
         await save_metrics_to_db(session, metrics, tenant_id)
 
     return metrics, filtered_dimensions
+
+
+# Example usage with session context manager
+async def main(tenant_id: int):
+    """
+    Example usage of the cube metadata functions with open_async_session.
+    This demonstrates how to call these functions from external code or scripts.
+    """
+
+    async with open_async_session("query_cube_metadata_loader") as session:
+        # Example: Load metrics only
+        metrics = await load_metrics_main(
+            session=session, tenant_id=tenant_id, cube_name="your_cube_name", output="metrics.json", save_to_db=True
+        )
+
+        # Example: Load metrics with dimensions
+        metrics, dimensions = await load_metrics_with_dimensions_main(
+            session=session,
+            tenant_id=tenant_id,
+            csv_file_path="path/to/metrics.csv",
+            cube_name="your_cube_name",
+            max_values=15,
+            metrics_output="metrics_with_dims.json",
+            dimensions_output="dimensions.json",
+            save_to_db=True,
+        )
+
+
+if __name__ == "__main__":
+    import argparse
+    import asyncio
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--tenant_id", type=int, required=True)
+    args = parser.parse_args()
+    asyncio.run(main(args.tenant_id))

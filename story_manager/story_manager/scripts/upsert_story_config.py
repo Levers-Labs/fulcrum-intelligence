@@ -9,7 +9,7 @@ from commons.utilities.context import reset_context, set_tenant_id
 from story_manager.core.mappings import STORY_TYPE_HEURISTIC_MAPPING
 from story_manager.core.models import StoryConfig
 from story_manager.core.v2.heuristics_mappings import STORY_TYPE_HEURISTIC_MAPPING_V2
-from story_manager.scripts.db_utils import async_db_session
+from story_manager.db.config import open_async_session
 
 # Set up logging
 logger = logging.getLogger(__name__)
@@ -45,8 +45,7 @@ async def upsert_story_config(session: AsyncSession, tenant_id: int, version: in
     logger.info("Story Config Upsert Completed for Tenant ID: %s, Version: %s", tenant_id, version)
 
 
-@async_db_session()
-async def main(session, tenant_id: int, version: int) -> None:
+async def main(tenant_id: int, version: int) -> None:
     """
     Main function to run the upsert process.
     """
@@ -55,7 +54,8 @@ async def main(session, tenant_id: int, version: int) -> None:
     set_tenant_id(tenant_id)
 
     try:
-        await upsert_story_config(session, tenant_id, version)
+        async with open_async_session("story_config_upsert") as session:
+            await upsert_story_config(session, tenant_id, version)
     finally:
         # clear context
         reset_context()
