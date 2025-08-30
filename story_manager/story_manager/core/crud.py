@@ -1,4 +1,9 @@
-from datetime import date, timedelta
+from datetime import (
+    date,
+    datetime,
+    time,
+    timedelta,
+)
 from typing import Any
 
 from sqlalchemy import (
@@ -56,7 +61,7 @@ class CRUDStory(CRUDBase[Story, Story, Story, StoryFilter]):
         # Create a query to select the latest story before the current date
         statement = (
             self.get_select_query()
-            .filter(func.date(Story.story_date) < func.date(story_date))  # type: ignore
+            .filter(Story.story_date < datetime.combine(story_date, time.min))  # type: ignore
             .filter_by(story_type=story_type, grain=grain, metric_id=metric_id, tenant_id=tenant_id, version=version)
         )
 
@@ -110,9 +115,9 @@ class CRUDStory(CRUDBase[Story, Story, Story, StoryFilter]):
         statement = self.get_select_query()
         if story_date is not None:
             # Filter stories created on the specified date (inclusive of start, exclusive of end)
-            statement = statement.filter(func.date(Story.story_date) >= func.date(story_date)).filter(
-                func.date(Story.story_date) < func.date(story_date + timedelta(days=1))
-            )
+            start_date = datetime.combine(story_date, time.min)
+            end_date = start_date + timedelta(days=1)
+            statement = statement.filter(Story.story_date >= start_date, Story.story_date < end_date)
         if grain is not None:
             statement = statement.filter_by(grain=grain)
         if metric_id is not None:
