@@ -25,7 +25,7 @@ from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from commons.db.v2 import async_session
+from commons.db.v2 import dispose_session_manager, init_session_manager
 from commons.models.enums import Granularity
 from commons.utilities.context import reset_context, set_tenant_id
 from commons.utilities.grain_utils import GrainPeriodCalculator
@@ -34,6 +34,11 @@ from story_manager.core.dependencies import get_query_manager_client
 from story_manager.mocks.v2.main import MockStoryServiceV2
 
 logger = logging.getLogger(__name__)
+
+# get settings
+settings = get_settings()
+# initialize session manager
+session_manager = init_session_manager(settings, app_name="story_mock_stories_v2_loader")
 
 
 async def load_mock_stories_v2(
@@ -254,20 +259,26 @@ async def main(
     if parsed_end_date and not parsed_start_date:
         raise ValueError("start_date must be provided when end_date is provided")
 
-    # Load v2 mock stories
-    async with async_session(get_settings(), app_name="story_mock_stories_v2_loader") as session:
-        await load_mock_stories_v2(
-            db_session=session,
-            tenant_id=tenant_id,
-            metric=metric,
-            pattern=pattern,
-            grain=grain,
-            start_date=parsed_start_date,
-            end_date=parsed_end_date,
-        )
-
-    # Clean up
-    reset_context()
+    try:
+        # Load v2 mock stories
+        async with session_manager.session() as session:
+            await load_mock_stories_v2(
+                db_session=session,
+                tenant_id=tenant_id,
+                metric=metric,
+                pattern=pattern,
+                grain=grain,
+                start_date=parsed_start_date,
+                end_date=parsed_end_date,
+            )
+    except Exception as e:
+        logger.error(f"Error loading v2 mock stories: {str(e)}")
+        raise
+    finally:
+        # Clean up
+        reset_context()
+        logger.info("Disposing AsyncSessionManager")
+        await dispose_session_manager()
 
 
 if __name__ == "__main__":

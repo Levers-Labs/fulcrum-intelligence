@@ -1,12 +1,12 @@
 {
-  "identifier": "vercel",
-  "name": "Vercel",
+  "identifier": "verceltest",
+  "name": "Verceltest",
   "description": "Vercel Tenant to be used for testing",
   "domains": [
     "vercel.com",
     "velotio.com"
   ],
-  "external_id": "vercel-123",
+  "external_id": "vercel-1234",
   "config": {
     "cube_connection_config": {
       "cube_api_url": "https://api.cubecloud.dev",

@@ -7,8 +7,9 @@ from typing import Any
 
 import pandas as pd
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from commons.db.v2 import async_session
+from commons.db.v2 import dispose_session_manager, init_session_manager
 from commons.models.enums import Granularity
 from commons.utilities.context import reset_context, set_tenant_id
 from query_manager.config import get_settings
@@ -16,6 +17,11 @@ from query_manager.semantic_manager.crud import SemanticManager
 from query_manager.semantic_manager.models import MetricTimeSeries
 
 logger = logging.getLogger(__name__)
+
+# get settings
+settings = get_settings()
+# initialize session manager
+session_manager = init_session_manager(settings, app_name="query_generate_metric_targets")
 
 
 def generate_streak_length() -> int:
@@ -91,7 +97,7 @@ async def get_time_series_data(
     return df.sort_values("date")
 
 
-async def get_all_metrics(session) -> list[str]:
+async def get_all_metrics(session: AsyncSession) -> list[str]:
     """Get all unique metric IDs from time series data."""
     # Query to get distinct metric_ids from metric_time_series
     query = select(MetricTimeSeries.metric_id).distinct()  # type: ignore
@@ -100,7 +106,7 @@ async def get_all_metrics(session) -> list[str]:
 
 
 async def generate_metric_targets(
-    session,
+    session: AsyncSession,
     metric_id: str,
     tenant_id: int,
     start_date: date,
@@ -183,9 +189,8 @@ async def main():
     grains = [Granularity.DAY, Granularity.WEEK, Granularity.MONTH]
 
     set_tenant_id(tenant_id)
-
-    async with async_session(get_settings(), app_name="query_metric_targets") as session:
-        try:
+    try:
+        async with session_manager.session() as session:
             semantic_manager = SemanticManager(session)
 
             # Get all metrics
@@ -233,8 +238,10 @@ async def main():
             logger.info("Summary:")
             logger.info("Total targets processed: %d", total_processed)
             logger.info("Total targets failed: %d", total_failed)
-        finally:
-            reset_context()
+    finally:
+        reset_context()
+        logger.info("Disposing AsyncSessionManager")
+        await dispose_session_manager()
 
 
 if __name__ == "__main__":

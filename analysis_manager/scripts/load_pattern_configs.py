@@ -14,11 +14,16 @@ import sys
 
 from analysis_manager.config import get_settings
 from analysis_manager.patterns.manager import PatternManager
-from commons.db.v2 import async_session
+from commons.db.v2 import dispose_session_manager, init_session_manager
 from commons.utilities.context import set_tenant_id
 from levers.models import PatternConfig
 
 logger = logging.getLogger(__name__)
+
+# get settings
+settings = get_settings()
+# initialize session manager
+session_manager = init_session_manager(settings, app_name="analysis_manager_pattern_configs_loader")
 
 
 async def load_pattern_configs_for_tenant(tenant_id: int) -> None:
@@ -29,8 +34,6 @@ async def load_pattern_configs_for_tenant(tenant_id: int) -> None:
         tenant_id: The tenant ID to load configurations for
     """
     logger.info(f"Loading pattern configurations for tenant {tenant_id}")
-
-    settings = get_settings()
     # Set tenant context
     set_tenant_id(tenant_id)
 
@@ -48,7 +51,7 @@ async def load_pattern_configs_for_tenant(tenant_id: int) -> None:
 
         logger.info("Loaded %d pattern configurations from %s", len(configs), config_file)
 
-        async with async_session(settings, app_name="pattern_configs_loader") as session:
+        async with session_manager.session() as session:
             pattern_manager = PatternManager(session)
 
             # Load each configuration (create or update)
@@ -85,13 +88,15 @@ async def main():
     tenant_id = args.tenant_id
 
     logger.info("Starting pattern configuration loader for tenant %d", tenant_id)
-
     try:
         await load_pattern_configs_for_tenant(tenant_id)
         logger.info("Pattern configuration loading completed for tenant %d", tenant_id)
     except Exception as e:
         logger.error("Error during pattern configuration loading: %s", e)
         sys.exit(1)
+    finally:
+        logger.info("Disposing AsyncSessionManager engine")
+        await dispose_session_manager()
 
 
 if __name__ == "__main__":

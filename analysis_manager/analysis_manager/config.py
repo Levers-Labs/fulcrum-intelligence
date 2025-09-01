@@ -39,7 +39,7 @@ class Settings(BaseSettings):
     SQLALCHEMY_ENGINE_OPTIONS: dict = Field(default_factory=dict)
 
     # commons/db/v2/profiles.py
-    DB_PROFILE: str = "large"
+    DB_PROFILE: str = "prod"
     DB_MAX_CONCURRENT_SESSIONS: int = 50
 
     BACKEND_CORS_ORIGINS: list[AnyHttpUrl | str] = []
