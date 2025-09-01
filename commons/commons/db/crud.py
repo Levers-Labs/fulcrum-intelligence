@@ -1,5 +1,3 @@
-import logging
-import time
 from typing import (
     Any,
     Generic,
@@ -20,8 +18,6 @@ ModelType = TypeVar("ModelType", bound=BaseSQLModel)
 FilterType = TypeVar("FilterType", bound=BaseFilter)
 CreateSchemaType = TypeVar("CreateSchemaType", bound=BaseModel)
 UpdateSchemaType = TypeVar("UpdateSchemaType", bound=BaseModel)
-
-logger = logging.getLogger(__name__)
 
 
 class NotFoundError(HTTPException):
@@ -69,46 +65,20 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType, FilterType
         Apply filters if provided using the filter class.
         Returns a tuple of the results and the total count.
         """
-        t_start = time.perf_counter()
-
         # base query
-        t1 = time.perf_counter()
         query = self.get_select_query()
-        t2 = time.perf_counter()
-
         # apply filters if filter class is provided
         if self.filter_class is not None:
             query = self.filter_class.apply_filters(query, filter_params)
-        t3 = time.perf_counter()
 
         # get total count
         count_query = select(func.count()).select_from(query.subquery())
         count = await self.session.scalar(count_query)
-        t4 = time.perf_counter()
 
         # get paginated results
         results_query = query.offset(params.offset).limit(params.limit)
         results = await self.session.scalars(results_query)
-        t5 = time.perf_counter()
-
         records: list[ModelType] = cast(list[ModelType], results.unique().all())
-        t6 = time.perf_counter()
-
-        # Log detailed timing for performance analysis
-        logger.warning(
-            "PERF: CRUDBase.paginate offset=%d limit=%d | "
-            "build_base_query=%.2fms | apply_filters=%.2fms | count_query=%.2fms | "
-            "fetch_results=%.2fms | orm_conversion=%.2fms | TOTAL=%.2fms | rows=%d",
-            params.offset,
-            params.limit,
-            (t2 - t1) * 1000,
-            (t3 - t2) * 1000,
-            (t4 - t3) * 1000,
-            (t5 - t4) * 1000,
-            (t6 - t5) * 1000,
-            (t6 - t_start) * 1000,
-            len(records),
-        )
 
         return records, count or 0
 
