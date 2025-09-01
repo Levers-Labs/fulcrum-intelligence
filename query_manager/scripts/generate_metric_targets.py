@@ -129,7 +129,7 @@ async def generate_metric_targets(
     Returns:
         List of target dictionaries ready for bulk upsert
     """
-    semantic_manager = SemanticManager(session)
+    semantic_manager = SemanticManager(session)  # type: ignore
 
     # Get existing time series data
     time_series_data = await get_time_series_data(
@@ -191,7 +191,7 @@ async def main():
     set_tenant_id(tenant_id)
     try:
         async with session_manager.session() as session:
-            semantic_manager = SemanticManager(session)
+            semantic_manager = SemanticManager(session)  # type: ignore
 
             # Get all metrics
             metrics = await get_all_metrics(session)

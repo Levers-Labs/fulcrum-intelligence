@@ -28,6 +28,7 @@ async def update_demo_stories(tenant_identifier: str):
     Args:
         tenant_identifier: The tenant Identifier to run updates for.
     """
+
     current_date = date.today()
     logger = get_run_logger()
 
@@ -69,6 +70,7 @@ async def process_metric_pattern_stories(
         grain: Granularity (day, week, month)
         pattern_run_str: JSON string containing pattern run results
     """
+
     logger = get_run_logger()
     tenant_id = int(tenant_id_str)
     grain_enum = Granularity(grain)

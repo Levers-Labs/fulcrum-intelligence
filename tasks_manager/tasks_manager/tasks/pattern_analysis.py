@@ -6,9 +6,7 @@ from prefect import get_run_logger, task
 from prefect.artifacts import create_markdown_artifact
 from prefect.events import emit_event
 
-from analysis_manager.config import get_settings
 from analysis_manager.patterns.manager import PatternManager
-from commons.db.v2 import async_session
 from commons.models.enums import Granularity
 from commons.utilities.context import get_tenant_id
 from levers import Levers
@@ -17,6 +15,7 @@ from levers.models.pattern_config import PatternConfig
 from query_manager.core.schemas import MetricDetail
 from query_manager.semantic_manager.crud import SemanticManager
 from tasks_manager.config import AppConfig
+from tasks_manager.db.config import get_async_session
 from tasks_manager.services.pattern_data_organiser import DataDict, PatternDataOrganiser
 
 
@@ -54,7 +53,7 @@ async def fetch_pattern_data(
         config = await AppConfig.load("default")
         os.environ["SERVER_HOST"] = config.query_manager_server_host
 
-        async with async_session(get_settings(), app_name="tasks_manager") as session:
+        async with get_async_session() as session:
             semantic_manager = SemanticManager(session)
             # create a pattern data organiser
             data_organiser = PatternDataOrganiser(semantic_manager=semantic_manager)
@@ -113,7 +112,7 @@ async def get_pattern_config(pattern: str) -> PatternConfig:
         os.environ["SERVER_HOST"] = config.analysis_manager_server_host
 
         # Get the saved pattern configuration or the default one
-        async with async_session(get_settings(), app_name="tasks_manager") as session:
+        async with get_async_session() as session:
             pattern_manager = PatternManager(session)
             pattern_config = await pattern_manager.get_pattern_config(pattern)
             return pattern_config
@@ -316,7 +315,7 @@ async def store_pattern_result(result: Any) -> dict[str, Any]:
     config = await AppConfig.load("default")
     os.environ["SERVER_HOST"] = config.analysis_manager_server_host
 
-    async with async_session(get_settings(), app_name="tasks_manager") as session:
+    async with get_async_session() as session:
         pattern_manager = PatternManager(session)
 
         # Store result using an analysis manager client

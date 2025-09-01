@@ -1,10 +1,9 @@
 import json
 import os
-from typing import Any, Literal
+from typing import Literal
 
 from prefect.blocks.core import Block
 from pydantic import Field, SecretStr
-from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class AppConfig(Block):
@@ -39,6 +38,14 @@ class AppConfig(Block):
     sender_email: str = Field(default="Levers Insights <notifications@leverslabs.com>", description="Sender Email")
     aws_region: str = Field(default="us-west-1", description="AWS Region")
 
+    @property
+    def DATABASE_URL(self) -> str:  # noqa
+        return self.database_url.get_secret_value()
+
+    @property
+    def SQLALCHEMY_ENGINE_OPTIONS(self) -> dict:  # noqa
+        return self.sqlalchemy_engine_options
+
     def _set_env_vars(self) -> None:
         """Set environment variables from config attributes"""
         for field_name, field_value in self:
@@ -60,31 +67,3 @@ class AppConfig(Block):
         config._set_env_vars()  # noqa
 
         return config
-
-
-class Settings(BaseSettings):
-    """Tasks Manager settings with standard database configuration names."""
-
-    # Database configuration - same names as other services
-    DATABASE_URL: str
-    DB_PROFILE: str = "micro"  # Use micro profile for lightweight tasks
-    SQLALCHEMY_ENGINE_OPTIONS: dict[str, Any] = {"poolclass": "NullPool"}
-    DB_MAX_CONCURRENT_SESSIONS: int = 10
-
-    # pydantic settings config
-    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
-
-
-_settings: Settings | None = None
-
-
-def get_settings() -> Settings:
-    """
-    Get the settings an object.
-    A Lazy load of the settings object.
-    :return: Settings
-    """
-    global _settings
-    if _settings is None:
-        _settings = Settings()  # type: ignore
-    return _settings

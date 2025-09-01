@@ -48,7 +48,7 @@ async def onboard_tenant(file_path: str) -> None:
                 .on_conflict_do_update(index_elements=["identifier"], set_=tenant_data)
             )
             result = await session.execute(stmt)
-            tenant_id = result.inserted_primary_key[0]
+            tenant_id = result.inserted_primary_key[0]  # type: ignore
 
             # flush the session
             await session.flush()

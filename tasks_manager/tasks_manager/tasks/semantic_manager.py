@@ -6,13 +6,13 @@ from prefect import get_run_logger, task
 from prefect.artifacts import create_markdown_artifact
 from prefect.events import Event, emit_event
 
-from commons.db.v2 import async_session
 from commons.models.enums import Granularity
 from commons.utilities.context import reset_context, set_tenant_id
 from query_manager.core.schemas import MetricDetail
 from query_manager.semantic_manager.crud import SemanticManager
 from query_manager.semantic_manager.models import SyncOperation, SyncStatus, SyncType
-from tasks_manager.config import AppConfig, get_settings
+from tasks_manager.config import AppConfig
+from tasks_manager.db.config import get_async_session
 from tasks_manager.tasks.query import fetch_metric_values
 
 
@@ -263,7 +263,7 @@ async def determine_sync_type(
         config = await AppConfig.load("default")
         os.environ["SERVER_HOST"] = config.query_manager_server_host
 
-        async with async_session(get_settings(), app_name="tasks_manager") as session:
+        async with get_async_session() as session:
             semantic_manager = SemanticManager(session)
 
             # Get sync status for the component
@@ -361,7 +361,7 @@ async def fetch_and_store_metric_time_series(
         config = await AppConfig.load("default")
         os.environ["SERVER_HOST"] = config.query_manager_server_host
 
-        async with async_session(get_settings(), app_name="tasks_manager") as session:
+        async with get_async_session() as session:
             semantic_manager = SemanticManager(session)
             # Start the sync
             await semantic_manager.metric_sync_status.start_sync(
@@ -501,7 +501,7 @@ async def fetch_and_store_metric_dimensional_time_series(
         config = await AppConfig.load("default")
         os.environ["SERVER_HOST"] = config.query_manager_server_host
 
-        async with async_session(get_settings(), app_name="tasks_manager") as session:
+        async with get_async_session() as session:
             semantic_manager = SemanticManager(session)
             # Start the sync
             await semantic_manager.metric_sync_status.start_sync(
