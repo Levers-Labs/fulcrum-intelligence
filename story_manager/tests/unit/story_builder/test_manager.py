@@ -1,3 +1,4 @@
+import contextlib
 import datetime
 from unittest.mock import MagicMock, patch
 
@@ -68,10 +69,14 @@ async def test_run_builder_for_story_group(
     # Mock get_analysis_manager
     mocker.patch("story_manager.story_builder.manager.get_analysis_manager", return_value=mock_analysis_manager)
 
-    # Mock async_session from the manager module where it's imported
-    mock_session_context = mocker.AsyncMock()
-    mock_session_context.__aenter__.return_value = mock_db_session
-    mocker.patch("story_manager.story_builder.manager.async_session", return_value=mock_session_context)
+    # Mock get_async_session_manager from the manager module where it's imported
+    @contextlib.asynccontextmanager
+    async def mock_session():
+        yield mock_db_session
+
+    mock_session_manager = mocker.AsyncMock()
+    mock_session_manager.session = mock_session
+    mocker.patch("story_manager.story_builder.manager.get_async_session_manager", return_value=mock_session_manager)
 
     # Mock StoryFactory.create_story_builder
     mock_story_builder = mocker.AsyncMock(spec=StoryBuilderBase)
@@ -113,9 +118,14 @@ async def test_run_builder_for_story_group_error_handling(
     mocker.patch("story_manager.story_builder.manager.get_query_manager_client", return_value=mock_query_service)
     mocker.patch("story_manager.story_builder.manager.get_analysis_manager_client", return_value=mock_analysis_service)
     mocker.patch("story_manager.story_builder.manager.get_analysis_manager", return_value=mock_analysis_manager)
-    mock_session_context = mocker.AsyncMock()
-    mock_session_context.__aenter__.return_value = mock_db_session
-    mocker.patch("story_manager.story_builder.manager.async_session", return_value=mock_session_context)
+
+    @contextlib.asynccontextmanager
+    async def mock_session():
+        yield mock_db_session
+
+    mock_session_manager = mocker.AsyncMock()
+    mock_session_manager.session = mock_session
+    mocker.patch("story_manager.story_builder.manager.get_async_session_manager", return_value=mock_session_manager)
 
     # Mock StoryFactory.create_story_builder
     mock_story_builder = mocker.AsyncMock(spec=StoryBuilderBase)
