@@ -115,12 +115,12 @@ class ComponentDriftStoryBuilder(StoryBuilderBase):
                 float(row["evaluation_value"]), float(row["comparison_value"])
             )
             story_details = self.prepare_story_dict(
-                story_type=top_components.at[index, "story_type"],
+                story_type=top_components.at[index, "story_type"],  # type: ignore
                 grain=grain,  # type: ignore
                 metric=metric,
                 df=top_components.iloc[[index]],  # type: ignore
                 component=row["metric_id"],
-                pressure=top_components.at[index, "pressure"],
+                pressure=top_components.at[index, "pressure"],  # type: ignore
                 percentage_drift=abs(pct_drift_change),
                 relative_impact=row["relative_impact"],
                 contribution=row["marginal_contribution_root"],

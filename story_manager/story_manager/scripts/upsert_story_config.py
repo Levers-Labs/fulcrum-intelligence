@@ -5,11 +5,12 @@ import logging
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from commons.db.v2 import async_session
 from commons.utilities.context import reset_context, set_tenant_id
+from story_manager.config import get_settings
 from story_manager.core.mappings import STORY_TYPE_HEURISTIC_MAPPING
 from story_manager.core.models import StoryConfig
 from story_manager.core.v2.heuristics_mappings import STORY_TYPE_HEURISTIC_MAPPING_V2
-from story_manager.db.config import open_async_session
 
 # Set up logging
 logger = logging.getLogger(__name__)
@@ -54,7 +55,7 @@ async def main(tenant_id: int, version: int) -> None:
     set_tenant_id(tenant_id)
 
     try:
-        async with open_async_session("story_config_upsert") as session:
+        async with async_session(get_settings(), app_name="story_config_upsert") as session:
             await upsert_story_config(session, tenant_id, version)
     finally:
         # clear context

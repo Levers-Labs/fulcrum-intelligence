@@ -117,7 +117,7 @@ class CRUDStory(CRUDBase[Story, Story, Story, StoryFilter]):
             # Filter stories created on the specified date (inclusive of start, exclusive of end)
             start_date = datetime.combine(story_date, time.min)
             end_date = start_date + timedelta(days=1)
-            statement = statement.filter(Story.story_date >= start_date, Story.story_date < end_date)
+            statement = statement.filter(Story.story_date >= start_date, Story.story_date < end_date)  # type: ignore
         if grain is not None:
             statement = statement.filter_by(grain=grain)
         if metric_id is not None:

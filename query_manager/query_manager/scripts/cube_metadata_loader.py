@@ -6,12 +6,12 @@ from typing import Any
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from commons.db.v2 import async_session
 from commons.utilities.context import reset_context, set_tenant_id
 from commons.utilities.json_utils import serialize_json
 from commons.utilities.tenant_utils import validate_tenant
 from query_manager.config import get_settings
 from query_manager.core.models import Dimension, Metric
-from query_manager.db.config import open_async_session
 from query_manager.services.cube_metadata_service import CSVMetricData, CubeMetadataService
 
 logger = logging.getLogger(__name__)
@@ -372,11 +372,11 @@ async def load_metrics_with_dimensions_main(
 # Example usage with session context manager
 async def main(tenant_id: int):
     """
-    Example usage of the cube metadata functions with open_async_session.
+    Example usage of the cube metadata functions with async_session.
     This demonstrates how to call these functions from external code or scripts.
     """
 
-    async with open_async_session("query_cube_metadata_loader") as session:
+    async with async_session(get_settings(), app_name="query_cube_metadata_loader") as session:
         # Example: Load metrics only
         metrics = await load_metrics_main(
             session=session, tenant_id=tenant_id, cube_name="your_cube_name", output="metrics.json", save_to_db=True

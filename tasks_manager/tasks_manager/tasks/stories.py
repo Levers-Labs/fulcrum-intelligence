@@ -4,6 +4,7 @@ from typing import Any
 
 from prefect import get_run_logger, task
 
+from commons.db.v2 import async_session
 from commons.models.enums import Granularity
 from commons.utilities.context import reset_context, set_tenant_id
 from levers import Levers
@@ -11,9 +12,8 @@ from query_manager.core.schemas import MetricDetail
 from query_manager.semantic_manager.crud import SemanticManager
 from story_manager.core.crud import CRUDStory
 from story_manager.core.models import Story
-from story_manager.db.config import open_async_session
 from story_manager.story_evaluator.manager import StoryEvaluatorManager
-from tasks_manager.config import AppConfig
+from tasks_manager.config import AppConfig, get_settings
 from tasks_manager.services.pattern_data_organiser import PatternDataOrganiser
 from tasks_manager.tasks.pattern_analysis import get_pattern_config
 from tasks_manager.tasks.query import get_metric
@@ -52,7 +52,7 @@ async def update_demo_tenant_stories(tenant_id: int, current_date: date) -> dict
 
     stories_updated = 0
 
-    async with open_async_session("tasks_manager") as session:
+    async with async_session(get_settings(), app_name="tasks_manager") as session:
         # Get all stories for this tenant
         story_crud = CRUDStory(model=Story, session=session)
         stories = await story_crud.get_stories()
@@ -139,7 +139,7 @@ async def process_pattern_stories(
         manager = StoryEvaluatorManager()
 
         # Use a single database session for both data fetching and story persistence
-        async with open_async_session("tasks_manager") as session:
+        async with async_session(get_settings(), app_name="tasks_manager") as session:
             # Fetch series data using PatternDataOrganiser
             semantic_manager = SemanticManager(session)
             data_organiser = PatternDataOrganiser(semantic_manager=semantic_manager)

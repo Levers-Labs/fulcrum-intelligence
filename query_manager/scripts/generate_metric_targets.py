@@ -8,9 +8,10 @@ from typing import Any
 import pandas as pd
 from sqlalchemy import select
 
+from commons.db.v2 import async_session
 from commons.models.enums import Granularity
 from commons.utilities.context import reset_context, set_tenant_id
-from query_manager.db.config import open_async_session
+from query_manager.config import get_settings
 from query_manager.semantic_manager.crud import SemanticManager
 from query_manager.semantic_manager.models import MetricTimeSeries
 
@@ -183,7 +184,7 @@ async def main():
 
     set_tenant_id(tenant_id)
 
-    async with open_async_session("query_metric_targets") as session:
+    async with async_session(get_settings(), app_name="query_metric_targets") as session:
         try:
             semantic_manager = SemanticManager(session)
 

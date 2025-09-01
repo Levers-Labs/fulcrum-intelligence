@@ -1,5 +1,4 @@
 from collections.abc import AsyncGenerator, Generator
-from contextlib import asynccontextmanager
 from typing import Annotated
 
 from fastapi import Depends
@@ -7,12 +6,7 @@ from sqlmodel import Session
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from commons.db.session import get_session as _get_session
-from commons.db.v2 import (
-    AsyncSessionManager,
-    dispose_session_manager,
-    get_session_manager,
-    init_session_manager,
-)
+from commons.db.v2 import AsyncSessionManager, get_session_manager
 from query_manager.config import get_settings
 
 # Used to load models for migrations
@@ -50,24 +44,3 @@ async def get_batch_session(mgr: AsyncSessionManagerDep) -> AsyncGenerator[Async
 # Session Dependency
 SessionDep = Annotated[Session, Depends(get_session)]
 AsyncSessionDep = Annotated[AsyncSession, Depends(get_async_session)]
-
-
-@asynccontextmanager
-async def open_async_session(app_name: str | None = None) -> AsyncGenerator[AsyncSession, None]:
-    """
-    Context-manager for scripts / notebooks / standalone tasks.
-
-        async with open_async_session("query_script") as session:
-            ...
-
-    Args:
-        app_name: Optional identifier for the SessionManager-v2 pool.
-                  • None  → use default (service name)
-                  • str   → custom name (e.g. "query_loader_script", "tasks_manager")
-    """
-    init_session_manager(get_settings(), app_name=app_name)
-    try:
-        async with get_session_manager().session() as session:
-            yield session
-    finally:
-        await dispose_session_manager()

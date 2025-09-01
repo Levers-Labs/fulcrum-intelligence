@@ -68,10 +68,10 @@ async def test_run_builder_for_story_group(
     # Mock get_analysis_manager
     mocker.patch("story_manager.story_builder.manager.get_analysis_manager", return_value=mock_analysis_manager)
 
-    # Mock open_async_session from the manager module where it's imported
+    # Mock async_session from the manager module where it's imported
     mock_session_context = mocker.AsyncMock()
     mock_session_context.__aenter__.return_value = mock_db_session
-    mocker.patch("story_manager.story_builder.manager.open_async_session", return_value=mock_session_context)
+    mocker.patch("story_manager.story_builder.manager.async_session", return_value=mock_session_context)
 
     # Mock StoryFactory.create_story_builder
     mock_story_builder = mocker.AsyncMock(spec=StoryBuilderBase)
@@ -115,7 +115,7 @@ async def test_run_builder_for_story_group_error_handling(
     mocker.patch("story_manager.story_builder.manager.get_analysis_manager", return_value=mock_analysis_manager)
     mock_session_context = mocker.AsyncMock()
     mock_session_context.__aenter__.return_value = mock_db_session
-    mocker.patch("story_manager.story_builder.manager.open_async_session", return_value=mock_session_context)
+    mocker.patch("story_manager.story_builder.manager.async_session", return_value=mock_session_context)
 
     # Mock StoryFactory.create_story_builder
     mock_story_builder = mocker.AsyncMock(spec=StoryBuilderBase)

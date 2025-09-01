@@ -1,3 +1,5 @@
+import logging
+import time
 from datetime import datetime
 from typing import Annotated, Any
 
@@ -23,6 +25,7 @@ from story_manager.core.filters import StoryFilter
 from story_manager.core.schemas import StoryDetail, StoryStatsResponse
 
 router = APIRouter(prefix="/stories", tags=["stories"])
+logger = logging.getLogger(__name__)
 
 
 @router.get(
@@ -43,8 +46,12 @@ async def get_stories(
     is_heuristic: bool | None = None,
 ) -> Any:
     """
-    Retrieve stories.
+    Retrieve stories with detailed performance profiling.
     """
+    t_start = time.perf_counter()
+
+    # Step 1: Build filter
+    t1 = time.perf_counter()
     story_filter = StoryFilter(
         metric_ids=metric_ids,
         genres=genres,
@@ -58,9 +65,33 @@ async def get_stories(
         is_heuristic=is_heuristic,
         version=2,
     )
+    t2 = time.perf_counter()
+    filter_dict = story_filter.model_dump(exclude_unset=True)
+    t3 = time.perf_counter()
 
-    results, count = await story_crud.paginate(params=params, filter_params=story_filter.model_dump(exclude_unset=True))
-    return Page.create(items=results, total_count=count, params=params)
+    # Step 2: Database call (paginate method)
+    results, count = await story_crud.paginate(params=params, filter_params=filter_dict)
+    t4 = time.perf_counter()
+
+    # Step 3: Create page response
+    page_result = Page.create(items=results, total_count=count, params=params)
+    t5 = time.perf_counter()
+
+    # Log detailed timing
+    logger.warning(
+        "PERF: v2/stories limit=%d | "
+        "filter_build=%.2fms | filter_dump=%.2fms | db_paginate=%.2fms | page_create=%.2fms | "
+        "TOTAL=%.2fms | rows_returned=%d",
+        params.limit,
+        (t2 - t1) * 1000,
+        (t3 - t2) * 1000,
+        (t4 - t3) * 1000,
+        (t5 - t4) * 1000,
+        (t5 - t_start) * 1000,
+        len(results) if results else 0,
+    )
+
+    return page_result
 
 
 @router.get(

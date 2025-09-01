@@ -13,8 +13,8 @@ import logging
 import sys
 
 from analysis_manager.config import get_settings
-from analysis_manager.db.config import open_async_session
 from analysis_manager.patterns.manager import PatternManager
+from commons.db.v2 import async_session
 from commons.utilities.context import set_tenant_id
 from levers.models import PatternConfig
 
@@ -48,7 +48,7 @@ async def load_pattern_configs_for_tenant(tenant_id: int) -> None:
 
         logger.info("Loaded %d pattern configurations from %s", len(configs), config_file)
 
-        async with open_async_session("pattern_configs_loader") as session:
+        async with async_session(settings, app_name="pattern_configs_loader") as session:
             pattern_manager = PatternManager(session)
 
             # Load each configuration (create or update)
