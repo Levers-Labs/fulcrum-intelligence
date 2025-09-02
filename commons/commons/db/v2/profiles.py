@@ -16,7 +16,7 @@ _BASE: dict[str, Any] = {
             "application_name": os.getenv("APP_NAME", "fulcrum-intellegence"),
             "statement_timeout": "300000",  # 5min
             "idle_in_transaction_session_timeout": "300000",  # 5min idle timeout
-            "lock_timeout": "30s",  # Lock timeout
+            "lock_timeout": "30000",  # 30s
         },
     },
 }
@@ -24,7 +24,7 @@ _BASE: dict[str, Any] = {
 # Default for dev/local environment
 _DEV: dict[str, Any] = {
     "pool_size": 5,
-    "max_overflow": 20,
+    "max_overflow": 10,
     "pool_timeout": 30,
     "pool_recycle": 600,  # Override base - longer for dev
     "echo": True,
@@ -32,23 +32,43 @@ _DEV: dict[str, Any] = {
 
 # Default for prod environment
 _PROD: dict[str, Any] = {
-    "pool_size": 12,
-    "max_overflow": 18,
+    "pool_size": 5,
+    "max_overflow": 10,
     "pool_timeout": 45,
+    "pool_recycle": 3600,  # 1 hour
+    "connect_args": {
+        "command_timeout": 60,  # 1min
+        "server_settings": {
+            "statement_timeout": "60000",  # 1min
+            "tcp_keepalives_idle": "300",  # TCP keepalive - 5min
+            "tcp_keepalives_interval": "30",  # TCP keepalive interval
+            "tcp_keepalives_count": "3",  # TCP keepalive retries
+        },
+    },
 }
 
 # Heavy traffic environment
 _LARGE: dict[str, Any] = {
-    "pool_size": 20,
-    "max_overflow": 30,
+    "pool_size": 10,
+    "max_overflow": 20,
     "pool_timeout": 30,
+    "pool_recycle": 3600,  # 1 hour
+    "connect_args": {
+        "command_timeout": 60,  # 1min
+        "server_settings": {
+            "statement_timeout": "60000",  # 1min
+            "tcp_keepalives_idle": "300",  # TCP keepalive - 5min
+            "tcp_keepalives_interval": "30",  # TCP keepalive interval
+            "tcp_keepalives_count": "3",  # TCP keepalive retries
+        },
+    },
 }
 
 
 # Short-lived tasks (Background jobs, ephemeral tasks)
 _MICRO: dict[str, Any] = {
-    "pool_size": 3,
-    "max_overflow": 5,
+    "pool_size": 2,
+    "max_overflow": 3,
     "pool_timeout": 30,
 }
 

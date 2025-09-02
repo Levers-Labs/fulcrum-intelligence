@@ -77,7 +77,7 @@ class TestBuildEngineOptions:
                     "application_name": "fulcrum-intellegence",  # From env default
                     "statement_timeout": "300000",
                     "idle_in_transaction_session_timeout": "300000",
-                    "lock_timeout": "30s",
+                    "lock_timeout": "30000",
                 },
             },
         }
@@ -87,11 +87,11 @@ class TestBuildEngineOptions:
         """Test prod profile includes production settings."""
         result = build_engine_options("prod")
 
-        assert result["pool_size"] == 12
-        assert result["max_overflow"] == 18
+        assert result["pool_size"] == 5
+        assert result["max_overflow"] == 10
         assert result["pool_timeout"] == 45
-        assert result["pool_recycle"] == 180
-        assert result["connect_args"]["command_timeout"] == 180
+        assert result["pool_recycle"] == 3600
+        assert result["connect_args"]["command_timeout"] == 60
         assert "fulcrum-intellegence" in result["connect_args"]["server_settings"]["application_name"]
 
     def test_dev_profile(self):
@@ -99,7 +99,7 @@ class TestBuildEngineOptions:
         result = build_engine_options("dev")
 
         assert result["pool_size"] == 5
-        assert result["max_overflow"] == 20
+        assert result["max_overflow"] == 10
         assert result["pool_timeout"] == 30
         assert result["pool_recycle"] == 600
         assert result["echo"] is True
@@ -115,18 +115,18 @@ class TestBuildEngineOptions:
         """Test large profile includes high-compute settings."""
         result = build_engine_options("large")
 
-        assert result["pool_size"] == 20
-        assert result["max_overflow"] == 30
+        assert result["pool_size"] == 10
+        assert result["max_overflow"] == 20
         assert result["pool_timeout"] == 30
-        assert result["pool_recycle"] == 180
-        assert result["connect_args"]["command_timeout"] == 180
+        assert result["pool_recycle"] == 3600
+        assert result["connect_args"]["command_timeout"] == 60
 
     def test_micro_profile(self):
         """Test micro profile includes low-resource settings."""
         result = build_engine_options("micro")
 
-        assert result["pool_size"] == 3
-        assert result["max_overflow"] == 5
+        assert result["pool_size"] == 2
+        assert result["max_overflow"] == 3
         assert result["pool_timeout"] == 30
         assert result["pool_recycle"] == 180
         assert result["connect_args"]["command_timeout"] == 180
@@ -147,7 +147,7 @@ class TestBuildEngineOptions:
                     "application_name": "fulcrum-intellegence",  # From env default
                     "statement_timeout": "300000",
                     "idle_in_transaction_session_timeout": "300000",
-                    "lock_timeout": "30s",
+                    "lock_timeout": "30000",
                 },
             },
         }
@@ -160,7 +160,7 @@ class TestBuildEngineOptions:
 
         assert result["pool_size"] == 100
         assert result["echo"] is True
-        assert result["max_overflow"] == 18  # prod default preserved
+        assert result["max_overflow"] == 10  # prod default preserved
 
     def test_overrides_connect_args(self):
         """Test connect_args overrides are merged properly."""
@@ -226,5 +226,5 @@ class TestBuildEngineOptions:
         assert result["connect_args"]["server_settings"]["application_name"] == "final_app"
 
         # Preserved prod values
-        assert result["max_overflow"] == 18
-        assert result["connect_args"]["command_timeout"] == 180
+        assert result["max_overflow"] == 10
+        assert result["connect_args"]["command_timeout"] == 60

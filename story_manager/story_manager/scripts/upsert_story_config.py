@@ -3,61 +3,72 @@ import asyncio
 import logging
 
 from sqlalchemy.dialects.postgresql import insert
-from sqlalchemy.ext.asyncio import AsyncSession
 
+from commons.db.v2 import dispose_session_manager, init_session_manager
 from commons.utilities.context import reset_context, set_tenant_id
+from story_manager.config import get_settings
 from story_manager.core.mappings import STORY_TYPE_HEURISTIC_MAPPING
 from story_manager.core.models import StoryConfig
 from story_manager.core.v2.heuristics_mappings import STORY_TYPE_HEURISTIC_MAPPING_V2
-from story_manager.db.config import get_async_session
 
 # Set up logging
 logger = logging.getLogger(__name__)
 
+# get settings
+settings = get_settings()
+# initialize session manager
+session_manager = init_session_manager(settings, app_name="story_config_upsert")
 
-async def upsert_story_config(session: AsyncSession, tenant_id: int, version: int) -> None:
-    logger.info("Running Story Config Upsert with Salience Heuristic Expressions for Tenant ID: %s", tenant_id)
-    if version == 1:
-        story_config_mapping = STORY_TYPE_HEURISTIC_MAPPING
-    elif version == 2:
-        story_config_mapping = STORY_TYPE_HEURISTIC_MAPPING_V2
-    for story_type, grains in story_config_mapping.items():
-        for grain, data in grains.items():
-            expr = data["salient_expression"]
-            cool_off = data["cool_off_duration"]
-            stmt = (
-                insert(StoryConfig)
-                .values(
-                    story_type=story_type,
-                    grain=grain,
-                    heuristic_expression=expr,
-                    cool_off_duration=cool_off,
-                    tenant_id=tenant_id,
-                    version=version,
-                )
-                .on_conflict_do_update(
-                    index_elements=["story_type", "grain", "tenant_id", "version"],
-                    set_=dict(heuristic_expression=expr, cool_off_duration=cool_off),
-                )
-            )
-            await session.execute(stmt)
-    await session.commit()
-    logger.info("Story Config Upsert Completed for Tenant ID: %s, Version: %s", tenant_id, version)
+
+async def upsert_story_config(tenant_id: int, version: int) -> None:
+    try:
+        logger.info("Running Story Config Upsert with Salience Heuristic Expressions for Tenant ID: %s", tenant_id)
+        # Set tenant id context in the db session
+        logger.info("Setting tenant context, Tenant ID: %s", tenant_id)
+        set_tenant_id(tenant_id)
+        # get the session
+        async with session_manager.session() as session:
+            if version == 1:
+                story_config_mapping = STORY_TYPE_HEURISTIC_MAPPING
+            elif version == 2:
+                story_config_mapping = STORY_TYPE_HEURISTIC_MAPPING_V2
+            for story_type, grains in story_config_mapping.items():
+                for grain, data in grains.items():
+                    expr = data["salient_expression"]
+                    cool_off = data["cool_off_duration"]
+                    stmt = (
+                        insert(StoryConfig)
+                        .values(
+                            story_type=story_type,
+                            grain=grain,
+                            heuristic_expression=expr,
+                            cool_off_duration=cool_off,
+                            tenant_id=tenant_id,
+                            version=version,
+                        )
+                        .on_conflict_do_update(
+                            index_elements=["story_type", "grain", "tenant_id", "version"],
+                            set_=dict(heuristic_expression=expr, cool_off_duration=cool_off),
+                        )
+                    )
+                    await session.execute(stmt)
+            await session.commit()
+            logger.info("Story Config Upsert Completed for Tenant ID: %s, Version: %s", tenant_id, version)
+    except Exception as e:
+        logger.error(f"Error upserting story config: {str(e)}")
+        raise
+    finally:
+        # clear context
+        reset_context()
+        logger.info("Disposing AsyncSessionManager")
+        await dispose_session_manager()
 
 
 async def main(tenant_id: int, version: int) -> None:
     """
     Main function to run the upsert process.
     """
-    # Set tenant id context in the db session
-    logger.info("Setting tenant context, Tenant ID: %s", tenant_id)
-    set_tenant_id(tenant_id)
-
-    async with get_async_session() as db_session:
-        await upsert_story_config(db_session, tenant_id, version)
-        # Clean up
-        # clear context
-        reset_context()
+    await upsert_story_config(tenant_id, version)
 
 
 # Usage example:

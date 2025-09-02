@@ -30,6 +30,7 @@ async def analyze_metric_patterns(tenant_id_str: str, metric_id: str, grain: str
         metric_id: Metric ID
         grain: Granularity (day, week, month)
     """
+
     logger = get_run_logger()
     tenant_id = int(tenant_id_str)
     grain = Granularity(grain)
@@ -237,6 +238,7 @@ async def trigger_run_pattern(
         grain: Granularity (day, week, month)
         dimension_name: Name of the dimension to analyze
     """
+
     logger = get_run_logger()
 
     # Set tenant context

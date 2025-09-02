@@ -79,6 +79,7 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType, FilterType
         results_query = query.offset(params.offset).limit(params.limit)
         results = await self.session.scalars(results_query)
         records: list[ModelType] = cast(list[ModelType], results.unique().all())
+
         return records, count or 0
 
     async def create(self, *, obj_in: CreateSchemaType) -> ModelType:

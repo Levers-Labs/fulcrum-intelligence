@@ -2,17 +2,17 @@ import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import Session
 
-from insights_backend.db.config import get_async_session, get_session
+from analysis_manager.db.config import get_async_session, get_session
 
 
 @pytest.fixture
 def mock_sync_session(mocker):
-    return mocker.patch("insights_backend.db.config._get_session", return_value=Session())
+    return mocker.patch("analysis_manager.db.config._get_session", return_value=Session())
 
 
 @pytest.fixture
 def mock_async_session(mocker):
-    return mocker.patch("insights_backend.db.config._get_async_session", return_value=AsyncSession())
+    return mocker.patch("analysis_manager.db.config._get_async_session", return_value=AsyncSession())
 
 
 def test_get_session(mock_sync_session):

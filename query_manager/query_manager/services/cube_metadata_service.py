@@ -653,11 +653,8 @@ class CubeMetadataService:
         Returns:
             A list of filtered dimension objects with their values
         """
-        import time
-
         from query_manager.core.models import Dimension, DimensionMetadata, SemanticMetaDimension
 
-        start_time = time.time()
         filtered_dimensions = []
 
         logger.info(
@@ -704,9 +701,6 @@ class CubeMetadataService:
 
             except Exception as e:
                 logger.error(f"💥 Error fetching members for dimension {dim['id']}: {str(e)}")
-
-        elapsed = time.time() - start_time
-        logger.info(f"🏁 Sequential filtering complete: Found {len(filtered_dimensions)} dimensions in {elapsed:.2f}s")
 
         return filtered_dimensions
 

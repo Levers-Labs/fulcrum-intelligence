@@ -6,7 +6,7 @@
     "vercel.com",
     "velotio.com"
   ],
-  "external_id": "vercel-123",
+  "external_id": "vercel-1234",
   "config": {
     "cube_connection_config": {
       "cube_api_url": "https://api.cubecloud.dev",

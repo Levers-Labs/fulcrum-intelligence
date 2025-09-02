@@ -4,19 +4,28 @@ import logging
 from datetime import date, datetime
 from typing import Any
 
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from commons.db.v2 import dispose_session_manager, init_session_manager
 from commons.models.enums import Granularity
 from commons.utilities.context import reset_context, set_tenant_id
 from commons.utilities.grain_utils import GrainPeriodCalculator
+from story_manager.config import get_settings
 from story_manager.core.dependencies import get_query_manager_client
 from story_manager.core.enums import StoryGroup
-from story_manager.db.config import get_async_session
 from story_manager.mocks.services.story_loader import MockStoryLoader
 
 # Set up logging
 logger = logging.getLogger(__name__)
 
+# get settings
+settings = get_settings()
+# initialize session manager
+session_manager = init_session_manager(settings, app_name="story_mock_stories_loader")
+
 
 async def load_mock_stories(
+    db_session: AsyncSession,
     tenant_id: int,
     metric: dict[str, Any],
     story_groups: list[StoryGroup] | None = None,
@@ -27,6 +36,7 @@ async def load_mock_stories(
     """
     Load v1 mock stories into the database for given parameters using story groups.
 
+    :param db_session: Database session
     :param tenant_id: Tenant ID
     :param metric: Metric dictionary containing metric_id
     :param story_groups: List of story groups to generate, defaults to all
@@ -58,50 +68,49 @@ async def load_mock_stories(
     # Prepare a dictionary to hold dates for each granularity
     grain_dates = {}
 
-    async with get_async_session() as db_session:
-        # Pre-compute dates for each granularity outside the loops
-        for grain in grains:
-            if start_date is not None:
-                # When using date range, get all dates within the range
-                grain_dates[grain] = GrainPeriodCalculator.get_dates_for_range(
-                    grain, start_date=start_date, end_date=end_date  # type: ignore
-                )
+    # Pre-compute dates for each granularity outside the loops
+    for grain in grains:
+        if start_date is not None:
+            # When using date range, get all dates within the range
+            grain_dates[grain] = GrainPeriodCalculator.get_dates_for_range(
+                grain, start_date=start_date, end_date=end_date  # type: ignore
+            )
+        else:
+            # When not using date range, only use today if it matches granularity requirements
+            if grain == Granularity.DAY:
+                grain_dates[grain] = [today]
+            elif grain == Granularity.WEEK and today.weekday() == 0:  # Monday
+                grain_dates[grain] = [today]
+            elif grain == Granularity.MONTH and today.day == 1:  # First day of month
+                grain_dates[grain] = [today]
             else:
-                # When not using date range, only use today if it matches granularity requirements
-                if grain == Granularity.DAY:
-                    grain_dates[grain] = [today]
-                elif grain == Granularity.WEEK and today.weekday() == 0:  # Monday
-                    grain_dates[grain] = [today]
-                elif grain == Granularity.MONTH and today.day == 1:  # First day of month
-                    grain_dates[grain] = [today]
-                else:
-                    grain_dates[grain] = []
+                grain_dates[grain] = []
 
-        # V1 story generation using story groups
-        loader = MockStoryLoader(db_session)
+    # V1 story generation using story groups
+    loader = MockStoryLoader(db_session)  # type: ignore
 
-        for story_group in story_groups:
-            for grain in grains:
-                dates = grain_dates[grain]
+    for story_group in story_groups:
+        for grain in grains:
+            dates = grain_dates[grain]
 
-                if not dates:
-                    logger.info(f"No applicable dates for {story_group}, {grain}")
-                    continue
+            if not dates:
+                logger.info(f"No applicable dates for {story_group}, {grain}")
+                continue
 
-                for story_date in dates:
-                    try:
-                        # Generate the stories
-                        stories = loader.prepare_stories(
-                            metric=metric, grain=grain, story_group=story_group, story_date=story_date  # type: ignore
+            for story_date in dates:
+                try:
+                    # Generate the stories
+                    stories = loader.prepare_stories(
+                        metric=metric, grain=grain, story_group=story_group, story_date=story_date  # type: ignore
+                    )
+                    if stories:
+                        await loader.persist_stories(stories)
+                        logger.info(
+                            f"Generated and stored {len(stories)} v1 stories for {story_group}, {grain}, "
+                            f"{story_date}"
                         )
-                        if stories:
-                            await loader.persist_stories(stories)
-                            logger.info(
-                                f"Generated and stored {len(stories)} v1 stories for {story_group}, {grain}, "
-                                f"{story_date}"
-                            )
-                    except Exception as e:
-                        logger.error(f"Error generating v1 stories for {story_group}, {grain}, {story_date}: {str(e)}")
+                except Exception as e:
+                    logger.error(f"Error generating v1 stories for {story_group}, {grain}, {story_date}: {str(e)}")
 
 
 async def main(
@@ -173,18 +182,26 @@ async def main(
     if parsed_end_date and not parsed_start_date:
         raise ValueError("start_date must be provided when end_date is provided")
 
-    # Load v1 mock stories
-    await load_mock_stories(
-        tenant_id=tenant_id,
-        metric=metric,
-        story_groups=parsed_story_groups,
-        grains=parsed_grains,
-        start_date=parsed_start_date,
-        end_date=parsed_end_date,
-    )
-
-    # Clean up
-    reset_context()
+    try:
+        # Load v1 mock stories
+        async with session_manager.session() as session:
+            await load_mock_stories(
+                db_session=session,
+                tenant_id=tenant_id,
+                metric=metric,
+                story_groups=parsed_story_groups,
+                grains=parsed_grains,
+                start_date=parsed_start_date,
+                end_date=parsed_end_date,
+            )
+    except Exception as e:
+        logger.error(f"Error loading v1 mock stories: {str(e)}")
+        raise
+    finally:
+        # Clean up
+        reset_context()
+        logger.info("Disposing AsyncSessionManager")
+        await dispose_session_manager()
 
 
 if __name__ == "__main__":

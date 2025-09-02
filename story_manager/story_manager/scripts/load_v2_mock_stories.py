@@ -23,17 +23,26 @@ import logging
 from datetime import date, datetime, timedelta
 from typing import Any
 
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from commons.db.v2 import dispose_session_manager, init_session_manager
 from commons.models.enums import Granularity
 from commons.utilities.context import reset_context, set_tenant_id
 from commons.utilities.grain_utils import GrainPeriodCalculator
+from story_manager.config import get_settings
 from story_manager.core.dependencies import get_query_manager_client
-from story_manager.db.config import get_async_session
 from story_manager.mocks.v2.main import MockStoryServiceV2
 
 logger = logging.getLogger(__name__)
 
+# get settings
+settings = get_settings()
+# initialize session manager
+session_manager = init_session_manager(settings, app_name="story_mock_stories_v2_loader")
+
 
 async def load_mock_stories_v2(
+    db_session: AsyncSession,
     tenant_id: int,
     metric: dict[str, Any],
     pattern: str | None = None,
@@ -45,6 +54,7 @@ async def load_mock_stories_v2(
     Load v2 mock stories using patterns.
 
     Args:
+        db_session: Database session
         tenant_id: The tenant ID
         metric: Metric dictionary with details
         pattern: Pattern name to generate (if None, generates all patterns)
@@ -132,60 +142,56 @@ async def load_mock_stories_v2(
                     f" day={today.day})"
                 )
 
-    # Use database session for persistence
-    async with get_async_session() as db_session:
-        # Create V2 mock story service with database session
-        mock_story_service = MockStoryServiceV2(db_session=db_session)
+    # Create V2 mock story service with database session
+    mock_story_service = MockStoryServiceV2(db_session=db_session)
 
-        # Step 1: Generate all stories first
-        all_stories = []
+    # Step 1: Generate all stories first
+    all_stories = []
 
-        for pattern in patterns:
-            for grain in grains:
-                dates = grain_dates[grain]
+    for pattern in patterns:
+        for grain in grains:
+            dates = grain_dates[grain]
 
-                if not dates:
-                    logger.info(f"No applicable dates for pattern {pattern}, grain {grain}")
-                    continue
+            if not dates:
+                logger.info(f"No applicable dates for pattern {pattern}, grain {grain}")
+                continue
 
-                for story_date in dates:
-                    try:
-                        logger.info(f"Generating stories for pattern {pattern}, grain {grain}, date {story_date}")
+            for story_date in dates:
+                try:
+                    logger.info(f"Generating stories for pattern {pattern}, grain {grain}, date {story_date}")
 
-                        # Generate stories for this specific pattern
-                        stories = await mock_story_service.generate_pattern_stories(
-                            pattern_name=pattern, metric=metric, grain=grain, story_date=story_date
+                    # Generate stories for this specific pattern
+                    stories = await mock_story_service.generate_pattern_stories(
+                        pattern_name=pattern, metric=metric, grain=grain, story_date=story_date
+                    )
+
+                    if stories:
+                        all_stories.extend(stories)
+                        logger.info(
+                            f"Generated {len(stories)} stories for pattern {pattern}, grain {grain}, "
+                            f"date {story_date}"
                         )
+                    else:
+                        logger.warning(f"No stories generated for pattern {pattern}, grain {grain}, date {story_date}")
 
-                        if stories:
-                            all_stories.extend(stories)
-                            logger.info(
-                                f"Generated {len(stories)} stories for pattern {pattern}, grain {grain}, "
-                                f"date {story_date}"
-                            )
-                        else:
-                            logger.warning(
-                                f"No stories generated for pattern {pattern}, grain {grain}, date {story_date}"
-                            )
+                except Exception as e:
+                    logger.error(
+                        f"Error generating stories for pattern {pattern}, grain {grain}, "
+                        f"date {story_date}: {str(e)}"
+                    )
 
-                    except Exception as e:
-                        logger.error(
-                            f"Error generating stories for pattern {pattern}, grain {grain}, "
-                            f"date {story_date}: {str(e)}"
-                        )
-
-        logger.info(f"Step 1 complete: Generated total of {len(all_stories)} stories")
-        # Step 2: Persist all generated stories
-        if all_stories:
-            try:
-                logger.info(f"Step 2: Persisting {len(all_stories)} stories to database...")
-                persisted_stories = await mock_story_service.persist_stories(all_stories)
-                logger.info(f"✅ Successfully persisted {len(persisted_stories)} v2 stories to database")
-            except Exception as e:
-                logger.error(f"Error persisting stories: {str(e)}")
-                raise
-        else:
-            logger.warning("No stories were generated to persist")
+    logger.info(f"Step 1 complete: Generated total of {len(all_stories)} stories")
+    # Step 2: Persist all generated stories
+    if all_stories:
+        try:
+            logger.info(f"Step 2: Persisting {len(all_stories)} stories to database...")
+            persisted_stories = await mock_story_service.persist_stories(all_stories)
+            logger.info(f"✅ Successfully persisted {len(persisted_stories)} v2 stories to database")
+        except Exception as e:
+            logger.error(f"Error persisting stories: {str(e)}")
+            raise
+    else:
+        logger.warning("No stories were generated to persist")
 
 
 async def main(
@@ -253,18 +259,26 @@ async def main(
     if parsed_end_date and not parsed_start_date:
         raise ValueError("start_date must be provided when end_date is provided")
 
-    # Load v2 mock stories
-    await load_mock_stories_v2(
-        tenant_id=tenant_id,
-        metric=metric,
-        pattern=pattern,
-        grain=grain,
-        start_date=parsed_start_date,
-        end_date=parsed_end_date,
-    )
-
-    # Clean up
-    reset_context()
+    try:
+        # Load v2 mock stories
+        async with session_manager.session() as session:
+            await load_mock_stories_v2(
+                db_session=session,
+                tenant_id=tenant_id,
+                metric=metric,
+                pattern=pattern,
+                grain=grain,
+                start_date=parsed_start_date,
+                end_date=parsed_end_date,
+            )
+    except Exception as e:
+        logger.error(f"Error loading v2 mock stories: {str(e)}")
+        raise
+    finally:
+        # Clean up
+        reset_context()
+        logger.info("Disposing AsyncSessionManager")
+        await dispose_session_manager()
 
 
 if __name__ == "__main__":

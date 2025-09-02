@@ -5,15 +5,18 @@ from typing import Any
 
 from sqlalchemy.dialects.postgresql import insert
 
+from commons.db.v2 import dispose_session_manager, init_session_manager
 from commons.utilities.context import reset_context, set_tenant_id
 from commons.utilities.json_utils import serialize_json
 from commons.utilities.tenant_utils import validate_tenant
 from query_manager.config import get_settings
 from query_manager.core.models import Dimension, Metric
-from query_manager.db.config import get_async_session
 from query_manager.services.cube_metadata_service import CSVMetricData, CubeMetadataService
 
 logger = logging.getLogger(__name__)
+
+settings = get_settings()
+session_manager = init_session_manager(settings, app_name="query_cube_metadata_loader")
 
 
 async def save_dimensions_to_json(dimensions: list[dict[str, Any]], output_path: str | Path) -> None:
@@ -38,6 +41,7 @@ async def save_dimensions_to_json(dimensions: list[dict[str, Any]], output_path:
 
 async def save_metrics_to_json(metrics: list[Metric], output_path: str | Path) -> None:
     """
+    Save metrics to a JSON file (without dimensions).
     Save metrics to a JSON file (without dimensions).
 
     Args:
@@ -107,48 +111,54 @@ async def save_metrics_to_db(metrics: list[Metric], tenant_id: int) -> int:
     Returns:
         Number of metrics saved
     """
-    settings = get_settings()
+    try:
+        async with session_manager.session() as session:
 
-    # Set tenant context following metadata_upsert.py pattern
-    logger.info(f"Setting tenant context, Tenant ID: {tenant_id}")
-    set_tenant_id(tenant_id)
+            # Set tenant context following metadata_upsert.py pattern
+            logger.info(f"Setting tenant context, Tenant ID: {tenant_id}")
+            set_tenant_id(tenant_id)
 
-    # Validate tenant following existing pattern
-    logger.info(f"Validating Tenant ID: {tenant_id}")
-    await validate_tenant(settings, tenant_id)
+            # Validate tenant following existing pattern
+            logger.info(f"Validating Tenant ID: {tenant_id}")
+            await validate_tenant(settings, tenant_id)
 
-    saved_count = 0
-    cube_service = CubeMetadataService()
+            saved_count = 0
+            cube_service = CubeMetadataService()
 
-    async with get_async_session() as session:
-        logger.info(f"Saving {len(metrics)} metrics to database for tenant {tenant_id}...")
+            logger.info(f"Saving {len(metrics)} metrics to database for tenant {tenant_id}...")
 
-        for i, metric in enumerate(metrics, 1):
-            try:
-                # Use consolidated data preparation from service
-                defaults = cube_service._prepare_metric_data(metric, include_metric_id=False)
+            for i, metric in enumerate(metrics, 1):
+                try:
+                    # Use consolidated data preparation from service
+                    defaults = cube_service._prepare_metric_data(metric, include_metric_id=False)
 
-                # Use established upsert pattern
-                stmt = insert(Metric).values(metric_id=metric.metric_id, tenant_id=tenant_id, **defaults)
-                stmt = stmt.on_conflict_do_update(index_elements=["metric_id", "tenant_id"], set_=defaults)
-                await session.execute(stmt)
-                saved_count += 1
+                    # Use established upsert pattern
+                    stmt = insert(Metric).values(metric_id=metric.metric_id, tenant_id=tenant_id, **defaults)
+                    stmt = stmt.on_conflict_do_update(index_elements=["metric_id", "tenant_id"], set_=defaults)
+                    await session.execute(stmt)
+                    saved_count += 1
 
-                # Log progress following existing pattern
-                if i % 10 == 0 or i == len(metrics):
-                    logger.info(f"Processed {i}/{len(metrics)} metrics")
+                    # Log progress following existing pattern
+                    if i % 10 == 0 or i == len(metrics):
+                        logger.info(f"Processed {i}/{len(metrics)} metrics")
 
-            except Exception as e:
-                logger.error(f"Error saving metric {metric.metric_id}: {str(e)}")
-                continue
+                except Exception as e:
+                    logger.error(f"Error saving metric {metric.metric_id}: {str(e)}")
+                    continue
 
-        await session.commit()
-        logger.info(f"Successfully saved {saved_count}/{len(metrics)} metrics to database")
+            await session.commit()
+            logger.info(f"Successfully saved {saved_count}/{len(metrics)} metrics to database")
 
+            return saved_count
+
+    except Exception as e:
+        logger.error(f"Error saving metrics to database: {str(e)}")
+        raise
+    finally:
         # Clean up context following existing pattern
         reset_context()
-
-    return saved_count
+        logger.info("Disposing AsyncSessionManager engine")
+        await dispose_session_manager()
 
 
 async def save_dimensions_to_db(dimensions: list[dict[str, Any]], tenant_id: int) -> int:
@@ -162,7 +172,6 @@ async def save_dimensions_to_db(dimensions: list[dict[str, Any]], tenant_id: int
     Returns:
         Number of dimensions saved
     """
-    settings = get_settings()
 
     # Set tenant context
     logger.info(f"Setting tenant context, Tenant ID: {tenant_id}")
@@ -175,9 +184,8 @@ async def save_dimensions_to_db(dimensions: list[dict[str, Any]], tenant_id: int
     saved_count = 0
 
     try:
-        async with get_async_session() as session:
-            logger.info(f"Saving {len(dimensions)} dimensions to database for tenant {tenant_id}...")
-
+        logger.info(f"Saving {len(dimensions)} dimensions to database for tenant {tenant_id}...")
+        async with session_manager.session() as session:
             for i, dim in enumerate(dimensions, 1):
                 try:
                     # Prepare dimension data
@@ -205,6 +213,7 @@ async def save_dimensions_to_db(dimensions: list[dict[str, Any]], tenant_id: int
 
             await session.commit()
             logger.info(f"Successfully saved {saved_count}/{len(dimensions)} dimensions to database")
+            return saved_count
 
     except Exception as e:
         logger.error(f"Error saving dimensions to database: {str(e)}")
@@ -212,8 +221,8 @@ async def save_dimensions_to_db(dimensions: list[dict[str, Any]], tenant_id: int
     finally:
         # Clean up context
         reset_context()
-
-    return saved_count
+        logger.info("Disposing AsyncSessionManager engine")
+        await dispose_session_manager()
 
 
 async def load_metrics_main(
@@ -366,3 +375,36 @@ async def load_metrics_with_dimensions_main(
         await save_metrics_to_db(metrics, tenant_id)
 
     return metrics, filtered_dimensions
+
+
+async def main(tenant_id: int):
+    """
+    Example usage of the cube metadata functions with session_manager.
+    This demonstrates how to call these functions from external code or scripts.
+    """
+
+    # Example: Load metrics only
+    metrics = await load_metrics_main(
+        tenant_id=tenant_id, cube_name="your_cube_name", output="metrics.json", save_to_db=True
+    )
+
+    # Example: Load metrics with dimensions
+    metrics, dimensions = await load_metrics_with_dimensions_main(
+        tenant_id=tenant_id,
+        csv_file_path="path/to/metrics.csv",
+        cube_name="your_cube_name",
+        max_values=15,
+        metrics_output="metrics_with_dims.json",
+        dimensions_output="dimensions.json",
+        save_to_db=True,
+    )
+
+
+if __name__ == "__main__":
+    import argparse
+    import asyncio
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--tenant_id", type=int, required=True)
+    args = parser.parse_args()
+    asyncio.run(main(args.tenant_id))

@@ -7,14 +7,21 @@ from typing import Any
 
 import pandas as pd
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
+from commons.db.v2 import dispose_session_manager, init_session_manager
 from commons.models.enums import Granularity
-from commons.utilities.context import set_tenant_id
-from query_manager.db.config import get_async_session
+from commons.utilities.context import reset_context, set_tenant_id
+from query_manager.config import get_settings
 from query_manager.semantic_manager.crud import SemanticManager
 from query_manager.semantic_manager.models import MetricTimeSeries
 
 logger = logging.getLogger(__name__)
+
+# get settings
+settings = get_settings()
+# initialize session manager
+session_manager = init_session_manager(settings, app_name="query_generate_metric_targets")
 
 
 def generate_streak_length() -> int:
@@ -90,16 +97,16 @@ async def get_time_series_data(
     return df.sort_values("date")
 
 
-async def get_all_metrics(semantic_manager: SemanticManager) -> list[str]:
+async def get_all_metrics(session: AsyncSession) -> list[str]:
     """Get all unique metric IDs from time series data."""
-    async with get_async_session() as session:
-        # Query to get distinct metric_ids from metric_time_series
-        query = select(MetricTimeSeries.metric_id).distinct()  # type: ignore
-        result = await session.execute(query)
-        return [row[0] for row in result]
+    # Query to get distinct metric_ids from metric_time_series
+    query = select(MetricTimeSeries.metric_id).distinct()  # type: ignore
+    result = await session.execute(query)
+    return [row[0] for row in result]
 
 
 async def generate_metric_targets(
+    session: AsyncSession,
     metric_id: str,
     tenant_id: int,
     start_date: date,
@@ -111,6 +118,7 @@ async def generate_metric_targets(
     Generate metric target values based on existing time series data.
 
     Args:
+        session: Database session
         metric_id: ID of the metric
         tenant_id: ID of the tenant
         start_date: Start date for the targets
@@ -121,57 +129,56 @@ async def generate_metric_targets(
     Returns:
         List of target dictionaries ready for bulk upsert
     """
-    async with get_async_session() as session:
-        semantic_manager = SemanticManager(session)
+    semantic_manager = SemanticManager(session)  # type: ignore
 
-        # Get existing time series data
-        time_series_data = await get_time_series_data(
-            semantic_manager,
-            metric_id,
-            tenant_id,
-            start_date,
-            end_date,
-            grain,
+    # Get existing time series data
+    time_series_data = await get_time_series_data(
+        semantic_manager,
+        metric_id,
+        tenant_id,
+        start_date,
+        end_date,
+        grain,
+    )
+
+    if time_series_data.empty:
+        logger.warning("No time series data found for metric %s with grain %s", metric_id, grain)
+        return []
+
+    target_data = []
+    current_date = start_date
+
+    while current_date <= end_date:
+        # Generate a streak
+        streak_length = generate_streak_length()
+        # Randomly decide if this streak should be stable or varying
+        is_stable = random.random() < 0.7  # 70% chance of being stable # noqa
+
+        # Generate target values for the streak
+        streak_targets = generate_streak_targets(
+            current_date,
+            streak_length,
+            time_series_data,
+            is_stable,
+            variance_percent,
         )
 
-        if time_series_data.empty:
-            logger.warning("No time series data found for metric %s with grain %s", metric_id, grain)
-            return []
+        # Add the streak targets to our target data
+        for date_value, value in streak_targets:
+            if date_value <= end_date:  # Only add values within our date range
+                target_data.append(
+                    {
+                        "metric_id": metric_id,
+                        "grain": grain,
+                        "target_date": date_value,
+                        "target_value": value,
+                    }
+                )
 
-        target_data = []
-        current_date = start_date
+        # Move to the next date after the streak
+        current_date += timedelta(days=streak_length)
 
-        while current_date <= end_date:
-            # Generate a streak
-            streak_length = generate_streak_length()
-            # Randomly decide if this streak should be stable or varying
-            is_stable = random.random() < 0.7  # 70% chance of being stable # noqa
-
-            # Generate target values for the streak
-            streak_targets = generate_streak_targets(
-                current_date,
-                streak_length,
-                time_series_data,
-                is_stable,
-                variance_percent,
-            )
-
-            # Add the streak targets to our target data
-            for date_value, value in streak_targets:
-                if date_value <= end_date:  # Only add values within our date range
-                    target_data.append(
-                        {
-                            "metric_id": metric_id,
-                            "grain": grain,
-                            "target_date": date_value,
-                            "target_value": value,
-                        }
-                    )
-
-            # Move to the next date after the streak
-            current_date += timedelta(days=streak_length)
-
-        return target_data
+    return target_data
 
 
 async def main():
@@ -182,52 +189,59 @@ async def main():
     grains = [Granularity.DAY, Granularity.WEEK, Granularity.MONTH]
 
     set_tenant_id(tenant_id)
+    try:
+        async with session_manager.session() as session:
+            semantic_manager = SemanticManager(session)  # type: ignore
 
-    async with get_async_session() as session:
-        semantic_manager = SemanticManager(session)
+            # Get all metrics
+            metrics = await get_all_metrics(session)
+            logger.info("Found %d metrics to process", len(metrics))
 
-        # Get all metrics
-        metrics = await get_all_metrics(semantic_manager)
-        logger.info("Found %d metrics to process", len(metrics))
+            total_processed = 0
+            total_failed = 0
 
-        total_processed = 0
-        total_failed = 0
+            # Process each metric and grain combination
+            for metric_id in metrics:
+                logger.info("Processing metric: %s", metric_id)
 
-        # Process each metric and grain combination
-        for metric_id in metrics:
-            logger.info("Processing metric: %s", metric_id)
+                for grain in grains:
+                    logger.info("Generating targets for grain: %s", grain)
 
-            for grain in grains:
-                logger.info("Generating targets for grain: %s", grain)
+                    # Generate target data
+                    target_data = await generate_metric_targets(
+                        session,
+                        metric_id=metric_id,
+                        tenant_id=tenant_id,
+                        start_date=start_date,
+                        end_date=end_date,
+                        grain=grain,
+                    )
 
-                # Generate target data
-                target_data = await generate_metric_targets(
-                    metric_id=metric_id,
-                    tenant_id=tenant_id,
-                    start_date=start_date,
-                    end_date=end_date,
-                    grain=grain,
-                )
+                    if not target_data:
+                        logger.warning("No target data generated for %s with grain %s", metric_id, grain)
+                        continue
 
-                if not target_data:
-                    logger.warning("No target data generated for %s with grain %s", metric_id, grain)
-                    continue
+                    # Store the data using bulk upsert
+                    stats = await semantic_manager.metric_target.bulk_upsert_targets(
+                        targets=target_data, batch_size=1000  # Process in batches of 1000
+                    )
 
-                # Store the data using bulk upsert
-                stats = await semantic_manager.metric_target.bulk_upsert_targets(
-                    targets=target_data, batch_size=1000  # Process in batches of 1000
-                )
+                    total_processed += stats["processed"]
+                    total_failed += stats["failed"]
 
-                total_processed += stats["processed"]
-                total_failed += stats["failed"]
+                    logger.info("Processed %d targets for %s with grain %s", stats["processed"], metric_id, grain)
+                    if stats["failed"] > 0:
+                        logger.warning(
+                            "Warning: %d targets failed for %s with grain %s", stats["failed"], metric_id, grain
+                        )
 
-                logger.info("Processed %d targets for %s with grain %s", stats["processed"], metric_id, grain)
-                if stats["failed"] > 0:
-                    logger.warning("Warning: %d targets failed for %s with grain %s", stats["failed"], metric_id, grain)
-
-        logger.info("Summary:")
-        logger.info("Total targets processed: %d", total_processed)
-        logger.info("Total targets failed: %d", total_failed)
+            logger.info("Summary:")
+            logger.info("Total targets processed: %d", total_processed)
+            logger.info("Total targets failed: %d", total_failed)
+    finally:
+        reset_context()
+        logger.info("Disposing AsyncSessionManager")
+        await dispose_session_manager()
 
 
 if __name__ == "__main__":

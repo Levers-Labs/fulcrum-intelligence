@@ -56,8 +56,8 @@ class RecordValuesStoryBuilder(StoryBuilderBase):
             return []
 
         # Get the reference value
-        ref_value = df.at[df.index[-1], "value"]
-        ref_date = df.at[df.index[-1], "date"]
+        ref_value = df.at[df.index[-1], "value"]  # type: ignore
+        ref_date = df.at[df.index[-1], "date"]  # type: ignore
 
         # Sort the DataFrame basis value and date in descending and ascending order resp.
         sorted_df = df.sort_values(by=["value", "date"], ascending=[False, True]).reset_index(drop=True)
@@ -65,7 +65,7 @@ class RecordValuesStoryBuilder(StoryBuilderBase):
         sorted_df.set_index("rank", inplace=True)
 
         # Get the rank for the reference date
-        rank = self.get_rank_for_date(sorted_df, ref_date)
+        rank = self.get_rank_for_date(sorted_df, ref_date)  # type: ignore
 
         # Get prior rank, story type and if its second rank
         prior_rank, story_type, is_second_rank = self.get_prior_rank_and_story_type(df_len, rank)
@@ -82,19 +82,19 @@ class RecordValuesStoryBuilder(StoryBuilderBase):
         prior_date, prior_value = self.get_prior_values(prior_rank, sorted_df)
 
         # Calculate deviation % between reference value and prior value
-        deviation = self.analysis_manager.calculate_percentage_difference(ref_value, prior_value)
+        deviation = self.analysis_manager.calculate_percentage_difference(ref_value, prior_value)  # type: ignore
         story_details = self.prepare_story_dict(
             story_type,
             grain=grain,
             metric=metric,
             df=df,
-            value=float(ref_value),
+            value=float(ref_value),  # type: ignore
             deviation=abs(deviation),
             prior_value=prior_value,
             prior_date=prior_date,
             duration=df_len,
             is_second_rank=is_second_rank,
-            record_date=ref_date.strftime(self.date_text_format),
+            record_date=ref_date.strftime(self.date_text_format),  # type: ignore
             rank=rank,
         )
         stories.append(story_details)
@@ -134,8 +134,8 @@ class RecordValuesStoryBuilder(StoryBuilderBase):
 
         :return tuple[str, float]: A tuple containing the prior date, and prior value.
         """
-        prior_value = float(sorted_df.at[prior_rank, "value"])
-        prior_date = sorted_df.at[prior_rank, "date"].strftime(self.date_text_format)
+        prior_value = float(sorted_df.at[prior_rank, "value"])  # type: ignore
+        prior_date = sorted_df.at[prior_rank, "date"].strftime(self.date_text_format)  # type: ignore
         return prior_date, prior_value
 
     @staticmethod

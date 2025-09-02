@@ -9,7 +9,7 @@ from commons.models.enums import Granularity
 from fulcrum_core import AnalysisManager
 from story_manager.core.dependencies import get_analysis_manager, get_analysis_manager_client, get_query_manager_client
 from story_manager.core.enums import StoryGroup
-from story_manager.db.config import get_async_session
+from story_manager.db.config import get_async_session_manager
 from story_manager.story_builder import StoryFactory
 
 logger = logging.getLogger(__name__)
@@ -100,8 +100,10 @@ class StoryManager:
         analysis_manager = await get_analysis_manager()
         logger.info(f"Running story builder for story group: {group}")
 
+        manager = await get_async_session_manager()
+
         # Use a session in context manager to ensure proper cleanup
-        async with get_async_session() as db_session:
+        async with manager.session() as db_session:
             # Create a story builder for the specified group
             story_builder = StoryFactory.create_story_builder(
                 group,

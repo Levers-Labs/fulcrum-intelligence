@@ -3,7 +3,7 @@ from __future__ import annotations
 from enum import Enum
 from pathlib import Path
 
-from pydantic import AnyHttpUrl, field_validator
+from pydantic import AnyHttpUrl, Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -37,8 +37,12 @@ class Settings(BaseSettings):
     SERVER_HOST: str | AnyHttpUrl
     PAGINATION_PER_PAGE: int = 20
 
+    # Session v2 configuration
     DATABASE_URL: str
-    SQLALCHEMY_ENGINE_OPTIONS: dict = {"pool_pre_ping": True, "pool_size": 5, "max_overflow": 80, "echo": True}
+    SQLALCHEMY_ENGINE_OPTIONS: dict = Field(default_factory=dict)
+    # commons/db/v2/profiles.py
+    DB_PROFILE: str = "large"
+    DB_MAX_CONCURRENT_SESSIONS: int = 50
 
     BACKEND_CORS_ORIGINS: list[AnyHttpUrl | str] = []
 

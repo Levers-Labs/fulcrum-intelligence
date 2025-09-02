@@ -45,6 +45,7 @@ async def snowflake_cache_sync_for_tenant(
     Returns:
         List of SyncSummary objects, one for each grain processed
     """
+
     logger = get_run_logger()
     tenant_id = int(tenant_id_str)
     logger.info("Starting cache sync for tenant %d with grain %s", tenant_id, grain.value if grain else "ALL")
