@@ -14,13 +14,6 @@ class APIHealth(BaseModel):
     query_manager_is_online: bool = True
 
 
-class DatabaseStats(BaseModel):
-    """Database connection stats."""
-
-    active_sessions: int
-    database_is_online: bool
-
-
 @router.get(
     "/health",
     response_model=APIHealth,

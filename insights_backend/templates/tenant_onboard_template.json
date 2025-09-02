@@ -1,6 +1,6 @@
 {
-  "identifier": "verceltest",
-  "name": "Verceltest",
+  "identifier": "vercel",
+  "name": "Vercel",
   "description": "Vercel Tenant to be used for testing",
   "domains": [
     "vercel.com",

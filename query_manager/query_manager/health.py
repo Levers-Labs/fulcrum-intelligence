@@ -12,13 +12,6 @@ class APIHealth(BaseModel):
     cube_api_is_online: bool = True
 
 
-class DatabaseStats(BaseModel):
-    """Database connection stats."""
-
-    active_sessions: int
-    database_is_online: bool
-
-
 @router.get(
     "",
     response_model=APIHealth,
