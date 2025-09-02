@@ -5,10 +5,12 @@ from sqlalchemy import (
     Column,
     DateTime,
     Enum,
+    Index,
     Integer,
     String,
     Text,
     UniqueConstraint,
+    desc,
 )
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlmodel import Field
@@ -50,6 +52,20 @@ class Story(StorySchemaBaseModel, table=True):  # type: ignore
     version: int = Field(default=1, sa_column=Column(Integer, default=1, server_default="1"))
     # For version 2, we need to add the pattern_run_id
     pattern_run_id: int | None = Field(default=None, sa_column=Column(Integer, nullable=True, index=True))
+
+    # Composite index for common query patterns
+    __table_args__ = (  # type: ignore
+        Index(
+            "ix_story_tenant_version_date_metric_grain_type",
+            "tenant_id",
+            "version",
+            desc("story_date"),
+            "metric_id",
+            "grain",
+            "story_type",
+        ),
+        {"schema": "story_store"},
+    )
 
     async def set_heuristics(self, session: AsyncSession) -> None:
         """

@@ -18,10 +18,10 @@ from commons.utilities.context import get_tenant_id
 from query_manager.core.crud import CRUDMetricCacheConfig, CRUDMetricCacheGrainConfig
 from query_manager.core.models import MetricCacheConfig, MetricCacheGrainConfig
 from query_manager.core.schemas import MetricDetail
-from query_manager.db.config import get_async_session
 from query_manager.semantic_manager.cache_manager import SnowflakeSemanticCacheManager
 from query_manager.semantic_manager.models import SyncOperation, SyncStatus, SyncType
 from tasks_manager.config import AppConfig
+from tasks_manager.db.config import get_async_session
 from tasks_manager.tasks.artifacts import create_tenant_cache_summary_artifact
 from tasks_manager.tasks.events import send_tenant_sync_finished_event, send_tenant_sync_started_event
 from tasks_manager.tasks.query import fetch_metric_values, get_metric

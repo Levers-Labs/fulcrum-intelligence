@@ -38,6 +38,14 @@ class AppConfig(Block):
     sender_email: str = Field(default="Levers Insights <notifications@leverslabs.com>", description="Sender Email")
     aws_region: str = Field(default="us-west-1", description="AWS Region")
 
+    @property
+    def DATABASE_URL(self) -> str:  # noqa
+        return self.database_url.get_secret_value()
+
+    @property
+    def SQLALCHEMY_ENGINE_OPTIONS(self) -> dict:  # noqa
+        return self.sqlalchemy_engine_options
+
     def _set_env_vars(self) -> None:
         """Set environment variables from config attributes"""
         for field_name, field_value in self:

@@ -9,10 +9,10 @@ from prefect.events import Event, emit_event
 from commons.models.enums import Granularity
 from commons.utilities.context import reset_context, set_tenant_id
 from query_manager.core.schemas import MetricDetail
-from query_manager.db.config import get_async_session
 from query_manager.semantic_manager.crud import SemanticManager
 from query_manager.semantic_manager.models import SyncOperation, SyncStatus, SyncType
 from tasks_manager.config import AppConfig
+from tasks_manager.db.config import get_async_session
 from tasks_manager.tasks.query import fetch_metric_values
 
 

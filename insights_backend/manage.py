@@ -12,9 +12,6 @@ import uvicorn
 from alembic import command
 from alembic.config import Config
 from alembic.util import CommandError
-from sqlalchemy.ext.asyncio import create_async_engine
-from sqlalchemy.orm import sessionmaker
-from sqlmodel.ext.asyncio.session import AsyncSession
 
 from commons.utilities.migration_utils import add_rls_policies
 from insights_backend.config import get_settings
@@ -215,16 +212,12 @@ def onboard_tenant(
     from insights_backend.core.scripts.onboard_tenant import onboard_tenant
 
     async def run_onboard():
-        settings = get_settings()
-        engine = create_async_engine(settings.DATABASE_URL)
-        async_session = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)  # type: ignore
-        async with async_session() as session:
-            try:
-                await onboard_tenant(session, file_path)
-                typer.secho("Tenant onboarded successfully", fg=typer.colors.GREEN)
-            except Exception as exc:
-                typer.secho(f"Error onboarding tenant: {str(exc)}", fg=typer.colors.RED)
-                raise typer.Exit(code=1) from exc
+        try:
+            await onboard_tenant(file_path)
+            typer.secho("Tenant onboarded successfully", fg=typer.colors.GREEN)
+        except Exception as exc:
+            typer.secho(f"Error onboarding tenant: {str(exc)}", fg=typer.colors.RED)
+            raise typer.Exit(code=1) from exc
 
     asyncio.run(run_onboard())
 

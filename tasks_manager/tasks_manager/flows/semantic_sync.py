@@ -36,6 +36,7 @@ async def semantic_data_sync_metric(tenant_id_str: str, metric_id: str, grain: G
     Returns:
         SyncSummary containing detailed statistics about the sync operation
     """
+
     logger = get_run_logger()
     tenant_id = int(tenant_id_str)
 
@@ -263,6 +264,7 @@ async def semantic_data_sync_tenant(tenant_id_str: str, grain: Granularity) -> N
         tenant_id_str: The tenant ID
         grain: Granularity level to sync
     """
+
     logger = get_run_logger()
     tenant_id = int(tenant_id_str)
     logger.info(
@@ -326,6 +328,7 @@ async def semantic_data_sync(grain: Granularity) -> None:
     Args:
         grain: Granularity level to sync
     """
+
     logger = get_run_logger()
     logger.info(
         "Starting to emit sync events - Grain: %s",
