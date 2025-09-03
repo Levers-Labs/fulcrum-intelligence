@@ -57,7 +57,7 @@ async def update_demo_stories(tenant_identifier: str):
     retry_delay_seconds=15,
 )
 async def process_metric_pattern_stories(
-    pattern: str, tenant_id_str: str, metric_id: str, grain: str, pattern_run_str: str
+    pattern: str, tenant_id_str: str, metric_id: str, grain: str, pattern_run_str: str, analysis_date: date
 ):
     """
     Process stories based on pattern run output.
@@ -69,6 +69,7 @@ async def process_metric_pattern_stories(
         metric_id: Metric ID
         grain: Granularity (day, week, month)
         pattern_run_str: JSON string containing pattern run results
+        analysis_date: Date of the analysis
     """
 
     logger = get_run_logger()
@@ -95,10 +96,12 @@ async def process_metric_pattern_stories(
             "tenant_id": tenant_id_str,
             "grain": grain,
             "pattern": pattern,
+            "analysis_date": analysis_date.isoformat(),
         },
         payload={
             "timestamp": date.today().isoformat(),
             "pattern_run": pattern_run_result,
+            "analysis_date": analysis_date.isoformat(),
         },
     )
 
@@ -110,6 +113,7 @@ async def process_metric_pattern_stories(
             metric_id=metric_id,
             grain=grain_enum,
             pattern_run=pattern_run_result,
+            analysis_date=analysis_date,
         )
 
         # Create table artifact with stories
@@ -129,6 +133,7 @@ async def process_metric_pattern_stories(
                 "tenant_id": tenant_id_str,
                 "grain": grain,
                 "pattern": pattern,
+                "analysis_date": analysis_date.isoformat(),
             },
             payload={
                 "timestamp": date.today().isoformat(),

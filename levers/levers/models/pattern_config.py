@@ -137,7 +137,7 @@ class AnalysisWindowConfig(BaseModel):
 
         return start_date
 
-    def get_date_range(self, grain: Granularity, look_forward: bool = False) -> tuple[date, date]:
+    def get_date_range(self, grain: Granularity, analysis_date: date, look_forward: bool = False) -> tuple[date, date]:
         """
         Get the date range for analysis based on the configured strategy.
 
@@ -152,7 +152,7 @@ class AnalysisWindowConfig(BaseModel):
         if look_forward:
             # For forward-looking data, we need to include current period start date and future periods
             # This ensures we capture targets for the current period
-            today = date.today()
+            today = analysis_date
             start_date = date(today.year, today.month, 1)
 
             # Calculate the start of the current period based on grain
@@ -187,14 +187,14 @@ class AnalysisWindowConfig(BaseModel):
         else:
             # Historical data logic (existing behavior)
             if self.include_today:
-                end_date = date.today()
+                end_date = analysis_date
             else:
                 if grain == Granularity.DAY:
-                    end_date = date.today() - timedelta(days=1)
+                    end_date = analysis_date - timedelta(days=1)
                 elif grain == Granularity.WEEK:
-                    end_date = date.today() - timedelta(days=date.today().weekday() + 1)
+                    end_date = analysis_date - timedelta(days=analysis_date.weekday() + 1)
                 elif grain == Granularity.MONTH:
-                    end_date = date(date.today().year, date.today().month, 1) - timedelta(days=1)
+                    end_date = date(analysis_date.year, analysis_date.month, 1) - timedelta(days=1)
 
             if self.strategy == WindowStrategy.FIXED_TIME:
                 # Same time window for all grains

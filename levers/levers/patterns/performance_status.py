@@ -270,15 +270,17 @@ class PerformanceStatusPattern(Pattern[MetricPerformance]):
 
         values = data["value"].values
         targets = data["target"].values
+        if all(target == 0 or target is None for target in targets):
+            return None
 
         # Find the streak length
         streak_length = 0
         current_direction = None
 
         for i in range(len(values) - 1, 0, -1):
-            if targets[i] is not None and values[i] > targets[i]:
+            if targets[i] is not None and values[i] > targets[i] and targets[i] != 0:
                 direction = "increasing"
-            elif targets[i] is not None and values[i] < targets[i]:
+            elif targets[i] is not None and values[i] < targets[i] and targets[i] != 0:
                 direction = "decreasing"
             else:
                 direction = "stable"

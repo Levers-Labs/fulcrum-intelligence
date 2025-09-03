@@ -11,7 +11,7 @@ from story_manager.core.enums import (
 # FILTER_MAPPING defines the relationship between digest types, sections, and their corresponding story filters
 FILTER_MAPPING = {
     # Portfolio Digest Sections
-    (Digest.PORTFOLIO, Section.OVERVIEW): {"story_groups": [StoryGroup.GOAL_VS_ACTUAL, StoryGroup.LONG_RANGE]},
+    (Digest.PORTFOLIO, Section.OVERVIEW): {"story_groups": [StoryGroup.GOAL_VS_ACTUAL]},
     (Digest.PORTFOLIO, Section.STATUS_CHANGES): {"story_groups": [StoryGroup.STATUS_CHANGE]},
     (Digest.PORTFOLIO, Section.LIKELY_MISSES): {
         "story_types": [StoryType.LIKELY_OFF_TRACK, StoryType.FORECASTED_OFF_TRACK, StoryType.PACING_OFF_TRACK]

@@ -99,7 +99,7 @@ async def update_demo_tenant_stories(tenant_id: int, current_date: date) -> dict
     task_run_name="process_pattern_stories:{pattern}_metric:{metric_id}_tenant:{tenant_id}_grain:{grain}",
 )
 async def process_pattern_stories(
-    pattern: str, tenant_id: int, metric_id: str, grain: Granularity, pattern_run: dict
+    pattern: str, tenant_id: int, metric_id: str, grain: Granularity, pattern_run: dict, analysis_date: date
 ) -> list[dict]:
     """
     Process pattern results and generate stories.
@@ -110,7 +110,7 @@ async def process_pattern_stories(
         metric_id: Metric ID
         grain: Granularity
         pattern_run: Pattern run results
-
+        analysis_date: Date of the analysis
     Returns:
         List of generated stories
     """
@@ -151,6 +151,7 @@ async def process_pattern_stories(
                 metric_id=metric_id,
                 grain=grain,  # type: ignore
                 metric_definition=metric,
+                analysis_date=analysis_date,
             )
             # Get the time series data from the fetched data
             data_key = pattern_config.data_sources[0].data_key

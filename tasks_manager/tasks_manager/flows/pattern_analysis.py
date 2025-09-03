@@ -226,7 +226,7 @@ async def analyze_metric_patterns(tenant_id_str: str, metric_id: str, grain: str
     description="Run a pattern for a specific metric and dimension (optional)",
 )
 async def trigger_run_pattern(
-    tenant_id: int, pattern_name: str, metric_id: str, grain: Granularity, dimension_name: str | None = None
+    tenant_id: int, pattern_name: str, metric_id: str, grain: Granularity, analysis_date: date, dimension_name: str | None = None
 ):
     """
     Trigger the run_pattern flow for a specific pattern, metric, and grain.
@@ -236,6 +236,7 @@ async def trigger_run_pattern(
         pattern_name: Name of the pattern to run
         metric_id: ID of the metric to analyze
         grain: Granularity (day, week, month)
+        analysis_date: Date of the analysis
         dimension_name: Name of the dimension to analyze
     """
 
@@ -257,6 +258,7 @@ async def trigger_run_pattern(
         grain=grain,
         metric_definition=metric_definition,
         dimension_name=dimension_name,
+        analysis_date=analysis_date,
     )
     logger.info(
         "Completed run_pattern for pattern %s, metric %s, grain %s, dimension %s",

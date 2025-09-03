@@ -51,6 +51,7 @@ class PatternDataOrganiser:
         config: PatternConfig,
         metric_id: str,
         grain: Granularity,
+        analysis_date: date,
         metric_definition: MetricDetail | None = None,
         **fetch_kwargs,
     ) -> DataDict:
@@ -61,6 +62,7 @@ class PatternDataOrganiser:
             config: Pattern configuration
             metric_id: The metric ID
             grain: Data granularity
+            analysis_date: Date of the analysis
             metric_definition: Optional metric definition containing related metrics
             **fetch_kwargs: Additional keyword arguments
 
@@ -78,6 +80,7 @@ class PatternDataOrganiser:
             config=config,
             metric_id=metric_id,
             grain=grain,
+            analysis_date=analysis_date,
             metric_definition=metric_definition,
             **fetch_kwargs,
         )
@@ -87,6 +90,7 @@ class PatternDataOrganiser:
         config: PatternConfig,
         metric_id: str,
         grain: Granularity,
+        analysis_date: date,
         metric_definition: MetricDetail | None = None,
         **fetch_kwargs,
     ) -> DataDict:
@@ -97,6 +101,7 @@ class PatternDataOrganiser:
             config: Pattern configuration
             metric_id: The metric ID
             grain: Data granularity
+            analysis_date: Date of the analysis
             metric_definition: Optional metric definition
             kwargs: Additional keyword arguments
 
@@ -111,7 +116,7 @@ class PatternDataOrganiser:
 
             # Calculate date range using the centralized method in AnalysisWindowConfig
             start_date, end_date = config.analysis_window.get_date_range(
-                grain=grain, look_forward=data_source.look_forward
+                grain=grain, look_forward=data_source.look_forward, analysis_date=analysis_date
             )
 
             logger.debug(
@@ -309,7 +314,7 @@ class PatternDataOrganiser:
         return pd.DataFrame(data)
 
     async def check_pattern_data_requirements(
-        self, config: PatternConfig, metric_id: str, grain: Granularity
+        self, config: PatternConfig, metric_id: str, grain: Granularity, analysis_date: date
     ) -> dict[str, bool]:
         """
         Check if all required data for a pattern is available.
@@ -318,7 +323,7 @@ class PatternDataOrganiser:
             config: Pattern configuration
             metric_id: The metric ID
             grain: Data granularity
-
+            analysis_date: Date of the analysis
         Returns:
             Dictionary with data source keys and boolean availability
         """
@@ -329,7 +334,7 @@ class PatternDataOrganiser:
 
             # Calculate date range using the centralized method
             start_date, end_date = config.analysis_window.get_date_range(
-                grain=grain, look_forward=data_source.look_forward
+                grain=grain, look_forward=data_source.look_forward, analysis_date=analysis_date
             )
 
             try:

@@ -42,6 +42,7 @@ deployments:
       metric_id: "{{ event.resource.metric_id }}"
       grain: "{{ event.resource.grain }}"
       pattern_run_str: "{{ event.payload }}"
+      analysis_date: "{{ event.resource.analysis_date }}"
 
 - name: "process-story-alerts"
   version: "1.0.0"
@@ -156,37 +157,13 @@ deployments:
       metric_id: "{{ event.resource.metric_id }}"
       grain: "{{ event.resource.grain }}"
 
-- name: "update-demo-stories"
-  version: "1.0.0"
-  description: "Update demo stories dates for demo tenant based on granularity"
-  entrypoint: tasks_manager.flows.stories:update_demo_stories
-  tags:
-  - daily
-  work_pool: *default_work_pool
-  schedule: *daily_5am_pst
-  parameters:
-    tenant_identifier: "leversdemo"
-
-# Snowflake Cache Sync Deployments
-- name: "snowflake-cache-sync-all-tenants"
-  version: "1.0.0"
-  description: "Cache semantic data to Snowflake for all tenants"
-  entrypoint: tasks_manager.flows.snowflake_sync:snowflake_cache_sync_all_tenants
-  work_pool: *default_work_pool
-  schedule: *daily_2am_pst
-  parameters: {}
-
-- name: "snowflake-cache-sync-tenant"
-  version: "1.0.0"
-  description: "Cache semantic data to Snowflake for a specific tenant"
-  entrypoint: tasks_manager.flows.snowflake_sync:snowflake_cache_sync_for_tenant
-  work_pool: *default_work_pool
-  triggers:
-  - type: event
-    name: "tenant-snowflake-cache-sync-trigger"
-    description: "Triggered when tenant snowflake cache sync is requested"
-    enabled: true
-    expect:
-    - tenant.snowflake_cache.requested
-    parameters:
-      tenant_id_str: "{{ event.resource.tenant_id }}"
+#- name: "update-demo-stories"
+#  version: "1.0.0"
+#  description: "Update demo stories dates for demo tenant based on granularity"
+#  entrypoint: tasks_manager.flows.stories:update_demo_stories
+#  tags:
+#  - daily
+#  work_pool: *default_work_pool
+#  schedule: *daily_5am_pst
+#  parameters:
+#    tenant_identifier: "leversdemo"

@@ -30,6 +30,7 @@ async def fetch_pattern_data(
     pattern_config: PatternConfig,
     metric_id: str,
     grain: Granularity,
+    analysis_date: date,
     metric_definition: MetricDetail,
     dimension_name: str | None = None,
 ) -> DataDict:
@@ -40,6 +41,7 @@ async def fetch_pattern_data(
         pattern_config: Pattern configuration
         metric_id: Metric ID
         grain: Data granularity
+        analysis_date: Date of the analysis
         metric_definition: Metric definition
         dimension_name: Optional dimension name for dimension-based patterns
 
@@ -67,6 +69,7 @@ async def fetch_pattern_data(
                 metric_id=metric_id,
                 grain=grain,  # type: ignore
                 metric_definition=metric_definition,
+                analysis_date=analysis_date,
                 **fetch_kwargs,
             )
             logger.info("retrieved data for pattern %s", pattern_config.pattern_name)
@@ -76,19 +79,20 @@ async def fetch_pattern_data(
         raise e
 
 
-def create_analysis_window(pattern_config: PatternConfig, grain: Granularity) -> AnalysisWindow:
+def create_analysis_window(pattern_config: PatternConfig, grain: Granularity, analysis_date: date) -> AnalysisWindow:
     """
     Create an analysis window based on pattern config and grain.
 
     Args:
         pattern_config: Pattern configuration
         grain: Data granularity
+        analysis_date: Date of the analysis
 
     Returns:
         AnalysisWindow object
     """
     # Get the date range for the analysis window
-    start_date, end_date = pattern_config.analysis_window.get_date_range(grain=grain)  # type: ignore
+    start_date, end_date = pattern_config.analysis_window.get_date_range(grain=grain, analysis_date=analysis_date)  # type: ignore
 
     return AnalysisWindow(start_date=start_date.isoformat(), end_date=end_date.isoformat(), grain=grain)  # type: ignore
 
@@ -133,6 +137,7 @@ async def run_pattern(
     metric_id: str,
     grain: Granularity,
     metric_definition: MetricDetail,
+    analysis_date: date,
     dimension_name: str | None = None,
 ) -> dict[str, Any]:
     """
@@ -143,6 +148,7 @@ async def run_pattern(
         metric_id: Metric ID
         grain: Data granularity
         metric_definition: Metric definition
+        analysis_date: Date of the analysis
         dimension_name: Optional dimension name for dimension-based patterns
 
     Returns:
@@ -162,6 +168,7 @@ async def run_pattern(
             "tenant_id": str(tenant_id),
             "grain": grain.value,
             "pattern": pattern,
+            "analysis_date": analysis_date.isoformat(),
             **({"dimension": dimension_name} if dimension_name else {}),
         },
         payload={
@@ -170,6 +177,7 @@ async def run_pattern(
             "tenant_id": tenant_id,
             "grain": grain.value,
             "timestamp": datetime.now().isoformat(),
+            "analysis_date": analysis_date.isoformat(),
             **({"dimension": dimension_name} if dimension_name else {}),
         },
     )
@@ -183,6 +191,7 @@ async def run_pattern(
             pattern_config=pattern_config,
             metric_id=metric_id,
             grain=grain,
+            analysis_date=analysis_date,
             metric_definition=metric_definition,
             dimension_name=dimension_name,
         )
@@ -225,7 +234,7 @@ async def run_pattern(
                 }
 
         # Create an analysis window based on data
-        analysis_window = create_analysis_window(pattern_config=pattern_config, grain=grain)
+        analysis_window = create_analysis_window(pattern_config=pattern_config, grain=grain, analysis_date=analysis_date)
 
         # prepare the data arguments for the pattern run
         data_args: dict[str, Any] = {"metric_id": metric_id}
@@ -238,7 +247,7 @@ async def run_pattern(
 
         # Run pattern analysis
         result = levers.execute_pattern(
-            pattern_name=pattern, analysis_window=analysis_window, config=pattern_config, **data_args
+            pattern_name=pattern, analysis_window=analysis_window, config=pattern_config, analysis_date=analysis_date, **data_args
         )
         logger.info("Successfully ran pattern %s for metric %s%s", pattern, metric_id, dimension_suffix)
 
@@ -254,6 +263,7 @@ async def run_pattern(
                 "tenant_id": str(tenant_id),
                 "grain": grain.value,
                 "pattern": pattern,
+                "analysis_date": analysis_date.isoformat(),
                 **({"dimension": dimension_name} if dimension_name else {}),
             },
             payload=stored_result,
@@ -284,6 +294,7 @@ async def run_pattern(
                 "tenant_id": str(tenant_id),
                 "grain": grain.value,
                 "pattern": pattern,
+                "analysis_date": analysis_date.isoformat(),
                 **({"dimension": dimension_name} if dimension_name else {}),
             },
             payload=failed_result,

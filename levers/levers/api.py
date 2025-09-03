@@ -204,7 +204,7 @@ class Levers(Generic[T]):
         return list_primitives_by_family()
 
     def execute_pattern(
-        self, pattern_name: str, analysis_window: AnalysisWindow, config: PatternConfig | None = None, **kwargs
+        self, pattern_name: str, analysis_window: AnalysisWindow, analysis_date: date, config: PatternConfig | None = None, **kwargs
     ) -> Any:
         """
         Execute an analysis pattern.
@@ -212,6 +212,7 @@ class Levers(Generic[T]):
         Args:
             pattern_name: Name of the pattern to execute
             analysis_window: AnalysisWindow object specifying the analysis time window
+            analysis_date: Date of the analysis
             config: PatternConfig object specifying the pattern configuration
             **kwargs: Additional pattern-specific parameters
 
@@ -224,7 +225,7 @@ class Levers(Generic[T]):
         try:
             pattern_class = self.get_pattern(pattern_name)
             pattern = pattern_class(config=config)
-            result = pattern.analyze(analysis_window=analysis_window, **kwargs)
+            result = pattern.analyze(analysis_window=analysis_window, analysis_date=analysis_date, **kwargs)
 
             # Return the model directly
             return result
