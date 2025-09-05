@@ -596,8 +596,9 @@ def difference_from_average(df: pd.DataFrame, value_col: str) -> pd.DataFrame:
         if n_slices > 1:
             sum_others = total - row_val
             avg_others = sum_others / (n_slices - 1)
-            abs_diff = calculate_difference(row_val, avg_others)  # type: ignore
-            pct_diff = calculate_relative_change(row_val, avg_others) * 100.0  # type: ignore
+            abs_diff = calculate_difference(row_val, avg_others)
+            relative_change = calculate_relative_change(row_val, avg_others)
+            pct_diff = (relative_change * 100.0) if relative_change is not None else None
 
             result_df.at[result_df.index[i], "avg_other_slices_value"] = avg_others
             result_df.at[result_df.index[i], "absolute_diff_from_avg"] = abs_diff
@@ -809,17 +810,16 @@ def identify_strongest_weakest_changes(
     if curr_strongest != prior_strongest:
         # Get the row for the new strongest slice
         curr_strongest_row = df[df[slice_col] == curr_strongest].iloc[0]
-
+        relative_change = calculate_relative_change(
+            curr_strongest_row[current_val_col], curr_strongest_row[prior_val_col]
+        )
         strongest_slice = SliceStrength(
             slice_value=curr_strongest,
             previous_slice_value=prior_strongest,
             current_value=float(curr_strongest_row[current_val_col]),
             prior_value=float(curr_strongest_row[prior_val_col]),
             absolute_delta=float(curr_strongest_row[current_val_col] - curr_strongest_row[prior_val_col]),
-            relative_delta_percent=float(
-                calculate_relative_change(curr_strongest_row[current_val_col], curr_strongest_row[prior_val_col])  # type: ignore
-                * 100.0  # type: ignore
-            ),
+            relative_delta_percent=(float(relative_change * 100.0) if relative_change is not None else None),
         )
 
     # Process weakest

@@ -58,10 +58,6 @@ class CubeFilterOperator(str, Enum):
     BEFORE_DATE = "beforeDate"
     AFTER_DATE = "afterDate"
 
-    # Boolean operators
-    IS_TRUE = "isTrue"
-    IS_FALSE = "isFalse"
-
     # Null operators
     SET = "set"  # not null
     NOT_SET = "notSet"  # is null

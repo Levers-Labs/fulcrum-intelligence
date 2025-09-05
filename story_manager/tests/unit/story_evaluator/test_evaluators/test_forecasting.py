@@ -197,7 +197,11 @@ class TestForecastingEvaluator:
             assert "title" in story
             assert "detail" in story
             assert story["genre"] == StoryGenre.PERFORMANCE
-            assert story["story_group"] == StoryGroup.LIKELY_STATUS
+            assert (
+                story["story_group"] == StoryGroup.REQUIRED_PERFORMANCE
+                if story["story_type"] == StoryType.REQUIRED_PERFORMANCE
+                else StoryGroup.LIKELY_STATUS
+            )
             assert story["metric_id"] == "test_metric"
             assert story["grain"] == Granularity.DAY
 
@@ -328,7 +332,11 @@ class TestForecastingEvaluator:
         )
 
         assert story["story_type"] == StoryType.FORECASTED_ON_TRACK
-        assert story["story_group"] == StoryGroup.LIKELY_STATUS
+        assert (
+            story["story_group"] == StoryGroup.LIKELY_STATUS
+            if story["story_type"] != StoryType.REQUIRED_PERFORMANCE
+            else StoryGroup.REQUIRED_PERFORMANCE
+        )
         assert story["genre"] == StoryGenre.PERFORMANCE
         assert story["metric_id"] == "test_metric"
         assert "title" in story
