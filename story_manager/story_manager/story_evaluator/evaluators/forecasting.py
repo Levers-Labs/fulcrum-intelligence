@@ -661,7 +661,7 @@ class ForecastingEvaluator(StoryEvaluatorBase[Forecasting]):
 
         # Prepare historical data with growth rates
         if self.series_df is None or self.series_df.empty:
-            return pd.DataFrame(columns=["date", "value", "pop_growth_percent"])
+            return []
 
         df = self.series_df.copy()  # type: ignore
         df["date"] = pd.to_datetime(df["date"])

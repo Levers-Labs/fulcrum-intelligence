@@ -599,7 +599,7 @@ class TestForecastingEvaluator:
 
         series_data = evaluator._prepare_required_performance_series_data(mock_forecasting_pattern, required_perf)
 
-        assert series_data.empty
+        assert series_data == []
 
     @patch("levers.primitives.get_period_range_for_grain")
     def test_prepare_pacing_series_data(self, mock_get_range, evaluator_with_series, mock_forecasting_pattern):
