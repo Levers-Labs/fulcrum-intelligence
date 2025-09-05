@@ -810,18 +810,16 @@ def identify_strongest_weakest_changes(
     if curr_strongest != prior_strongest:
         # Get the row for the new strongest slice
         curr_strongest_row = df[df[slice_col] == curr_strongest].iloc[0]
-        relative_change = calculate_relative_change(curr_strongest_row[current_val_col], curr_strongest_row[prior_val_col])
+        relative_change = calculate_relative_change(
+            curr_strongest_row[current_val_col], curr_strongest_row[prior_val_col]
+        )
         strongest_slice = SliceStrength(
             slice_value=curr_strongest,
             previous_slice_value=prior_strongest,
             current_value=float(curr_strongest_row[current_val_col]),
             prior_value=float(curr_strongest_row[prior_val_col]),
             absolute_delta=float(curr_strongest_row[current_val_col] - curr_strongest_row[prior_val_col]),
-            relative_delta_percent=(
-                float(relative_change * 100.0)
-                if relative_change is not None
-                else None
-            ),
+            relative_delta_percent=(float(relative_change * 100.0) if relative_change is not None else None),
         )
 
     # Process weakest
