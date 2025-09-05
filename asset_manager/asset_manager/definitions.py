@@ -5,21 +5,32 @@ from typing import Any, cast
 from dagster import Definitions
 from dagster_aws.s3 import S3PickleIOManager, S3Resource
 
-from asset_manager.assets import metric_semantic_values, snowflake_metric_cache
-from asset_manager.jobs import snowflake_cache_job
+from asset_manager.assets import (
+    metric_semantic_values,
+    metric_time_series_daily,
+    metric_time_series_monthly,
+    metric_time_series_weekly,
+    snowflake_metric_cache,
+)
+from asset_manager.jobs import grain_jobs, snowflake_cache_job
 from asset_manager.resources import AppConfigResource, DbResource, SnowflakeResource
 from asset_manager.schedules import (
     daily_snowflake_cache_schedule,
     monthly_snowflake_cache_schedule,
+    time_series_schedules,
     weekly_snowflake_cache_schedule,
 )
-from asset_manager.sensors import sync_dynamic_partitions
+from asset_manager.sensors import sync_dynamic_partitions, sync_metric_contexts_partition_sensor
 
 # Define all assets
 all_assets = [
     # semantic cache assets
     metric_semantic_values,
     snowflake_metric_cache,
+    # time series assets
+    metric_time_series_daily,
+    metric_time_series_weekly,
+    metric_time_series_monthly,
 ]
 
 # Define resources
@@ -52,17 +63,17 @@ if app_config.settings.dagster_s3_bucket:
     )
 
 # Define jobs
-jobs = [snowflake_cache_job]
+jobs = [snowflake_cache_job] + grain_jobs
 
 # Define schedules
 schedules = [
     daily_snowflake_cache_schedule,
     weekly_snowflake_cache_schedule,
     monthly_snowflake_cache_schedule,
-]
+] + time_series_schedules
 
 # Define sensors
-sensors = [sync_dynamic_partitions]
+sensors = [sync_dynamic_partitions] + [sync_metric_contexts_partition_sensor]
 
 # Main definitions object that Dagster will discover
 defs = Definitions(assets=all_assets, resources=resources, jobs=jobs, schedules=schedules, sensors=sensors)
