@@ -819,7 +819,7 @@ def identify_strongest_weakest_changes(
             current_value=float(curr_strongest_row[current_val_col]),
             prior_value=float(curr_strongest_row[prior_val_col]),
             absolute_delta=float(curr_strongest_row[current_val_col] - curr_strongest_row[prior_val_col]),
-            relative_delta_percent=(float(relative_change * 100.0) if relative_change is not None else None),
+            relative_delta_percent=float(relative_change * 100.0) if relative_change is not None else None,
         )
 
     # Process weakest

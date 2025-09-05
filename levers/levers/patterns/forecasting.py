@@ -385,9 +385,6 @@ class ForecastingPattern(Pattern[Forecasting]):
         # Initialize result
         result = PacingProjection(target_value=target_value, period=period)
 
-        if len(df) < 2:
-            return result
-
         # Get the start and end dates for the pacing period
         # Use include_today=True to get the current active period (not the previous completed period)
         pacing_period_start, pacing_period_end = get_period_range_for_grain(
