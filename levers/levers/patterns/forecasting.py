@@ -153,6 +153,7 @@ class ForecastingPattern(Pattern[Forecasting]):
             # Trim daily_df to only include data up to analysis_date
             # This ensures the forecast starts from analysis_date, not from the last historical date
             df["date"] = pd.to_datetime(df["date"])
+            historical_df = df.copy()
             df = df[pd.to_datetime(df["date"]) <= analysis_dt].copy()
 
             # Get the number of periods to forecast
@@ -160,7 +161,7 @@ class ForecastingPattern(Pattern[Forecasting]):
 
             # Generate forecast
             forecast_df = forecast_with_confidence_intervals(
-                df=df,
+                df=historical_df,
                 value_col="value",
                 confidence_level=confidence_level,
                 date_col="date",
@@ -310,6 +311,9 @@ class ForecastingPattern(Pattern[Forecasting]):
             (pd.to_datetime(actual_df["date"]) >= period_start_date) & (pd.to_datetime(actual_df["date"]) < analysis_dt)  # type: ignore
         ]
 
+        if period_actuals.empty or len(period_actuals) < 2:
+            return stats
+
         # Get forecast values from analysis_dt to period_end_date (inclusive)
         period_forecast = forecast_df[
             (pd.to_datetime(forecast_df["date"]) >= analysis_dt)
@@ -377,8 +381,12 @@ class ForecastingPattern(Pattern[Forecasting]):
                 - Gap percent
                 - Status
         """
+
         # Initialize result
         result = PacingProjection(target_value=target_value, period=period)
+
+        if len(df) < 2:
+            return result
 
         # Get the start and end dates for the pacing period
         # Use include_today=True to get the current active period (not the previous completed period)
@@ -401,6 +409,9 @@ class ForecastingPattern(Pattern[Forecasting]):
         pacing_period_actuals = df[
             (pd.to_datetime(df["date"]) >= pacing_period_start) & (pd.to_datetime(df["date"]) <= analysis_dt)
         ]
+
+        if pacing_period_actuals.empty or len(pacing_period_actuals) < 2:
+            return result
 
         # If period is already complete, just use actual values
         if analysis_dt >= pacing_period_end:
@@ -508,8 +519,16 @@ class ForecastingPattern(Pattern[Forecasting]):
 
         # Get the number of past periods for growth calculation
         past_periods_count = (analysis_dt - period_start_date).days + 1  # type: ignore
-        if past_periods_count < 1:
-            return RequiredPerformance(period=period, previous_periods=past_periods_count)
+        required_performance = RequiredPerformance(period=period, previous_periods=past_periods_count)
+        if past_periods_count < 2:
+            return required_performance
+
+        # check if there is any actual data in the period
+        periods_actuals = df[
+            (pd.to_datetime(df["date"]) >= period_start_date) & (pd.to_datetime(df["date"]) <= analysis_dt)  # type: ignore
+        ]
+        if periods_actuals.empty or len(periods_actuals) < 2:
+            return required_performance
 
         # Get the latest actual value
         latest_actual_value = float(df["value"].iloc[-1])
@@ -517,7 +536,7 @@ class ForecastingPattern(Pattern[Forecasting]):
         # For forecasting, calculate remaining periods based on target date
         remaining_periods_count = calculate_remaining_periods(analysis_dt, period_end_date, grain)  # type: ignore
 
-        required_performance = RequiredPerformance(remaining_periods=remaining_periods_count)
+        required_performance.remaining_periods = remaining_periods_count
 
         # Calculate required growth if there are remaining periods
         if remaining_periods_count > 0:

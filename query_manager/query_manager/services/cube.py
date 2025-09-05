@@ -315,11 +315,11 @@ class CubeClient(AsyncHttpClient):
         :raises MetricValueNotFoundError: If no values are found for the metric.
         """
         query = self.generate_query_for_metric(metric, grain, start_date, end_date, dimensions)
-        # try:
-        response = await self.load_query_data(query)
-        # except HttpClientError as exc:
-        #     logger.error("Cube API request failed with error: %s", exc)
-        #     raise MalformedMetricMetadataError(metric.metric_id) from exc
+        try:
+            response = await self.load_query_data(query)
+        except HttpClientError as exc:
+            logger.error("Cube API request failed with error: %s", exc)
+            raise MalformedMetricMetadataError(metric.metric_id) from exc
         metric_values = self.convert_cube_response_to_metric_values(response, metric, grain=grain)
         if not metric_values:
             logger.warning("No values found for metric_id: %s", metric.metric_id)
