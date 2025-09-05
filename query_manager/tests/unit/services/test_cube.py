@@ -1,3 +1,4 @@
+import random
 from datetime import date
 from unittest.mock import AsyncMock, MagicMock
 
@@ -6,6 +7,7 @@ import pytest
 from commons.clients.auth import JWTAuth, JWTSecretKeyAuth
 from commons.clients.base import HttpClientError
 from commons.models.enums import Granularity
+from query_manager.core.enums import CubeFilterOperator
 from query_manager.core.models import (
     CubeFilter,
     Dimension,
@@ -754,3 +756,48 @@ async def test_get_cube_dimensions_error(mocker, cube_client):
     with pytest.raises(HttpClientError):
         await cube_client.get_cube_dimensions(cube_name)
     get_cube_dimensions_mock.assert_called_once_with(cube_name)
+
+
+@pytest.mark.parametrize("operator", list(CubeFilterOperator))
+def test_generate_query_for_metric_all_operators(metric, operator):
+    """
+    Ensure every CubeFilterOperator value is transformed into a
+    syntactically-valid Cube filter object.
+    """
+    metric = MetricDetail.parse_obj(metric)
+
+    # base semantic meta
+    metric.meta_data.semantic_meta = SemanticMetaMetric(
+        cube="demo",
+        member="total_sales",
+        member_type="measure",
+        time_dimension={"cube": "demo", "member": "created_at"},
+        cube_filters=[
+            CubeFilter(
+                dimension="demo.region",
+                operator=operator,
+                # supply dummy values for non-flag operators, leave empty for flag ops
+                values=(
+                    [random.randint(1, 100)]  # noqa
+                    if operator not in {CubeFilterOperator.SET, CubeFilterOperator.NOT_SET}
+                    else []
+                ),
+            )
+        ],
+    )
+
+    query = CubeClient.generate_query_for_metric(metric)
+
+    # ---------------- assertions ----------------
+    assert len(query["filters"]) == 1
+    f = query["filters"][0]
+
+    # correct operator string
+    assert f["operator"] == operator.value
+
+    if operator in {CubeFilterOperator.SET, CubeFilterOperator.NOT_SET}:
+        # flag operators → no values key
+        assert "values" not in f or f["values"] == []  # code currently keeps [], tolerate either
+    else:
+        # other operators → values key present and non-empty
+        assert "values" in f and f["values"], f"operator {operator} should have values"

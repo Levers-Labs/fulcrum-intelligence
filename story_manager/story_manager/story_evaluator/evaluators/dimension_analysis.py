@@ -49,11 +49,20 @@ class DimensionAnalysisEvaluator(StoryEvaluatorBase[DimensionAnalysis]):
         grain = Granularity(pattern_result.analysis_window.grain)
 
         # Check for top segments
-        if pattern_result.top_slices and len(pattern_result.top_slices) >= 4:
+        if (
+            pattern_result.top_slices
+            and len(pattern_result.top_slices) >= 4
+            and all((s.avg_other_slices_value or 0) > 0 for s in pattern_result.top_slices)
+        ):
+
             stories.append(self._create_top_segments_story(pattern_result, metric_id, metric, grain))
 
         # Check for bottom segments
-        if pattern_result.bottom_slices and len(pattern_result.bottom_slices) >= 4:
+        if (
+            pattern_result.bottom_slices
+            and len(pattern_result.bottom_slices) >= 4
+            and all((s.avg_other_slices_value or 0) > 0 for s in pattern_result.bottom_slices)
+        ):
             stories.append(self._create_bottom_segments_story(pattern_result, metric_id, metric, grain))
 
         # Check for notable segment comparisons in comparison highlights
@@ -673,18 +682,16 @@ class DimensionAnalysisEvaluator(StoryEvaluatorBase[DimensionAnalysis]):
         if filtered_df.empty:
             return [result]  # Return list with empty result dictionary
 
-        # Debug: Check for duplicates in the source data
-        duplicate_check = filtered_df.groupby(["date", "dimension_slice"]).size()
-        if (duplicate_check > 1).any():
-            logger.warning(
-                f"Found duplicate date/segment combinations in series data: {duplicate_check[duplicate_check > 1]}"
-            )
+        # Collapse any duplicate (date, slice) rows → single row per date
+        collapsed_df = filtered_df.groupby(["date", "dimension_slice"], as_index=False)[
+            "value"
+        ].sum()  # or .mean(), .first() depending on definition
 
-        # Loop through each segment and populate results
+        # Build segment-wise data
         for key, segment in segments.items():
-            segment_df = filtered_df[filtered_df["dimension_slice"] == segment]
+            segment_df = collapsed_df[collapsed_df["dimension_slice"] == segment]
             if not segment_df.empty:
-                # Final cleanup: Replace any remaining NaN/inf values before converting to dict
+                # Final cleanup: Replace any remaining NaN/inf values
                 segment_df = segment_df.replace([float("inf"), float("-inf"), np.NaN], 0.0)
                 result[key] = segment_df[["date", "dimension_slice", "value"]].to_dict(orient="records")
 

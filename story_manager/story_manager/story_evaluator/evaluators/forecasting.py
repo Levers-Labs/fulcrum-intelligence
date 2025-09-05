@@ -659,12 +659,11 @@ class ForecastingEvaluator(StoryEvaluatorBase[Forecasting]):
         )
         period_start_date = pd.to_datetime(period_start_date)
 
-        # Return empty if no series data
+        # Prepare historical data with growth rates
         if self.series_df is None or self.series_df.empty:
             return []
 
-        # Prepare historical data with growth rates
-        df = self.series_df.copy()
+        df = self.series_df.copy()  # type: ignore
         df["date"] = pd.to_datetime(df["date"])
         df = df[df["date"] >= period_start_date]
         df = df.sort_values("date")
@@ -698,9 +697,8 @@ class ForecastingEvaluator(StoryEvaluatorBase[Forecasting]):
         period_start_date = pd.to_datetime(period_start_date)
         period_end_date = pd.to_datetime(period_end_date)
 
-        # Return empty if no series data
         if self.series_df is None or self.series_df.empty:
-            return pd.DataFrame(columns=["date", "value"])
+            return pd.DataFrame(columns=["date", "value", "pop_growth_percent"])
 
         actual_df = self.series_df.copy()
         actual_df["date"] = pd.to_datetime(actual_df["date"])

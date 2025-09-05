@@ -160,7 +160,7 @@ class PerformanceStatusPattern(Pattern[MetricPerformance]):
                 if status_change_info:
                     result["status_change"] = status_change_info
 
-            # Calculate streak info if historical data is available
+            # Calculate streak info if historical data is available and target value is available
             if len(df) > 1:
                 streak_info = self._calculate_streak_info(df, status)
                 if streak_info:
@@ -269,15 +269,16 @@ class PerformanceStatusPattern(Pattern[MetricPerformance]):
             return None
 
         values = data["value"].values
+        targets = data["target"].values
 
         # Find the streak length
-        streak_length = 1
+        streak_length = 0
         current_direction = None
 
         for i in range(len(values) - 1, 0, -1):
-            if values[i] > values[i - 1]:
+            if targets[i] is not None and values[i] > targets[i]:
                 direction = "increasing"
-            elif values[i] < values[i - 1]:
+            elif targets[i] is not None and values[i] < targets[i]:
                 direction = "decreasing"
             else:
                 direction = "stable"

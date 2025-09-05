@@ -113,7 +113,7 @@ class PerformanceStatusEvaluator(StoryEvaluatorBase[MetricPerformance]):
                 "performance_percent": abs(pattern_result.percent_over_performance or 0),
                 "gap_percent": abs(pattern_result.percent_gap or 0),
                 "change_percent": abs(pattern_result.pop_change_percent or 0),
-                "streak_length": pattern_result.streak.length if pattern_result.streak else 0,
+                "streak_length": pattern_result.streak.length if pattern_result.streak else None,
                 "trend_direction": trend_direction,
                 "gap_trend": gap_trend,
                 "performance_trend": performance_trend,

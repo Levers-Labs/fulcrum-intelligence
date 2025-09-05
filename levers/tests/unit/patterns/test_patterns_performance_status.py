@@ -115,6 +115,7 @@ class TestPerformanceStatusPattern:
             {
                 "date": pd.date_range(start="2023-01-01", end="2023-01-10", freq="D"),
                 "value": [100, 101, 102, 103, 104, 105, 106, 107, 108, 109],
+                "target": None,
             }
         )
 
@@ -286,100 +287,51 @@ class TestPerformanceStatusPattern:
         assert result.new_status == MetricGVAStatus.ON_TRACK
         assert result.old_status_duration_grains == 2
 
-    def test_calculate_streak_info_increasing(self, pattern, mocker):
-        """Test _calculate_streak_info method with increasing values."""
+    def test_calculate_streak(self, pattern):
+        """Test _calculate_streak method."""
         # Arrange
         data = pd.DataFrame(
             {
                 "date": pd.date_range(start="2023-01-01", end="2023-01-10", freq="D"),
-                "value": [90, 91, 92, 93, 94, 95, 96, 97, 98, 99],  # Increasing streak
+                "value": [90, 91, 92, 93, 94, 95, 96, 100, 102, 105],
+                "target": [100, 90, 90, 80, 90, 100, 90, 90, 80, 90],
             }
         )
-        current_status = MetricGVAStatus.OFF_TRACK
 
         # Act
-        result = pattern._calculate_streak_info(data, current_status)
+        result = pattern._calculate_streak_info(data, MetricGVAStatus.ON_TRACK)
 
         # Assert
         assert result is not None
         assert isinstance(result, Streak)
-        assert result.length == 10
-        assert result.status == MetricGVAStatus.OFF_TRACK
-        assert result.absolute_change_over_streak == 9
-        assert result.average_change_absolute_per_grain == 0.9
+        assert result.length == 4
+        assert result.status == MetricGVAStatus.ON_TRACK
+        assert result.absolute_change_over_streak == 9.0
+        assert result.average_change_absolute_per_grain == 2.25
 
-    def test_calculate_streak_info_decreasing(self, pattern, mocker):
-        """Test _calculate_streak_info method with decreasing values."""
+    def test_calculate_streak_with_no_streak(self, pattern):
+        """Test _calculate_streak method."""
         # Arrange
         data = pd.DataFrame(
             {
                 "date": pd.date_range(start="2023-01-01", end="2023-01-10", freq="D"),
-                "value": [99, 98, 97, 96, 95, 94, 93, 92, 91, 90],  # Decreasing streak
+                "value": [90, 91, 92, 93, 94, 95, 96, 100, 102, 105],
+                "target": [100, 90, 90, 80, 90, 100, 90, 90, 120, 90],
             }
         )
-        current_status = MetricGVAStatus.OFF_TRACK
 
         # Act
-        result = pattern._calculate_streak_info(data, current_status)
+        result = pattern._calculate_streak_info(data, MetricGVAStatus.OFF_TRACK)
 
         # Assert
-        assert result is not None
-        assert isinstance(result, Streak)
-        assert result.length == 10
-        assert result.status == MetricGVAStatus.OFF_TRACK
-        assert result.absolute_change_over_streak == -9.0
-        assert result.average_change_absolute_per_grain == -0.9
-
-    def test_calculate_streak_info_stable(self, pattern, mocker):
-        """Test _calculate_streak_info method with stable values."""
-        # Arrange
-        data = pd.DataFrame(
-            {
-                "date": pd.date_range(start="2023-01-01", end="2023-01-10", freq="D"),
-                "value": [95, 95, 95, 95, 95, 95, 95, 95, 95, 95],  # Stable values
-            }
-        )
-        current_status = MetricGVAStatus.OFF_TRACK
-
-        mocker.patch("levers.patterns.performance_status.calculate_difference", return_value=0.0)
-
-        # Act
-        result = pattern._calculate_streak_info(data, current_status)
-
-        # Assert
-        assert result is not None
-        assert isinstance(result, Streak)
-        assert result.length == 10
-        assert result.status == MetricGVAStatus.OFF_TRACK
-        assert result.absolute_change_over_streak == 0.0
-        assert result.average_change_absolute_per_grain == 0.0
-
-    def test_calculate_streak_info_mixed(self, pattern, mocker):
-        """Test _calculate_streak_info method with mixed direction."""
-        # Arrange
-        data = pd.DataFrame(
-            {
-                "date": pd.date_range(start="2023-01-01", end="2023-01-10", freq="D"),
-                "value": [95, 96, 97, 96, 95, 94, 95, 96, 97, 98],  # Mixed directions
-            }
-        )
-        current_status = MetricGVAStatus.OFF_TRACK
-
-        mocker.patch("levers.patterns.performance_status.calculate_difference", return_value=3.0)
-
-        # Act
-        result = pattern._calculate_streak_info(data, current_status)
-
-        # Assert
-        assert result is not None
-        assert isinstance(result, Streak)
-        assert result.status == MetricGVAStatus.OFF_TRACK
-        assert result.absolute_change_over_streak == 3.0
+        assert result is None
 
     def test_calculate_streak_info_one_point(self, pattern):
         """Test _calculate_streak_info method with only one data point."""
         # Arrange
-        data = pd.DataFrame({"date": [pd.Timestamp("2023-01-01")], "value": [95]})  # Only one data point
+        data = pd.DataFrame(
+            {"date": [pd.Timestamp("2023-01-01")], "value": [95], "target": [100]}
+        )  # Only one data point
         current_status = MetricGVAStatus.OFF_TRACK
 
         # Act
