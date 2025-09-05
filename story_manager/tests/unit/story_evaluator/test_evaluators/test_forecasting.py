@@ -198,9 +198,9 @@ class TestForecastingEvaluator:
             assert "detail" in story
             assert story["genre"] == StoryGenre.PERFORMANCE
             assert (
-                story["story_group"] == StoryGroup.REQUIRED_PERFORMANCE
-                if story["story_type"] == StoryType.REQUIRED_PERFORMANCE
-                else StoryGroup.LIKELY_STATUS
+                story["story_group"] == StoryGroup.LIKELY_STATUS
+                if story["story_type"] != StoryType.REQUIRED_PERFORMANCE
+                else StoryGroup.REQUIRED_PERFORMANCE
             )
             assert story["metric_id"] == "test_metric"
             assert story["grain"] == Granularity.DAY
@@ -599,7 +599,7 @@ class TestForecastingEvaluator:
 
         series_data = evaluator._prepare_required_performance_series_data(mock_forecasting_pattern, required_perf)
 
-        assert series_data == []
+        assert series_data.empty
 
     @patch("levers.primitives.get_period_range_for_grain")
     def test_prepare_pacing_series_data(self, mock_get_range, evaluator_with_series, mock_forecasting_pattern):
