@@ -223,6 +223,11 @@ def _trigger_patterns_on_time_series(
 
         # Build run requests for each pattern for this time series materialization
         for pattern in patterns:
+            # TODO: find a better way to handle this
+            # Skip forecasting pattern for non-daily granularity
+            if pattern == "forecasting" and granularity != Granularity.DAY:
+                context.log.info(f"Skipping forecasting pattern for non-daily granularity: {granularity}")
+                continue
             pattern_context = MetricPatternContext(
                 tenant=metric_context.tenant, metric=metric_context.metric, pattern=pattern
             )

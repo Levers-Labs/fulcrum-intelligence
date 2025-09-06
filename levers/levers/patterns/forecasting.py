@@ -705,10 +705,6 @@ class ForecastingPattern(Pattern[Forecasting]):
             forecast_vs_target_stats=[],
             pacing=[],
             required_performance=[],
-            error=dict(
-                message="Invalid target data for analysis",
-                type="data_error",
-            ),
         )
 
     def _get_target_value(self, target_data: pd.DataFrame, date: pd.Timestamp, grain: Granularity) -> float | None:

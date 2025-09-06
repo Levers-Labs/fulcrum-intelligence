@@ -13,7 +13,7 @@ from asset_manager.services.pattern_data_organiser import DataDict, PatternDataO
 from asset_manager.services.utils import get_metric
 from commons.models.enums import Granularity
 from commons.utilities.context import reset_context, set_tenant_id
-from levers import Levers
+from levers import DataError, Levers, PatternError
 from levers.models.common import AnalysisWindow
 from levers.models.pattern_config import PatternConfig
 from query_manager.core.schemas import MetricDetail
@@ -87,18 +87,6 @@ async def run_single_pattern(
             dimension_name=dimension_name,
         )
 
-        # Check if any required dataset is empty
-        for key, df in data.items():
-            if df.empty:
-                return {
-                    "success": False,
-                    "pattern": pattern,
-                    "metric_id": metric_id,
-                    "grain": grain.value,
-                    "error": {"message": f"No data available for {key}", "type": "NoDataAvailableError"},
-                    **({"dimension_name": dimension_name} if dimension_name else {}),
-                }
-
         # Build analysis window
         analysis_window = build_analysis_window(pattern_config, grain)
 
@@ -118,8 +106,20 @@ async def run_single_pattern(
         # Store result
         stored = await store_pattern_result(db, result=result)
 
+        error = stored.get("error")
+        if error:
+            error_message = error.get("message", "Unknown error")
+            error_type = error.get("type", "Unknown error")
+            if error_type == "data_error":
+                raise DataError(error_message)
+            raise PatternError(
+                message=error_message,
+                pattern_name=pattern,
+                details=error,
+            )
+
         return {
-            "success": False if stored.get("error") else True,
+            "success": True,
             **stored,
         }
 
