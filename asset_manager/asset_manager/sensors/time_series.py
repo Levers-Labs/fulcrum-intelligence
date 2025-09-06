@@ -31,7 +31,7 @@ logger = logging.getLogger(__name__)
 
 @sensor(
     name="sync_metric_contexts_partition_sensor",
-    minimum_interval_seconds=90,  # 15 minutes
+    minimum_interval_seconds=900,  # 15 minutes
     default_status=DefaultSensorStatus.RUNNING,
 )
 def sync_metric_contexts_partition_sensor(
