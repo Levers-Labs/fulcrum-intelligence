@@ -89,6 +89,62 @@ monthly_time_series_partitions = MultiPartitionsDefinition(
 )
 
 # ============================================
+# PATTERN PARTITIONS
+# ============================================
+
+# Single dynamic partition for all pattern execution contexts
+metric_pattern_contexts = DynamicPartitionsDefinition(name="metric_pattern_contexts")
+
+
+class MetricPatternContext(BaseModel):
+    """Parse and handle pattern execution context strings."""
+
+    tenant: str
+    metric: str
+    pattern: str
+
+    @property
+    def key(self) -> str:
+        """Get the key for the metric pattern context."""
+        return KEY_SEP.join([self.tenant, self.metric, self.pattern])
+
+    @classmethod
+    def from_string(cls, context_str: str) -> "MetricPatternContext":
+        """Parse 'tenant_a::cpu_usage::performance_status' format."""
+        parts = context_str.split(KEY_SEP)
+        if len(parts) != 3:
+            raise ValueError(f"Invalid execution context: {context_str}")
+        return cls(tenant=parts[0], metric=parts[1], pattern=parts[2])
+
+    def to_string(self) -> str:
+        """Convert back to string format."""
+        return self.key
+
+    def to_metric_context(self) -> str:
+        """Extract metric context for upstream dependency."""
+        return KEY_SEP.join([self.tenant, self.metric])
+
+    def __str__(self) -> str:
+        return self.key
+
+    def __repr__(self) -> str:
+        return self.key
+
+
+# For pattern assets (2D: date × tenant::metric::pattern)
+daily_pattern_partitions = MultiPartitionsDefinition(
+    {"date": daily_partitions, "metric_pattern_context": metric_pattern_contexts}
+)
+
+weekly_pattern_partitions = MultiPartitionsDefinition(
+    {"week": weekly_partitions, "metric_pattern_context": metric_pattern_contexts}
+)
+
+monthly_pattern_partitions = MultiPartitionsDefinition(
+    {"month": monthly_partitions, "metric_pattern_context": metric_pattern_contexts}
+)
+
+# ============================================
 # HELPER FUNCTIONS
 # ============================================
 

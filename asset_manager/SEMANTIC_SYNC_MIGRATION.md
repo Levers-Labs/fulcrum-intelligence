@@ -245,13 +245,130 @@ The `sync_metric_contexts_partition_sensor` enables automatic backfill scenarios
 - [ ] 🔄 **Monitoring**: Observability dashboards and alerting configuration
 - [ ] 🔄 **Deployment**: Production rollout strategy and migration plan
 
+## Pattern Analysis Migration ✅ Complete
+
+### Architecture
+
+**Event-Driven Pattern Execution**
+- Pattern analysis assets triggered by successful time series materializations
+- Asset sensors monitor time series completion and automatically trigger pattern runs
+- Single dynamic partition space: `metric_pattern_contexts` shared across all grains
+- 2D partitions per grain: time dimension × `metric_pattern_context`
+
+**Partition Strategy**
+- `metric_pattern_contexts`: Single dynamic partition for all execution contexts (`"tenant_a::cpu_usage::performance_status"`)
+- Multi-dimensional partitions combining time and pattern context:
+  - Daily: `{"date": daily_partitions, "metric_pattern_context": metric_pattern_contexts}`
+  - Weekly: `{"week": weekly_partitions, "metric_pattern_context": metric_pattern_contexts}`
+  - Monthly: `{"month": monthly_partitions, "metric_pattern_context": metric_pattern_contexts}`
+
+**MetricPatternContext Class**
+- Pydantic model for parsing execution context strings
+- Methods: `from_string()`, `to_string()`, `to_metric_context()`
+- Format: `"tenant_a::cpu_usage::performance_status"`
+
+### Services
+
+**Pattern Orchestration Service** (`services/patterns.py`)
+- Functional RORO pattern with async operations
+- Core functions:
+  - `run_patterns_for_metric()`: Main orchestration with standard/dimension pattern categorization
+  - `run_single_pattern()`: Individual pattern execution with error handling
+  - `fetch_pattern_data()`: Data fetching via `PatternDataOrganiser`
+  - `store_pattern_result()`: Result storage via `PatternManager`
+- Concurrent execution using `asyncio.gather()` for multiple patterns/dimensions
+
+**PatternDataOrganiser** (`services/pattern_data_organiser.py`)
+- Ported from `tasks_manager` with asset manager resource patterns
+- Supports all data source types: metric time series, dimensional, multi-metric, targets
+- Async data fetching with proper error handling and empty dataset detection
+
+### Assets
+
+**Pattern Analysis Assets** (`assets/patterns.py`)
+- `pattern_run_daily`: Daily pattern analysis - fetches data directly from database
+- `pattern_run_weekly`: Weekly pattern analysis - fetches data directly from database
+- `pattern_run_monthly`: Monthly pattern analysis - fetches data directly from database
+
+**Asset Implementation Details:**
+- **Group Name**: "patterns" for logical organization
+- **Data Independence**: Fetches data directly from database using partition date - no upstream asset dependencies
+- **Partition Format**: `"2025-07-01|tenant_a::cpu_usage::performance_status"` (pipe-separated)
+- **Metadata**: Comprehensive execution summary with tenant, metric, pattern, status, counts, duration
+- **Service Integration**: Uses pattern orchestration service for all analysis logic
+
+### Jobs
+
+**Pattern Jobs** (`jobs/patterns.py`)
+- `daily_patterns_job`: Executes daily pattern analysis assets
+- `weekly_patterns_job`: Executes weekly pattern analysis assets
+- `monthly_patterns_job`: Executes monthly pattern analysis assets
+- `all_patterns_job`: Combined job for all pattern grains (backfills)
+
+### Sensors
+
+**Dynamic Partition Management** (`sensors/patterns.py`)
+- `sync_metric_pattern_contexts_sensor`: Maintains `metric_pattern_contexts` partitions
+  - Discovers active metric contexts and available patterns
+  - Builds execution context keys: `tenant::metric::pattern`
+  - 15-minute interval with conservative add-only approach
+
+**Event-Driven Execution Sensors**
+- `trigger_daily_patterns_on_time_series`: Triggers daily patterns on time series completion
+- `trigger_weekly_patterns_on_time_series`: Triggers weekly patterns on time series completion
+- `trigger_monthly_patterns_on_time_series`: Triggers monthly patterns on time series completion
+
+**Sensor Implementation Details:**
+- Monitor specific time series assets using `@asset_sensor`
+- Ensure required dynamic partitions exist before triggering runs
+- Generate `RunRequest`s for each available pattern for the materialized metric context
+- Unique run keys prevent duplicate executions: `{grain}:{time}:{metric_context}:{pattern}`
+
+### Backfill Strategy
+
+**Pattern-Specific Backfills**
+```bash
+# Daily pattern backfill
+dagster asset materialize --select pattern_run_daily --partition "2025-07-01|tenant_a::cpu_usage::performance_status"
+
+# Weekly pattern range backfill
+dagster asset materialize --select pattern_run_weekly --partition-range "2025-07-07|tenant_a::cpu_usage::forecasting:2025-07-28|tenant_a::cpu_usage::forecasting"
+
+# Monthly pattern backfill
+dagster asset materialize --select pattern_run_monthly --partition "2025-07|tenant_a::cpu_usage::drift_detection"
+
+# All patterns for a grain
+dagster job execute --name daily_patterns_job --partition "2025-07-01|tenant_a::cpu_usage::performance_status"
+```
+
+**Multi-Dimensional Partition Access**
+```python
+# In pattern assets
+date_str = context.partition_key.keys_by_dimension["date"]
+exec_ctx = MetricPatternContext.from_string(context.partition_key.keys_by_dimension["metric_pattern_context"])
+```
+
+### Migration Benefits
+
+**Event-Driven Execution**
+1. **Immediate Triggering**: Pattern analysis starts as soon as time series data is available
+2. **Logical Dependency Management**: Asset sensors ensure time series completion before pattern execution
+3. **No Clock Skew**: Eliminates schedule-based delays and timing issues
+4. **Selective Execution**: Only runs patterns for metrics that have new data
+5. **Data Independence**: Pattern assets fetch data directly from database, no asset data dependencies
+
+**Operational Excellence**
+1. **Comprehensive Logging**: Detailed execution tracking with performance metrics
+2. **Error Isolation**: Individual pattern failures don't stop other patterns
+3. **Metadata Rich**: Complete execution context in asset materialization metadata
+4. **Simplified Architecture**: No complex partition mapping or upstream asset dependencies
+
 ## Next Steps
 
-1. **Pattern Analysis Migration**: Extend partition strategy for pattern assets
-2. **Stories Migration**: Add story generation assets with pattern dependencies
-3. **Cross-Grain Dependencies**: Weekly/monthly depending on daily completion
-4. **Advanced Backfilling**: Smart dependency resolution for historical loads
-5. **Performance Optimization**: Caching and connection pooling tuning
+1. **Stories Migration**: Add story generation assets with pattern dependencies
+2. **Cross-Grain Dependencies**: Weekly/monthly depending on daily completion
+3. **Advanced Backfilling**: Smart dependency resolution for historical loads
+4. **Performance Optimization**: Caching and connection pooling tuning
 
 ## Sync Logic Deep Dive
 

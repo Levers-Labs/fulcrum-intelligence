@@ -10,9 +10,12 @@ from asset_manager.assets import (
     metric_time_series_daily,
     metric_time_series_monthly,
     metric_time_series_weekly,
+    pattern_run_daily,
+    pattern_run_monthly,
+    pattern_run_weekly,
     snowflake_metric_cache,
 )
-from asset_manager.jobs import grain_jobs, snowflake_cache_job
+from asset_manager.jobs import grain_jobs, pattern_grain_jobs, snowflake_cache_job
 from asset_manager.resources import AppConfigResource, DbResource, SnowflakeResource
 from asset_manager.schedules import (
     daily_snowflake_cache_schedule,
@@ -20,7 +23,14 @@ from asset_manager.schedules import (
     time_series_schedules,
     weekly_snowflake_cache_schedule,
 )
-from asset_manager.sensors import sync_dynamic_partitions, sync_metric_contexts_partition_sensor
+from asset_manager.sensors import (
+    sync_dynamic_partitions,
+    sync_metric_contexts_partition_sensor,
+    sync_metric_pattern_contexts_sensor,
+    trigger_daily_patterns_on_time_series,
+    trigger_monthly_patterns_on_time_series,
+    trigger_weekly_patterns_on_time_series,
+)
 
 # Define all assets
 all_assets = [
@@ -31,6 +41,10 @@ all_assets = [
     metric_time_series_daily,
     metric_time_series_weekly,
     metric_time_series_monthly,
+    # pattern analysis assets
+    pattern_run_daily,
+    pattern_run_weekly,
+    pattern_run_monthly,
 ]
 
 # Define resources
@@ -63,7 +77,7 @@ if app_config.settings.dagster_s3_bucket:
     )
 
 # Define jobs
-jobs = [snowflake_cache_job] + grain_jobs
+jobs = [snowflake_cache_job] + grain_jobs + pattern_grain_jobs
 
 # Define schedules
 schedules = [
@@ -73,7 +87,14 @@ schedules = [
 ] + time_series_schedules
 
 # Define sensors
-sensors = [sync_dynamic_partitions] + [sync_metric_contexts_partition_sensor]
+sensors = [
+    sync_dynamic_partitions,
+    sync_metric_contexts_partition_sensor,
+    sync_metric_pattern_contexts_sensor,
+    trigger_daily_patterns_on_time_series,
+    trigger_weekly_patterns_on_time_series,
+    trigger_monthly_patterns_on_time_series,
+]
 
 # Main definitions object that Dagster will discover
 defs = Definitions(assets=all_assets, resources=resources, jobs=jobs, schedules=schedules, sensors=sensors)
