@@ -5,6 +5,7 @@ flow logic but adapted for Dagster assets with RORO pattern and async I/O.
 """
 
 import logging
+from datetime import date
 from typing import Any
 
 from analysis_manager.patterns.manager import PatternManager
@@ -29,9 +30,9 @@ async def get_pattern_config(db: DbResource, pattern: str) -> PatternConfig:
         return await pm.get_pattern_config(pattern)
 
 
-def build_analysis_window(config: PatternConfig, grain: Granularity) -> AnalysisWindow:
+def build_analysis_window(config: PatternConfig, grain: Granularity, analysis_date: date) -> AnalysisWindow:
     """Build analysis window from pattern config and grain."""
-    start_date, end_date = config.analysis_window.get_date_range(grain=grain)  # type: ignore
+    start_date, end_date = config.analysis_window.get_date_range(grain=grain, analysis_date=analysis_date)  # type: ignore
     return AnalysisWindow(start_date=start_date.isoformat(), end_date=end_date.isoformat(), grain=grain)  # type: ignore
 
 
@@ -40,6 +41,7 @@ async def fetch_pattern_data(
     pattern_config: PatternConfig,
     grain: Granularity,
     metric: MetricDetail,
+    analysis_date: date,
     dimension_name: str | None = None,
 ) -> DataDict:
     """Fetch data required for pattern analysis."""
@@ -53,6 +55,7 @@ async def fetch_pattern_data(
             metric_id=metric.metric_id,
             grain=grain,  # type: ignore
             metric_definition=metric,
+            analysis_date=analysis_date,
             **kwargs,
         )
 
@@ -70,6 +73,7 @@ async def run_single_pattern(
     pattern_config: PatternConfig,
     grain: Granularity,
     metric: MetricDetail,
+    sync_date: date,
     dimension_name: str | None = None,
 ) -> dict[str, Any]:
     """Run a single pattern analysis."""
@@ -84,15 +88,17 @@ async def run_single_pattern(
             pattern_config=pattern_config,
             grain=grain,
             metric=metric,
+            analysis_date=sync_date,
             dimension_name=dimension_name,
         )
 
         # Build analysis window
-        analysis_window = build_analysis_window(pattern_config, grain)
+        analysis_window = build_analysis_window(pattern_config, grain, sync_date)
 
         # Prepare arguments for pattern execution
         kwargs: dict[str, Any] = {
             "metric_id": metric_id,
+            "analysis_date": sync_date,
             **({"dimension_name": dimension_name} if dimension_name else {}),
         }
         for key, frame in data.items():
@@ -133,6 +139,7 @@ async def run_patterns_for_metric(
     db: DbResource,
     metric_id: str,
     grain: Granularity,
+    sync_date: date,
     pattern: str,
 ) -> dict[str, Any]:
     """
@@ -152,7 +159,9 @@ async def run_patterns_for_metric(
         runs_results: list[dict[str, Any]] = []
         # Standard patterns (metric-level)
         if not is_dimension_pattern:
-            result = await run_single_pattern(db, pattern_config=pattern_config, grain=grain, metric=metric)
+            result = await run_single_pattern(
+                db, pattern_config=pattern_config, grain=grain, metric=metric, sync_date=sync_date
+            )
             runs_results.append(result)
 
         # Dimension patterns (per dimension)
@@ -160,7 +169,12 @@ async def run_patterns_for_metric(
             dimensions = [d.dimension_id for d in metric.dimensions]
             for dimension in dimensions:
                 result = await run_single_pattern(
-                    db, pattern_config=pattern_config, grain=grain, metric=metric, dimension_name=dimension
+                    db,
+                    pattern_config=pattern_config,
+                    grain=grain,
+                    metric=metric,
+                    dimension_name=dimension,
+                    sync_date=sync_date,
                 )
                 runs_results.append(result)
 

@@ -64,6 +64,7 @@ async def pattern_run_daily(  # type: ignore
         metric_id=exec_ctx.metric,
         grain=Granularity.DAY,
         pattern=exec_ctx.pattern,
+        sync_date=sync_date,
     )
 
     runs = result.pop("runs", [])
@@ -117,6 +118,7 @@ async def pattern_run_weekly(  # type: ignore
         metric_id=exec_ctx.metric,
         grain=Granularity.WEEK,
         pattern=exec_ctx.pattern,
+        sync_date=sync_date,
     )
 
     runs = result.pop("runs", [])
@@ -173,6 +175,7 @@ async def pattern_run_monthly(  # type: ignore
         metric_id=exec_ctx.metric,
         grain=Granularity.MONTH,
         pattern=exec_ctx.pattern,
+        sync_date=sync_date,
     )
 
     runs = result.pop("runs", [])
