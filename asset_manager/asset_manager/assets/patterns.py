@@ -36,7 +36,7 @@ logger = logging.getLogger(__name__)
 )
 async def pattern_run_daily(
     context: AssetExecutionContext, app_config: AppConfigResource, db: DbResource
-) -> MaterializeResult:
+) -> MaterializeResult | None:
     """
     Execute daily pattern analysis for a specific metric-pattern combination.
     Fetches data directly from the database using the partition date.
@@ -64,8 +64,15 @@ async def pattern_run_daily(
         grain=Granularity.DAY,
         pattern=exec_ctx.pattern,
     )
-    context.log.info(f"Daily pattern analysis completed for {exec_ctx} on {sync_date}")
+
     runs = result.pop("runs", [])
+
+    # Skip materialization if no pattern runs were generated
+    if not runs:
+        context.log.warning(f"No pattern runs generated for {exec_ctx} on {sync_date}, skipping materialization")
+        return None
+
+    context.log.info(f"Daily pattern analysis completed for {exec_ctx} on {sync_date}")
     result.update({"tenant": exec_ctx.tenant, "tenant_id": tenant_id})
     return MaterializeResult(metadata=result, value=runs)
 
@@ -81,7 +88,7 @@ async def pattern_run_daily(
 )
 async def pattern_run_weekly(
     context: AssetExecutionContext, app_config: AppConfigResource, db: DbResource
-) -> MaterializeResult:
+) -> MaterializeResult | None:
     """
     Execute weekly pattern analysis for a specific metric-pattern combination.
     Fetches data directly from the database using the partition week.
@@ -110,8 +117,16 @@ async def pattern_run_weekly(
         pattern=exec_ctx.pattern,
     )
 
-    context.log.info(f"Weekly pattern analysis completed for {exec_ctx} for week starting {sync_date}")
     runs = result.pop("runs", [])
+
+    # Skip materialization if no pattern runs were generated
+    if not runs:
+        context.log.warning(
+            f"No pattern runs generated for {exec_ctx} for week starting {sync_date}, skipping materialization"
+        )
+        return None
+
+    context.log.info(f"Weekly pattern analysis completed for {exec_ctx} for week starting {sync_date}")
     result.update({"tenant": exec_ctx.tenant, "tenant_id": tenant_id})
 
     return MaterializeResult(metadata=result, value=runs)
@@ -128,7 +143,7 @@ async def pattern_run_weekly(
 )
 async def pattern_run_monthly(
     context: AssetExecutionContext, app_config: AppConfigResource, db: DbResource
-) -> MaterializeResult:
+) -> MaterializeResult | None:
     """
     Execute monthly pattern analysis for a specific metric-pattern combination.
     Fetches data directly from the database using the partition month.
@@ -157,8 +172,16 @@ async def pattern_run_monthly(
         pattern=exec_ctx.pattern,
     )
 
-    context.log.info(f"Monthly pattern analysis completed for {exec_ctx} on {month_str} ({sync_date})")
     runs = result.pop("runs", [])
+
+    # Skip materialization if no pattern runs were generated
+    if not runs:
+        context.log.warning(
+            f"No pattern runs generated for {exec_ctx} on {month_str} ({sync_date}), skipping materialization"
+        )
+        return None
+
+    context.log.info(f"Monthly pattern analysis completed for {exec_ctx} on {month_str} ({sync_date})")
     result.update({"tenant": exec_ctx.tenant, "tenant_id": tenant_id})
 
     return MaterializeResult(metadata=result, value=runs)

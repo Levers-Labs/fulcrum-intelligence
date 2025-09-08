@@ -7,6 +7,9 @@ from dagster_aws.s3 import S3PickleIOManager, S3Resource
 
 from asset_manager.assets import (
     metric_semantic_values,
+    metric_stories_daily,
+    metric_stories_monthly,
+    metric_stories_weekly,
     metric_time_series_daily,
     metric_time_series_monthly,
     metric_time_series_weekly,
@@ -15,7 +18,12 @@ from asset_manager.assets import (
     pattern_run_weekly,
     snowflake_metric_cache,
 )
-from asset_manager.jobs import grain_jobs, pattern_grain_jobs, snowflake_cache_job
+from asset_manager.jobs import (
+    grain_jobs,
+    pattern_grain_jobs,
+    snowflake_cache_job,
+    story_grain_jobs,
+)
 from asset_manager.resources import AppConfigResource, DbResource, SnowflakeResource
 from asset_manager.schedules import (
     daily_snowflake_cache_schedule,
@@ -28,8 +36,11 @@ from asset_manager.sensors import (
     sync_metric_contexts_partition_sensor,
     sync_metric_pattern_contexts_sensor,
     trigger_daily_patterns_on_time_series,
+    trigger_daily_stories_on_pattern_runs,
     trigger_monthly_patterns_on_time_series,
+    trigger_monthly_stories_on_pattern_runs,
     trigger_weekly_patterns_on_time_series,
+    trigger_weekly_stories_on_pattern_runs,
 )
 
 # Define all assets
@@ -45,6 +56,10 @@ all_assets = [
     pattern_run_daily,
     pattern_run_weekly,
     pattern_run_monthly,
+    # story generation assets
+    metric_stories_daily,
+    metric_stories_weekly,
+    metric_stories_monthly,
 ]
 
 # Define resources
@@ -77,7 +92,7 @@ if app_config.settings.dagster_s3_bucket:
     )
 
 # Define jobs
-jobs = [snowflake_cache_job] + grain_jobs + pattern_grain_jobs
+jobs = [snowflake_cache_job] + grain_jobs + pattern_grain_jobs + story_grain_jobs
 
 # Define schedules
 schedules = [
@@ -94,6 +109,9 @@ sensors = [
     trigger_daily_patterns_on_time_series,
     trigger_weekly_patterns_on_time_series,
     trigger_monthly_patterns_on_time_series,
+    trigger_daily_stories_on_pattern_runs,
+    trigger_weekly_stories_on_pattern_runs,
+    trigger_monthly_stories_on_pattern_runs,
 ]
 
 # Main definitions object that Dagster will discover
