@@ -39,8 +39,9 @@ logger = logging.getLogger(__name__)
     description="Generate daily stories from pattern analysis results",
     metadata={"grain": Granularity.DAY.value, "type": "story_generation", "owner": "data-platform"},
     ins={"pattern_runs": AssetIn(key=AssetKey("pattern_run_daily"))},
+    output_required=False,
 )
-async def metric_stories_daily(
+async def metric_stories_daily(  # type: ignore
     context: AssetExecutionContext,
     app_config: AppConfigResource,
     db: DbResource,
@@ -61,7 +62,7 @@ async def metric_stories_daily(
     # Skip materialization if no pattern runs available
     if not pattern_runs:
         context.log.warning(f"No pattern runs available for {exec_ctx} on {date_str}, skipping materialization")
-        return None
+        return
 
     context.log.info(f"Processing stories evaluation for {exec_ctx} on {date_str}")
 
@@ -77,10 +78,14 @@ async def metric_stories_daily(
         grain=Granularity.DAY,
         runs=pattern_runs,
     )
+    stories_count = result.pop("count")
+    if stories_count == 0:
+        context.log.warning(f"No stories generated for {exec_ctx} on {date_str}, skipping materialization")
+        return
 
-    context.log.info(f"Generated {result['count']} total stories for stories evaluation for {exec_ctx} on {date_str}")
+    context.log.info(f"Generated {stories_count} total stories for stories evaluation for {exec_ctx} on {date_str}")
 
-    return MaterializeResult(
+    yield MaterializeResult(
         metadata={
             **result,
             "grain": Granularity.DAY.value,
@@ -98,8 +103,9 @@ async def metric_stories_daily(
     description="Generate weekly stories from pattern analysis results",
     metadata={"grain": Granularity.WEEK.value, "type": "story_generation", "owner": "data-platform"},
     ins={"pattern_runs": AssetIn(key=AssetKey("pattern_run_weekly"))},
+    output_required=False,
 )
-async def metric_stories_weekly(
+async def metric_stories_weekly(  # type: ignore
     context: AssetExecutionContext,
     app_config: AppConfigResource,
     db: DbResource,
@@ -122,7 +128,7 @@ async def metric_stories_weekly(
         context.log.warning(
             f"No pattern runs available for {exec_ctx} for week starting {week_str}, skipping materialization"
         )
-        return None
+        return
 
     context.log.info(f"Processing stories evaluation for {exec_ctx} for week starting {week_str}")
 
@@ -139,11 +145,18 @@ async def metric_stories_weekly(
         runs=pattern_runs,
     )
 
+    stories_count = result.pop("count")
+    if stories_count == 0:
+        context.log.warning(
+            f"No stories generated for {exec_ctx} for week starting {week_str}, skipping materialization"
+        )
+        return
+
     context.log.info(
-        f"Generated {result['count']} total stories for stories evaluation for {exec_ctx} for week starting {week_str}"
+        f"Generated {stories_count} total stories for stories evaluation for {exec_ctx} for week starting {week_str}"
     )
 
-    return MaterializeResult(
+    yield MaterializeResult(
         metadata={
             **result,
             "grain": Granularity.WEEK.value,
@@ -161,8 +174,9 @@ async def metric_stories_weekly(
     description="Generate monthly stories from pattern analysis results",
     metadata={"grain": Granularity.MONTH.value, "type": "story_generation", "owner": "data-platform"},
     ins={"pattern_runs": AssetIn(key=AssetKey("pattern_run_monthly"))},
+    output_required=False,
 )
-async def metric_stories_monthly(
+async def metric_stories_monthly(  # type: ignore
     context: AssetExecutionContext,
     app_config: AppConfigResource,
     db: DbResource,
@@ -183,7 +197,7 @@ async def metric_stories_monthly(
     # Skip materialization if no pattern runs available
     if not pattern_runs:
         context.log.warning(f"No pattern runs available for {exec_ctx} on {month_str}, skipping materialization")
-        return None
+        return
 
     context.log.info(f"Processing stories evaluation for {exec_ctx} on {month_str}")
 
@@ -200,9 +214,14 @@ async def metric_stories_monthly(
         runs=pattern_runs,
     )
 
-    context.log.info(f"Generated {result['count']} total stories for stories evaluation for {exec_ctx} on {month_str}")
+    stories_count = result.pop("count")
+    if stories_count == 0:
+        context.log.warning(f"No stories generated for {exec_ctx} on {month_str}, skipping materialization")
+        return
 
-    return MaterializeResult(
+    context.log.info(f"Generated {stories_count} total stories for stories evaluation for {exec_ctx} on {month_str}")
+
+    yield MaterializeResult(
         metadata={
             **result,
             "grain": Granularity.MONTH.value,

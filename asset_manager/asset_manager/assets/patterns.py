@@ -33,8 +33,9 @@ logger = logging.getLogger(__name__)
     group_name="patterns",
     metadata={"grain": "daily", "type": "pattern_analysis", "owner": "data-platform"},
     description="Daily pattern analysis for a specific metric and pattern",
+    output_required=False,
 )
-async def pattern_run_daily(
+async def pattern_run_daily(  # type: ignore
     context: AssetExecutionContext, app_config: AppConfigResource, db: DbResource
 ) -> MaterializeResult | None:
     """
@@ -70,11 +71,11 @@ async def pattern_run_daily(
     # Skip materialization if no pattern runs were generated
     if not runs:
         context.log.warning(f"No pattern runs generated for {exec_ctx} on {sync_date}, skipping materialization")
-        return None
+        return
 
     context.log.info(f"Daily pattern analysis completed for {exec_ctx} on {sync_date}")
     result.update({"tenant": exec_ctx.tenant, "tenant_id": tenant_id})
-    return MaterializeResult(metadata=result, value=runs)
+    yield MaterializeResult(metadata=result, value=runs)
 
 
 # ============================================
@@ -85,8 +86,9 @@ async def pattern_run_daily(
     group_name="patterns",
     metadata={"grain": "weekly", "type": "pattern_analysis", "owner": "data-platform"},
     description="Weekly pattern analysis for a specific metric and pattern",
+    output_required=False,
 )
-async def pattern_run_weekly(
+async def pattern_run_weekly(  # type: ignore
     context: AssetExecutionContext, app_config: AppConfigResource, db: DbResource
 ) -> MaterializeResult | None:
     """
@@ -124,12 +126,12 @@ async def pattern_run_weekly(
         context.log.warning(
             f"No pattern runs generated for {exec_ctx} for week starting {sync_date}, skipping materialization"
         )
-        return None
+        return
 
     context.log.info(f"Weekly pattern analysis completed for {exec_ctx} for week starting {sync_date}")
     result.update({"tenant": exec_ctx.tenant, "tenant_id": tenant_id})
 
-    return MaterializeResult(metadata=result, value=runs)
+    yield MaterializeResult(metadata=result, value=runs)
 
 
 # ============================================
@@ -140,8 +142,9 @@ async def pattern_run_weekly(
     group_name="patterns",
     metadata={"grain": "monthly", "type": "pattern_analysis", "owner": "data-platform"},
     description="Monthly pattern analysis for a specific metric and pattern",
+    output_required=False,
 )
-async def pattern_run_monthly(
+async def pattern_run_monthly(  # type: ignore
     context: AssetExecutionContext, app_config: AppConfigResource, db: DbResource
 ) -> MaterializeResult | None:
     """
@@ -179,9 +182,9 @@ async def pattern_run_monthly(
         context.log.warning(
             f"No pattern runs generated for {exec_ctx} on {month_str} ({sync_date}), skipping materialization"
         )
-        return None
+        return
 
     context.log.info(f"Monthly pattern analysis completed for {exec_ctx} on {month_str} ({sync_date})")
     result.update({"tenant": exec_ctx.tenant, "tenant_id": tenant_id})
 
-    return MaterializeResult(metadata=result, value=runs)
+    yield MaterializeResult(metadata=result, value=runs)
