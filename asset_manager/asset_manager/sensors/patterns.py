@@ -58,7 +58,7 @@ def _build_execution_context_keys(metric_contexts: list[MetricContext], patterns
 
 @sensor(
     name="sync_metric_pattern_contexts_sensor",
-    minimum_interval_seconds=900,  # 15 minutes
+    minimum_interval_seconds=300,  # 5 minutes
     default_status=DefaultSensorStatus.RUNNING,
 )
 def sync_metric_pattern_contexts_sensor(
