@@ -107,7 +107,7 @@ def get_analysis_end_date(grain: Granularity, include_today: bool = False) -> da
 
 
 def get_period_range_for_grain(
-    analysis_date: date, grain: Granularity, include_today: bool = False
+    grain: Granularity, analysis_date: date | None = None, include_today: bool = False
 ) -> tuple[pd.Timestamp, pd.Timestamp]:
     """
     Get the period range (start,end) based on a date and grain.
@@ -134,6 +134,7 @@ def get_period_range_for_grain(
         - For grain=YEAR, returns the full year containing the analysis_date
         - When include_today=False, it adjusts the calculation to exclude today
     """
+    analysis_date = analysis_date or date.today()
     try:
         dt = pd.to_datetime(analysis_date)
     except (TypeError, ValueError) as exc:

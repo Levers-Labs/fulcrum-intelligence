@@ -29,24 +29,24 @@ run_coordinator:
   class: QueuedRunCoordinator
   config:
     dequeue_use_threads: true
-    dequeue_num_workers: 4
+    dequeue_num_workers: 8
     dequeue_interval_seconds: 2
-    max_concurrent_runs: 35
+    max_concurrent_runs: 50
 
 sensors:
   use_threads: true
-  num_workers: 2
-  num_submit_workers: 2
+  num_workers: 4
+  num_submit_workers: 4
 
 schedules:
   use_threads: true
-  num_workers: 6
-  num_submit_workers: 4
+  num_workers: 8
+  num_submit_workers: 8
 
 backfills:
   use_threads: true
-  num_workers: 2
-  num_submit_workers: 2
+  num_workers: 4
+  num_submit_workers: 4
 
 code_servers:
   local_startup_timeout: 360

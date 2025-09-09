@@ -161,7 +161,7 @@ class PerformanceStatusPattern(Pattern[MetricPerformance]):
                     result["status_change"] = status_change_info
 
             # Calculate streak info if historical data is available and target value is available
-            if len(df) > 1:
+            if len(df) > 1 and has_target:
                 streak_info = self._calculate_streak_info(df, status)
                 if streak_info:
                     result["streak"] = streak_info
