@@ -15,7 +15,7 @@
       "days": 180,
       "min_days": 30,
       "max_days": 365,
-      "include_today": false
+      "include_today": true
     },
     "settings": {
       "threshold_ratio": 0.05
@@ -39,7 +39,7 @@
       "days": 180,
       "min_days": 30,
       "max_days": 365,
-      "include_today": false
+      "include_today": true
     },
     "settings": {},
     "meta": {}
@@ -61,7 +61,7 @@
       "days": 730,
       "min_days": 365,
       "max_days": 730,
-      "include_today": false
+      "include_today": true
     },
     "settings": {
       "dimension_name": "dimension",
@@ -93,7 +93,7 @@
       "days": 365,
       "min_days": 90,
       "max_days": 730,
-      "include_today": false
+      "include_today": true
     },
     "settings": {
       "confidence_level": 0.95,

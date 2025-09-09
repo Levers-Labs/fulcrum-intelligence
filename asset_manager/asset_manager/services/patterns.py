@@ -4,7 +4,6 @@ Provides functional orchestration for pattern analysis, mirroring the Prefect
 flow logic but adapted for Dagster assets with RORO pattern and async I/O.
 """
 
-import logging
 from datetime import date
 from typing import Any
 
@@ -19,8 +18,6 @@ from levers.models.common import AnalysisWindow
 from levers.models.pattern_config import PatternConfig
 from query_manager.core.schemas import MetricDetail
 from query_manager.semantic_manager.crud import SemanticManager
-
-logger = logging.getLogger(__name__)
 
 
 async def get_pattern_config(db: DbResource, pattern: str) -> PatternConfig:
@@ -74,6 +71,7 @@ async def run_single_pattern(
     grain: Granularity,
     metric: MetricDetail,
     sync_date: date,
+    logger: Any,
     dimension_name: str | None = None,
 ) -> dict[str, Any]:
     """Run a single pattern analysis."""
@@ -91,7 +89,6 @@ async def run_single_pattern(
             analysis_date=sync_date,
             dimension_name=dimension_name,
         )
-
         # Build analysis window
         analysis_window = build_analysis_window(pattern_config, grain, sync_date)
 
@@ -141,6 +138,7 @@ async def run_patterns_for_metric(
     grain: Granularity,
     sync_date: date,
     pattern: str,
+    logger: Any,
 ) -> dict[str, Any]:
     """
     Run pattern analysis for a metric, handling both standard and dimension-based patterns for a given grain.
@@ -157,33 +155,102 @@ async def run_patterns_for_metric(
 
         # Runs results
         runs_results: list[dict[str, Any]] = []
+        failed_dimensions: list[dict[str, Any]] = []
+
         # Standard patterns (metric-level)
         if not is_dimension_pattern:
             result = await run_single_pattern(
-                db, pattern_config=pattern_config, grain=grain, metric=metric, sync_date=sync_date
+                db, pattern_config=pattern_config, grain=grain, metric=metric, sync_date=sync_date, logger=logger
             )
             runs_results.append(result)
 
         # Dimension patterns (per dimension)
         if is_dimension_pattern and metric.dimensions:
             dimensions = [d.dimension_id for d in metric.dimensions]
+
             for dimension in dimensions:
-                result = await run_single_pattern(
-                    db,
-                    pattern_config=pattern_config,
-                    grain=grain,
-                    metric=metric,
-                    dimension_name=dimension,
-                    sync_date=sync_date,
+                try:
+                    result = await run_single_pattern(
+                        db,
+                        pattern_config=pattern_config,
+                        grain=grain,
+                        metric=metric,
+                        dimension_name=dimension,
+                        sync_date=sync_date,
+                        logger=logger,
+                    )
+                    runs_results.append(result)
+                except Exception as e:
+                    logger.warning(
+                        "Failed to process dimension %s for pattern %s on metric %s: %s",
+                        dimension,
+                        pattern,
+                        metric_id,
+                        str(e),
+                    )
+                    failed_dimensions.append(
+                        {
+                            "dimension": dimension,
+                            "error_type": type(e).__name__,
+                            "error_message": str(e),
+                            "pattern": pattern,
+                            "metric_id": metric_id,
+                            "grain": grain.value,
+                            "sync_date": sync_date.isoformat(),
+                        }
+                    )
+
+            # Log summary of dimension processing
+            if failed_dimensions:
+                total_dimensions = len(dimensions)
+                successful_dimensions = total_dimensions - len(failed_dimensions)
+                logger.info(
+                    "Dimension pattern processing summary for %s: %d/%d dimensions processed successfully, %d failed",
+                    metric_id,
+                    successful_dimensions,
+                    total_dimensions,
+                    len(failed_dimensions),
                 )
-                runs_results.append(result)
 
         # Summarize results
         successes = [r for r in runs_results if r.get("success")]
         failures = [r for r in runs_results if not r.get("success")]
         pattern_names = list({r.get("pattern") for r in runs_results if r.get("pattern")})
 
-        return {
+        # Handle dimensional pattern results and metadata
+        metadata: dict[str, Any] = {}
+        if is_dimension_pattern and metric.dimensions:
+            total_dimensions = len([d.dimension_id for d in metric.dimensions])
+
+            # Fail entire run if all dimensions failed
+            if len(failed_dimensions) == total_dimensions:
+                logger.error(
+                    "All %d dimensions failed for pattern %s on metric %s. Failing entire run.",
+                    total_dimensions,
+                    pattern,
+                    metric_id,
+                )
+                raise PatternError(
+                    message=f"All {total_dimensions} dimensions failed for pattern {pattern} on metric {metric_id}",
+                    pattern_name=pattern,
+                    details={
+                        "metric_id": metric_id,
+                        "pattern": pattern,
+                        "grain": grain.value,
+                        "sync_date": sync_date.isoformat(),
+                        "total_dimensions": total_dimensions,
+                        "failed_dimensions": failed_dimensions,
+                    },
+                )
+
+            # Include failed dimensions in metadata if any
+            if failed_dimensions:
+                metadata["failed_dimensions"] = failed_dimensions
+            metadata["total_dimensions"] = total_dimensions
+            metadata["processed_dimensions"] = len(runs_results)
+            metadata["failed_dimension_count"] = len(failed_dimensions)
+
+        result = {
             "executed": len(runs_results),
             "successes": len(successes),
             "failed": len(failures),
@@ -191,5 +258,11 @@ async def run_patterns_for_metric(
             "status": "success" if not failures else "partial_success" if successes else "failed",
             "runs": runs_results,
         }
+
+        # Add metadata if present
+        if metadata:
+            result = {**result, **metadata}
+
+        return result
     finally:
         reset_context()

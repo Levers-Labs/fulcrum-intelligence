@@ -57,7 +57,6 @@ async def pattern_run_daily(  # type: ignore
     context.log.info(f"Starting daily pattern analysis for {exec_ctx} on {sync_date}")
 
     # Run pattern analysis for the specific pattern
-    # TODO: need a fix so we can pass custom date for which the pattern should be run
     result = await run_patterns_for_metric(
         tenant_id=tenant_id,
         db=db,
@@ -65,6 +64,7 @@ async def pattern_run_daily(  # type: ignore
         grain=Granularity.DAY,
         pattern=exec_ctx.pattern,
         sync_date=sync_date,
+        logger=context.log,
     )
 
     runs = result.pop("runs", [])
@@ -111,7 +111,6 @@ async def pattern_run_weekly(  # type: ignore
     context.log.info(f"Starting weekly pattern analysis for {exec_ctx} for week starting {sync_date}")
 
     # Run pattern analysis for the specific pattern
-    # TODO: need a fix so we can pass custom date for which the pattern should be run
     result = await run_patterns_for_metric(
         tenant_id=tenant_id,
         db=db,
@@ -119,6 +118,7 @@ async def pattern_run_weekly(  # type: ignore
         grain=Granularity.WEEK,
         pattern=exec_ctx.pattern,
         sync_date=sync_date,
+        logger=context.log,
     )
 
     runs = result.pop("runs", [])
@@ -168,7 +168,6 @@ async def pattern_run_monthly(  # type: ignore
     context.log.info(f"Starting monthly pattern analysis for {exec_ctx} on {month_str} ({sync_date})")
 
     # Run pattern analysis for the specific pattern
-    # TODO: need a fix so we can pass custom date for which the pattern should be run
     result = await run_patterns_for_metric(
         tenant_id=tenant_id,
         db=db,
@@ -176,6 +175,7 @@ async def pattern_run_monthly(  # type: ignore
         grain=Granularity.MONTH,
         pattern=exec_ctx.pattern,
         sync_date=sync_date,
+        logger=context.log,
     )
 
     runs = result.pop("runs", [])
