@@ -173,12 +173,21 @@ class ForecastingPattern(Pattern[Forecasting]):
 
             # Handle empty forecast
             if forecast_df.empty:
+                logger.error("Forecast data is empty")
                 return self.handle_empty_data(metric_id, analysis_window)
 
             # Handle empty target
             if target.empty or "target_value" not in target.columns or "date" not in target.columns:
-                logger.error(f"Target data is empty or missing required columns. Target: {target}")
-                return self._handle_min_data(metric_id, analysis_window, forecast_data=forecast_df)
+                logger.error("Target data is empty or missing required columns.")
+                return self._handle_min_data(
+                    metric_id,
+                    analysis_window,
+                    forecast_data=forecast_df,
+                    error=dict(
+                        message="Target data is empty or missing required columns target_value or date.",
+                        type="data_error",
+                    ),
+                )
 
             forecast_vs_target_stats = []
             pacing = []
@@ -190,7 +199,7 @@ class ForecastingPattern(Pattern[Forecasting]):
                 # Get period start date instead of end date for target matching
                 pacing_grain = self._get_pacing_grain_for_period(period)
                 period_start_date, period_end_date = get_period_range_for_grain(
-                    analysis_dt, pacing_grain, include_today=True
+                    grain=pacing_grain, analysis_date=analysis_date, include_today=True
                 )
                 target_value = self._get_target_value(target, period_start_date, pacing_grain)
 
@@ -388,7 +397,7 @@ class ForecastingPattern(Pattern[Forecasting]):
         # Get the start and end dates for the pacing period
         # Use include_today=True to get the current active period (not the previous completed period)
         pacing_period_start, pacing_period_end = get_period_range_for_grain(
-            analysis_dt, pacing_grain, include_today=True
+            grain=pacing_grain, analysis_date=analysis_dt.date(), include_today=True
         )
 
         # Check if analysis date is within the pacing period
@@ -702,6 +711,7 @@ class ForecastingPattern(Pattern[Forecasting]):
             num_periods=len(forecast_df),  # type: ignore
             forecast=forecast_data,
             forecast_window=forecast_window,
+            error=kwargs.get("error", None),
             forecast_vs_target_stats=[],
             pacing=[],
             required_performance=[],

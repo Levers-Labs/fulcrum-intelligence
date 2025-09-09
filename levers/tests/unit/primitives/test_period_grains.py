@@ -19,41 +19,41 @@ class TestGetPeriodRangeForGrain:
 
     def test_day_grain(self):
         analysis_date = date(2024, 3, 15)
-        start, end = get_period_range_for_grain(analysis_date, Granularity.DAY)
+        start, end = get_period_range_for_grain(Granularity.DAY, analysis_date)
         assert start == pd.Timestamp("2024-03-15")
         assert end == pd.Timestamp("2024-03-15")
 
     def test_week_grain(self):
         analysis_date = date(2024, 3, 13)  # Wednesday
-        start, end = get_period_range_for_grain(analysis_date, Granularity.WEEK)
+        start, end = get_period_range_for_grain(Granularity.WEEK, analysis_date)
         assert start == pd.Timestamp("2024-03-11")  # Monday
         assert end == pd.Timestamp("2024-03-17")  # Sunday
 
     def test_month_grain(self):
         analysis_date = date(2024, 2, 10)
-        start, end = get_period_range_for_grain(analysis_date, Granularity.MONTH)
+        start, end = get_period_range_for_grain(Granularity.MONTH, analysis_date)
         assert start == pd.Timestamp("2024-02-01")
         assert end == pd.Timestamp("2024-02-29")
 
     def test_quarter_grain(self):
         analysis_date = date(2024, 5, 20)
-        start, end = get_period_range_for_grain(analysis_date, Granularity.QUARTER)
+        start, end = get_period_range_for_grain(Granularity.QUARTER, analysis_date)
         assert start == pd.Timestamp("2024-04-01")
         assert end == pd.Timestamp("2024-06-30")
 
     def test_year_grain(self):
         analysis_date = date(2024, 8, 25)
-        start, end = get_period_range_for_grain(analysis_date, Granularity.YEAR)
+        start, end = get_period_range_for_grain(Granularity.YEAR, analysis_date)
         assert start == pd.Timestamp("2024-01-01")
         assert end == pd.Timestamp("2024-12-31")
 
     def test_invalid_date(self):
         with pytest.raises(ValidationError):
-            get_period_range_for_grain("invalid-date", Granularity.DAY)
+            get_period_range_for_grain(Granularity.DAY, "invalid-date")
 
     def test_invalid_grain_string(self):
         with pytest.raises(ValidationError):
-            get_period_range_for_grain(date.today(), "invalid")
+            get_period_range_for_grain(Granularity.DAY, "invalid")
 
 
 class TestGetPriorPeriodRange:

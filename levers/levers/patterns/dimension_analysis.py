@@ -152,7 +152,7 @@ class DimensionAnalysisPattern(Pattern[DimensionAnalysis]):
                 return self.handle_empty_data(metric_id, analysis_window)
 
             # 2) Determine current and prior period ranges based on grain
-            current_start, current_end = get_period_range_for_grain(analysis_date, grain)
+            current_start, current_end = get_period_range_for_grain(grain, analysis_date)
             prior_start, _ = get_prior_period_range(current_start, current_end, grain)
 
             # 3) Compare slices across time periods
