@@ -267,7 +267,7 @@ class TestForecastingPattern:
         assert isinstance(result.required_performance, list)
 
     def test_analyze_with_weekly_grain(self):
-        """Test analysis with weekly data grain."""
+        """Test analysis with weekly data grain - should raise ValidationError for unsupported grain."""
         pattern = ForecastingPattern()
 
         # Create weekly test data
@@ -277,7 +277,6 @@ class TestForecastingPattern:
 
         analysis_window = AnalysisWindow(start_date="2023-01-02", end_date="2023-03-20", grain=Granularity.WEEK)
 
-        # Run analysis
         result = pattern.analyze(
             metric_id="test_metric",
             data=data,
@@ -286,14 +285,11 @@ class TestForecastingPattern:
             analysis_date=date(2023, 3, 20),
         )
 
-        assert result.pattern == "forecasting"
-        assert result.forecast is not None  # Updated field name
-        assert isinstance(result.forecast_vs_target_stats, list)
-        assert isinstance(result.pacing, list)
-        assert isinstance(result.required_performance, list)
+        # Verify the error message
+        assert "Forecasting pattern is not supported for grain" in str(result.error)
 
     def test_analyze_with_monthly_grain(self):
-        """Test analysis with monthly data grain."""
+        """Test analysis with monthly data grain - should raise ValidationError for unsupported grain."""
         pattern = ForecastingPattern()
 
         # Create monthly test data
@@ -305,7 +301,7 @@ class TestForecastingPattern:
 
         analysis_window = AnalysisWindow(start_date="2023-01-01", end_date="2023-12-31", grain=Granularity.MONTH)
 
-        # Run analysis
+        # Run analysis - should raise ValidationError for unsupported grain
         result = pattern.analyze(
             metric_id="test_metric",
             data=data,
@@ -314,14 +310,11 @@ class TestForecastingPattern:
             analysis_date=date(2023, 12, 31),
         )
 
-        assert result.pattern == "forecasting"
-        assert result.forecast is not None  # Updated field name
-        assert isinstance(result.forecast_vs_target_stats, list)
-        assert isinstance(result.pacing, list)
-        assert isinstance(result.required_performance, list)
+        # Verify the error message
+        assert "Forecasting pattern is not supported for grain" in str(result.error)
 
     def test_analyze_error_handling_in_daily_forecast(self):
-        """Test error handling during forecast generation."""
+        """Test error handling during forecast generation - should raise ValidationError for unsupported grain."""
         pattern = ForecastingPattern()
 
         # Create data that might cause forecasting issues (very short series)
@@ -331,7 +324,7 @@ class TestForecastingPattern:
 
         analysis_window = AnalysisWindow(start_date="2023-01-01", end_date="2023-01-15", grain=Granularity.WEEK)
 
-        # Should not raise an exception but handle gracefully
+        # Should raise ValidationError for unsupported grain
         result = pattern.analyze(
             metric_id="test_metric",
             data=data,
@@ -340,15 +333,11 @@ class TestForecastingPattern:
             analysis_date=date(2023, 1, 15),
         )
 
-        assert result.pattern == "forecasting"
-        # May have empty or minimal forecast data due to insufficient input data
-        assert isinstance(result.forecast, list)
-        assert isinstance(result.forecast_vs_target_stats, list)
-        assert isinstance(result.pacing, list)
-        assert isinstance(result.required_performance, list)
+        # Verify the error message
+        assert "Forecasting pattern is not supported for grain" in str(result.error)
 
     def test_analyze_error_handling_in_period_processing(self):
-        """Test error handling in period data processing."""
+        """Test error handling in period data processing - should raise ValidationError for unsupported grain."""
         pattern = ForecastingPattern()
 
         # Create test data
@@ -360,7 +349,7 @@ class TestForecastingPattern:
 
         analysis_window = AnalysisWindow(start_date="2023-01-01", end_date="2023-03-19", grain=Granularity.WEEK)
 
-        # Should handle gracefully even with unusual target dates
+        # Should raise ValidationError for unsupported grain
         result = pattern.analyze(
             metric_id="test_metric",
             data=data,
@@ -369,11 +358,8 @@ class TestForecastingPattern:
             analysis_date=date(2023, 3, 19),
         )
 
-        assert result.pattern == "forecasting"
-        assert isinstance(result.forecast, list)
-        assert isinstance(result.forecast_vs_target_stats, list)
-        assert isinstance(result.pacing, list)
-        assert isinstance(result.required_performance, list)
+        # Verify the error message
+        assert "Forecasting pattern is not supported for grain" in str(result.error)
 
     def test_pacing_projection_with_different_periods(self):
         """Test pacing projection calculations with different period types."""
@@ -1253,7 +1239,7 @@ class TestForecastingPattern:
         assert result.metric_id == "test_metric"
         assert hasattr(result, "error")
         assert result.error["type"] == "data_error"
-        assert "Invalid target data for analysis" in result.error["message"]
+        assert "Target data is empty" in result.error["message"]
 
     def test_missing_target_columns_handling(self):
         """Test handling when target data is missing required columns."""
@@ -1294,7 +1280,7 @@ class TestForecastingPattern:
             assert result.metric_id == "test_metric"
             assert hasattr(result, "error")
             assert result.error["type"] == "data_error"
-            assert "Invalid target data for analysis" in result.error["message"]
+            assert "Target data is empty or missing required columns target_value or date." in result.error["message"]
 
     def test_no_target_value_found_for_period(self):
         """Test handling when no target value is found for a period."""
@@ -1700,18 +1686,22 @@ class TestForecastingPattern:
 
         analysis_window = AnalysisWindow(start_date="2023-01-01", end_date="2023-03-19", grain=Granularity.WEEK)
 
-        # This will test the _handle_min_data method which has a bug (calls non-existent method)
-        # But we need to catch that AttributeError
-        try:
-            result = pattern._handle_min_data("test_metric", analysis_window, forecast_data=forecast_df)
-            # If we get here, the bug was fixed
-            assert result.pattern == "forecasting"
-            assert result.metric_id == "test_metric"
-            assert hasattr(result, "error")
-            assert result.error["type"] == "data_error"
-        except AttributeError as e:
-            # This is expected due to the bug in line 632
-            assert "_prepare_period_forecast_data" in str(e)
+        # Test _handle_min_data method with error data
+        error_dict = {"type": "data_error", "message": "Test error message"}
+        result = pattern._handle_min_data("test_metric", analysis_window, forecast_data=forecast_df, error=error_dict)
+
+        assert result.pattern == "forecasting"
+        assert result.metric_id == "test_metric"
+        assert hasattr(result, "error")
+        assert result.error is not None
+        assert result.error["type"] == "data_error"
+        assert result.error["message"] == "Test error message"
+
+        # Test _handle_min_data method without error data (should have None error)
+        result_no_error = pattern._handle_min_data("test_metric", analysis_window, forecast_data=forecast_df)
+        assert result_no_error.pattern == "forecasting"
+        assert result_no_error.metric_id == "test_metric"
+        assert result_no_error.error is None
 
     def test_pacing_projection_zero_total_days(self):
         """Test pacing projection with edge case of zero total days."""
