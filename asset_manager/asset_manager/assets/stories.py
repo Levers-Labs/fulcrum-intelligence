@@ -6,7 +6,7 @@ and metric pattern context for efficient execution.
 """
 
 import logging
-from datetime import date
+from datetime import date, datetime
 
 from dagster import (
     AssetExecutionContext,
@@ -208,13 +208,14 @@ async def metric_stories_monthly(  # type: ignore
     tenant_id = await get_tenant_id_by_identifier(app_config, exec_ctx.tenant)
 
     # Generate stories for all pattern runs
+    sync_date = datetime.strptime(month_str, "%Y-%m").date()
     result = await generate_stories_for_pattern_runs(
         tenant_id=tenant_id,
         db=db,
         metric_id=exec_ctx.metric,
         pattern=exec_ctx.pattern,
         grain=Granularity.MONTH,
-        analysis_date=date.fromisoformat(month_str),
+        analysis_date=sync_date,
         runs=pattern_runs,
     )
 
