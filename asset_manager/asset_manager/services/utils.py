@@ -51,7 +51,8 @@ async def discover_metric_contexts(config: AppConfigResource, db: DbResource) ->
     insights = InsightBackendClient(base_url=s.insights_backend_server_host, auth=auth)
 
     # Get all active tenants
-    tenants_resp = await insights.get_tenants()  # Get all tenants for semantic sync
+    # TODO: Rename to enable_semantic_sync once we have a proper flag for it
+    tenants_resp = await insights.get_tenants(enable_story_generation=True)  # Get all tenants for semantic sync
     tenants = tenants_resp.get("results", tenants_resp)  # Support both formats
 
     metric_contexts: list[MetricContext] = []
