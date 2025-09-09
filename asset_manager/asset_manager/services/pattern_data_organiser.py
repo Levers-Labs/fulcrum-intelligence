@@ -51,6 +51,7 @@ class PatternDataOrganiser:
         config: PatternConfig,
         metric_id: str,
         grain: Granularity,
+        analysis_date: date,
         metric_definition: MetricDetail | None = None,
         **fetch_kwargs,
     ) -> DataDict:
@@ -62,6 +63,7 @@ class PatternDataOrganiser:
             metric_id: The metric ID
             grain: Data granularity
             metric_definition: Optional metric definition containing related metrics
+            analysis_date: Date of analysis
             **fetch_kwargs: Additional keyword arguments
 
         Returns:
@@ -79,6 +81,7 @@ class PatternDataOrganiser:
             metric_id=metric_id,
             grain=grain,
             metric_definition=metric_definition,
+            analysis_date=analysis_date,
             **fetch_kwargs,
         )
 
@@ -87,6 +90,7 @@ class PatternDataOrganiser:
         config: PatternConfig,
         metric_id: str,
         grain: Granularity,
+        analysis_date: date,
         metric_definition: MetricDetail | None = None,
         **fetch_kwargs,
     ) -> DataDict:
@@ -111,7 +115,7 @@ class PatternDataOrganiser:
 
             # Calculate date range using the centralized method in AnalysisWindowConfig
             start_date, end_date = config.analysis_window.get_date_range(
-                grain=grain, look_forward=data_source.look_forward
+                grain=grain, analysis_date=analysis_date, look_forward=data_source.look_forward
             )
 
             logger.debug(
@@ -310,7 +314,7 @@ class PatternDataOrganiser:
         return pd.DataFrame(data)
 
     async def check_pattern_data_requirements(
-        self, config: PatternConfig, metric_id: str, grain: Granularity
+        self, config: PatternConfig, metric_id: str, grain: Granularity, analysis_date: date
     ) -> dict[str, bool]:
         """
         Check if all required data for a pattern is available.
@@ -330,7 +334,7 @@ class PatternDataOrganiser:
 
             # Calculate date range using the centralized method
             start_date, end_date = config.analysis_window.get_date_range(
-                grain=grain, look_forward=data_source.look_forward
+                grain=grain, analysis_date=analysis_date, look_forward=data_source.look_forward
             )
 
             try:

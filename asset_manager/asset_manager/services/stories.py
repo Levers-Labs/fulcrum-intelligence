@@ -5,6 +5,7 @@ mirroring the Prefect task logic but adapted for Dagster assets with RORO patter
 """
 
 import logging
+from datetime import date
 from typing import Any
 
 from asset_manager.resources.db import DbResource
@@ -30,6 +31,7 @@ async def generate_stories_for_pattern_run(
     metric_id: str,
     pattern: str,
     grain: Granularity,
+    analysis_date: date,
     run: dict,
 ) -> list[dict[str, Any]]:
     """
@@ -41,11 +43,12 @@ async def generate_stories_for_pattern_run(
     set_tenant_id(tenant_id)
     try:
         logger.info(
-            "Processing pattern stories for tenant %s, pattern %s, metric %s, grain %s",
+            "Processing pattern stories for tenant %s, pattern %s, metric %s, grain %s, date %s",
             tenant_id,
             pattern,
             metric_id,
             grain.value,
+            analysis_date,
         )
 
         # Load pattern data as the appropriate pattern model
@@ -72,6 +75,7 @@ async def generate_stories_for_pattern_run(
                 metric_id=metric_id,
                 grain=grain,  # type: ignore
                 metric_definition=metric,
+                analysis_date=analysis_date,
             )
 
             # Get the time series data from the fetched data
@@ -82,22 +86,24 @@ async def generate_stories_for_pattern_run(
         # Process pattern results and generate stories (CPU-bound, no session needed)
         stories = await manager.evaluate_pattern_result(pattern_run_obj, metric.model_dump(), series_df)
         logger.info(
-            "Generated %d stories for pattern %s, metric %s, grain %s",
+            "Generated %d stories for pattern %s, metric %s, grain %s, date %s",
             len(stories),
             pattern,
             metric_id,
             grain.value,
+            analysis_date,
         )
 
         # Persist stories using a dedicated micro session for writes
         async with db.session() as persist_session:
             story_objs = await manager.persist_stories(stories, persist_session)
             logger.info(
-                "Persisted %d stories for pattern %s, metric %s, grain %s",
+                "Persisted %d stories for pattern %s, metric %s, grain %s, date %s",
                 len(story_objs),
                 pattern,
                 metric_id,
                 grain.value,
+                analysis_date,
             )
             story_dicts = [story.model_dump(mode="json") for story in story_objs]
         # Filter story dicts to keep only the keys we want and heuristic stories
@@ -107,11 +113,12 @@ async def generate_stories_for_pattern_run(
 
     except Exception as e:
         logger.error(
-            "Error processing pattern stories for tenant %s, pattern %s, metric %s, grain %s: %s",
+            "Error processing pattern stories for tenant %s, pattern %s, metric %s, grain %s, date %s: %s",
             tenant_id,
             pattern,
             metric_id,
             grain.value,
+            analysis_date,
             str(e),
             exc_info=True,
         )
@@ -128,6 +135,7 @@ async def generate_stories_for_pattern_runs(
     metric_id: str,
     pattern: str,
     grain: Granularity,
+    analysis_date: date,
     runs: list[dict],
 ) -> dict[str, Any]:
     """
@@ -136,12 +144,13 @@ async def generate_stories_for_pattern_runs(
         Dictionary with aggregated story count, IDs, and processing metadata
     """
     logger.info(
-        "Processing %d pattern runs for tenant %s, pattern %s, metric %s, grain %s",
+        "Processing %d pattern runs for tenant %s, pattern %s, metric %s, grain %s, date %s",
         len(runs),
         tenant_id,
         pattern,
         metric_id,
         grain.value,
+        analysis_date,
     )
 
     # Process each pattern run individually
@@ -155,6 +164,7 @@ async def generate_stories_for_pattern_runs(
             metric_id=metric_id,
             pattern=pattern,
             grain=grain,
+            analysis_date=analysis_date,
             run=run,
         )
 

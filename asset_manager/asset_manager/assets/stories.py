@@ -6,6 +6,7 @@ and metric pattern context for efficient execution.
 """
 
 import logging
+from datetime import date
 
 from dagster import (
     AssetExecutionContext,
@@ -76,6 +77,7 @@ async def metric_stories_daily(  # type: ignore
         metric_id=exec_ctx.metric,
         pattern=exec_ctx.pattern,
         grain=Granularity.DAY,
+        analysis_date=date.fromisoformat(date_str),
         runs=pattern_runs,
     )
     stories_count = result.pop("count")
@@ -142,6 +144,7 @@ async def metric_stories_weekly(  # type: ignore
         metric_id=exec_ctx.metric,
         pattern=exec_ctx.pattern,
         grain=Granularity.WEEK,
+        analysis_date=date.fromisoformat(week_str),
         runs=pattern_runs,
     )
 
@@ -211,6 +214,7 @@ async def metric_stories_monthly(  # type: ignore
         metric_id=exec_ctx.metric,
         pattern=exec_ctx.pattern,
         grain=Granularity.MONTH,
+        analysis_date=date.fromisoformat(month_str),
         runs=pattern_runs,
     )
 
