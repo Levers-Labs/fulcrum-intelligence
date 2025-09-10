@@ -111,8 +111,51 @@ def setup_env(session_monkeypatch, postgres):  # noqa
     session_monkeypatch.setenv("SLACK_OAUTH_REDIRECT_PATH", "slack/oauth/callback")
     session_monkeypatch.setenv("PREFECT_API_URL", "http://localhost:4200")
     session_monkeypatch.setenv("PREFECT_API_TOKEN", "prefect_api_token")
+    # Cache settings for tests - use InMemory backend (no REDIS_URL)
+    session_monkeypatch.setenv("CACHE_PREFIX", "test-cache")
+    session_monkeypatch.setenv("CACHE_TTL_SECONDS", "60")
 
     yield
+
+
+@pytest.fixture(autouse=True, scope="session")
+def setup_cache():
+    """Mock all cache-related functionality for testing"""
+    import sys
+    from unittest.mock import AsyncMock, MagicMock
+
+    # Make the decorator a no-op that returns the original function
+    def cache_decorator(*args, **kwargs):
+        def decorator(func):
+            return func
+
+        return decorator
+
+    # Mock the ORIGINAL fastapi_cache (not fastapi_cache2)
+    mock_cache = MagicMock()
+    mock_decorator = MagicMock()
+    mock_decorator.cache = cache_decorator
+    mock_cache.decorator = mock_decorator
+    mock_fastapi_cache = MagicMock()
+    mock_fastapi_cache.get_prefix = MagicMock(return_value="test-prefix")
+    mock_fastapi_cache.init = MagicMock()
+    mock_fastapi_cache.clear = AsyncMock()
+    mock_fastapi_cache._prefix = "test-prefix"  # Set the _prefix attribute
+    mock_cache.FastAPICache = mock_fastapi_cache
+
+    # Mock commons.cache functions that are awaited
+    mock_commons_cache = MagicMock()
+    mock_commons_cache.init_cache = AsyncMock()
+    mock_commons_cache.close_cache = AsyncMock()
+    mock_commons_cache.invalidate_namespace = AsyncMock()
+    mock_commons_cache.tenant_cache_key_builder = MagicMock()
+    mock_commons_cache.cache_settings = MagicMock()
+
+    # Inject into sys.modules
+    sys.modules["fastapi_cache"] = mock_cache
+    sys.modules["fastapi_cache.decorator"] = mock_decorator
+    sys.modules["fastapi_cache.backends"] = MagicMock()
+    sys.modules["commons.cache"] = mock_commons_cache
 
 
 @pytest.fixture(scope="session", name="jwt_payload")
