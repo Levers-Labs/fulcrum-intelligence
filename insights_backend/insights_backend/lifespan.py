@@ -18,7 +18,7 @@ async def lifespan(app):
     init_session_manager(settings, app_name="insights-backend")
 
     # ---------- Cache initialization ----------
-    await init_cache()
+    await init_cache(settings)
 
     try:
         yield

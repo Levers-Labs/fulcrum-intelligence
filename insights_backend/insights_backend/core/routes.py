@@ -18,7 +18,7 @@ from commons.auth.scopes import (
     USER_READ,
     USER_WRITE,
 )
-from commons.cache import cache_settings, invalidate_namespace, tenant_cache_key_builder
+from commons.cache import invalidate_namespace, tenant_cache_key_builder
 from commons.db.crud import NotFoundError
 from commons.models.tenant import (
     SlackConnectionConfig,
@@ -170,7 +170,7 @@ async def delete_user(user_id: int, user_crud_client: UsersCRUDDep):
     response_model=TenantList,
     dependencies=[Security(oauth2_auth().verify, scopes=[ADMIN_READ])],  # type: ignore
 )
-@cache(expire=cache_settings().CACHE_TTL_SECONDS, namespace="tenant_list_all", key_builder=tenant_cache_key_builder)  # type: ignore
+@cache(expire=300, namespace="tenant_list_all", key_builder=tenant_cache_key_builder)  # type: ignore
 async def list_tenants(
     tenant_crud_client: TenantsCRUDDep,
     params: Annotated[
@@ -228,9 +228,7 @@ async def get_tenant_config(tenant_id: Annotated[int, Depends(get_tenant_id)], t
     response_model=TenantConfig,
     dependencies=[Security(oauth2_auth().verify, scopes=[ADMIN_READ])],  # type: ignore
 )
-@cache(
-    expire=cache_settings().CACHE_TTL_SECONDS, namespace="tenant_config_internal", key_builder=tenant_cache_key_builder  # type: ignore
-)
+@cache(expire=300, namespace="tenant_config_internal", key_builder=tenant_cache_key_builder)  # type: ignore
 async def get_tenant_config_internal(
     tenant_id: Annotated[int, Depends(get_tenant_id)],
     tenant_crud_client: TenantsCRUDDep,
@@ -264,7 +262,7 @@ async def update_tenant_config(
         updated_config = await tenant_crud_client.update_tenant_config(tenant_id, config)  # type: ignore
 
         # Invalidate related cache entries after update
-        await invalidate_namespace("tenant_config")
+        await invalidate_namespace("tenant_config_internal")
 
         return updated_config
     except NotFoundError as e:
@@ -293,9 +291,7 @@ async def create_snowflake_config(config: SnowflakeConfigCreate, tenant_crud_cli
     dependencies=[Security(oauth2_auth().verify, scopes=[ADMIN_READ])],  # type: ignore
     tags=["snowflake"],
 )
-@cache(
-    expire=cache_settings().CACHE_TTL_SECONDS, namespace="snowflake_config", key_builder=tenant_cache_key_builder  # type: ignore
-)
+@cache(expire=300, namespace="snowflake_config", key_builder=tenant_cache_key_builder)  # type: ignore
 async def get_snowflake_config(tenant_crud_client: TenantsCRUDDep):
     """
     Retrieve Snowflake configuration for the current tenant.

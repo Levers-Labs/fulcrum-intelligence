@@ -3,35 +3,31 @@ import logging
 from fastapi_cache import FastAPICache
 from fastapi_cache.backends.inmemory import InMemoryBackend
 from fastapi_cache.backends.redis import RedisBackend
+from pydantic_settings import BaseSettings
 from redis import asyncio as aioredis
 from redis.exceptions import ConnectionError as RedisConnErr
-
-from .settings import cache_settings
 
 logger = logging.getLogger(__name__)
 
 
-async def init_cache() -> None:
+async def init_cache(cfg: BaseSettings) -> None:
     """Initialize cache backend with Redis fallback to InMemory."""
-    cfg = cache_settings()
 
-    if not cfg.CACHE_ENABLED:
-        FastAPICache.init(InMemoryBackend(), prefix=f"{cfg.CACHE_PREFIX}-off")
-        logger.warning("Caching disabled; using InMemoryBackend")
-        return
+    redis_url = getattr(cfg, "REDIS_URL", None)
+    prefix = getattr(cfg, "CACHE_PREFIX", "cache")
 
-    if cfg.REDIS_URL:
+    if redis_url:
         try:
-            redis = aioredis.from_url(cfg.REDIS_URL, max_connections=20)
+            redis = aioredis.from_url(redis_url, max_connections=20)
             await redis.ping()  # connectivity check
-            FastAPICache.init(RedisBackend(redis), prefix=cfg.CACHE_PREFIX)
+            FastAPICache.init(RedisBackend(redis), prefix=prefix)
             logger.info("FastAPICache initialized with Redis backend")
             return
         except (RedisConnErr, Exception) as err:
             logger.error("Redis unavailable (%s); falling back to InMemoryBackend", err)
 
     # Fallback: no REDIS_URL or Redis connection failed
-    FastAPICache.init(InMemoryBackend(), prefix=cfg.CACHE_PREFIX)
+    FastAPICache.init(InMemoryBackend(), prefix=prefix)
     logger.info("FastAPICache initialized with InMemoryBackend")
 
 

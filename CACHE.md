@@ -13,6 +13,42 @@ This document explains the shared caching layer implemented in `commons.cache`, 
    ```
    The package is declared in `commons/pyproject.toml`, so all services that depend on `commons` get the library transitively.
 
+2. **Setup local Redis** (development):
+   ```bash
+   # Start Redis container
+   docker run --name redis -p 6379:6379 -d redis:7-alpine
+
+   # Verify Redis is running
+   redis-cli ping  # should return PONG
+
+   # Stop Redis when done
+   docker stop redis
+   docker rm redis
+   ```
+
+   For compose-based development, add Redis to your `docker-compose.yml`:
+   ```yaml
+   services:
+     redis:
+       image: redis:7-alpine
+       container_name: redis
+       ports:
+         - "6379:6379"
+       command: redis-server --save 60 1 --loglevel warning
+   ```
+
+3. **Test Redis connection**:
+   ```bash
+   # Check if keys are being stored
+   redis-cli --scan
+
+   # Monitor Redis activity (optional)
+   redis-cli monitor
+
+   # View specific cache keys (after making cached requests)
+   redis-cli --scan --pattern "ib-cache:*"
+   ```
+
 ---
 
 ## 1. Directory Layout
@@ -30,7 +66,6 @@ commons/commons/cache/
 
 | File | Responsibility |
 |------|----------------|
-| **settings.py** | Loads env vars → `CacheSettings` (singleton via `@lru_cache`). |
 | **cache.py**    | `init_cache()` decides between Redis and InMemory; `close_cache()` closes connections. |
 | **keys.py**     | `tenant_cache_key_builder` (tenant-scoped) and placeholder `tenant_user_cache_key_builder` (user-scoped). |
 | **__init__.py** | Re-exports helpers and provides `invalidate_namespace()` for easy invalidation. |
@@ -77,11 +112,12 @@ commons/commons/cache/
 3. **Cache a route**
    ```python
    from fastapi_cache.decorator import cache
-   from commons.cache import tenant_cache_key_builder, cache_settings
+   from commons.cache import tenant_cache_key_builder
+   from insights_backend.config import get_settings
 
    @router.get("/tenant/config")
    @cache(
-       expire=cache_settings().CACHE_TTL_SECONDS,
+       expire=get_settings().CACHE_TTL_SECONDS,
        namespace="tenant_config",
        key_builder=tenant_cache_key_builder,
    )
