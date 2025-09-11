@@ -15,7 +15,12 @@ from datetime import date
 
 import pandas as pd
 
-from levers.exceptions import InsufficientDataError, PatternError, ValidationError
+from levers.exceptions import (
+    InsufficientDataError,
+    LeversError,
+    PatternError,
+    ValidationError,
+)
 from levers.models import (
     AnalysisWindow,
     AnalysisWindowConfig,
@@ -239,10 +244,16 @@ class DimensionAnalysisPattern(Pattern[DimensionAnalysis]):
 
         except Exception as e:
             logger.error("Error executing dimension analysis: %s", str(e), exc_info=True)
+            if isinstance(e, LeversError):
+                raise
             raise PatternError(
-                f"Error executing dimension analysis: {str(e)}",
+                f"Error executing {self.name} for metric {metric_id}: {str(e)}",
                 self.name,
-                {"metric_id": metric_id, "dimension": dimension_name},
+                details={
+                    "metric_id": metric_id,
+                    "dimension": dimension_name,
+                    "original_error": type(e).__name__,
+                },
             ) from e
 
     def _compute_slice_shares(self, compare_df: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:

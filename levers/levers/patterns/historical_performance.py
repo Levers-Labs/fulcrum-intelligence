@@ -12,7 +12,7 @@ from datetime import date
 
 import pandas as pd
 
-from levers.exceptions import ValidationError
+from levers.exceptions import LeversError, PatternError
 from levers.models import (
     AnalysisWindow,
     AnalysisWindowConfig,
@@ -90,7 +90,8 @@ class HistoricalPerformancePattern(Pattern[HistoricalPerformance]):
             HistoricalPerformance object with analysis results
 
         Raises:
-            ValidationError: If input validation fails or calculation errors occur
+            LeversError: if an errors like PrimitiveError, ValidationError, etc. occurs
+            PatternError: If an error occurs during pattern execution
         """
         try:
             # Set analysis date to today if not provided
@@ -99,7 +100,6 @@ class HistoricalPerformancePattern(Pattern[HistoricalPerformance]):
             # Validate input data
             required_columns = ["date", "value"]
             self.validate_data(data, required_columns)
-            self.validate_analysis_window(analysis_window)
 
             # Pre Process data
             data_window = self.preprocess_data(data, analysis_window)
@@ -182,13 +182,15 @@ class HistoricalPerformancePattern(Pattern[HistoricalPerformance]):
             return self.validate_output(result)
 
         except Exception as e:
-            logger.error("Error in historical performance calculation: %s", str(e), exc_info=True)
-            # Re-raise with pattern context
-            raise ValidationError(
-                f"Error in historical performance calculation: {str(e)}",
-                {
-                    "pattern": self.name,
+            logger.error("Error executing historical performance pattern: %s", str(e), exc_info=True)
+            if isinstance(e, LeversError):
+                raise
+            raise PatternError(
+                f"Error executing {self.name} for metric {metric_id}: {str(e)}",
+                pattern_name=self.name,
+                details={
                     "metric_id": metric_id,
+                    "original_error": type(e).__name__,
                 },
             ) from e
 

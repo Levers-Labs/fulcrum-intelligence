@@ -11,7 +11,7 @@ from datetime import date, datetime
 
 import pandas as pd
 
-from levers.exceptions import ValidationError
+from levers.exceptions import LeversError, PatternError
 from levers.models import AnalysisWindow, MetricGVAStatus
 from levers.models.patterns import (
     HoldSteady,
@@ -71,7 +71,8 @@ class PerformanceStatusPattern(Pattern[MetricPerformance]):
             MetricPerformance object with analysis results
 
         Raises:
-            ValidationError: If input validation fails or calculation errors occur
+            LeversError: if an errors like PrimitiveError, ValidationError, etc. occurs
+            PatternError: If an error occurs during pattern execution
         """
         try:
             # Set analysis date to today if not provided
@@ -161,7 +162,7 @@ class PerformanceStatusPattern(Pattern[MetricPerformance]):
                     result["status_change"] = status_change_info
 
             # Calculate streak info if historical data is available and target value is available
-            if len(df) > 1 and has_target:
+            if has_target and len(df) > 1:
                 streak_info = self._calculate_streak_info(df, status)
                 if streak_info:
                     result["streak"] = streak_info
@@ -174,14 +175,16 @@ class PerformanceStatusPattern(Pattern[MetricPerformance]):
 
             # Create and validate output
             return self.validate_output(result)
-
         except Exception as e:
-            # Re-raise with pattern context
-            raise ValidationError(
-                f"Error in performance status calculation: {str(e)}",
-                {
-                    "pattern": self.name,
+            logger.error("Error executing performance status pattern: %s", e)
+            if isinstance(e, LeversError):
+                raise
+            raise PatternError(
+                f"Error executing {self.name} for metric {metric_id}: {str(e)}",
+                pattern_name=self.name,
+                details={
                     "metric_id": metric_id,
+                    "original_error": type(e).__name__,
                 },
             ) from e
 
@@ -265,8 +268,6 @@ class PerformanceStatusPattern(Pattern[MetricPerformance]):
             - average_change_percent_per_grain: float, the average change percent per grain
             - average_change_absolute_per_grain: float, the average change absolute per grain
         """
-        if len(data) < 2:
-            return None
 
         values = data["value"].values
         targets = data["target"].values

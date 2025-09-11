@@ -6,6 +6,7 @@ import pandas as pd
 from pydantic import ValidationError as PydanticValidationError
 
 from levers.exceptions import (
+    InsufficientDataError,
     InvalidDataError,
     MissingDataError,
     PatternError,
@@ -164,7 +165,7 @@ class Pattern(ABC, Generic[T]):
         filtered_df = df[(df[date_col] >= start_date) & (df[date_col] <= end_date)]
 
         if filtered_df.empty:
-            raise TimeRangeError("No data in specified date range", start_date=start_date, end_date=end_date)
+            raise TimeRangeError("No data available for analysis date range", start_date=start_date, end_date=end_date)
 
         return filtered_df
 
@@ -180,8 +181,11 @@ class Pattern(ABC, Generic[T]):
             True if all required columns are present
 
         Raises:
+            InsufficientDataError: If no data is available
             MissingDataError: If any required column is missing
         """
+        if data.empty:
+            raise InsufficientDataError("No data available for pattern analysis", {})
         missing_columns = [col for col in required_columns if col not in data.columns]
         if missing_columns:
             raise MissingDataError(f"Missing required columns: {missing_columns}", missing_columns)

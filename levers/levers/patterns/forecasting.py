@@ -11,7 +11,7 @@ from typing import Any
 
 import pandas as pd
 
-from levers.exceptions import ValidationError
+from levers.exceptions import LeversError, PatternError
 from levers.models import (
     AnalysisWindow,
     AnalysisWindowConfig,
@@ -118,7 +118,8 @@ class ForecastingPattern(Pattern[Forecasting]):
             Forecasting object with forecast results
 
         Raises:
-            ValidationError: If input validation fails or calculation errors occur
+            LeversError: if an errors like PrimitiveError, ValidationError, etc. occurs
+            PatternError: If an error occurs during pattern execution
         """
         try:
             # Set analysis date to today if not provided
@@ -269,9 +270,16 @@ class ForecastingPattern(Pattern[Forecasting]):
             return self.validate_output(result)
 
         except Exception as e:
-            raise ValidationError(
-                f"Error in forecasting pattern calculation: {str(e)}",
-                {"pattern": self.name, "metric_id": metric_id},
+            logger.error("Error executing forecasting pattern: %s", e)
+            if isinstance(e, LeversError):
+                raise
+            raise PatternError(
+                f"Error executing {self.name} for metric {metric_id}: {str(e)}",
+                pattern_name=self.name,
+                details={
+                    "metric_id": metric_id,
+                    "original_error": type(e).__name__,
+                },
             ) from e
 
     def _get_forecast_vs_target_stats(

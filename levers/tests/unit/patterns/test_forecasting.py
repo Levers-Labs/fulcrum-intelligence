@@ -1666,7 +1666,7 @@ class TestForecastingPattern:
                     analysis_date=date(2023, 1, 5),
                 )
 
-            assert "Error in forecasting pattern calculation" in str(exc_info.value)
+            assert "Error executing forecasting pattern for metric test_metric: Mocked error" in str(exc_info.value)
             # The error message contains the exception info but not necessarily the metric_id
 
     def test_handle_min_data_functionality(self):
