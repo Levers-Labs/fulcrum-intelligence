@@ -393,29 +393,28 @@ async def test_get_targets(
     response = await async_client.get("/v2/semantic/metrics/targets")
     assert response.status_code == 200
     data = response.json()
-    assert data["count"] == 3
-    assert len(data["results"]) == 3
+    assert len(data) == 3
 
     # Test filtering by metric_id
     response = await async_client.get("/v2/semantic/metrics/targets?metric_ids=test_metric")
     assert response.status_code == 200
     data = response.json()
-    assert data["count"] == 2
-    assert len(data["results"]) == 2
-    assert all(item["metric_id"] == "test_metric" for item in data["results"])
+    assert len(data) == 2
+    assert all(item["metric_id"] == "test_metric" for item in data)
 
     # Test filtering by grain
     response = await async_client.get("/v2/semantic/metrics/targets?grain=day")
     assert response.status_code == 200
     data = response.json()
-    assert data["count"] == 3
+    assert len(data) == 3
+    assert all(item["grain"] == "day" for item in data)
 
     # Test filtering by target_date
     response = await async_client.get("/v2/semantic/metrics/targets?target_date=2024-01-01")
     assert response.status_code == 200
     data = response.json()
-    assert data["count"] == 2
-    assert all(item["target_date"] == "2024-01-01" for item in data["results"])
+    assert len(data) == 2
+    assert all(item["target_date"] == "2024-01-01" for item in data)
 
     # Test filtering by date range
     response = await async_client.get(
@@ -423,16 +422,7 @@ async def test_get_targets(
     )
     assert response.status_code == 200
     data = response.json()
-    assert data["count"] == 3
-
-    # Test pagination
-    response = await async_client.get("/v2/semantic/metrics/targets?limit=1&offset=0")
-    assert response.status_code == 200
-    data = response.json()
-    assert data["count"] == 3
-    assert len(data["results"]) == 1
-    assert data["limit"] == 1
-    assert data["offset"] == 0
+    assert len(data) == 3
 
 
 async def test_get_target_by_id(
@@ -496,7 +486,7 @@ async def test_bulk_upsert_targets(
     response = await async_client.get("/v2/semantic/metrics/targets?metric_ids=bulk_test_metric")
     assert response.status_code == 200
     data = response.json()
-    assert data["count"] == 2
+    assert len(data) == 2
 
     # Test updating existing targets
     updated_targets = [
@@ -524,8 +514,8 @@ async def test_bulk_upsert_targets(
     response = await async_client.get("/v2/semantic/metrics/targets?metric_ids=bulk_test_metric&target_date=2024-01-01")
     assert response.status_code == 200
     data = response.json()
-    assert data["count"] == 1
-    assert data["results"][0]["target_value"] == 150.0
+    assert len(data) == 1
+    assert data[0]["target_value"] == 150.0
 
 
 async def test_delete_targets(
@@ -543,8 +533,8 @@ async def test_delete_targets(
     response = await async_client.get("/v2/semantic/metrics/targets?metric_ids=test_metric")
     assert response.status_code == 200
     data = response.json()
-    assert data["count"] == 1  # Only one target should remain
-    assert data["results"][0]["target_date"] == "2024-01-02"
+    assert len(data) == 1  # Only one target should remain
+    assert data[0]["target_date"] == "2024-01-02"
 
     # Delete by date range
     response = await async_client.delete(
@@ -556,7 +546,7 @@ async def test_delete_targets(
     response = await async_client.get("/v2/semantic/metrics/targets?metric_ids=test_metric")
     assert response.status_code == 200
     data = response.json()
-    assert data["count"] == 0
+    assert len(data) == 0
 
 
 async def test_get_target_not_found(
