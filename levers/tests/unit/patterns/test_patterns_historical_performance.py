@@ -203,8 +203,10 @@ class TestHistoricalPerformancePattern:
         metric_id = "test_metric"
         data = pd.DataFrame({"date": [], "value": []})
 
-        # Act & Assert
-        with pytest.raises(ValidationError):
+        # Act & Assert - Should raise InsufficientDataError for empty data
+        from levers.exceptions import InsufficientDataError
+
+        with pytest.raises(InsufficientDataError):
             pattern.analyze(metric_id=metric_id, data=data, analysis_window=analysis_window)
 
     def test_group_by_grain(self, pattern):
