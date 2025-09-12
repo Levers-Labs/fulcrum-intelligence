@@ -301,11 +301,10 @@ class PerformanceStatusPattern(Pattern[MetricPerformance]):
         abs_change = calculate_difference(streak_end_value, streak_start_value)
 
         # Calculate percentage change using numeric primitive
-        pct_change = calculate_percentage_difference(streak_end_value, streak_start_value)
-        try:
-            avg_pct_change = pct_change / streak_length
-        except Exception:
-            avg_pct_change = None
+        pct_change = (
+            calculate_percentage_difference(streak_end_value, streak_start_value) if streak_start_value != 0 else None
+        )
+        avg_pct_change = pct_change / streak_length if pct_change else None
 
         return Streak(
             length=streak_length,

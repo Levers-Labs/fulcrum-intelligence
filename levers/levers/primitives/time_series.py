@@ -538,7 +538,11 @@ def _calculate_benchmark(
 
     # Calculate absolute and percentage change
     absolute_change = calculate_difference(current_value, reference_value)
-    change_percent = calculate_percentage_difference(current_value, reference_value, handle_zero_reference=True)
+    change_percent = (
+        calculate_percentage_difference(current_value, reference_value, handle_zero_reference=True)
+        if reference_value != 0
+        else None
+    )
 
     # Create the benchmark object
     return Benchmark(
