@@ -13,7 +13,12 @@ from asset_manager.services.pattern_data_organiser import DataDict, PatternDataO
 from asset_manager.services.utils import get_metric
 from commons.models.enums import Granularity
 from commons.utilities.context import reset_context, set_tenant_id
-from levers import DataError, Levers, PatternError
+from levers import (
+    DataError,
+    InsufficientDataError,
+    Levers,
+    PatternError,
+)
 from levers.models.common import AnalysisWindow
 from levers.models.pattern_config import PatternConfig
 from query_manager.core.schemas import MetricDetail
@@ -89,6 +94,18 @@ async def run_single_pattern(
             analysis_date=sync_date,
             dimension_name=dimension_name,
         )
+        # raise InsufficientDataError if no data is available
+        if not data:
+            raise InsufficientDataError(
+                "No data available for pattern analysis",
+                {
+                    "metric_id": metric_id,
+                    "grain": grain.value,
+                    "sync_date": sync_date.isoformat(),
+                    "dimension_name": dimension_name,
+                },
+            )
+
         # Build analysis window
         analysis_window = build_analysis_window(pattern_config, grain, sync_date)
 

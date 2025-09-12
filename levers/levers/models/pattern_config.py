@@ -53,7 +53,6 @@ class AnalysisWindowConfig(BaseModel):
     # Common configuration
     min_days: int = Field(default=7, ge=1)
     max_days: int = Field(default=730)
-    include_today: bool = Field(default=False)
 
     def validate_strategy_params(self, pattern_name=None):
         strategy = self.strategy
@@ -145,7 +144,8 @@ class AnalysisWindowConfig(BaseModel):
 
         Args:
             grain: The data granularity (day, week, month, quarter, year)
-            look_forward: If True, returns future dates starting from today
+            analysis_date: The date to use for analysis
+            look_forward: If True, returns future dates starting from analysis date
 
         Returns:
             Tuple of (start_date, end_date)
@@ -156,49 +156,47 @@ class AnalysisWindowConfig(BaseModel):
         if look_forward:
             # For forward-looking data, we need to include current period start date and future periods
             # This ensures we capture targets for the current period
-            today = analysis_date
-            start_date = date(today.year, today.month, 1)
+            start_date = date(analysis_date.year, analysis_date.month, 1)
 
             # Calculate the start of the current period based on grain
             if grain == Granularity.DAY:
                 start_date = start_date
             elif grain == Granularity.WEEK:
                 # Start of current week (Monday)
-                start_date = today - timedelta(days=today.weekday())
+                start_date = analysis_date - timedelta(days=analysis_date.weekday())
             elif grain == Granularity.MONTH:
                 # Start of current month
-                start_date = date(today.year, today.month, 1)
+                start_date = date(analysis_date.year, analysis_date.month, 1)
             elif grain == Granularity.QUARTER:
                 # Start of current quarter
-                quarter_start_month = ((today.month - 1) // 3) * 3 + 1
-                start_date = date(today.year, quarter_start_month, 1)
+                quarter_start_month = ((analysis_date.month - 1) // 3) * 3 + 1
+                start_date = date(analysis_date.year, quarter_start_month, 1)
             elif grain == Granularity.YEAR:
                 # Start of current year
-                start_date = date(today.year, 1, 1)
+                start_date = date(analysis_date.year, 1, 1)
 
             if self.strategy == WindowStrategy.FIXED_TIME:
                 # Same time window for all grains
-                end_date = today + timedelta(days=self.days or 90)
+                end_date = analysis_date + timedelta(days=self.days or 90)
             elif self.strategy == WindowStrategy.GRAIN_SPECIFIC_TIME:
                 # Different time windows for different grains
                 days = self.grain_days.get(grain) if self.grain_days and grain in self.grain_days else self.days
-                end_date = today + timedelta(days=days or 180)
+                end_date = analysis_date + timedelta(days=days or 180)
             elif self.strategy == WindowStrategy.FIXED_DATAPOINTS:
                 # For fixed datapoints, calculate forward periods from today
                 datapoints = self.datapoints or 30
-                # Calculate end date by going forward datapoints periods from today
-                end_date = self.get_future_period_end_date(grain, datapoints, today)
+                # Calculate end date by going forward datapoints periods from analysis_date
+                end_date = self.get_future_period_end_date(grain, datapoints, analysis_date)
         else:
-            # Historical data logic (existing behavior)
-            if self.include_today:
-                end_date = analysis_date
-            else:
-                if grain == Granularity.DAY:
-                    end_date = analysis_date - timedelta(days=1)
-                elif grain == Granularity.WEEK:
-                    end_date = analysis_date - timedelta(days=analysis_date.weekday() + 1)
-                elif grain == Granularity.MONTH:
-                    end_date = date(analysis_date.year, analysis_date.month, 1) - timedelta(days=1)
+            # end date will be the previous period end date
+            if grain == Granularity.DAY:
+                end_date = analysis_date - timedelta(days=1)  # Yesterday
+            elif grain == Granularity.WEEK:
+                end_date = analysis_date - timedelta(days=analysis_date.weekday() + 1)  # Sunday
+            elif grain == Granularity.MONTH:
+                end_date = date(analysis_date.year, analysis_date.month, 1) - timedelta(
+                    days=1
+                )  # Last day of previous month
 
             if self.strategy == WindowStrategy.FIXED_TIME:
                 # Same time window for all grains
@@ -230,41 +228,6 @@ class AnalysisWindowConfig(BaseModel):
                 start_date = max_start_date
 
         return start_date, end_date
-
-    def get_period_end_date(self, grain: Granularity) -> date:
-        """
-        Get the end date for analysis period based on the grain.
-
-        Args:
-            grain: The data granularity (day, week, month, quarter, year)
-
-        Returns:
-            The end date of the analysis period
-        """
-        base_date = date.today()
-
-        if grain == Granularity.WEEK:
-            # Get end of week (Sunday)
-            base_dt = pd.Timestamp(base_date)
-            period_end = (base_dt + pd.offsets.Week(weekday=6)).normalize()
-            return period_end.date()  # Convert to date
-        elif grain == Granularity.MONTH:
-            # Get end of month
-            base_dt = pd.Timestamp(base_date)
-            period_end = (base_dt + pd.offsets.MonthEnd(0)).normalize()
-            return period_end.date()  # Convert to date
-        elif grain == Granularity.QUARTER:
-            # Get end of quarter
-            base_dt = pd.Timestamp(base_date)
-            period_end = (base_dt + pd.offsets.QuarterEnd(0)).normalize()
-            return period_end.date()  # Convert to date
-        elif grain == Granularity.YEAR:
-            # Get end of year
-            base_dt = pd.Timestamp(base_date)
-            period_end = (base_dt + pd.offsets.YearEnd(0)).normalize()
-            return period_end.date()  # Convert to date
-        else:
-            raise ValueError(f"Unknown grain: {grain}")
 
 
 class PatternConfig(BaseModel):
@@ -313,13 +276,7 @@ class PatternConfig(BaseModel):
                         "look_forward": False,
                     }
                 ],
-                "analysis_window": {
-                    "strategy": "fixed_time",
-                    "days": 180,
-                    "min_days": 30,
-                    "max_days": 365,
-                    "include_today": False,
-                },
+                "analysis_window": {"strategy": "fixed_time", "days": 180, "min_days": 30, "max_days": 365},
                 "settings": {"threshold_ratio": 0.05},
                 "needs_dimension_analysis": False,
             }

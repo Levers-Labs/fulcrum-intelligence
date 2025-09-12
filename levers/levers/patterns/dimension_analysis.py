@@ -15,7 +15,12 @@ from datetime import date
 
 import pandas as pd
 
-from levers.exceptions import InsufficientDataError, PatternError, ValidationError
+from levers.exceptions import (
+    InsufficientDataError,
+    LeversError,
+    PatternError,
+    ValidationError,
+)
 from levers.models import (
     AnalysisWindow,
     AnalysisWindowConfig,
@@ -33,8 +38,8 @@ from levers.primitives import (
     compute_slice_shares,
     compute_top_bottom_slices,
     difference_from_average,
+    get_analysis_period_range,
     get_period_length_for_grain,
-    get_period_range_for_grain,
     get_prior_period_range,
     highlight_slice_comparisons,
     identify_largest_smallest_by_share,
@@ -77,7 +82,7 @@ class DimensionAnalysisPattern(Pattern[DimensionAnalysis]):
                 DataSource(source_type=DataSourceType.DIMENSIONAL_TIME_SERIES, is_required=True, data_key="data")
             ],
             analysis_window=AnalysisWindowConfig(
-                strategy=WindowStrategy.FIXED_TIME, days=180, min_days=30, max_days=365, include_today=False
+                strategy=WindowStrategy.FIXED_TIME, days=180, min_days=30, max_days=365
             ),
             needs_dimension_analysis=True,
         )
@@ -152,7 +157,7 @@ class DimensionAnalysisPattern(Pattern[DimensionAnalysis]):
                 return self.handle_empty_data(metric_id, analysis_window)
 
             # 2) Determine current and prior period ranges based on grain
-            current_start, current_end = get_period_range_for_grain(grain, analysis_date)
+            current_start, current_end = get_analysis_period_range(grain, analysis_date)
             prior_start, _ = get_prior_period_range(current_start, current_end, grain)
 
             # 3) Compare slices across time periods
@@ -203,14 +208,14 @@ class DimensionAnalysisPattern(Pattern[DimensionAnalysis]):
             comparison_highlights = highlight_slice_comparisons(merged, "slice_value", top_n=2)
 
             # 11) Compute historical rankings
-            period_length_days = get_period_length_for_grain(grain)
+            period_length_in_days = get_period_length_for_grain(grain)
             historical_rankings = compute_historical_slice_rankings(
                 df=ledger_df,
                 slice_col="slice_value",
                 date_col="date",
                 value_col="value",
                 num_periods=num_periods,
-                period_length_days=period_length_days,
+                period_length_days=period_length_in_days,
                 dimension_name=dimension_name,
             )
 
@@ -239,10 +244,16 @@ class DimensionAnalysisPattern(Pattern[DimensionAnalysis]):
 
         except Exception as e:
             logger.error("Error executing dimension analysis: %s", str(e), exc_info=True)
+            if isinstance(e, LeversError):
+                raise
             raise PatternError(
-                f"Error executing dimension analysis: {str(e)}",
+                f"Error executing {self.name} for metric {metric_id}: {str(e)}",
                 self.name,
-                {"metric_id": metric_id, "dimension": dimension_name},
+                details={
+                    "metric_id": metric_id,
+                    "dimension": dimension_name,
+                    "original_error": type(e).__name__,
+                },
             ) from e
 
     def _compute_slice_shares(self, compare_df: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:

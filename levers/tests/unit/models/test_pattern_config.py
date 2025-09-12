@@ -29,7 +29,6 @@ class TestAnalysisWindowConfig:
             days=180,
             min_days=30,
             max_days=365,
-            include_today=False,
         )
 
         # Assert
@@ -37,7 +36,6 @@ class TestAnalysisWindowConfig:
         assert config.days == 180
         assert config.min_days == 30
         assert config.max_days == 365
-        assert config.include_today is False
 
     def test_init_grain_specific_time(self):
         """Test initialization with GRAIN_SPECIFIC_TIME strategy."""
@@ -137,25 +135,6 @@ class TestAnalysisWindowConfig:
         assert start_date == expected_start_date
         assert end_date == expected_end_date
 
-    def test_get_date_range_fixed_time_include_today(self):
-        """Test get_date_range with FIXED_TIME strategy including today."""
-        # Arrange
-        config = AnalysisWindowConfig(
-            strategy=WindowStrategy.FIXED_TIME,
-            days=90,
-            include_today=True,
-        )
-        today = date.today()
-        expected_end_date = today
-        expected_start_date = expected_end_date - timedelta(days=90)
-
-        # Act
-        start_date, end_date = config.get_date_range(Granularity.DAY)
-
-        # Assert
-        assert start_date == expected_start_date
-        assert end_date == expected_end_date
-
     def test_get_date_range_grain_specific_time(self):
         """Test get_date_range with GRAIN_SPECIFIC_TIME strategy."""
         # Arrange
@@ -165,45 +144,29 @@ class TestAnalysisWindowConfig:
             Granularity.MONTH: 365,
         }
 
-        config = AnalysisWindowConfig(
-            strategy=WindowStrategy.GRAIN_SPECIFIC_TIME, grain_days=grain_days, include_today=True
-        )
+        config = AnalysisWindowConfig(strategy=WindowStrategy.GRAIN_SPECIFIC_TIME, grain_days=grain_days)
         today = date.today()
-        expected_end_date = today  # including today
 
         # Act & Assert
         for grain, days in grain_days.items():
-            expected_start_date = expected_end_date - timedelta(days=days)
-            start_date, end_date = config.get_date_range(grain)
-            assert start_date == expected_start_date
-            assert end_date == expected_end_date
-
-    def test_get_date_range_grain_specific_time_without_including_today(self):
-        """Test get_date_range with GRAIN_SPECIFIC_TIME strategy without including today."""
-        # Arrange
-        grain_days = {
-            Granularity.DAY: 90,
-            Granularity.WEEK: 180,
-            Granularity.MONTH: 365,
-        }
-
-        config = AnalysisWindowConfig(
-            strategy=WindowStrategy.GRAIN_SPECIFIC_TIME, grain_days=grain_days, include_today=False
-        )
-        today = date.today()
-        expected_end_date = today
-        # Act & Assert
-        for grain, days in grain_days.items():
+            # Calculate expected end_date based on grain type (matching the actual function logic)
             if grain == Granularity.DAY:
-                expected_end_date = today - timedelta(days=1)
+                expected_end_date = today - timedelta(days=1)  # Yesterday
             elif grain == Granularity.WEEK:
-                expected_end_date = today - timedelta(days=date.today().weekday() + 1)
+                expected_end_date = today - timedelta(days=today.weekday() + 1)  # Previous Sunday
             elif grain == Granularity.MONTH:
-                expected_end_date = date(today.year, today.month, 1) - timedelta(days=1)
+                expected_end_date = date(today.year, today.month, 1) - timedelta(days=1)  # Last day of previous month
+            else:
+                expected_end_date = today - timedelta(days=1)  # Default fallback
+
             expected_start_date = expected_end_date - timedelta(days=days)
             start_date, end_date = config.get_date_range(grain)
-            assert start_date == expected_start_date
-            assert end_date == expected_end_date
+            assert (
+                start_date == expected_start_date
+            ), f"Failed for grain {grain}: expected {expected_start_date}, got {start_date}"
+            assert (
+                end_date == expected_end_date
+            ), f"Failed for grain {grain}: expected {expected_end_date}, got {end_date}"
 
     def test_get_date_range_enforce_min_days(self):
         """Test get_date_range enforces minimum days constraint."""
@@ -248,7 +211,6 @@ class TestAnalysisWindowConfig:
         config = AnalysisWindowConfig(
             strategy=WindowStrategy.FIXED_TIME,
             days=90,
-            include_today=False,
         )
         today = date.today()
         expected_end_date = today - timedelta(days=1)
@@ -267,7 +229,6 @@ class TestAnalysisWindowConfig:
         config = AnalysisWindowConfig(
             strategy=WindowStrategy.FIXED_TIME,
             days=90,
-            include_today=False,
         )
 
         # Act
@@ -287,7 +248,6 @@ class TestAnalysisWindowConfig:
         config = AnalysisWindowConfig(
             strategy=WindowStrategy.FIXED_TIME,
             days=90,
-            include_today=False,
         )
 
         # Test different grains that are supported

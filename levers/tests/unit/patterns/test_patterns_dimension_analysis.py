@@ -7,7 +7,6 @@ import datetime
 import pandas as pd
 import pytest
 
-from levers.exceptions import PatternError
 from levers.models import AnalysisWindow, Granularity
 from levers.models.patterns import DimensionAnalysis
 from levers.patterns import DimensionAnalysisPattern
@@ -203,7 +202,10 @@ class TestDimensionAnalysisPattern:
         empty_data = pd.DataFrame()
         metric_id = "revenue"
 
-        with pytest.raises(PatternError):
+        # Should raise InsufficientDataError for empty data
+        from levers.exceptions import InsufficientDataError
+
+        with pytest.raises(InsufficientDataError):
             pattern.analyze(
                 metric_id=metric_id,
                 data=empty_data,
@@ -263,15 +265,17 @@ class TestDimensionAnalysisPattern:
         invalid_data = pd.DataFrame(
             {
                 "date": pd.date_range(start="2023-01-01", periods=10),
-                # Missing required columns (dimension, slice_value, metric_value)
+                # Missing required columns (dimension_name, dimension_slice, value)
                 "some_other_column": range(10),
                 "metric_id": ["revenue"] * 10,
             }
         )
         metric_id = "revenue"
 
-        # Act & Assert
-        with pytest.raises(PatternError):
+        # Act & Assert - Should raise MissingDataError for missing required columns
+        from levers.exceptions import MissingDataError
+
+        with pytest.raises(MissingDataError):
             pattern.analyze(
                 metric_id=metric_id,
                 data=invalid_data,

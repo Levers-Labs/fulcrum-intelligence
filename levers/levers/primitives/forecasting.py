@@ -506,6 +506,15 @@ def _get_rmse_for_seasonality_mode(series: pd.Series, mode: str) -> float:
         float
     """
 
+    series_length = len(series)
+
+    if series_length >= 120:
+        horizon = "30 days"  # ideal: matches month-ahead need
+    elif series_length >= 60:
+        horizon = "14 days"  # still tests multi-week extrapolation
+    else:
+        horizon = "7 days"  # minimal
+
     # Prepare data for Prophet with floor constraint
     prophet_df = pd.DataFrame({"ds": series.index, "y": series.values})
 
@@ -513,7 +522,7 @@ def _get_rmse_for_seasonality_mode(series: pd.Series, mode: str) -> float:
     prophet_model.fit(prophet_df)
 
     # Cross-validate the model
-    cross_validated_df = cross_validation(prophet_model, horizon="30 days")
+    cross_validated_df = cross_validation(prophet_model, horizon=horizon)
 
     # Calculate performance metrics
     performance_metrics_df = performance_metrics(cross_validated_df)
