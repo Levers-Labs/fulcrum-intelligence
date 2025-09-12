@@ -270,11 +270,9 @@ develop = false
 [package.dependencies]
 commons = {path = "../commons", extras = ["db"]}
 fulcrum-core = {path = "../core"}
-levers = {path = "../levers"}
 
 [package.source]
 type = "directory"
-url = "../analysis_manager"
 
 [[package]]
 name = "annotated-types"

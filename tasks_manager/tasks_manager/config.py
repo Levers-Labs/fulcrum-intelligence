@@ -16,8 +16,6 @@ class AppConfig(Block):
     secret_key: SecretStr = Field(..., description="Secret key")
     # Story Manager
     story_manager_server_host: str = Field(..., description="Story Manager Server Host")
-    # Analysis Manager
-    analysis_manager_server_host: str = Field(..., description="Analysis Manager Server Host")
     # Query Manager
     query_manager_server_host: str = Field(..., description="Query Manager Server Host")
     # Insights Backend

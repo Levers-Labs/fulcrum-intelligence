@@ -9,11 +9,9 @@ RUN pip install --no-cache-dir --upgrade pip "poetry<2.0.0"
 
 # Copy the shared dependencies first
 COPY ./commons /opt/prefect/commons
-COPY ./levers /opt/prefect/levers
 COPY ./core /opt/prefect/core
 COPY ./query_manager /opt/prefect/query_manager
 COPY ./story_manager /opt/prefect/story_manager
-COPY ./analysis_manager /opt/prefect/analysis_manager
 
 # Install dependencies
 COPY tasks_manager/pyproject.toml ./tasks_manager/poetry.lock* ./

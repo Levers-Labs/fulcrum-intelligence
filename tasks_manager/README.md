@@ -191,24 +191,15 @@ prefect deploy --all
 ### Via Prefect UI
 1. Open your Prefect Cloud dashboard
 2. Navigate to Deployments
-3. Find the desired deployment (e.g., "semantic-data-sync-daily")
+3. Find the desired deployment (e.g., "process-story-alerts")
 4. Click "Run"
 5. Enter any required parameters
 6. Click "Run deployment"
 
 ### Via CLI
 ```bash
-# Run with parameters
-prefect deployment run 'semantic-data-sync-daily' --param group="daily"
-```
-
-### Via Python
-```python
-from tasks_manager.flows.semantic_sync import semantic_data_sync
-from commons.models.enums import Granularity
-
-# Run the flow with specific parameters
-await semantic_data_sync(grain=Granularity.DAY)  # noqa
+# Run the alerts flow deployment directly
+prefect deployment run 'process-story-alerts' --param metric_id="ct_inquiries" --param tenant_id="1" --param story_date="2025-09-10"
 ```
 
 ## Adding New Flows
@@ -440,13 +431,11 @@ prefect cloud workspace ls
 
 **Test flow execution locally:**
 ```bash
-# Test a specific flow without scheduling
-cd tasks_manager
+# Example quick test of alerts execution
 python -c "
-import asyncio
-from tasks_manager.flows.semantic_sync import semantic_data_sync
-from commons.models.enums import Granularity
-asyncio.run(semantic_data_sync(grain=Granularity.day))
+import asyncio, json
+from tasks_manager.flows.alerts import execute_alert
+asyncio.run(execute_alert(tenant_id="1", alert_id="42", trigger_params_str=json.dumps({"grain": "day"})))
 "
 ```
 
