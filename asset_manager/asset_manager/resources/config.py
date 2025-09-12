@@ -38,6 +38,9 @@ class Settings(BaseSettings):
     # Dagster S3 Storage (optional - only required for prod)
     dagster_s3_bucket: str | None = Field(default=None)
 
+    # Sentry
+    sentry_dsn: str | None = Field(default=None, alias="SENTRY_DSN")
+
 
 class AppConfigResource(ConfigurableResource):
     """Dagster resource providing application configuration.
