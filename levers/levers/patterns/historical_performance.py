@@ -575,6 +575,6 @@ class HistoricalPerformancePattern(Pattern[HistoricalPerformance]):
             version=cls.version,
             data_sources=[DataSource(source_type=DataSourceType.METRIC_TIME_SERIES, is_required=True, data_key="data")],
             analysis_window=AnalysisWindowConfig(
-                strategy=WindowStrategy.FIXED_TIME, days=410, min_days=30, max_days=410, include_today=True
+                strategy=WindowStrategy.FIXED_TIME, days=410, min_days=30, max_days=410
             ),
         )

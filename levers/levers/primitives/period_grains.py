@@ -12,7 +12,7 @@ Dependencies:
   - datetime
 """
 
-from datetime import date, datetime, timedelta
+from datetime import date, datetime
 from typing import Any
 
 import pandas as pd
@@ -37,80 +37,11 @@ GRAIN_META: dict[str, Any] = {
 }
 
 
-def get_analysis_end_date(grain: Granularity, include_today: bool = False) -> date:
-    """
-    Get the appropriate end date for analysis based on grain and include_today setting.
-
-    Family: period_grains
-    Version: 1.0
-
-    Args:
-        grain: The granularity level (day, week, month, etc.)
-        include_today: Whether to include today in the analysis
-
-    Returns:
-        The appropriate end date for analysis
-
-    Notes:
-        - When include_today=True, returns today's date regardless of grain
-        - When include_today=False, returns a date that excludes today's data:
-          - For DAY: Returns yesterday
-          - For WEEK: Returns the end of the previous week (Sunday)
-          - For MONTH: Returns the end of the previous month
-          - For QUARTER: Returns the end of the previous quarter
-          - For YEAR: Returns the end of the previous year
-    """
-    today = date.today()
-
-    if include_today:
-        return today
-
-    if grain == Granularity.DAY:
-        # For daily grain, use yesterday
-        return today - timedelta(days=1)
-    elif grain == Granularity.WEEK:
-        # For weekly grain, use the end of the previous week (Sunday)
-        return today - timedelta(days=today.weekday() + 1)
-    elif grain == Granularity.MONTH:
-        # For monthly grain, use the last day of the previous month
-        first_of_month = date(today.year, today.month, 1)
-        return first_of_month - timedelta(days=1)
-    elif grain == Granularity.QUARTER:
-        # Calculate the current quarter's first month
-        quarter_first_month = ((today.month - 1) // 3) * 3 + 1
-
-        # If we're in the first month of a quarter and it's the first day, go to previous quarter
-        if today.month == quarter_first_month and today.day == 1:
-            # Last day of previous quarter
-            if quarter_first_month == 1:  # Q1 (Jan-Mar)
-                # End of Q4 previous year (Dec 31)
-                return date(today.year - 1, 12, 31)
-            else:
-                # End of previous quarter
-                prev_quarter_end_month = quarter_first_month - 1
-                # Month lengths can vary, use the first of next month - 1 day
-                next_month = date(today.year, prev_quarter_end_month + 1, 1)
-                return next_month - timedelta(days=1)
-        else:
-            # We're not at the start of a quarter, so use the end of the previous quarter
-            # First get the start of the current quarter
-            quarter_start = date(today.year, quarter_first_month, 1)
-            # Then go back one day to get the end of the previous quarter
-            return quarter_start - timedelta(days=1)
-    elif grain == Granularity.YEAR:
-        # For yearly grain, if it's Jan 1, use previous year's end
-        if today.month == 1 and today.day == 1:
-            return date(today.year - 1, 12, 31)
-        else:
-            # Otherwise, use the end of the previous year
-            return date(today.year - 1, 12, 31)
-
-
 def get_period_range_for_grain(
-    grain: Granularity, analysis_date: date | None = None, include_today: bool = False
+    grain: Granularity, analysis_date: date | None = None
 ) -> tuple[pd.Timestamp, pd.Timestamp]:
     """
-    Get the period range (start,end) based on a date and grain.
+    Get the period range (start,end) based on the analysis date and grain.
 
     Family: period_grains
     Version: 1.0
@@ -118,7 +49,6 @@ def get_period_range_for_grain(
     Args:
         analysis_date: Date to analyze
         grain: Time grain - one of DAY, WEEK, MONTH, QUARTER, or YEAR
-        include_today: Whether to include today in the calculation (default False)
 
     Returns:
         Tuple of (start_date, end_date) as pandas Timestamps
@@ -132,7 +62,6 @@ def get_period_range_for_grain(
         - For grain=MONTH, returns the full month containing the analysis_date
         - For grain=QUARTER, returns the full quarter containing the analysis_date
         - For grain=YEAR, returns the full year containing the analysis_date
-        - When include_today=False, it adjusts the calculation to exclude today
     """
     analysis_date = analysis_date or date.today()
     try:
@@ -153,26 +82,7 @@ def get_period_range_for_grain(
                 invalid_fields={"grain": grain, "valid_grains": list(Granularity)},
             ) from exc
 
-    # Adjust for include_today=False when analysis_date is today
-    today = pd.Timestamp.today().normalize()
-    if not include_today and dt.normalize() == today:
-        # Use our helper function to get the appropriate end date
-        adjusted_date = get_analysis_end_date(grain, include_today=False)
-        dt = pd.Timestamp(adjusted_date)
-
-    if not include_today:
-        if grain == Granularity.DAY:
-            dt = dt - pd.Timedelta(days=1)
-        elif grain == Granularity.WEEK:
-            dt = dt - pd.Timedelta(days=dt.isoweekday())
-        elif grain == Granularity.MONTH:
-            dt = dt - pd.offsets.MonthBegin(1)
-        elif grain == Granularity.QUARTER:
-            dt = dt - pd.DateOffset(months=3)
-        elif grain == Granularity.YEAR:
-            dt = dt - pd.DateOffset(years=1)
-
-    # Now determine the period range based on the (potentially adjusted) date
+    # Now determine the period range based on the analysis date
     if grain == Granularity.DAY:
         start = dt.normalize()
         end = start
@@ -323,59 +233,6 @@ def get_prev_period_start_date(
     result_date = (start_date_ts - period_count * delta).date()
 
     return result_date
-
-
-def get_date_range_from_window(
-    window_days: int,
-    end_date: date | datetime | pd.Timestamp | str | None = None,
-    include_today: bool = False,
-    grain: Granularity | None = None,
-) -> tuple[date, date]:
-    """
-    Calculate a date range based on a window size in days.
-
-    Family: period_grains
-    Version: 1.0
-
-    Args:
-        window_days: Number of days in the window
-        end_date: End date for the window (defaults to calculated end date based on include_today and grain)
-        include_today: Whether to include today in the window calculation
-        grain: Optional granularity to use for end date calculation when include_today is False
-
-    Returns:
-        Tuple of (start_date, end_date) as date objects
-
-    Raises:
-        ValidationError: If window_days is invalid or date conversion fails
-    """
-    if window_days <= 0:
-        raise ValidationError(
-            "window_days must be positive",
-            invalid_fields={"window_days": window_days, "valid_range": "greater than 0"},
-        )
-
-    # Determine end date
-    if end_date is None:
-        if grain is not None:
-            # Use our helper function for consistent logic
-            end = get_analysis_end_date(grain, include_today)
-        else:
-            # Default behavior if no grain specified
-            end = date.today() if include_today else date.today() - pd.Timedelta(days=1)
-    else:
-        try:
-            end = pd.Timestamp(end_date).date()
-        except (TypeError, ValueError) as exc:
-            raise ValidationError(
-                f"Invalid end_date: {end_date}. Must be convertible to date.",
-                invalid_fields={"end_date": end_date},
-            ) from exc
-
-    # Calculate start date
-    start = end - pd.Timedelta(days=window_days - 1)  # -1 because the window includes the end date
-
-    return start, end
 
 
 def get_period_length_for_grain(grain: Granularity | str) -> int:
@@ -548,3 +405,108 @@ def get_dates_for_a_range(start_date: pd.Timestamp, end_date: pd.Timestamp, grai
             f"Unsupported grain '{grain}'",
             invalid_fields={"grain": grain, "valid_grains": list(Granularity)},
         )
+
+
+def get_analysis_period_range(
+    grain: Granularity, analysis_date: date | None = None
+) -> tuple[pd.Timestamp, pd.Timestamp]:
+    """
+    Get the analysis period range (start,end) based on a date and grain.
+
+    Family: period_grains
+    Version: 1.0
+
+    Args:
+        analysis_date: Date to analyze
+        grain: Time grain - one of DAY, WEEK, MONTH, QUARTER, or YEAR
+
+    Returns:
+        Tuple of (start_date, end_date) as pandas Timestamps
+
+    Raises:
+        ValidationError: If analysis_date cannot be converted to a date or grain is invalid
+
+    Notes:
+        - For grain=DAY, returns a single day
+        - For grain=WEEK, returns Monday-Sunday containing the analysis_date
+        - For grain=MONTH, returns the full month containing the analysis_date
+        - For grain=QUARTER, returns the full quarter containing the analysis_date
+        - For grain=YEAR, returns the full year containing the analysis_date
+    """
+    analysis_date = analysis_date or date.today()
+    try:
+        dt = pd.to_datetime(analysis_date)
+    except (TypeError, ValueError) as exc:
+        raise ValidationError(
+            f"Invalid analysis_date: {analysis_date}. Must be convertible to datetime.",
+            invalid_fields={"analysis_date": analysis_date},
+        ) from exc
+
+    # Convert string grain to Granularity enum if needed
+    if isinstance(grain, str):
+        try:
+            grain = Granularity(grain)
+        except ValueError as exc:
+            raise ValidationError(
+                f"Unsupported grain '{grain}'",
+                invalid_fields={"grain": grain, "valid_grains": list(Granularity)},
+            ) from exc
+
+    # Now determine the period range based on the analysis date
+    if grain == Granularity.DAY:
+        start = dt - pd.Timedelta(days=1)
+        end = start
+    elif grain == Granularity.WEEK:
+        dt = dt - pd.Timedelta(days=dt.isoweekday())
+        # Monday-based
+        day_of_week = dt.isoweekday()  # Monday=1
+        start = (dt - pd.Timedelta(days=(day_of_week - 1))).normalize()  # type: ignore
+        end = start + pd.Timedelta(days=6)
+    elif grain == Granularity.MONTH:
+        dt = dt - pd.offsets.MonthBegin(1)
+        start = dt.replace(day=1).normalize()
+        next_month_start = start + pd.offsets.MonthBegin(1)
+        end = (next_month_start - pd.Timedelta(days=1)).normalize()
+    elif grain == Granularity.QUARTER:
+        dt = dt - pd.DateOffset(months=3)
+        # Start of quarter
+        quarter_month = ((dt.month - 1) // 3) * 3 + 1
+        start = dt.replace(day=1, month=quarter_month).normalize()
+        # End of quarter
+        next_quarter = start + pd.DateOffset(months=3)
+        end = (next_quarter - pd.Timedelta(days=1)).normalize()
+    elif grain == Granularity.YEAR:
+        dt = dt - pd.DateOffset(years=1)
+        start = dt.replace(day=1, month=1).normalize()
+        end = dt.replace(day=31, month=12).normalize()
+    else:
+        raise ValidationError(
+            f"Unsupported grain '{grain}'",
+            invalid_fields={"grain": grain, "valid_grains": list(Granularity)},
+        )
+
+    return start, end
+
+
+def get_future_period_end_date(grain: Granularity, period_count: int, start_date: date) -> date:
+    """
+    Calculate the end date of a period that is a specified number of periods after the start date.
+
+    This method determines the end date by going forward a specified number of periods from the
+    start date, based on the given granularity.
+
+    :param grain: The granularity of the period (e.g., day, week, month, etc.).
+    :param period_count: The number of periods to go forward from the start date.
+    :param start_date: The start date to calculate forward from.
+    :return: The end date that is `period_count` periods after the `start_date`.
+    """
+    # Retrieve the delta for the specified grain from the GRAIN_META dictionary.
+    delta_eq = GRAIN_META[grain]["delta"]
+
+    # Convert the delta dictionary into a pandas DateOffset object.
+    delta = pd.DateOffset(**delta_eq)
+
+    # Calculate the end date by going forward period_count periods from the start_date.
+    end_date = (start_date + period_count * delta).date()
+
+    return end_date

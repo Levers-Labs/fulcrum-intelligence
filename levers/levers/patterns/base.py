@@ -71,7 +71,7 @@ class Pattern(ABC, Generic[T]):
             version=cls.version,
             data_sources=[DataSource(source_type=DataSourceType.METRIC_TIME_SERIES, is_required=True, data_key="data")],
             analysis_window=AnalysisWindowConfig(
-                strategy=WindowStrategy.FIXED_TIME, days=180, min_days=30, max_days=365, include_today=True
+                strategy=WindowStrategy.FIXED_TIME, days=180, min_days=30, max_days=365
             ),
         )
 

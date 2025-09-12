@@ -715,3 +715,279 @@ async def test_get_metrics_targets_stats_with_filter(
     assert revenue["periods"][2]["target_set"] is False
     assert revenue["periods"][2]["target_till_date"] is None
     assert revenue["periods"][2]["target_value"] == 0.0
+
+
+async def test_get_multi_metric_time_series_large_dataset(
+    app: FastAPI,
+    async_client: AsyncClient,
+    jwt_payload: dict,
+    db_session: AsyncSession,
+):
+    """Test getting time series data for multiple metrics with larger dataset."""
+    # Create test data for multiple metrics with multiple dates
+    set_tenant_id(jwt_payload["tenant_id"])
+    data = []
+    for i in range(5):  # 5 metrics
+        for day in range(10):  # 10 days each
+            data.append(
+                MetricTimeSeries(
+                    tenant_id=1,
+                    metric_id=f"test_metric_{i}",
+                    date=date(2024, 1, day + 1),
+                    grain=Granularity.DAY,
+                    value=100.0 + i * 10 + day,
+                )
+            )
+
+    for item in data:
+        db_session.add(item)
+    await db_session.commit()
+
+    # Make request for subset of metrics
+    response = await async_client.get(
+        "/v2/semantic/metrics/time-series",
+        params={
+            "metric_ids": ["test_metric_0", "test_metric_2", "test_metric_4"],
+            "grain": "day",
+            "start_date": "2024-01-05",
+            "end_date": "2024-01-08",
+        },
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert "results" in data
+    results = data["results"]
+
+    # Should have 3 metrics * 4 days = 12 results
+    assert len(results) == 12
+
+    # Verify data ranges and values
+    metric_ids = {result["metric_id"] for result in results}
+    assert metric_ids == {"test_metric_0", "test_metric_2", "test_metric_4"}
+
+    # Verify date range
+    dates = {result["date"] for result in results}
+    expected_dates = {"2024-01-05", "2024-01-06", "2024-01-07", "2024-01-08"}
+    assert dates == expected_dates
+
+
+async def test_get_metric_time_series_with_different_grains(
+    app: FastAPI,
+    async_client: AsyncClient,
+    jwt_payload: dict,
+    db_session: AsyncSession,
+):
+    """Test getting metric time series data with different grain types."""
+    set_tenant_id(jwt_payload["tenant_id"])
+
+    # Create data with different grains
+    grains_data = [
+        (Granularity.DAY, date(2024, 1, 15), 100.0),
+        (Granularity.WEEK, date(2024, 1, 15), 700.0),
+        (Granularity.MONTH, date(2024, 1, 1), 3000.0),
+        (Granularity.QUARTER, date(2024, 1, 1), 9000.0),
+        (Granularity.YEAR, date(2024, 1, 1), 36000.0),
+    ]
+
+    for grain, test_date, value in grains_data:
+        data = MetricTimeSeries(
+            tenant_id=1,
+            metric_id="grain_test_metric",
+            date=test_date,
+            grain=grain,
+            value=value,
+        )
+        db_session.add(data)
+
+    await db_session.commit()
+
+    # Test each grain separately
+    for grain, test_date, expected_value in grains_data:
+        response = await async_client.get(
+            "/v2/semantic/metrics/grain_test_metric/time-series",
+            params={
+                "grain": grain.value,
+                "start_date": test_date.strftime("%Y-%m-%d"),
+                "end_date": test_date.strftime("%Y-%m-%d"),
+            },
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert len(data["results"]) == 1
+        assert data["results"][0]["value"] == expected_value
+        assert data["results"][0]["grain"] == grain.value
+
+
+async def test_get_metric_dimensional_time_series_multiple_dimensions(
+    app: FastAPI,
+    async_client: AsyncClient,
+    jwt_payload: dict,
+    db_session: AsyncSession,
+):
+    """Test dimensional time series with multiple dimension types."""
+    set_tenant_id(jwt_payload["tenant_id"])
+
+    # Create data with multiple dimensions
+    dimensional_data = [
+        ("region", "US", 100.0),
+        ("region", "EU", 150.0),
+        ("region", "ASIA", 200.0),
+        ("product_type", "Premium", 300.0),
+        ("product_type", "Basic", 100.0),
+        ("customer_segment", "Enterprise", 500.0),
+        ("customer_segment", "SMB", 250.0),
+    ]
+
+    for dim_name, dim_slice, value in dimensional_data:
+        data = MetricDimensionalTimeSeries(
+            tenant_id=1,
+            metric_id="multi_dim_metric",
+            date=date(2024, 1, 1),
+            grain=Granularity.DAY,
+            dimension_name=dim_name,
+            dimension_slice=dim_slice,
+            value=value,
+        )
+        db_session.add(data)
+
+    await db_session.commit()
+
+    # Test filtering by specific dimensions
+    response = await async_client.get(
+        "/v2/semantic/metrics/multi_dim_metric/dimensional-time-series",
+        params={
+            "grain": "day",
+            "start_date": "2024-01-01",
+            "end_date": "2024-01-01",
+            "dimension_names": ["region", "product_type"],
+        },
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data["results"]) == 5  # 3 regions + 2 product types
+
+    # Verify dimension names
+    dimension_names = {result["dimension_name"] for result in data["results"]}
+    assert dimension_names == {"region", "product_type"}
+
+
+async def test_bulk_upsert_targets_validation_error(
+    app: FastAPI,
+    async_client: AsyncClient,
+    jwt_payload: dict,
+):
+    """Test bulk upsert targets with validation errors."""
+    # Create invalid target data (missing required fields)
+    invalid_targets = [
+        {
+            "metric_id": "test_metric",
+            # Missing grain
+            "target_date": "2024-01-01",
+            "target_value": 100.0,
+        }
+    ]
+
+    request_data = {"targets": invalid_targets}
+
+    response = await async_client.post("/v2/semantic/metrics/targets/bulk", json=request_data)
+    assert response.status_code == 422  # Validation error
+
+
+async def test_delete_targets_with_different_filters(
+    app: FastAPI,
+    async_client: AsyncClient,
+    jwt_payload: dict,
+    db_session: AsyncSession,
+):
+    """Test deleting targets with various filter combinations."""
+    set_tenant_id(jwt_payload["tenant_id"])
+
+    # Create multiple targets with different dates
+    targets = []
+    for i in range(10):
+        target = MetricTarget(
+            tenant_id=jwt_payload["tenant_id"],
+            metric_id="delete_test_metric",
+            grain=Granularity.DAY,
+            target_date=date(2024, 1, i + 1),
+            target_value=100.0 + i,
+            target_upper_bound=110.0 + i,
+            target_lower_bound=90.0 + i,
+        )
+        targets.append(target)
+        db_session.add(target)
+
+    await db_session.commit()
+
+    # Delete targets in date range
+    response = await async_client.delete(
+        "/v2/semantic/metrics/delete_test_metric/targets?grain=day&target_date_ge=2024-01-03&target_date_le=2024-01-07"
+    )
+    assert response.status_code == 204
+
+    # Verify only targets outside the range remain
+    response = await async_client.get("/v2/semantic/metrics/targets?metric_ids=delete_test_metric")
+    assert response.status_code == 200
+    remaining_targets = response.json()
+    assert len(remaining_targets) == 5  # Should have 5 remaining (1-2, 8-10)
+
+    # Verify the remaining dates
+    remaining_dates = {target["target_date"] for target in remaining_targets}
+    expected_dates = {"2024-01-01", "2024-01-02", "2024-01-08", "2024-01-09", "2024-01-10"}
+    assert remaining_dates == expected_dates
+
+
+async def test_get_targets_pagination(
+    app: FastAPI,
+    async_client: AsyncClient,
+    jwt_payload: dict,
+    db_session: AsyncSession,
+):
+    """Test getting targets with custom pagination parameters."""
+    set_tenant_id(jwt_payload["tenant_id"])
+
+    # Create many targets for pagination testing
+    targets = []
+    for i in range(25):
+        target = MetricTarget(
+            tenant_id=jwt_payload["tenant_id"],
+            metric_id="pagination_test_metric",
+            grain=Granularity.DAY,
+            target_date=date(2024, 1, (i % 28) + 1),
+            target_value=100.0 + i,
+        )
+        targets.append(target)
+        db_session.add(target)
+
+    await db_session.commit()
+
+    # Test with pagination - this endpoint doesn't seem to support pagination based on current schema
+    # But we can test the basic functionality
+    response = await async_client.get("/v2/semantic/metrics/targets?metric_ids=pagination_test_metric")
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data) == 25
+
+
+async def test_get_target_by_id_edge_cases(
+    app: FastAPI,
+    async_client: AsyncClient,
+    jwt_payload: dict,
+    sample_targets: list,
+):
+    """Test edge cases for getting target by ID."""
+    # Test with valid target ID
+    target_id = sample_targets[0].id
+    response = await async_client.get(f"/v2/semantic/metrics/targets/{target_id}")
+    assert response.status_code == 200
+
+    # Test with very large ID
+    response = await async_client.get("/v2/semantic/metrics/targets/999999999")
+    assert response.status_code == 404
+
+    # Test with invalid ID format - this would be caught by FastAPI validation
+    response = await async_client.get("/v2/semantic/metrics/targets/invalid_id")
+    assert response.status_code == 422

@@ -201,9 +201,10 @@ async def get_targets(
     )
 
     # Get database results
-    return await semantic_manager.metric_target.list_targets(
+    results = await semantic_manager.metric_target.list_targets(
         filter_params=targets_filter.model_dump(exclude_unset=True)
     )
+    return [TargetResponse.model_validate(target) for target in results]
 
 
 @router.get(

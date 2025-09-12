@@ -5,7 +5,7 @@ Unit tests for time series models.
 import pytest
 from pydantic import ValidationError
 
-from levers.models import AverageGrowth, TimeSeriesSlope
+from levers.models.time_series import AverageGrowth, TimeSeriesSlope
 
 
 class TestAverageGrowth:

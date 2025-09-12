@@ -84,7 +84,7 @@ class ForecastingPattern(Pattern[Forecasting]):
                 ),
             ],
             analysis_window=AnalysisWindowConfig(
-                strategy=WindowStrategy.FIXED_TIME, days=365, min_days=90, max_days=730, include_today=False
+                strategy=WindowStrategy.FIXED_TIME, days=365, min_days=90, max_days=730
             ),
             settings={
                 "confidence_level": 0.95,
@@ -199,8 +199,9 @@ class ForecastingPattern(Pattern[Forecasting]):
             for period in periods:
                 # Get period start date instead of end date for target matching
                 pacing_grain = self._get_pacing_grain_for_period(period)
+                # TODO: kya krna hai iska dekh liyo
                 period_start_date, period_end_date = get_period_range_for_grain(
-                    grain=pacing_grain, analysis_date=analysis_date, include_today=True
+                    grain=pacing_grain, analysis_date=analysis_date
                 )
                 target_value = self._get_target_value(target, period_start_date, pacing_grain)
 
@@ -402,10 +403,9 @@ class ForecastingPattern(Pattern[Forecasting]):
         # Initialize result
         result = PacingProjection(target_value=target_value, period=period)
 
-        # Get the start and end dates for the pacing period
-        # Use include_today=True to get the current active period (not the previous completed period)
+        # Get the start and end dates for the pacing period using the analysis date as reference
         pacing_period_start, pacing_period_end = get_period_range_for_grain(
-            grain=pacing_grain, analysis_date=analysis_dt.date(), include_today=True
+            grain=pacing_grain, analysis_date=analysis_dt.date()
         )
 
         # Check if analysis date is within the pacing period

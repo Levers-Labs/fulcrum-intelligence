@@ -6,7 +6,7 @@ import pytest
 from levers.exceptions import ValidationError
 from levers.models import Granularity
 from levers.primitives.period_grains import (
-    get_date_range_from_window,
+    get_analysis_period_range,
     get_period_length_for_grain,
     get_period_range_for_grain,
     get_prev_period_start_date,
@@ -15,37 +15,7 @@ from levers.primitives.period_grains import (
 
 
 class TestGetPeriodRangeForGrain:
-    """Tests for the get_period_range_for_grain function."""
-
-    def test_day_grain(self):
-        analysis_date = date(2024, 3, 15)
-        start, end = get_period_range_for_grain(Granularity.DAY, analysis_date, include_today=True)
-        assert start == pd.Timestamp("2024-03-15")
-        assert end == pd.Timestamp("2024-03-15")
-
-    def test_week_grain(self):
-        analysis_date = date(2024, 3, 13)  # Wednesday
-        start, end = get_period_range_for_grain(Granularity.WEEK, analysis_date, include_today=True)
-        assert start == pd.Timestamp("2024-03-11")  # Monday
-        assert end == pd.Timestamp("2024-03-17")  # Sunday
-
-    def test_month_grain(self):
-        analysis_date = date(2024, 2, 10)
-        start, end = get_period_range_for_grain(Granularity.MONTH, analysis_date)
-        assert start == pd.Timestamp("2024-02-01")
-        assert end == pd.Timestamp("2024-02-29")
-
-    def test_quarter_grain(self):
-        analysis_date = date(2024, 5, 20)
-        start, end = get_period_range_for_grain(Granularity.QUARTER, analysis_date, include_today=True)
-        assert start == pd.Timestamp("2024-04-01")
-        assert end == pd.Timestamp("2024-06-30")
-
-    def test_year_grain(self):
-        analysis_date = date(2024, 8, 25)
-        start, end = get_period_range_for_grain(Granularity.YEAR, analysis_date, include_today=True)
-        assert start == pd.Timestamp("2024-01-01")
-        assert end == pd.Timestamp("2024-12-31")
+    """Tests for the get_period_range_for_grain"""
 
     def test_invalid_date(self):
         with pytest.raises(ValidationError):
@@ -55,35 +25,35 @@ class TestGetPeriodRangeForGrain:
         with pytest.raises(ValidationError):
             get_period_range_for_grain(Granularity.DAY, "invalid")
 
-    def test_day_grain_include_today_false(self):
+    def test_day_grain(self):
         analysis_date = date(2024, 3, 15)
         start, end = get_period_range_for_grain(Granularity.DAY, analysis_date)
-        assert start == pd.Timestamp("2024-03-14")
-        assert end == pd.Timestamp("2024-03-14")
+        assert start == pd.Timestamp("2024-03-15")
+        assert end == pd.Timestamp("2024-03-15")
 
-    def test_week_grain_include_today_false(self):
+    def test_week_grain(self):
         analysis_date = date(2024, 3, 13)  # Wednesday
         start, end = get_period_range_for_grain(Granularity.WEEK, analysis_date)
-        assert start == pd.Timestamp("2024-03-04")  # Monday
-        assert end == pd.Timestamp("2024-03-10")  # Sunday
+        assert start == pd.Timestamp("2024-03-11")  # Monday of that week
+        assert end == pd.Timestamp("2024-03-17")  # Sunday of that week
 
-    def test_month_grain_include_today_false(self):
+    def test_month_grain(self):
         analysis_date = date(2024, 2, 10)
         start, end = get_period_range_for_grain(Granularity.MONTH, analysis_date)
         assert start == pd.Timestamp("2024-02-01")
         assert end == pd.Timestamp("2024-02-29")
 
-    def test_quarter_grain_include_today_false(self):
+    def test_quarter_grain(self):
         analysis_date = date(2024, 5, 20)
         start, end = get_period_range_for_grain(Granularity.QUARTER, analysis_date)
-        assert start == pd.Timestamp("2024-01-01")
-        assert end == pd.Timestamp("2024-03-31")
+        assert start == pd.Timestamp("2024-04-01")  # Q2 start
+        assert end == pd.Timestamp("2024-06-30")  # Q2 end
 
-    def test_year_grain_include_today_false(self):
+    def test_year_grain(self):
         analysis_date = date(2024, 8, 25)
         start, end = get_period_range_for_grain(Granularity.YEAR, analysis_date)
-        assert start == pd.Timestamp("2023-01-01")
-        assert end == pd.Timestamp("2023-12-31")
+        assert start == pd.Timestamp("2024-01-01")  # 2024 start
+        assert end == pd.Timestamp("2024-12-31")  # 2024 end
 
 
 class TestGetPriorPeriodRange:
@@ -134,29 +104,6 @@ class TestGetPrevPeriodStartDate:
             get_prev_period_start_date(Granularity.MONTH, 1, "not-a-date")
 
 
-class TestGetDateRangeFromWindow:
-    """Tests for the get_date_range_from_window function."""
-
-    def test_basic_window(self):
-        start, end = get_date_range_from_window(7, end_date="2024-03-31")
-        assert start == date(2024, 3, 25)
-        assert end == date(2024, 3, 31)
-
-    def test_include_today(self):
-        today = date.today()
-        start, end = get_date_range_from_window(3, include_today=True)
-        assert end == today
-        assert start == today - pd.Timedelta(days=2)
-
-    def test_invalid_window_days(self):
-        with pytest.raises(ValidationError):
-            get_date_range_from_window(0)
-
-    def test_invalid_end_date(self):
-        with pytest.raises(ValidationError):
-            get_date_range_from_window(5, end_date="not-a-date")
-
-
 class TestGetPeriodLengthForGrain:
     """Tests for the get_period_length_for_grain function."""
 
@@ -173,3 +120,45 @@ class TestGetPeriodLengthForGrain:
     def test_invalid_grain(self):
         with pytest.raises(ValidationError):
             get_period_length_for_grain("invalid-grain")
+
+
+class TestGetAnalysisPeriodRange:
+    """Tests for the get_period_range_for_grain"""
+
+    def test_invalid_date(self):
+        with pytest.raises(ValidationError):
+            get_analysis_period_range(Granularity.DAY, "invalid-date")
+
+    def test_invalid_grain_string(self):
+        with pytest.raises(ValidationError):
+            get_analysis_period_range(Granularity.DAY, "invalid")
+
+    def test_day_grain_analysis_period_range(self):
+        analysis_date = date(2024, 3, 15)
+        start, end = get_analysis_period_range(Granularity.DAY, analysis_date)
+        assert start == pd.Timestamp("2024-03-14")
+        assert end == pd.Timestamp("2024-03-14")
+
+    def test_week_grain_analysis_period_range(self):
+        analysis_date = date(2024, 3, 13)  # Wednesday
+        start, end = get_analysis_period_range(Granularity.WEEK, analysis_date)
+        assert start == pd.Timestamp("2024-03-04")  # Monday
+        assert end == pd.Timestamp("2024-03-10")  # Sunday
+
+    def test_month_grain_analysis_period_range(self):
+        analysis_date = date(2024, 2, 10)
+        start, end = get_analysis_period_range(Granularity.MONTH, analysis_date)
+        assert start == pd.Timestamp("2024-02-01")
+        assert end == pd.Timestamp("2024-02-29")
+
+    def test_quarter_grain_analysis_period_range(self):
+        analysis_date = date(2024, 5, 20)
+        start, end = get_analysis_period_range(Granularity.QUARTER, analysis_date)
+        assert start == pd.Timestamp("2024-01-01")
+        assert end == pd.Timestamp("2024-03-31")
+
+    def test_year_grain_analysis_period_range(self):
+        analysis_date = date(2024, 8, 25)
+        start, end = get_analysis_period_range(Granularity.YEAR, analysis_date)
+        assert start == pd.Timestamp("2023-01-01")
+        assert end == pd.Timestamp("2023-12-31")
