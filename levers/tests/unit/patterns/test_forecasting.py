@@ -9,6 +9,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
+from levers.exceptions import InsufficientDataError, MissingDataError
 from levers.models import AnalysisWindow, DataSourceType, Granularity
 from levers.models.enums import PeriodType
 from levers.patterns.forecasting import ForecastingPattern
@@ -1204,21 +1205,18 @@ class TestForecastingPattern:
                 }
             )
 
-            # The implementation handles empty target data gracefully
-            result = pattern.analyze(
-                metric_id="test_metric",
-                data=data,
-                target=empty_target,
-                analysis_window=analysis_window,
-                analysis_date=date(2023, 1, 12),
-            )
+            # The implementation should raise InsufficientDataError for empty target data
+            with pytest.raises(InsufficientDataError) as exc_info:
+                pattern.analyze(
+                    metric_id="test_metric",
+                    data=data,
+                    target=empty_target,
+                    analysis_window=analysis_window,
+                    analysis_date=date(2023, 1, 12),
+                )
 
-        # Should return result with error information
-        assert result.pattern == "forecasting"
-        assert result.metric_id == "test_metric"
-        assert hasattr(result, "error")
-        assert result.error["type"] == "data_error"
-        assert "Target data is empty" in result.error["message"]
+        # Should raise the expected error
+        assert "No targets available for pattern analysis for metric: test_metric" in str(exc_info.value)
 
     def test_missing_target_columns_handling(self):
         """Test handling when target data is missing required columns."""
@@ -1245,21 +1243,18 @@ class TestForecastingPattern:
                 }
             )
 
-            # The implementation handles invalid target data gracefully
-            result = pattern.analyze(
-                metric_id="test_metric",
-                data=data,
-                target=invalid_target,
-                analysis_window=analysis_window,
-                analysis_date=date(2023, 1, 12),
-            )
+            # The implementation should raise MissingDataError for missing required columns
+            with pytest.raises(MissingDataError) as exc_info:
+                pattern.analyze(
+                    metric_id="test_metric",
+                    data=data,
+                    target=invalid_target,
+                    analysis_window=analysis_window,
+                    analysis_date=date(2023, 1, 12),
+                )
 
-            # Should return result with error information
-            assert result.pattern == "forecasting"
-            assert result.metric_id == "test_metric"
-            assert hasattr(result, "error")
-            assert result.error["type"] == "data_error"
-            assert "Target data is empty or missing required columns target_value or date." in result.error["message"]
+        # Should raise the expected error
+        assert "Missing required columns: ['date', 'target_value']" in str(exc_info.value)
 
     def test_no_target_value_found_for_period(self):
         """Test handling when no target value is found for a period."""
@@ -1650,40 +1645,6 @@ class TestForecastingPattern:
 
             assert "Error executing forecasting for metric test_metric: Mocked error" in str(exc_info.value)
             # The error message contains the exception info but not necessarily the metric_id
-
-    def test_handle_min_data_functionality(self):
-        """Test _handle_min_data method functionality."""
-        pattern = ForecastingPattern()
-
-        # Create test forecast data
-        forecast_df = pd.DataFrame(
-            {
-                "date": pd.date_range(start="2023-03-20", periods=3, freq="D"),
-                "forecast": [115, 116, 117],
-                "lower_bound": [110, 111, 112],
-                "upper_bound": [120, 121, 122],
-                "confidence_level": [0.95, 0.95, 0.95],
-            }
-        )
-
-        analysis_window = AnalysisWindow(start_date="2023-01-01", end_date="2023-03-19", grain=Granularity.WEEK)
-
-        # Test _handle_min_data method with error data
-        error_dict = {"type": "data_error", "message": "Test error message"}
-        result = pattern._handle_min_data("test_metric", analysis_window, forecast_data=forecast_df, error=error_dict)
-
-        assert result.pattern == "forecasting"
-        assert result.metric_id == "test_metric"
-        assert hasattr(result, "error")
-        assert result.error is not None
-        assert result.error["type"] == "data_error"
-        assert result.error["message"] == "Test error message"
-
-        # Test _handle_min_data method without error data (should have None error)
-        result_no_error = pattern._handle_min_data("test_metric", analysis_window, forecast_data=forecast_df)
-        assert result_no_error.pattern == "forecasting"
-        assert result_no_error.metric_id == "test_metric"
-        assert result_no_error.error is None
 
     def test_pacing_projection_zero_total_days(self):
         """Test pacing projection with edge case of zero total days."""

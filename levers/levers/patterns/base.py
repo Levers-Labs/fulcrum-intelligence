@@ -185,7 +185,7 @@ class Pattern(ABC, Generic[T]):
             MissingDataError: If any required column is missing
         """
         if data.empty:
-            raise InsufficientDataError("No data available for pattern analysis", {})
+            raise InsufficientDataError("No data available for pattern analysis")
         missing_columns = [col for col in required_columns if col not in data.columns]
         if missing_columns:
             raise MissingDataError(f"Missing required columns: {missing_columns}", missing_columns)

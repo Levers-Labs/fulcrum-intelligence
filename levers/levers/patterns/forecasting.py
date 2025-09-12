@@ -11,7 +11,7 @@ from typing import Any
 
 import pandas as pd
 
-from levers.exceptions import LeversError, PatternError
+from levers.exceptions import InsufficientDataError, LeversError, PatternError
 from levers.models import (
     AnalysisWindow,
     AnalysisWindowConfig,
@@ -144,6 +144,13 @@ class ForecastingPattern(Pattern[Forecasting]):
             required_columns = ["date", "value"]
             self.validate_data(data, required_columns)
 
+            # Validate target data
+            if target.empty:
+                logger.error(f"Targets not available for pattern analysis for metric: {metric_id}")
+                raise InsufficientDataError(f"No targets available for pattern analysis for metric: {metric_id}")
+            required_columns = ["date", "target_value"]
+            self.validate_data(target, required_columns)
+
             # Process data
             df = self.preprocess_data(data, analysis_window)
 
@@ -176,19 +183,6 @@ class ForecastingPattern(Pattern[Forecasting]):
             if forecast_df.empty:
                 logger.error("Forecast data is empty")
                 return self.handle_empty_data(metric_id, analysis_window)
-
-            # Handle empty target
-            if target.empty or "target_value" not in target.columns or "date" not in target.columns:
-                logger.error("Target data is empty or missing required columns.")
-                return self._handle_min_data(
-                    metric_id,
-                    analysis_window,
-                    forecast_data=forecast_df,
-                    error=dict(
-                        message="Target data is empty or missing required columns target_value or date.",
-                        type="data_error",
-                    ),
-                )
 
             forecast_vs_target_stats = []
             pacing = []
@@ -696,34 +690,6 @@ class ForecastingPattern(Pattern[Forecasting]):
         quarter_end_date = pd.to_datetime(quarter_end_date)
         remaining_periods = calculate_remaining_periods(analysis_date, quarter_end_date, Granularity.DAY)
         return remaining_periods
-
-    def _handle_min_data(self, metric_id: str, analysis_window: AnalysisWindow, **kwargs) -> Forecasting:
-        """
-        Create a standardized output for minimum data required for analysis.
-
-        Args:
-            metric_id: The metric ID
-            analysis_window: AnalysisWindow object
-
-        Returns:
-            Forecasting: Forecasting object with an error message
-        """
-        forecast_df = kwargs.get("forecast_data", pd.DataFrame())
-        forecast_data = self._prepare_forecast_data(forecast_df)
-        forecast_window = self._get_forecast_window(forecast_df)
-        return Forecasting(
-            pattern=self.name,
-            version=self.version,
-            metric_id=metric_id,
-            analysis_window=analysis_window,
-            num_periods=len(forecast_df),  # type: ignore
-            forecast=forecast_data,
-            forecast_window=forecast_window,
-            error=kwargs.get("error", None),
-            forecast_vs_target_stats=[],
-            pacing=[],
-            required_performance=[],
-        )
 
     def _get_target_value(self, target_data: pd.DataFrame, date: pd.Timestamp, grain: Granularity) -> float | None:
         """
