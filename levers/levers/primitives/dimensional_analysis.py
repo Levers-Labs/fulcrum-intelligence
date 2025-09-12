@@ -508,7 +508,7 @@ def compare_dimension_slices_over_time(
     # Check if any of the filtered dataframes is empty
     if df_prior.empty or df_current.empty:
         raise ValidationError(
-            "No data found for the specified dates",
+            f"No data available between {prior_start_date} and {current_start_date}",
             {"prior_start_date": prior_start_date, "current_start_date": current_start_date},
         )
 
@@ -535,7 +535,7 @@ def compare_dimension_slices_over_time(
     # Calculate percentage difference individually for each row to handle None values properly
     merged["pct_diff"] = merged.apply(  # type: ignore
         lambda row: (
-            calculate_relative_change(row["val_current"], row["val_prior"], default_value=0) * 100.0  # type: ignore
+            calculate_relative_change(row["val_current"], row["val_prior"], default_value=0) * 100.0
             if row["val_prior"] != 0
             else 0
         ),
@@ -597,8 +597,8 @@ def difference_from_average(df: pd.DataFrame, value_col: str) -> pd.DataFrame:
             sum_others = total - row_val
             avg_others = sum_others / (n_slices - 1)
             abs_diff = calculate_difference(row_val, avg_others)
-            relative_change = calculate_relative_change(row_val, avg_others)
-            pct_diff = (relative_change * 100.0) if relative_change is not None else None
+            relative_change = calculate_relative_change(row_val, avg_others) if avg_others != 0 else None
+            pct_diff = (relative_change * 100.0) if relative_change is not None else 0.0
 
             result_df.at[result_df.index[i], "avg_other_slices_value"] = avg_others
             result_df.at[result_df.index[i], "absolute_diff_from_avg"] = abs_diff
@@ -810,8 +810,10 @@ def identify_strongest_weakest_changes(
     if curr_strongest != prior_strongest:
         # Get the row for the new strongest slice
         curr_strongest_row = df[df[slice_col] == curr_strongest].iloc[0]
-        relative_change = calculate_relative_change(
-            curr_strongest_row[current_val_col], curr_strongest_row[prior_val_col]
+        relative_change = (
+            calculate_relative_change(curr_strongest_row[current_val_col], curr_strongest_row[prior_val_col])
+            if curr_strongest_row[prior_val_col] != 0
+            else None
         )
         strongest_slice = SliceStrength(
             slice_value=curr_strongest,
@@ -836,8 +838,13 @@ def identify_strongest_weakest_changes(
             current_value=float(curr_weakest_row[current_val_col]),
             prior_value=float(curr_weakest_row[prior_val_col]),
             absolute_delta=float(curr_weakest_row[current_val_col] - curr_weakest_row[prior_val_col]),
-            relative_delta_percent=float(
-                calculate_relative_change(curr_weakest_row[current_val_col], curr_weakest_row[prior_val_col]) * 100.0  # type: ignore
+            relative_delta_percent=(
+                float(
+                    calculate_relative_change(curr_weakest_row[current_val_col], curr_weakest_row[prior_val_col])
+                    * 100.0
+                )
+                if curr_weakest_row[prior_val_col] != 0
+                else None
             ),
         )
 
@@ -1085,7 +1092,9 @@ def build_slices_performance_list(
             slice_dict.relative_change_percent = row[pct_diff_col]
         else:
             slice_dict.relative_change_percent = (
-                calculate_relative_change(row[current_val_col], row[prior_val_col]) * 100.0  # type: ignore
+                (calculate_relative_change(row[current_val_col], row[prior_val_col]) * 100.0)
+                if row[prior_val_col] != 0
+                else None
             )
 
         # Add shares if requested and available
@@ -1145,11 +1154,11 @@ def compute_slice_vs_avg_others(df: pd.DataFrame, value_col: str) -> pd.DataFram
 
         if others_mask.any():
             avg_others = result_df.loc[others_mask, value_col].mean()
-            abs_diff = calculate_difference(row[value_col], avg_others)  # type: ignore
-            pct_diff = calculate_relative_change(row[value_col], avg_others) * 100.0  # type: ignore
+            abs_diff = calculate_difference(row[value_col], avg_others)
+            pct_diff = (calculate_relative_change(row[value_col], avg_others) * 100.0) if avg_others != 0 else 0
 
-            result_df.at[idx, "avg_other_slices_value"] = avg_others  # type: ignore
-            result_df.at[idx, "absolute_diff_from_avg"] = abs_diff  # type: ignore
-            result_df.at[idx, "absolute_diff_percent_from_avg"] = pct_diff  # type: ignore
+            result_df.at[idx, "avg_other_slices_value"] = avg_others
+            result_df.at[idx, "absolute_diff_from_avg"] = abs_diff
+            result_df.at[idx, "absolute_diff_percent_from_avg"] = pct_diff
 
     return result_df

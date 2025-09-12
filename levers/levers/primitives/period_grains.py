@@ -160,6 +160,18 @@ def get_period_range_for_grain(
         adjusted_date = get_analysis_end_date(grain, include_today=False)
         dt = pd.Timestamp(adjusted_date)
 
+    if not include_today:
+        if grain == Granularity.DAY:
+            dt = dt - pd.Timedelta(days=1)
+        elif grain == Granularity.WEEK:
+            dt = dt - pd.Timedelta(days=dt.isoweekday())
+        elif grain == Granularity.MONTH:
+            dt = dt - pd.offsets.MonthBegin(1)
+        elif grain == Granularity.QUARTER:
+            dt = dt - pd.DateOffset(months=3)
+        elif grain == Granularity.YEAR:
+            dt = dt - pd.DateOffset(years=1)
+
     # Now determine the period range based on the (potentially adjusted) date
     if grain == Granularity.DAY:
         start = dt.normalize()

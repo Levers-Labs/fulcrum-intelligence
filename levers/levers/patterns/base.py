@@ -71,7 +71,7 @@ class Pattern(ABC, Generic[T]):
             version=cls.version,
             data_sources=[DataSource(source_type=DataSourceType.METRIC_TIME_SERIES, is_required=True, data_key="data")],
             analysis_window=AnalysisWindowConfig(
-                strategy=WindowStrategy.FIXED_TIME, days=180, min_days=30, max_days=365, include_today=False
+                strategy=WindowStrategy.FIXED_TIME, days=180, min_days=30, max_days=365, include_today=True
             ),
         )
 
@@ -165,7 +165,7 @@ class Pattern(ABC, Generic[T]):
         filtered_df = df[(df[date_col] >= start_date) & (df[date_col] <= end_date)]
 
         if filtered_df.empty:
-            raise TimeRangeError("No data available for analysis date range", start_date=start_date, end_date=end_date)
+            raise TimeRangeError("No data available in analysis window", start_date=start_date, end_date=end_date)
 
         return filtered_df
 

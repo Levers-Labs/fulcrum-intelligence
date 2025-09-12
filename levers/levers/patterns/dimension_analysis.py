@@ -82,7 +82,7 @@ class DimensionAnalysisPattern(Pattern[DimensionAnalysis]):
                 DataSource(source_type=DataSourceType.DIMENSIONAL_TIME_SERIES, is_required=True, data_key="data")
             ],
             analysis_window=AnalysisWindowConfig(
-                strategy=WindowStrategy.FIXED_TIME, days=180, min_days=30, max_days=365, include_today=False
+                strategy=WindowStrategy.FIXED_TIME, days=180, min_days=30, max_days=365, include_today=True
             ),
             needs_dimension_analysis=True,
         )
