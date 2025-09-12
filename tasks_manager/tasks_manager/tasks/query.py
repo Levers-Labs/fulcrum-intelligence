@@ -1,90 +1,17 @@
 import os
-from datetime import date, datetime, timedelta
+from datetime import date, datetime
 
 from prefect import get_run_logger, task
-from prefect.tasks import task_input_hash
 
 from commons.clients.insight_backend import InsightBackendClient
 from commons.clients.query_manager import QueryManagerClient
 from commons.models.enums import Granularity
-from commons.utilities.context import reset_context, set_tenant_id
 from query_manager.core.dependencies import get_cube_client
 from query_manager.core.schemas import MetricDetail
 from tasks_manager.config import AppConfig
 from tasks_manager.utils import get_client_auth_from_config
 
 DATE_FORMAT = "%Y-%m-%d"
-
-
-@task(  # type: ignore
-    cache_key_fn=task_input_hash,
-    cache_expiration=timedelta(hours=1),
-    task_run_name="fetch_metrics_tenant:{tenant_id}",
-)
-async def fetch_metrics_for_tenant(tenant_id: int, limit: int = 100, **params) -> list[dict]:
-    """
-    Fetch all metrics for a specific tenant with limit/offset pagination.
-
-    Args:
-        tenant_id: The tenant ID
-        limit: Number of metrics to fetch per request
-        **params: Additional parameters for the metrics query
-
-    Returns:
-        list[dict]: List of metrics with their IDs
-    """
-    logger = get_run_logger()
-    logger.info("Starting metrics fetch for tenant %d", tenant_id)
-
-    set_tenant_id(tenant_id)
-    all_metrics: list[dict] = []
-    offset = 0
-
-    try:
-        # Initialize clients and configuration
-        config = await AppConfig.load("default")
-        auth = get_client_auth_from_config(config)
-        query_manager = QueryManagerClient(config.query_manager_server_host, auth=auth)
-
-        while True:
-            logger.debug(
-                "Fetching metrics - Offset: %d, Limit: %d, Total fetched so far: %d", offset, limit, len(all_metrics)
-            )
-
-            # Add pagination parameters to the query
-            page_params = {
-                **params,
-                "limit": limit,
-                "offset": offset,
-            }
-
-            # Fetch current batch
-            metrics_batch = await query_manager.list_metrics(**page_params)
-
-            # Check if we got any metrics
-            if not metrics_batch:
-                break
-
-            # Process metrics from current batch
-            batch_metrics = [{"id": metric["id"], "metric_id": metric["metric_id"]} for metric in metrics_batch]
-            all_metrics.extend(batch_metrics)
-
-            logger.debug("Retrieved %d metrics (offset: %d, total: %d)", len(batch_metrics), offset, len(all_metrics))
-
-            # If we got fewer metrics than limit, we've reached the end
-            if len(metrics_batch) < limit:
-                break
-
-            offset += limit
-
-        logger.info("Completed metrics fetch for tenant %d - Total metrics: %d", tenant_id, len(all_metrics))
-        return all_metrics
-
-    except Exception as e:
-        logger.error("Failed to fetch metrics for tenant %d: %s", tenant_id, str(e), exc_info=True)
-        raise
-    finally:
-        reset_context()
 
 
 @task(  # type: ignore
@@ -152,7 +79,6 @@ def _process_raw_metric_data(
     return record
 
 
-# todo: examine the skipped records
 async def fetch_metric_values(
     tenant_id: int,
     metric: MetricDetail,
