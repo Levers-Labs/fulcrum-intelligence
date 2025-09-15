@@ -97,14 +97,14 @@ class TenantCRUD(CRUDBase[Tenant, Tenant, Tenant, TenantConfigFilter]):  # type:
         """
         Override base query to include TenantConfig join for filtering.
         """
-        query = select(Tenant).outerjoin(TenantConfig, Tenant.id == TenantConfig.tenant_id)
+        query = select(Tenant).outerjoin(TenantConfig, Tenant.id == TenantConfig.tenant_id)  # type: ignore
         return query
 
     async def get(self, id: int) -> Tenant:
         """
         Override get method to explicitly filter on Tenant.id to avoid column ambiguity with joins.
         """
-        statement = self.get_select_query().where(Tenant.id == id)
+        statement = self.get_select_query().where(Tenant.id == id)  # type: ignore
         results = await self.session.execute(statement=statement)
         instance: Tenant | None = results.unique().scalar_one_or_none()
 
