@@ -15,6 +15,7 @@ from dagster import (
     DefaultSensorStatus,
     DeleteDynamicPartitionsRequest,
     EventRecordsFilter,
+    IntMetadataValue,
     MonthlyPartitionsDefinition,
     MultiPartitionKey,
     RunRequest,
@@ -23,6 +24,7 @@ from dagster import (
     WeeklyPartitionsDefinition,
     sensor,
 )
+from dagster._core.events import StepMaterializationData
 
 from asset_manager.jobs.patterns import daily_patterns_job, monthly_patterns_job, weekly_patterns_job
 from asset_manager.partitions import (
@@ -54,6 +56,17 @@ def _build_execution_context_keys(metric_contexts: list[MetricContext], patterns
         for mc in metric_contexts
         for pattern in patterns
     ]
+
+
+def _get_records_processed(event_specific_data: StepMaterializationData) -> int | None:
+    """Get the records processed from the materialization."""
+
+    materialization = event_specific_data.materialization
+    if "records_processed" in materialization.metadata:
+        records_processed = materialization.metadata["records_processed"]
+        if isinstance(records_processed, IntMetadataValue):
+            return records_processed.value
+    return None
 
 
 @sensor(
@@ -196,6 +209,18 @@ def _trigger_patterns_on_time_series(
 
         dagster_event = event_record.event_log_entry.dagster_event
         if not dagster_event.partition:
+            continue
+
+        event_specific_data = dagster_event.event_specific_data
+        if not event_specific_data or not isinstance(event_specific_data, StepMaterializationData):
+            continue
+
+        records_processed = _get_records_processed(event_specific_data)
+        if records_processed is None or records_processed == 0:
+            context.log.info(
+                f"Skipping {granularity.value} materialization - no records processed "
+                f"(records_processed={records_processed})"
+            )
             continue
 
         # Parse the time series partition key

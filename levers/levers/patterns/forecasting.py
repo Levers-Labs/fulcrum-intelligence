@@ -11,7 +11,7 @@ from typing import Any
 
 import pandas as pd
 
-from levers.exceptions import ValidationError
+from levers.exceptions import InsufficientDataError, LeversError, PatternError
 from levers.models import (
     AnalysisWindow,
     AnalysisWindowConfig,
@@ -84,7 +84,7 @@ class ForecastingPattern(Pattern[Forecasting]):
                 ),
             ],
             analysis_window=AnalysisWindowConfig(
-                strategy=WindowStrategy.FIXED_TIME, days=365, min_days=90, max_days=730, include_today=False
+                strategy=WindowStrategy.FIXED_TIME, days=365, min_days=90, max_days=730
             ),
             settings={
                 "confidence_level": 0.95,
@@ -118,7 +118,8 @@ class ForecastingPattern(Pattern[Forecasting]):
             Forecasting object with forecast results
 
         Raises:
-            ValidationError: If input validation fails or calculation errors occur
+            LeversError: if an errors like PrimitiveError, ValidationError, etc. occurs
+            PatternError: If an error occurs during pattern execution
         """
         try:
             # Set analysis date to today if not provided
@@ -142,6 +143,13 @@ class ForecastingPattern(Pattern[Forecasting]):
             # Validate input data
             required_columns = ["date", "value"]
             self.validate_data(data, required_columns)
+
+            # Validate target data
+            if target.empty:
+                logger.error(f"Targets not available for pattern analysis for metric: {metric_id}")
+                raise InsufficientDataError(f"No targets available for pattern analysis for metric: {metric_id}")
+            required_columns = ["date", "target_value"]
+            self.validate_data(target, required_columns)
 
             # Process data
             df = self.preprocess_data(data, analysis_window)
@@ -176,19 +184,6 @@ class ForecastingPattern(Pattern[Forecasting]):
                 logger.error("Forecast data is empty")
                 return self.handle_empty_data(metric_id, analysis_window)
 
-            # Handle empty target
-            if target.empty or "target_value" not in target.columns or "date" not in target.columns:
-                logger.error("Target data is empty or missing required columns.")
-                return self._handle_min_data(
-                    metric_id,
-                    analysis_window,
-                    forecast_data=forecast_df,
-                    error=dict(
-                        message="Target data is empty or missing required columns target_value or date.",
-                        type="data_error",
-                    ),
-                )
-
             forecast_vs_target_stats = []
             pacing = []
             required_performance = []
@@ -198,8 +193,9 @@ class ForecastingPattern(Pattern[Forecasting]):
             for period in periods:
                 # Get period start date instead of end date for target matching
                 pacing_grain = self._get_pacing_grain_for_period(period)
+                # TODO: kya krna hai iska dekh liyo
                 period_start_date, period_end_date = get_period_range_for_grain(
-                    grain=pacing_grain, analysis_date=analysis_date, include_today=True
+                    grain=pacing_grain, analysis_date=analysis_date
                 )
                 target_value = self._get_target_value(target, period_start_date, pacing_grain)
 
@@ -269,9 +265,16 @@ class ForecastingPattern(Pattern[Forecasting]):
             return self.validate_output(result)
 
         except Exception as e:
-            raise ValidationError(
-                f"Error in forecasting pattern calculation: {str(e)}",
-                {"pattern": self.name, "metric_id": metric_id},
+            logger.error("Error executing forecasting pattern: %s", e)
+            if isinstance(e, LeversError):
+                raise
+            raise PatternError(
+                f"Error executing {self.name} for metric {metric_id}: {str(e)}",
+                pattern_name=self.name,
+                details={
+                    "metric_id": metric_id,
+                    "original_error": type(e).__name__,
+                },
             ) from e
 
     def _get_forecast_vs_target_stats(
@@ -394,10 +397,9 @@ class ForecastingPattern(Pattern[Forecasting]):
         # Initialize result
         result = PacingProjection(target_value=target_value, period=period)
 
-        # Get the start and end dates for the pacing period
-        # Use include_today=True to get the current active period (not the previous completed period)
+        # Get the start and end dates for the pacing period using the analysis date as reference
         pacing_period_start, pacing_period_end = get_period_range_for_grain(
-            grain=pacing_grain, analysis_date=analysis_dt.date(), include_today=True
+            grain=pacing_grain, analysis_date=analysis_dt.date()
         )
 
         # Check if analysis date is within the pacing period
@@ -688,34 +690,6 @@ class ForecastingPattern(Pattern[Forecasting]):
         quarter_end_date = pd.to_datetime(quarter_end_date)
         remaining_periods = calculate_remaining_periods(analysis_date, quarter_end_date, Granularity.DAY)
         return remaining_periods
-
-    def _handle_min_data(self, metric_id: str, analysis_window: AnalysisWindow, **kwargs) -> Forecasting:
-        """
-        Create a standardized output for minimum data required for analysis.
-
-        Args:
-            metric_id: The metric ID
-            analysis_window: AnalysisWindow object
-
-        Returns:
-            Forecasting: Forecasting object with an error message
-        """
-        forecast_df = kwargs.get("forecast_data", pd.DataFrame())
-        forecast_data = self._prepare_forecast_data(forecast_df)
-        forecast_window = self._get_forecast_window(forecast_df)
-        return Forecasting(
-            pattern=self.name,
-            version=self.version,
-            metric_id=metric_id,
-            analysis_window=analysis_window,
-            num_periods=len(forecast_df),  # type: ignore
-            forecast=forecast_data,
-            forecast_window=forecast_window,
-            error=kwargs.get("error", None),
-            forecast_vs_target_stats=[],
-            pacing=[],
-            required_performance=[],
-        )
 
     def _get_target_value(self, target_data: pd.DataFrame, date: pd.Timestamp, grain: Granularity) -> float | None:
         """

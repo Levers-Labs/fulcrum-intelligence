@@ -9,7 +9,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from levers.exceptions import ValidationError
+from levers.exceptions import InsufficientDataError, MissingDataError
 from levers.models import AnalysisWindow, DataSourceType, Granularity
 from levers.models.enums import PeriodType
 from levers.patterns.forecasting import ForecastingPattern
@@ -132,8 +132,10 @@ class TestForecastingPattern:
 
         analysis_window = AnalysisWindow(start_date="2023-01-01", end_date="2023-01-30", grain=Granularity.DAY)
 
-        # Run analysis - should raise ValidationError for empty data
-        with pytest.raises(ValidationError):
+        # Run analysis - should raise InsufficientDataError for empty data
+        from levers.exceptions import InsufficientDataError
+
+        with pytest.raises(InsufficientDataError):
             pattern.analyze(
                 metric_id="test_metric", data=empty_data, target=empty_target, analysis_window=analysis_window
             )
@@ -148,8 +150,10 @@ class TestForecastingPattern:
 
         analysis_window = AnalysisWindow(start_date="2023-01-01", end_date="2023-01-10", grain=Granularity.DAY)
 
-        # Should raise validation error
-        with pytest.raises(ValidationError):
+        # Should raise MissingDataError for missing required columns
+        from levers.exceptions import MissingDataError
+
+        with pytest.raises(MissingDataError):
             pattern.analyze(metric_id="test_metric", data=data, target=target, analysis_window=analysis_window)
 
     def test_different_forecasting_methods(self):
@@ -551,30 +555,24 @@ class TestForecastingPattern:
         """Test overall error handling with problematic input."""
         pattern = ForecastingPattern()
 
-        # Create data with NaN values
+        # Create data with insufficient data for forecasting (Prophet requires much more data)
         dates = pd.date_range(start="2023-01-01", periods=5, freq="D")
-        data = pd.DataFrame({"date": dates, "value": [100, None, 102, None, 104], "grain": ["day"] * 5})
-        target = pd.DataFrame({"date": ["2023-01-10"], "target_value": [150.0]})
+        data = pd.DataFrame({"date": dates, "value": [100, 101, 102, 103, 104], "grain": ["day"] * 5})
+        target = pd.DataFrame({"date": ["2023-01-10"], "target_value": [150.0], "grain": ["day"]})
 
         analysis_window = AnalysisWindow(start_date="2023-01-01", end_date="2023-01-05", grain=Granularity.DAY)
 
-        # Should handle NaN values gracefully or raise ValidationError
-        try:
-            result = pattern.analyze(
+        # Should raise PatternError due to insufficient data for Prophet forecasting
+        from levers.exceptions import PatternError
+
+        with pytest.raises(PatternError):
+            pattern.analyze(
                 metric_id="test_metric",
                 data=data,
                 target=target,
                 analysis_window=analysis_window,
                 analysis_date=date(2023, 1, 5),
             )
-            assert result.pattern == "forecasting"
-            assert isinstance(result.forecast, list)
-            assert isinstance(result.forecast_vs_target_stats, list)
-            assert isinstance(result.pacing, list)
-            assert isinstance(result.required_performance, list)
-        except ValidationError:
-            # It's acceptable to raise ValidationError for invalid data
-            pass
 
     def test_calculate_required_growth_function_parameters(self):
         """Test calculate_required_growth function with different parameters."""
@@ -852,30 +850,23 @@ class TestForecastingPattern:
         """Test handling of single data point edge case."""
         pattern = ForecastingPattern()
 
-        # Single data point
+        # Single data point - insufficient for forecasting
         data = pd.DataFrame({"date": ["2023-01-01"], "value": [100.0], "grain": ["day"]})
-        target = pd.DataFrame({"date": ["2023-01-10"], "target_value": [150.0]})
+        target = pd.DataFrame({"date": ["2023-01-10"], "target_value": [150.0], "grain": ["day"]})
 
         analysis_window = AnalysisWindow(start_date="2023-01-01", end_date="2023-01-01", grain=Granularity.DAY)
 
-        # Should handle gracefully (may raise ValidationError depending on implementation)
-        try:
-            result = pattern.analyze(
+        # Should raise PatternError due to insufficient data for forecasting
+        from levers.exceptions import PatternError
+
+        with pytest.raises(PatternError):
+            pattern.analyze(
                 metric_id="test_metric",
                 data=data,
                 target=target,
                 analysis_window=analysis_window,
                 analysis_date=date(2023, 1, 1),
             )
-
-            assert result.pattern == "forecasting"
-            assert isinstance(result.forecast, list)
-            assert isinstance(result.forecast_vs_target_stats, list)
-            assert isinstance(result.pacing, list)
-            assert isinstance(result.required_performance, list)
-        except ValidationError:
-            # Acceptable to raise ValidationError for insufficient data
-            pass
 
     def test_negative_values_handling(self):
         """Test handling of negative values in data."""
@@ -942,7 +933,7 @@ class TestForecastingPattern:
         """Test handling of duplicate dates in data."""
         pattern = ForecastingPattern()
 
-        # Data with duplicate dates (should be handled by validation)
+        # Data with duplicate dates - insufficient for forecasting anyway
         data = pd.DataFrame(
             {
                 "date": ["2023-01-01", "2023-01-01", "2023-01-02", "2023-01-03"],
@@ -950,13 +941,15 @@ class TestForecastingPattern:
                 "grain": ["day"] * 4,
             }
         )
-        target = pd.DataFrame({"date": ["2023-01-10"], "target_value": [150.0]})
+        target = pd.DataFrame({"date": ["2023-01-10"], "target_value": [150.0], "grain": ["day"]})
 
         analysis_window = AnalysisWindow(start_date="2023-01-01", end_date="2023-01-03", grain=Granularity.DAY)
 
-        # Should either handle gracefully or raise ValidationError
-        try:
-            result = pattern.analyze(
+        # Should raise PatternError due to insufficient data for Prophet forecasting
+        from levers.exceptions import PatternError
+
+        with pytest.raises(PatternError):
+            pattern.analyze(
                 metric_id="test_metric",
                 data=data,
                 target=target,
@@ -964,17 +957,11 @@ class TestForecastingPattern:
                 analysis_date=date(2023, 1, 3),
             )
 
-            assert result.pattern == "forecasting"
-            assert isinstance(result.forecast, list)
-        except ValidationError:
-            # Acceptable to raise ValidationError for duplicate dates
-            pass
-
     def test_out_of_order_dates_handling(self):
         """Test handling of out-of-order dates in data."""
         pattern = ForecastingPattern()
 
-        # Data with dates out of order
+        # Data with dates out of order - insufficient for forecasting anyway
         data = pd.DataFrame(
             {
                 "date": ["2023-01-03", "2023-01-01", "2023-01-02", "2023-01-05", "2023-01-04"],
@@ -982,25 +969,21 @@ class TestForecastingPattern:
                 "grain": ["day"] * 5,
             }
         )
-        target = pd.DataFrame({"date": ["2023-01-10"], "target_value": [150.0]})
+        target = pd.DataFrame({"date": ["2023-01-10"], "target_value": [150.0], "grain": ["day"]})
 
         analysis_window = AnalysisWindow(start_date="2023-01-01", end_date="2023-01-05", grain=Granularity.DAY)
 
-        # Should sort data internally or raise ValidationError
-        try:
-            result = pattern.analyze(
+        # Should raise PatternError due to insufficient data for Prophet forecasting
+        from levers.exceptions import PatternError
+
+        with pytest.raises(PatternError):
+            pattern.analyze(
                 metric_id="test_metric",
                 data=data,
                 target=target,
                 analysis_window=analysis_window,
                 analysis_date=date(2023, 1, 5),
             )
-
-            assert result.pattern == "forecasting"
-            assert isinstance(result.forecast, list)
-        except ValidationError:
-            # Acceptable to raise ValidationError for unsorted data
-            pass
 
     def test_quarter_and_year_grain_coverage(self):
         """Test forecasting with quarter and year grains for coverage."""
@@ -1079,26 +1062,23 @@ class TestForecastingPattern:
         """Test edge cases with analysis window configurations."""
         pattern = ForecastingPattern()
 
-        # Very short analysis window (1 day)
+        # Very short analysis window (1 day) - insufficient for forecasting
         data = pd.DataFrame({"date": ["2023-01-01"], "value": [100], "grain": ["day"]})
-        target = pd.DataFrame({"date": ["2023-01-02"], "target_value": [110.0]})
+        target = pd.DataFrame({"date": ["2023-01-02"], "target_value": [110.0], "grain": ["day"]})
 
         analysis_window = AnalysisWindow(start_date="2023-01-01", end_date="2023-01-01", grain=Granularity.DAY)
 
-        try:
-            result = pattern.analyze(
+        # Should raise PatternError due to insufficient data for forecasting
+        from levers.exceptions import PatternError
+
+        with pytest.raises(PatternError):
+            pattern.analyze(
                 metric_id="test_metric",
                 data=data,
                 target=target,
                 analysis_window=analysis_window,
                 analysis_date=date(2023, 1, 1),
             )
-
-            assert result.pattern == "forecasting"
-            assert isinstance(result.forecast, list)
-        except ValidationError:
-            # May raise ValidationError for insufficient data
-            pass
 
     def test_confidence_level_variations(self):
         """Test that different confidence levels are handled properly."""
@@ -1225,21 +1205,18 @@ class TestForecastingPattern:
                 }
             )
 
-            # The implementation handles empty target data gracefully
-            result = pattern.analyze(
-                metric_id="test_metric",
-                data=data,
-                target=empty_target,
-                analysis_window=analysis_window,
-                analysis_date=date(2023, 1, 12),
-            )
+            # The implementation should raise InsufficientDataError for empty target data
+            with pytest.raises(InsufficientDataError) as exc_info:
+                pattern.analyze(
+                    metric_id="test_metric",
+                    data=data,
+                    target=empty_target,
+                    analysis_window=analysis_window,
+                    analysis_date=date(2023, 1, 12),
+                )
 
-        # Should return result with error information
-        assert result.pattern == "forecasting"
-        assert result.metric_id == "test_metric"
-        assert hasattr(result, "error")
-        assert result.error["type"] == "data_error"
-        assert "Target data is empty" in result.error["message"]
+        # Should raise the expected error
+        assert "No targets available for pattern analysis for metric: test_metric" in str(exc_info.value)
 
     def test_missing_target_columns_handling(self):
         """Test handling when target data is missing required columns."""
@@ -1266,21 +1243,18 @@ class TestForecastingPattern:
                 }
             )
 
-            # The implementation handles invalid target data gracefully
-            result = pattern.analyze(
-                metric_id="test_metric",
-                data=data,
-                target=invalid_target,
-                analysis_window=analysis_window,
-                analysis_date=date(2023, 1, 12),
-            )
+            # The implementation should raise MissingDataError for missing required columns
+            with pytest.raises(MissingDataError) as exc_info:
+                pattern.analyze(
+                    metric_id="test_metric",
+                    data=data,
+                    target=invalid_target,
+                    analysis_window=analysis_window,
+                    analysis_date=date(2023, 1, 12),
+                )
 
-            # Should return result with error information
-            assert result.pattern == "forecasting"
-            assert result.metric_id == "test_metric"
-            assert hasattr(result, "error")
-            assert result.error["type"] == "data_error"
-            assert "Target data is empty or missing required columns target_value or date." in result.error["message"]
+        # Should raise the expected error
+        assert "Missing required columns: ['date', 'target_value']" in str(exc_info.value)
 
     def test_no_target_value_found_for_period(self):
         """Test handling when no target value is found for a period."""
@@ -1657,7 +1631,10 @@ class TestForecastingPattern:
         with patch("levers.patterns.forecasting.forecast_with_confidence_intervals") as mock_forecast:
             mock_forecast.side_effect = Exception("Mocked error")
 
-            with pytest.raises(ValidationError) as exc_info:
+            # Should raise PatternError (wrapping the underlying exception)
+            from levers.exceptions import PatternError
+
+            with pytest.raises(PatternError) as exc_info:
                 pattern.analyze(
                     metric_id="test_metric",
                     data=data,
@@ -1666,42 +1643,8 @@ class TestForecastingPattern:
                     analysis_date=date(2023, 1, 5),
                 )
 
-            assert "Error in forecasting pattern calculation" in str(exc_info.value)
+            assert "Error executing forecasting for metric test_metric: Mocked error" in str(exc_info.value)
             # The error message contains the exception info but not necessarily the metric_id
-
-    def test_handle_min_data_functionality(self):
-        """Test _handle_min_data method functionality."""
-        pattern = ForecastingPattern()
-
-        # Create test forecast data
-        forecast_df = pd.DataFrame(
-            {
-                "date": pd.date_range(start="2023-03-20", periods=3, freq="D"),
-                "forecast": [115, 116, 117],
-                "lower_bound": [110, 111, 112],
-                "upper_bound": [120, 121, 122],
-                "confidence_level": [0.95, 0.95, 0.95],
-            }
-        )
-
-        analysis_window = AnalysisWindow(start_date="2023-01-01", end_date="2023-03-19", grain=Granularity.WEEK)
-
-        # Test _handle_min_data method with error data
-        error_dict = {"type": "data_error", "message": "Test error message"}
-        result = pattern._handle_min_data("test_metric", analysis_window, forecast_data=forecast_df, error=error_dict)
-
-        assert result.pattern == "forecasting"
-        assert result.metric_id == "test_metric"
-        assert hasattr(result, "error")
-        assert result.error is not None
-        assert result.error["type"] == "data_error"
-        assert result.error["message"] == "Test error message"
-
-        # Test _handle_min_data method without error data (should have None error)
-        result_no_error = pattern._handle_min_data("test_metric", analysis_window, forecast_data=forecast_df)
-        assert result_no_error.pattern == "forecasting"
-        assert result_no_error.metric_id == "test_metric"
-        assert result_no_error.error is None
 
     def test_pacing_projection_zero_total_days(self):
         """Test pacing projection with edge case of zero total days."""
