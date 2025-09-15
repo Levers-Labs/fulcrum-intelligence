@@ -648,12 +648,14 @@ def compute_top_bottom_slices(
                 {"column": col, "available_columns": list(df.columns)},
             )
 
-    # Sort for top/bottom
-    sorted_df = df.sort_values(by=value_col, ascending=False)
+    # We already have absolute_diff_percent_from_avg in the dataframe
+    # (added by difference_from_average() upstream). Rank slices by that
+    # relative performance instead of raw metric value. This prevents the
+    # same slice set showing up in both top and bottom lists.
+    criterion_col = "absolute_diff_percent_from_avg" if "absolute_diff_percent_from_avg" in df.columns else value_col
 
-    # Add relative comparison to average if requested
-    if include_avg_comparison:
-        sorted_df = compute_slice_vs_avg_others(sorted_df, value_col)
+    # Sort for strongest performers (largest positive diff from average)
+    sorted_df = df.sort_values(by=criterion_col, ascending=False)
 
     # Extract top slices
     top_slices = []
@@ -670,8 +672,15 @@ def compute_top_bottom_slices(
         )
         top_slices.append(slice_perf)
 
-    # Extract bottom slices
-    bottom_df = sorted_df.sort_values(by=value_col, ascending=True)
+    # Bottom slices = genuine under-performers (negative diff),
+    # sorted by most-negative first
+    bottom_df = df[df[criterion_col] < 0].sort_values(by=criterion_col, ascending=True)
+
+    # If we still have fewer than top_n rows (e.g. all positive diffs),
+    # fall back to lowest raw value just to return *something*.
+    if bottom_df.empty:
+        bottom_df = df.sort_values(by=value_col, ascending=True)
+
     bottom_slices = []
     for i in range(min(top_n, len(bottom_df))):
         row = bottom_df.iloc[i]
@@ -682,7 +691,7 @@ def compute_top_bottom_slices(
             avg_other_slices_value=float(row.get("avg_other_slices_value", 0.0)),
             absolute_diff_from_avg=float(row.get("absolute_diff_from_avg", 0.0)),
             absolute_diff_percent_from_avg=float(row.get("absolute_diff_percent_from_avg", 0.0)),
-            rank=len(bottom_df) - i,
+            rank=i + 1,
         )
         bottom_slices.append(slice_perf)
 

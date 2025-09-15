@@ -212,10 +212,12 @@ class DimensionAnalysisEvaluator(StoryEvaluatorBase[DimensionAnalysis]):
         bottom_segment_names = [s.slice_value for s in bottom_segments]
         formatted_names = format_segment_names(bottom_segment_names)
 
-        # Calculate performance difference percentages from bottom_slices data
-        diffs = [abs(s.absolute_diff_percent_from_avg or 0) for s in bottom_segments]
-        min_diff_percent = min(diffs, default=0)
-        max_diff_percent = max(diffs, default=0)
+        # Preserve sign for logic, but use absolute values for display
+        # Bottom segments now only contain genuine under-performers (negative values)
+        diffs = [s.absolute_diff_percent_from_avg or 0 for s in bottom_segments]
+        abs_diffs = [abs(d) for d in diffs]
+        min_diff_percent = min(abs_diffs, default=0)  # Smallest magnitude of underperformance
+        max_diff_percent = max(abs_diffs, default=0)  # Largest magnitude of underperformance
 
         # Calculate total volume share from slice data
         slices = [slice_lookup.get(name) for name in bottom_segment_names if slice_lookup.get(name)]
