@@ -41,7 +41,7 @@ class StoryEvaluatorManager:
 
         # Delegate to CRUD layer for data persistence (handles tenant context internally)
         story_crud = CRUDStory(Story, db_session)
-        return await story_crud.upsert_stories_by_context(stories)
+        return await story_crud.upsert_stories(stories)
 
     async def evaluate_pattern_result(
         self, pattern_result: BaseModel, metric: dict[str, Any], series_df: pd.DataFrame | None = None

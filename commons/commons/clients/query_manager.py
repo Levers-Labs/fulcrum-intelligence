@@ -341,3 +341,10 @@ class QueryManagerClient(AsyncHttpClient):
         metric_id: metric id
         """
         return await self.get(endpoint=f"/metrics/{metric_id}/notifications/slack")
+
+    async def get_dimension(self, dimension_id: str) -> dict[str, Any]:
+        """
+        Get dimension details.
+        dimension_id: dimension id
+        """
+        return await self.get(endpoint=f"/dimensions/{dimension_id}")

@@ -143,14 +143,14 @@ STORY_TEMPLATES = {
         "{% if loop.index == benchmark.comparison_summaries|length - 1 %} and {% else %}, {% endif %}{% endif %}{% endfor %}.",  # noqa: E501
     },
     StoryType.TOP_4_SEGMENTS: {
-        "title": "Strongest segments",
+        "title": "Strongest {{ dimension_label }} segments",
         "detail": "The 4 strongest-performing segments for {{ metric.label }} are {{ top_segments }}, "
         "which collectively outperforming the average of {{ min_diff_percent|format_percent }}% to {{ "
         "max_diff_percent|format_percent }}%. These segments represent {{ "
         "total_share_percent|format_percent }}% of total volume.",
     },
     StoryType.BOTTOM_4_SEGMENTS: {
-        "title": "Weakest segments",
+        "title": "Weakest {{ dimension_label }} segments",
         "detail": "The 4 weakest-performing segments for {{ metric.label }} are {{ bottom_segments }}, "
         "which collectively underperforming the average of {{ min_diff_percent|format_percent }}% to {{ "
         "max_diff_percent|format_percent }}%. These segments represent {{ "
@@ -180,18 +180,18 @@ STORY_TEMPLATES = {
     },
     StoryType.NEW_LARGEST_SEGMENT: {
         "title": "{{ segment_name }} is now the most represented segment",
-        "detail": "{{ segment_name }} now comprises the largest share of {{ dimension_name }}, "
+        "detail": "{{ segment_name }} now comprises the largest share of {{ dimension_label }}, "
         "at {{ current_share_percent|format_percent }}%, up from {{ prior_share_percent|format_percent }}% "
         "the prior {{ grain_label }}. This surpasses the previously most represented segment {{ "
         "previous_segment }} which now comprises {{ previous_share_percent|format_percent }}% of {{ "
-        "dimension_name }}.",
+        "dimension_label }}.",
     },
     StoryType.NEW_SMALLEST_SEGMENT: {
         "title": "{{ segment_name }} is now the least represented segment",
-        "detail": "{{ segment_name }} now comprises the smallest share of {{ dimension_name }}, "
+        "detail": "{{ segment_name }} now comprises the smallest share of {{ dimension_label }}, "
         "at {{ current_share_percent|format_percent }}%, down from {{ prior_share_percent|format_percent "
         "}}% in the prior {{ grain_label }}. The previously least represented segment {{ previous_segment "
-        "}} now comprises {{ previous_share_percent|format_percent }}% of {{ dimension_name }}, up from {{ "
+        "}} now comprises {{ previous_share_percent|format_percent }}% of {{ dimension_label }}, up from {{ "
         "previous_prior_share_percent|format_percent }}%.",
     },
     StoryType.FORECASTED_ON_TRACK: {

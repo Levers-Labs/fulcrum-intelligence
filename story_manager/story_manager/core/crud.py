@@ -172,14 +172,13 @@ class CRUDStory(CRUDBase[Story, Story, Story, StoryFilter]):
         date_end = date_start + timedelta(days=1)
         return date_start, date_end
 
-    async def upsert_stories_by_context(self, stories: list[dict[str, Any]]) -> list[Story]:
+    async def upsert_stories(self, stories: list[dict[str, Any]]) -> list[Story]:
         """
-        Upsert stories with context-based replace semantics.
+        Upsert stories using a two-phase approach: delete all existing stories
+        for each lookup_key, then insert all incoming stories.
 
-        Groups stories by (metric_id, grain, story_date, version, story_group)
-        and replaces existing stories only for the story_types in each group.
-        This ensures re-runs replace previous results while allowing multiple
-        stories per type (e.g., different segments).
+        This eliminates complex grouping logic and prevents deletion conflicts
+        where later stories might delete earlier ones within the same batch.
 
         Args:
             stories: List of story dictionaries to persist
@@ -194,64 +193,67 @@ class CRUDStory(CRUDBase[Story, Story, Story, StoryFilter]):
         tenant_id = get_tenant_id()
         logger.info(f"Upserting {len(stories)} stories for tenant {tenant_id}")
 
-        # Group stories by their run context to handle each group atomically
-        context_groups: dict[tuple, list[dict[str, Any]]] = {}
-        for story_dict in stories:
-            # Explicitly set tenant_id on each story
-            story_dict["tenant_id"] = tenant_id
-
-            context_key = (
-                story_dict["metric_id"],
-                story_dict["grain"],
-                story_dict["story_date"],
-                story_dict.get("version", 2),
-                story_dict["story_group"],
-            )
-
-            if context_key not in context_groups:
-                context_groups[context_key] = []
-            context_groups[context_key].append(story_dict)
-
-        persisted_stories: list[Story] = []
-
         try:
-            for context_key, stories_in_context in context_groups.items():
-                metric_id, grain, story_date, version, story_group = context_key
-                story_types_to_replace = {story["story_type"] for story in stories_in_context}
+            # step 1: Extract dimension_name and group by lookup_key
+            lookup_keys: dict = {}
 
-                # Use existing date boundary logic
+            for story_dict in stories:
+                # Set tenant_id on each story
+                story_dict["tenant_id"] = tenant_id
+
+                # dimension_name should already be set directly by the evaluator
+                dimension_name = story_dict.get("dimension_name")
+
+                # Build context key for deletion (include dimension for proper isolation)
+                lookup_key = (
+                    story_dict["metric_id"],
+                    story_dict["grain"],
+                    story_dict["story_date"],
+                    story_dict.get("version", 2),
+                    story_dict["story_group"],
+                    story_dict["story_type"].value,
+                    dimension_name,  # Clean dimension-based isolation
+                )
+                lookup_keys[lookup_key] = story_dict
+
+            # step 2: Execute delete statements for each lookup_key
+            for lookup_key in lookup_keys:
+                metric_id, grain, story_date, version, story_group, story_type, dimension_name = lookup_key
                 date_start, date_end = self._get_date_boundaries(story_date)
 
-                # Delete existing stories for the types we're about to insert
-                # CRITICAL: Include tenant_id filter to prevent cross-tenant data deletion
                 delete_statement = (
                     delete(Story)
-                    .where(Story.tenant_id == tenant_id)
+                    .where(Story.tenant_id == tenant_id)  # type: ignore
                     .where(Story.metric_id == metric_id)
                     .where(Story.grain == grain)
                     .where(Story.story_group == story_group)
                     .where(Story.version == version)
                     .where(Story.story_date >= date_start)  # type: ignore
                     .where(Story.story_date < date_end)  # type: ignore
-                    .where(Story.story_type.in_(story_types_to_replace))  # type: ignore
+                    .where(Story.story_type == story_type)  # type: ignore
+                )
+
+                delete_statement = (
+                    delete_statement.where(Story.dimension_name == dimension_name)
+                    if dimension_name
+                    else delete_statement.where(Story.dimension_name.is_(None))  # type: ignore
                 )
 
                 _ = await self.session.execute(delete_statement)
 
-                # Create and add new story objects using model validation
-                new_stories = [Story.model_validate(story_dict) for story_dict in stories_in_context]
-                self.session.add_all(new_stories)
-                persisted_stories.extend(new_stories)
+            # step 3: Insert all incoming stories
+            new_stories = [Story.model_validate(story) for story in stories]
+            self.session.add_all(new_stories)
 
-            # Commit all changes
+            # step 4: Commit all changes
             await self.session.commit()
 
             # Refresh objects to get database-generated fields
-            for story in persisted_stories:
+            for story in new_stories:
                 await self.session.refresh(story)
 
-            logger.info(f"Successfully upserted {len(persisted_stories)} stories")
-            return persisted_stories
+            logger.info(f"Successfully upserted {len(new_stories)} stories")
+            return new_stories
 
         except Exception as e:
             logger.error(f"Error upserting stories: {str(e)}")

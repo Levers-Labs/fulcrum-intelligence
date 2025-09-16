@@ -10,6 +10,7 @@ import numpy as np
 from commons.models.enums import Granularity
 from levers.models.dimensional_analysis import SliceShare, SliceStrength
 from levers.models.patterns.dimension_analysis import DimensionAnalysis
+from story_manager.core.dependencies import get_query_manager_client
 from story_manager.core.enums import StoryGenre, StoryGroup, StoryType
 from story_manager.story_evaluator import StoryEvaluatorBase, render_story_text
 from story_manager.story_evaluator.utils import format_date_column, format_segment_names
@@ -55,7 +56,7 @@ class DimensionAnalysisEvaluator(StoryEvaluatorBase[DimensionAnalysis]):
             and all((s.avg_other_slices_value or 0) > 0 for s in pattern_result.top_slices)
         ):
 
-            stories.append(self._create_top_segments_story(pattern_result, metric_id, metric, grain))
+            stories.append(await self._create_top_segments_story(pattern_result, metric_id, metric, grain))
 
         # Check for bottom segments
         if (
@@ -63,27 +64,27 @@ class DimensionAnalysisEvaluator(StoryEvaluatorBase[DimensionAnalysis]):
             and len(pattern_result.bottom_slices) >= 4
             and all((s.avg_other_slices_value or 0) > 0 for s in pattern_result.bottom_slices)
         ):
-            stories.append(self._create_bottom_segments_story(pattern_result, metric_id, metric, grain))
+            stories.append(await self._create_bottom_segments_story(pattern_result, metric_id, metric, grain))
 
         # Check for notable segment comparisons in comparison highlights
         if pattern_result.comparison_highlights and len(pattern_result.comparison_highlights) > 0:
-            stories.append(self._create_segment_comparison_story(pattern_result, metric_id, metric, grain))
+            stories.append(await self._create_segment_comparison_story(pattern_result, metric_id, metric, grain))
 
         # Check for new strongest segment
         if pattern_result.strongest_slice and self._has_slice_changed(pattern_result.strongest_slice):
-            stories.append(self._create_new_strongest_segment_story(pattern_result, metric_id, metric, grain))
+            stories.append(await self._create_new_strongest_segment_story(pattern_result, metric_id, metric, grain))
 
         # Check for new weakest segment
         if pattern_result.weakest_slice and self._has_slice_changed(pattern_result.weakest_slice):
-            stories.append(self._create_new_weakest_segment_story(pattern_result, metric_id, metric, grain))
+            stories.append(await self._create_new_weakest_segment_story(pattern_result, metric_id, metric, grain))
 
         # Check for largest slice by share
         if pattern_result.largest_slice and self._has_slice_changed(pattern_result.largest_slice):
-            stories.append(self._create_largest_segment_story(pattern_result, metric_id, metric, grain))
+            stories.append(await self._create_largest_segment_story(pattern_result, metric_id, metric, grain))
 
         # Check for smallest slice by share
         if pattern_result.smallest_slice and self._has_slice_changed(pattern_result.smallest_slice):
-            stories.append(self._create_smallest_segment_story(pattern_result, metric_id, metric, grain))
+            stories.append(await self._create_smallest_segment_story(pattern_result, metric_id, metric, grain))
 
         return stories
 
@@ -102,7 +103,7 @@ class DimensionAnalysisEvaluator(StoryEvaluatorBase[DimensionAnalysis]):
 
         return current_slice != previous_slice
 
-    def _populate_template_context(
+    async def _populate_template_context(
         self, pattern_result: DimensionAnalysis, metric: dict, grain: Granularity, **kwargs
     ) -> dict[str, Any]:
         """
@@ -121,9 +122,16 @@ class DimensionAnalysisEvaluator(StoryEvaluatorBase[DimensionAnalysis]):
         include = kwargs.get("include", [])
         context = self.prepare_base_context(metric, grain)
 
+        # Try to get dimension label, fallback to ID if it fails
+        dimension_label = pattern_result.dimension_name  # fallback to ID
+        query_manager = await get_query_manager_client()
+        dimension = await query_manager.get_dimension(pattern_result.dimension_name)
+        if dimension and "label" in dimension:
+            dimension_label = dimension["label"]
+
         context.update(
             {
-                "dimension_name": pattern_result.dimension_name,
+                "dimension_label": dimension_label,
             }
         )
 
@@ -359,7 +367,7 @@ class DimensionAnalysisEvaluator(StoryEvaluatorBase[DimensionAnalysis]):
 
         context.update(context_update)
 
-    def _create_top_segments_story(
+    async def _create_top_segments_story(
         self, pattern_result: DimensionAnalysis, metric_id: str, metric: dict, grain: Granularity
     ) -> dict[str, Any]:
         """
@@ -379,7 +387,7 @@ class DimensionAnalysisEvaluator(StoryEvaluatorBase[DimensionAnalysis]):
         story_type = StoryType.TOP_4_SEGMENTS
 
         # Prepare context for template rendering
-        context = self._populate_template_context(pattern_result, metric, grain, include=["top_slices", "slices"])
+        context = await self._populate_template_context(pattern_result, metric, grain, include=["top_slices", "slices"])
 
         # Render title and detail from templates
         title = render_story_text(story_type, "title", context)
@@ -401,7 +409,7 @@ class DimensionAnalysisEvaluator(StoryEvaluatorBase[DimensionAnalysis]):
             **context,
         )
 
-    def _create_bottom_segments_story(
+    async def _create_bottom_segments_story(
         self, pattern_result: DimensionAnalysis, metric_id: str, metric: dict, grain: Granularity
     ) -> dict[str, Any]:
         """
@@ -421,7 +429,9 @@ class DimensionAnalysisEvaluator(StoryEvaluatorBase[DimensionAnalysis]):
         story_type = StoryType.BOTTOM_4_SEGMENTS
 
         # Prepare context for template rendering
-        context = self._populate_template_context(pattern_result, metric, grain, include=["bottom_slices", "slices"])
+        context = await self._populate_template_context(
+            pattern_result, metric, grain, include=["bottom_slices", "slices"]
+        )
 
         # Render title and detail from templates
         title = render_story_text(story_type, "title", context)
@@ -443,7 +453,7 @@ class DimensionAnalysisEvaluator(StoryEvaluatorBase[DimensionAnalysis]):
             **context,
         )
 
-    def _create_segment_comparison_story(
+    async def _create_segment_comparison_story(
         self, pattern_result: DimensionAnalysis, metric_id: str, metric: dict, grain: Granularity
     ) -> dict[str, Any]:
         """
@@ -464,7 +474,9 @@ class DimensionAnalysisEvaluator(StoryEvaluatorBase[DimensionAnalysis]):
         story_type = StoryType.SEGMENT_COMPARISONS
 
         # Prepare context for template rendering
-        context = self._populate_template_context(pattern_result, metric, grain, include=["comparison_highlights"])
+        context = await self._populate_template_context(
+            pattern_result, metric, grain, include=["comparison_highlights"]
+        )
 
         # Render title and detail from templates
         title = render_story_text(story_type, "title", context)
@@ -486,7 +498,7 @@ class DimensionAnalysisEvaluator(StoryEvaluatorBase[DimensionAnalysis]):
             **context,
         )
 
-    def _create_new_strongest_segment_story(
+    async def _create_new_strongest_segment_story(
         self, pattern_result: DimensionAnalysis, metric_id: str, metric: dict, grain: Granularity
     ) -> dict[str, Any]:
         """
@@ -505,7 +517,7 @@ class DimensionAnalysisEvaluator(StoryEvaluatorBase[DimensionAnalysis]):
         story_group = StoryGroup.SEGMENT_CHANGES
         story_type = StoryType.NEW_STRONGEST_SEGMENT
         # Prepare context for template rendering
-        context = self._populate_template_context(pattern_result, metric, grain, include=["strongest_slice"])
+        context = await self._populate_template_context(pattern_result, metric, grain, include=["strongest_slice"])
 
         # Render title and detail from templates
         title = render_story_text(story_type, "title", context)
@@ -527,7 +539,7 @@ class DimensionAnalysisEvaluator(StoryEvaluatorBase[DimensionAnalysis]):
             **context,
         )
 
-    def _create_new_weakest_segment_story(
+    async def _create_new_weakest_segment_story(
         self, pattern_result: DimensionAnalysis, metric_id: str, metric: dict, grain: Granularity
     ) -> dict[str, Any]:
         """
@@ -547,7 +559,7 @@ class DimensionAnalysisEvaluator(StoryEvaluatorBase[DimensionAnalysis]):
         story_type = StoryType.NEW_WEAKEST_SEGMENT
 
         # Prepare context for template rendering
-        context = self._populate_template_context(pattern_result, metric, grain, include=["weakest_slice"])
+        context = await self._populate_template_context(pattern_result, metric, grain, include=["weakest_slice"])
 
         # Render title and detail from templates
         title = render_story_text(story_type, "title", context)
@@ -569,7 +581,7 @@ class DimensionAnalysisEvaluator(StoryEvaluatorBase[DimensionAnalysis]):
             **context,
         )
 
-    def _create_largest_segment_story(
+    async def _create_largest_segment_story(
         self, pattern_result: DimensionAnalysis, metric_id: str, metric: dict, grain: Granularity
     ) -> dict[str, Any]:
         """
@@ -589,7 +601,7 @@ class DimensionAnalysisEvaluator(StoryEvaluatorBase[DimensionAnalysis]):
         story_type = StoryType.NEW_LARGEST_SEGMENT
 
         # Prepare context for template rendering
-        context = self._populate_template_context(pattern_result, metric, grain, include=["largest_slice"])
+        context = await self._populate_template_context(pattern_result, metric, grain, include=["largest_slice"])
 
         # Render title and detail from templates
         title = render_story_text(story_type, "title", context)
@@ -611,7 +623,7 @@ class DimensionAnalysisEvaluator(StoryEvaluatorBase[DimensionAnalysis]):
             **context,
         )
 
-    def _create_smallest_segment_story(
+    async def _create_smallest_segment_story(
         self, pattern_result: DimensionAnalysis, metric_id: str, metric: dict, grain: Granularity
     ) -> dict[str, Any]:
         """
@@ -631,7 +643,7 @@ class DimensionAnalysisEvaluator(StoryEvaluatorBase[DimensionAnalysis]):
         story_type = StoryType.NEW_SMALLEST_SEGMENT
 
         # Prepare context for template rendering
-        context = self._populate_template_context(pattern_result, metric, grain, include=["smallest_slice"])
+        context = await self._populate_template_context(pattern_result, metric, grain, include=["smallest_slice"])
 
         # Render title and detail from templates
         title = render_story_text(story_type, "title", context)
@@ -679,19 +691,17 @@ class DimensionAnalysisEvaluator(StoryEvaluatorBase[DimensionAnalysis]):
         if "date" in series_df.columns:
             series_df = format_date_column(series_df)
 
+        # Filter for the current dimension only to avoid cross-dimension duplicates
+        series_df = series_df[series_df["dimension_name"] == pattern_result.dimension_name]
+
         # Filter for both segments
         filtered_df = series_df[series_df["dimension_slice"].isin(segments.values())]
         if filtered_df.empty:
             return [result]  # Return list with empty result dictionary
 
-        # Collapse any duplicate (date, slice) rows → single row per date
-        collapsed_df = filtered_df.groupby(["date", "dimension_slice"], as_index=False)[
-            "value"
-        ].sum()  # or .mean(), .first() depending on definition
-
         # Build segment-wise data
         for key, segment in segments.items():
-            segment_df = collapsed_df[collapsed_df["dimension_slice"] == segment]
+            segment_df = filtered_df[filtered_df["dimension_slice"] == segment]
             if not segment_df.empty:
                 # Final cleanup: Replace any remaining NaN/inf values
                 segment_df = segment_df.replace([float("inf"), float("-inf"), np.NaN], 0.0)
@@ -726,6 +736,9 @@ class DimensionAnalysisEvaluator(StoryEvaluatorBase[DimensionAnalysis]):
         # Ensure date column is present and properly formatted
         if "date" in series_df.columns:
             series_df = format_date_column(series_df)
+
+        # Filter for the current dimension only to avoid cross-dimension duplicates
+        series_df = series_df[series_df["dimension_name"] == pattern_result.dimension_name]
 
         # Filter for current and previous segments
         filtered_df = series_df[series_df["dimension_slice"].isin([current_slice, previous_slice])]
@@ -819,6 +832,9 @@ class DimensionAnalysisEvaluator(StoryEvaluatorBase[DimensionAnalysis]):
         # Format dates using utility method
         if "date" in series_df.columns:
             series_df = format_date_column(series_df)
+
+        # Filter for the current dimension only to avoid cross-dimension duplicates
+        series_df = series_df[series_df["dimension_name"] == pattern_result.dimension_name]
 
         # Filter for current and previous segments
         filtered_df = series_df[series_df["dimension_slice"].isin([current_slice, previous_slice])]
