@@ -155,7 +155,7 @@ def test_create_deployment_with_defaults_basic():
     assert deployment.name == "test-deployment"
     assert deployment.flow_name == "test-flow"
     assert deployment.entrypoint == "test.flows:test_flow"
-    assert deployment.work_pool_name == "tasks-manager-managed-pool"
+    assert deployment.work_pool_name == "tasks-manager-process-pool"
     assert deployment.schedules is None
 
 
