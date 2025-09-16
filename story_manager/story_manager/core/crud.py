@@ -1,3 +1,4 @@
+import logging
 from datetime import (
     date,
     datetime,
@@ -9,6 +10,7 @@ from typing import Any
 from sqlalchemy import (
     Date as SQLDate,
     cast,
+    delete,
     desc,
     func,
     select,
@@ -16,10 +18,13 @@ from sqlalchemy import (
 
 from commons.db.crud import CRUDBase
 from commons.models.enums import Granularity
+from commons.utilities.context import get_tenant_id
 from story_manager.core.enums import StoryType
 from story_manager.core.filters import StoryConfigFilter, StoryFilter
 from story_manager.core.models import Story, StoryConfig
 from story_manager.core.schemas import StoryStatsResponse
+
+logger = logging.getLogger(__name__)
 
 
 class CRUDStory(CRUDBase[Story, Story, Story, StoryFilter]):
@@ -154,6 +159,104 @@ class CRUDStory(CRUDBase[Story, Story, Story, StoryFilter]):
         story.story_date = new_date
         self.session.add(story)
         return True
+
+    def _get_date_boundaries(self, story_date: date | datetime) -> tuple[datetime, datetime]:
+        """
+        Get start and end boundaries for a story date.
+        Reuses existing date handling logic from get_stories.
+        """
+        if isinstance(story_date, datetime):
+            date_start = datetime.combine(story_date.date(), time.min)
+        else:
+            date_start = datetime.combine(story_date, time.min)
+        date_end = date_start + timedelta(days=1)
+        return date_start, date_end
+
+    async def upsert_stories_by_context(self, stories: list[dict[str, Any]]) -> list[Story]:
+        """
+        Upsert stories with context-based replace semantics.
+
+        Groups stories by (metric_id, grain, story_date, version, story_group)
+        and replaces existing stories only for the story_types in each group.
+        This ensures re-runs replace previous results while allowing multiple
+        stories per type (e.g., different segments).
+
+        Args:
+            stories: List of story dictionaries to persist
+
+        Returns:
+            List of persisted Story objects
+        """
+        if not stories:
+            logger.info("No stories to persist")
+            return []
+
+        tenant_id = get_tenant_id()
+        logger.info(f"Upserting {len(stories)} stories for tenant {tenant_id}")
+
+        # Group stories by their run context to handle each group atomically
+        context_groups: dict[tuple, list[dict[str, Any]]] = {}
+        for story_dict in stories:
+            # Explicitly set tenant_id on each story
+            story_dict["tenant_id"] = tenant_id
+
+            context_key = (
+                story_dict["metric_id"],
+                story_dict["grain"],
+                story_dict["story_date"],
+                story_dict.get("version", 2),
+                story_dict["story_group"],
+            )
+
+            if context_key not in context_groups:
+                context_groups[context_key] = []
+            context_groups[context_key].append(story_dict)
+
+        persisted_stories: list[Story] = []
+
+        try:
+            for context_key, stories_in_context in context_groups.items():
+                metric_id, grain, story_date, version, story_group = context_key
+                story_types_to_replace = {story["story_type"] for story in stories_in_context}
+
+                # Use existing date boundary logic
+                date_start, date_end = self._get_date_boundaries(story_date)
+
+                # Delete existing stories for the types we're about to insert
+                # CRITICAL: Include tenant_id filter to prevent cross-tenant data deletion
+                delete_statement = (
+                    delete(Story)
+                    .where(Story.tenant_id == tenant_id)
+                    .where(Story.metric_id == metric_id)
+                    .where(Story.grain == grain)
+                    .where(Story.story_group == story_group)
+                    .where(Story.version == version)
+                    .where(Story.story_date >= date_start)  # type: ignore
+                    .where(Story.story_date < date_end)  # type: ignore
+                    .where(Story.story_type.in_(story_types_to_replace))  # type: ignore
+                )
+
+                _ = await self.session.execute(delete_statement)
+
+                # Create and add new story objects using model validation
+                new_stories = [Story.model_validate(story_dict) for story_dict in stories_in_context]
+                self.session.add_all(new_stories)
+                persisted_stories.extend(new_stories)
+
+            # Commit all changes
+            await self.session.commit()
+
+            # Refresh objects to get database-generated fields
+            for story in persisted_stories:
+                await self.session.refresh(story)
+
+            logger.info(f"Successfully upserted {len(persisted_stories)} stories")
+            return persisted_stories
+
+        except Exception as e:
+            logger.error(f"Error upserting stories: {str(e)}")
+            await self.session.rollback()
+            raise
 
     async def get_story_stats(self, filter_params: dict[str, Any]) -> list[StoryStatsResponse]:
         """

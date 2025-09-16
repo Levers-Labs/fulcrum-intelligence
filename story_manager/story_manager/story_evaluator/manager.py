@@ -9,7 +9,7 @@ import pandas as pd
 from pydantic import BaseModel
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from commons.utilities.context import get_tenant_id
+from story_manager.core.crud import CRUDStory
 from story_manager.core.models import Story
 from story_manager.story_evaluator.factory import StoryEvaluatorFactory
 
@@ -24,7 +24,7 @@ class StoryEvaluatorManager:
 
     async def persist_stories(self, stories: list[dict[str, Any]], db_session: AsyncSession) -> list[Story]:
         """
-        Persist stories to the database.
+        Persist stories to the database using context-based upsert semantics.
 
         Args:
             stories: List of story dictionaries to persist
@@ -33,21 +33,15 @@ class StoryEvaluatorManager:
         Returns:
             List of persisted Story objects
         """
-        story_objs = []
-        for story_dict in stories:
-            tenant_id = get_tenant_id()
-            story_dict["tenant_id"] = tenant_id
-            story_obj = Story.model_validate(story_dict)
-            db_session.add(story_obj)
-            story_objs.append(story_obj)
+        if not stories:
+            logger.info("No stories to persist")
+            return []
 
-        if story_objs:
-            await db_session.commit()
-            # Refresh objects to get database-generated fields
-            for obj in story_objs:
-                await db_session.refresh(obj)
+        logger.info(f"Persisting {len(stories)} stories")
 
-        return story_objs
+        # Delegate to CRUD layer for data persistence (handles tenant context internally)
+        story_crud = CRUDStory(Story, db_session)
+        return await story_crud.upsert_stories_by_context(stories)
 
     async def evaluate_pattern_result(
         self, pattern_result: BaseModel, metric: dict[str, Any], series_df: pd.DataFrame | None = None
