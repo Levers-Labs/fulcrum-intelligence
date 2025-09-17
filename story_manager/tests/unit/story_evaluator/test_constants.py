@@ -3,7 +3,7 @@ Tests for the story evaluator constants module.
 """
 
 from story_manager.core.enums import StoryType
-from story_manager.story_evaluator.constants import STORY_TEMPLATES
+from story_manager.story_evaluator.templates import STORY_TEMPLATES
 
 
 def test_story_templates():

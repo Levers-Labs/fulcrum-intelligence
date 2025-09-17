@@ -101,6 +101,7 @@ class ForecastingPattern(Pattern[Forecasting]):
         analysis_date: date | None = None,
         confidence_level: float = 0.95,
         pacing_status_threshold_pct: float = 5.0,
+        num_of_past_periods_for_growth: int = 4,
     ) -> Forecasting:
         """
         Execute the forecasting pattern.
@@ -225,6 +226,7 @@ class ForecastingPattern(Pattern[Forecasting]):
                         pacing_status_threshold_pct=pacing_status_threshold_pct,
                         pacing_grain=pacing_grain,
                         period=period,
+                        num_of_past_periods_for_growth=num_of_past_periods_for_growth,
                     )
                 )
 
@@ -369,6 +371,7 @@ class ForecastingPattern(Pattern[Forecasting]):
         pacing_status_threshold_pct: float,
         pacing_grain: Granularity,
         period: PeriodType,
+        num_of_past_periods_for_growth: int,
     ) -> PacingProjection:
         """
         Calculate pacing projection for the period. This method calculates the pacing projection for the period based
@@ -435,8 +438,8 @@ class ForecastingPattern(Pattern[Forecasting]):
         else:
             # Calculate pop growth from recent actual data for projections
             pop_growth_rate = 0.0
-            if len(df) >= 4:
-                recent_df = df.tail(4).copy()
+            if len(df) >= num_of_past_periods_for_growth:
+                recent_df = df.tail(num_of_past_periods_for_growth).copy()
                 pop_growth_df = calculate_pop_growth(recent_df, date_col="date", value_col="value")
                 if not pop_growth_df.empty and not pop_growth_df["pop_growth"].isna().all():
                     pop_growth_rate = pop_growth_df["pop_growth"].mean() / 100.0  # Convert percentage to decimal
@@ -451,7 +454,7 @@ class ForecastingPattern(Pattern[Forecasting]):
                 last_actual_value = pacing_period_actuals["value"].iloc[-1]
                 for i, _ in enumerate(remaining_dates):
                     # Apply pop growth for each remaining day
-                    # exponential growth
+                    # for exponential growth, use the following formula
                     # projected_value = last_actual_value * ((1 + pop_growth_rate) ** (i + 1))
                     # linear growth
                     projected_value = last_actual_value + (last_actual_value * pop_growth_rate * (i + 1))
@@ -543,7 +546,6 @@ class ForecastingPattern(Pattern[Forecasting]):
 
         # For forecasting, calculate remaining periods based on target date
         remaining_periods_count = calculate_remaining_periods(analysis_dt, period_end_date, grain)  # type: ignore
-
         required_performance.remaining_periods = remaining_periods_count
 
         # Calculate required growth if there are remaining periods

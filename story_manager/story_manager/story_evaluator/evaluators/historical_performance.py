@@ -9,7 +9,7 @@ import pandas as pd
 
 from commons.models.enums import Granularity
 from levers.models import ComparisonType, TrendExceptionType, TrendType
-from levers.models.patterns import BenchmarkComparison, HistoricalPerformance
+from levers.models.patterns import BenchmarkComparison, GrowthStats, HistoricalPerformance
 from levers.models.patterns.historical_performance import RankSummary
 from story_manager.core.enums import StoryGenre, StoryGroup, StoryType
 from story_manager.story_evaluator import StoryEvaluatorBase, render_story_text
@@ -50,9 +50,9 @@ class HistoricalPerformanceEvaluator(StoryEvaluatorBase[HistoricalPerformance]):
 
         # Growth Stories
         if pattern_result.growth_stats and pattern_result.growth_stats.current_growth_acceleration:
-            if pattern_result.growth_stats.current_growth_acceleration < 0:
+            if self._is_slowing_growth(pattern_result.growth_stats):
                 stories.append(self._create_slowing_growth_story(pattern_result, metric_id, metric, grain))
-            elif pattern_result.growth_stats.current_growth_acceleration > 0:
+            elif self._is_accelerating_growth(pattern_result.growth_stats):
                 stories.append(self._create_accelerating_growth_story(pattern_result, metric_id, metric, grain))
 
         # Trend Stories
@@ -132,6 +132,32 @@ class HistoricalPerformanceEvaluator(StoryEvaluatorBase[HistoricalPerformance]):
         """Check if the current value is a record value."""
 
         return record_value.value != record_value.prior_record_value
+
+    def _is_slowing_growth(self, growth_stats: GrowthStats) -> bool:
+        """Check if the current growth is slowing down."""
+        current_pop_growth = growth_stats.current_pop_growth
+        average_pop_growth = growth_stats.average_pop_growth
+        num_periods_slowing = growth_stats.num_periods_slowing
+
+        if not current_pop_growth or not average_pop_growth or not num_periods_slowing:
+            return False
+
+        # if the current growth is less than the average growth and the number of periods slowing is greater than at
+        # least 1, then it is slowing growth
+        return current_pop_growth < average_pop_growth and num_periods_slowing > 1
+
+    def _is_accelerating_growth(self, growth_stats: GrowthStats) -> bool:
+        """Check if the current growth is accelerating."""
+        current_pop_growth = growth_stats.current_pop_growth
+        average_pop_growth = growth_stats.average_pop_growth
+        num_periods_accelerating = growth_stats.num_periods_accelerating
+
+        if not current_pop_growth or not average_pop_growth or not num_periods_accelerating:
+            return False
+
+        # if the current growth is greater than the average growth and the number of periods accelerating is greater
+        # than at least 1, then it is accelerating growth
+        return current_pop_growth > average_pop_growth and num_periods_accelerating > 1
 
     def _populate_template_context(
         self, pattern_result: HistoricalPerformance, metric: dict, grain: Granularity, **kwargs
@@ -656,6 +682,25 @@ class HistoricalPerformanceEvaluator(StoryEvaluatorBase[HistoricalPerformance]):
         benchmark_context["comparison_details"] = comparison_details
         benchmark_context["comparison_summaries"] = comparison_summaries
         benchmark_context["num_comparisons"] = len(comparison_details)
+
+        # Calculate historical average deviation for heuristic evaluation
+        # CSV requirement: current value should be ≥5% off historical average
+        benchmark_deviation_percent = 0.0
+        if comparison_details:
+            # Calculate average of all historical benchmark values
+            historical_values = [
+                detail["reference_value"]
+                for detail in comparison_details
+                if detail["reference_value"] is not None and isinstance(detail["reference_value"], float)
+            ]
+            historical_average = sum(historical_values) / len(historical_values)
+
+            # Calculate percentage deviation of current value from historical average
+            current_value = benchmark_comparison.current_value
+            if historical_average != 0:
+                benchmark_deviation_percent = abs((current_value - historical_average) / historical_average * 100)
+
+        benchmark_context["deviation_percent"] = benchmark_deviation_percent
 
         return benchmark_context
 

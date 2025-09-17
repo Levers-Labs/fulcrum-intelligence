@@ -389,59 +389,68 @@ class HistoricalPerformancePattern(Pattern[HistoricalPerformance]):
                 "previous_trend": None,
             }
 
-        # Define trend_start_date as the earliest date in period_data
-        trend_start_date = analyzed_trend_df["date"].iloc[0].strftime("%Y-%m-%d")
+        # Calculate the consecutive count of same trend type from the end (vectorized approach)
+        # This finds the size of the last contiguous block where trend_type == current_trend_type
+        same_type_mask = analyzed_trend_df["trend_type"] == current_trend_type
+        consecutive_duration = int((same_type_mask[::-1].cumprod()).sum())
 
-        # For "previous" trend info, analyze the previous subset
-        previous_trend_info = self._analyze_previous_trend(analyzed_trend_df)
+        # Calculate the actual start index of the current trend streak
+        start_idx = len(analyzed_trend_df) - consecutive_duration
+        trend_start_date = analyzed_trend_df["date"].iloc[start_idx].strftime("%Y-%m-%d")
+
+        # For "previous" trend info, analyze only the data before the current trend started
+        previous_subset = analyzed_trend_df.iloc[:start_idx] if start_idx > 0 else pd.DataFrame()
+        previous_trend_info = self._analyze_previous_trend(previous_subset) if not previous_subset.empty else None
 
         return {
             "current_trend": TrendInfo(
                 trend_type=current_trend_type,
                 start_date=trend_start_date,
                 average_pop_growth=avg_pop_growth,
-                duration_grains=len(analyzed_trend_df),
+                duration_grains=consecutive_duration,
             ),
             "previous_trend": previous_trend_info,
         }
 
     def _analyze_previous_trend(self, trend_analysis_df: pd.DataFrame) -> TrendInfo | None:
         """
-        Analyze the previous trend by examining all points except the last one using Trend Analysis data.
+        Analyze the previous trend from the subset of data before the current trend.
 
         Args:
             trend_analysis_df: DataFrame containing time series data with Trend Analysis results
+                              (should be the subset before the current trend starts)
 
         Returns:
             TrendInfo object containing previous trend information
         """
-        if len(trend_analysis_df) < 2:
+        if len(trend_analysis_df) < 1:
             return None
 
-        prev_subset = trend_analysis_df.iloc[:-1].copy()
-
-        if len(prev_subset) < 1:
-            return None
-
-        # Get the most recent trend type from the previous subset
-        previous_trend_type = prev_subset["trend_type"].iloc[-1]
+        # Get the most recent trend type from this subset (which is the previous trend)
+        previous_trend_type = trend_analysis_df["trend_type"].iloc[-1]
         if previous_trend_type is None:
             return None
 
-        previous_trend_start_date = prev_subset["date"].iloc[0].strftime("%Y-%m-%d")
+        # Apply the same logic to find the start of the previous trend streak
+        same_type_mask = trend_analysis_df["trend_type"] == previous_trend_type
+        consecutive_duration = int((same_type_mask[::-1].cumprod()).sum())
 
-        # Calculate average growth for previous subset
+        # Calculate the actual start index of the previous trend streak
+        start_idx = len(trend_analysis_df) - consecutive_duration
+        previous_trend_start_date = trend_analysis_df["date"].iloc[start_idx].strftime("%Y-%m-%d")
+
+        # Calculate average growth for the previous trend subset
+        prev_trend_subset = trend_analysis_df.iloc[start_idx:]
         prev_subset_growth_results = calculate_average_growth(
-            prev_subset, "date", "value", AverageGrowthMethod.ARITHMETIC
+            prev_trend_subset, "date", "value", AverageGrowthMethod.ARITHMETIC
         )
         previous_trend_average_pop_growth = prev_subset_growth_results.average_growth
-        previous_trend_duration_grains = len(prev_subset)
 
         return TrendInfo(
             trend_type=previous_trend_type,
             start_date=previous_trend_start_date,
             average_pop_growth=previous_trend_average_pop_growth,
-            duration_grains=previous_trend_duration_grains,
+            duration_grains=consecutive_duration,
         )
 
     def _detect_record_values(self, data_window: pd.DataFrame) -> dict[str, RankSummary | None]:

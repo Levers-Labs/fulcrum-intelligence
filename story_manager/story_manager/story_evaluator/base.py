@@ -20,11 +20,8 @@ from commons.models.enums import Granularity
 from commons.utilities.grain_utils import GRAIN_META
 from levers.models.common import BasePattern
 from story_manager.core.enums import StoryGenre, StoryGroup, StoryType
-from story_manager.story_evaluator.constants import (
-    STORY_GROUP_TIME_DURATIONS,
-    STORY_TEMPLATES,
-    STORY_TYPE_TIME_DURATIONS,
-)
+from story_manager.story_evaluator.constants import STORY_GROUP_TIME_DURATIONS, STORY_TYPE_TIME_DURATIONS
+from story_manager.story_evaluator.templates import STORY_TEMPLATES
 from story_manager.story_evaluator.utils import format_date_column
 
 T = TypeVar("T", bound=BasePattern)
@@ -179,15 +176,17 @@ class StoryEvaluatorBase(Generic[T], ABC):
         metric_info = {
             "label": metric["label"],
             "metric_id": metric["metric_id"],
+            "unit": metric["unit"],
         }
         return {"metric": metric_info, "grain_label": grain_info["label"], "pop": grain_info["pop"]}
 
     def get_output_length(self, story_type: StoryType, story_group: StoryGroup, grain: Granularity) -> int | None:
         """
-        Get the output length for the given grain.
+        Get the output length for the given grain, story type and story group.
 
         Args:
             story_type: The story type for which the time durations are retrieved
+            story_group: The story group for which the time durations are retrieved
             grain: The grain for which the time durations are retrieved
 
         Returns:
