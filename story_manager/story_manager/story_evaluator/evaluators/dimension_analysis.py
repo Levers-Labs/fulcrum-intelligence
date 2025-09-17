@@ -49,20 +49,20 @@ class DimensionAnalysisEvaluator(StoryEvaluatorBase[DimensionAnalysis]):
         metric_id = pattern_result.metric_id
         grain = Granularity(pattern_result.analysis_window.grain)
 
-        # Check for top segments
+        # Check for top segments, only when slices have positive absolute difference from average and 4 slices
         if (
             pattern_result.top_slices
             and len(pattern_result.top_slices) >= 4
-            and all((s.avg_other_slices_value or 0) > 0 for s in pattern_result.top_slices)
+            and all((s.absolute_diff_from_avg or 0) > 0 for s in pattern_result.top_slices)
         ):
 
             stories.append(await self._create_top_segments_story(pattern_result, metric_id, metric, grain))
 
-        # Check for bottom segments
+        # Check for bottom segments, only when slices have positive absolute difference from average and 4 slices
         if (
             pattern_result.bottom_slices
             and len(pattern_result.bottom_slices) >= 4
-            and all((s.avg_other_slices_value or 0) > 0 for s in pattern_result.bottom_slices)
+            and all((s.absolute_diff_from_avg or 0) > 0 for s in pattern_result.bottom_slices)
         ):
             stories.append(await self._create_bottom_segments_story(pattern_result, metric_id, metric, grain))
 
@@ -181,11 +181,8 @@ class DimensionAnalysisEvaluator(StoryEvaluatorBase[DimensionAnalysis]):
 
     def _calculate_average_value(self, slices):
         """Calculate the average value across all slices."""
-        if not slices:
-            return 0
 
-        # Handle null values by using 0 as default
-        total = sum((s.current_value or 0) for s in slices)  # type: ignore
+        total = sum(s.avg_other_slices_value or 0 for s in slices)
         return total / float(len(slices)) if len(slices) > 0 else 0
 
     def _add_top_slices_context(self, pattern_result, context, **kwargs):
@@ -786,7 +783,7 @@ class DimensionAnalysisEvaluator(StoryEvaluatorBase[DimensionAnalysis]):
         )
 
         # Calculate average value across all slices to provide meaningful reference benchmark
-        avg_value = self._calculate_average_value(pattern_result.slices)
+        avg_value = self._calculate_average_value(slices)
 
         # Create segment entries
         segments = [{"segment": slice_obj.slice_value, "value": slice_obj.metric_value} for slice_obj in slices]

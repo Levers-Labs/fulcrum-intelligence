@@ -917,12 +917,12 @@ def highlight_slice_comparisons(
             # Calculate current gap
             gap_now = None
             if slice_b[current_val_col] != 0:
-                gap_now = (slice_a[current_val_col] - slice_b[current_val_col]) / slice_b[current_val_col] * 100
+                gap_now = (slice_a[current_val_col] - slice_b[current_val_col]) / abs(slice_b[current_val_col]) * 100
 
             # Calculate prior gap
             gap_prior = None
             if slice_b[prior_val_col] != 0:
-                gap_prior = (slice_a[prior_val_col] - slice_b[prior_val_col]) / slice_b[prior_val_col] * 100
+                gap_prior = (slice_a[prior_val_col] - slice_b[prior_val_col]) / abs(slice_b[prior_val_col]) * 100
 
             # Calculate gap change
             gap_change = None

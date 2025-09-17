@@ -245,12 +245,17 @@ class CRUDStory(CRUDBase[Story, Story, Story, StoryFilter]):
             new_stories = [Story.model_validate(story) for story in stories]
             self.session.add_all(new_stories)
 
-            # step 4: Commit all changes
-            await self.session.commit()
+            # step 4: Flush all changes
+            await self.session.flush()
 
             # Refresh objects to get database-generated fields
             for story in new_stories:
                 await self.session.refresh(story)
+                await story.set_heuristics(self.session)
+                self.session.add(story)
+
+            # step 5: Commit all changes
+            await self.session.commit()
 
             logger.info(f"Successfully upserted {len(new_stories)} stories")
             return new_stories
