@@ -86,20 +86,18 @@ class PerformanceStatusPattern(Pattern[MetricPerformance]):
             df = self.preprocess_data(data, analysis_window)
 
             # Handle empty data
-            if df.empty:
+            if len(df) < 2:
+                logger.warning("Not enough data to calculate performance status")
+                return self.handle_empty_data(metric_id, analysis_window)
+
+            if "target" not in df.columns:
+                logger.warning("Target column not found in data")
                 return self.handle_empty_data(metric_id, analysis_window)
 
             # Calculate current and prior values
             current_value = float(df["value"].iloc[-1])
-            prior_value = float(df["value"].iloc[-2]) if len(df) > 1 else None
-
-            # Calculate target value if target column exists
-            target_value = None
-            has_target = "target" in df.columns
-            if has_target:
-                target_values = df["target"].dropna()
-                if not target_values.empty:
-                    target_value = float(target_values.iloc[-1])
+            prior_value = float(df["value"].iloc[-2])
+            target_value = float(df["target"].iloc[-1]) if pd.notna(df["target"].iloc[-1]) else None
 
             # Calculate status
             if target_value is not None:
@@ -147,25 +145,23 @@ class PerformanceStatusPattern(Pattern[MetricPerformance]):
                 result["absolute_over_performance"] = abs(abs_diff) if abs_diff else None
                 result["percent_over_performance"] = abs(pct_diff) if pct_diff else None
 
-            # Calculate status change info if historical data is available
-            if has_target and len(df) > 1:
-                # Calculate status for each row with target
-                df["status"] = df.apply(
-                    lambda row: classify_metric_status(
-                        row["value"], row["target"] if pd.notna(row.get("target")) else None, threshold_ratio
-                    ),
-                    axis=1,
-                )
+            # Calculate status for each row with target
+            df["status"] = df.apply(
+                lambda row: classify_metric_status(
+                    row["value"], row["target"] if pd.notna(row.get("target")) else None, threshold_ratio
+                ),
+                axis=1,
+            )
 
-                status_change_info = self._calculate_status_change(df, status)
-                if status_change_info:
-                    result["status_change"] = status_change_info
+            # calculate status change info
+            status_change_info = self._calculate_status_change(df, status)
+            if status_change_info:
+                result["status_change"] = status_change_info
 
-            # Calculate streak info if historical data is available and target value is available
-            if has_target and len(df) > 1:
-                streak_info = self._calculate_streak_info(df, status)
-                if streak_info:
-                    result["streak"] = streak_info
+            # Calculate streak info
+            streak_info = self._calculate_streak_info(df, status)
+            if streak_info:
+                result["streak"] = streak_info
 
             # Calculate hold steady info
             if target_value is not None:
@@ -277,9 +273,9 @@ class PerformanceStatusPattern(Pattern[MetricPerformance]):
         current_direction = None
 
         for i in range(len(values) - 1, 0, -1):
-            if targets[i] is not None and values[i] > targets[i]:
+            if pd.notna(targets[i]) and values[i] > targets[i]:
                 direction = "increasing"
-            elif targets[i] is not None and values[i] < targets[i]:
+            elif pd.notna(targets[i]) and values[i] < targets[i]:
                 direction = "decreasing"
             else:
                 direction = "stable"
@@ -336,7 +332,7 @@ class PerformanceStatusPattern(Pattern[MetricPerformance]):
 
         # Calculate margin percentage using numeric primitive
         try:
-            margin_percent = calculate_gap_to_target(value, target)
+            margin_percent = calculate_percentage_difference(value, target)
         except Exception:
             margin_percent = None
 

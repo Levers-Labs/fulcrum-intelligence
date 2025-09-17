@@ -101,6 +101,9 @@ class DimensionAnalysisEvaluator(StoryEvaluatorBase[DimensionAnalysis]):
         current_slice = slice_obj.slice_value  # type: ignore
         previous_slice = slice_obj.previous_slice_value  # type: ignore
 
+        if not current_slice or not previous_slice:
+            return False
+
         return current_slice != previous_slice
 
     async def _populate_template_context(

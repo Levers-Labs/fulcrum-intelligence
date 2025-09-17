@@ -527,7 +527,14 @@ def compare_dimension_slices_over_time(
     )
 
     # Merge prior_start_date and current_start_date data
-    merged = pd.merge(agg_prior, agg_current, on=slice_col, how="outer").fillna(0)
+    merged = pd.merge(agg_prior, agg_current, on=slice_col, how="outer").dropna(subset=["val_prior", "val_current"])
+    if merged.empty:
+        # If nothing left after dropping nan values
+        if merged.empty:
+            raise ValidationError(
+                "No slices have data in both comparison periods",
+                {"prior_start_date": prior_start_date, "current_start_date": current_start_date},
+            )
 
     # Calculate differences
     merged["abs_diff"] = merged["val_current"] - merged["val_prior"]
@@ -743,11 +750,19 @@ def identify_largest_smallest_by_share(
     if df_current.empty or df_prior.empty:
         return None, None
 
+    # Filter out 0% segments before sorting
+    df_current_filtered = df_current[df_current[share_col] != 0].copy()
+    df_prior_filtered = df_prior[df_prior[share_col] != 0].copy()
+
+    # If no valid segments, return None
+    if df_current_filtered.empty or df_prior_filtered.empty:
+        return None, None
+
     # Sort current and prior by share
-    df_current_desc = df_current.sort_values(share_col, ascending=False).reset_index(drop=True)
-    df_prior_desc = df_prior.sort_values(share_col, ascending=False).reset_index(drop=True)
-    df_current_asc = df_current.sort_values(share_col, ascending=True).reset_index(drop=True)
-    df_prior_asc = df_prior.sort_values(share_col, ascending=True).reset_index(drop=True)
+    df_current_desc = df_current_filtered.sort_values(share_col, ascending=False).reset_index(drop=True)
+    df_prior_desc = df_prior_filtered.sort_values(share_col, ascending=False).reset_index(drop=True)
+    df_current_asc = df_current_filtered.sort_values(share_col, ascending=True).reset_index(drop=True)
+    df_prior_asc = df_prior_filtered.sort_values(share_col, ascending=True).reset_index(drop=True)
 
     # Create largest slice
     largest_slice = SliceShare(
