@@ -95,9 +95,11 @@ class PerformanceStatusEvaluator(StoryEvaluatorBase[MetricPerformance]):
         gap_trend = (
             "is narrowing"
             if pattern_result.prior_value is not None
+            and pattern_result.prior_target_value is not None
             and pattern_result.target_value is not None
+            and pattern_result.current_value is not None
             and abs(pattern_result.current_value - pattern_result.target_value)
-            < abs(pattern_result.prior_value - pattern_result.target_value)
+            < abs(pattern_result.prior_value - pattern_result.prior_target_value)
             else "is widening"
         )
 

@@ -97,6 +97,7 @@ class PerformanceStatusPattern(Pattern[MetricPerformance]):
             # Calculate current and prior values
             current_value = float(df["value"].iloc[-1])
             prior_value = float(df["value"].iloc[-2])
+            prior_target_value = float(df["target"].iloc[-2]) if pd.notna(df["target"].iloc[-2]) else None
             target_value = float(df["target"].iloc[-1]) if pd.notna(df["target"].iloc[-1]) else None
 
             # Calculate status
@@ -129,8 +130,9 @@ class PerformanceStatusPattern(Pattern[MetricPerformance]):
             }
 
             # Add prior value and delta calculations if available
-            if prior_value is not None:
+            if prior_value is not None and prior_target_value is not None:
                 result["prior_value"] = prior_value
+                result["prior_target_value"] = prior_target_value
                 result["absolute_delta_from_prior"] = calculate_difference(current_value, prior_value)
                 try:
                     result["pop_change_percent"] = calculate_percentage_difference(current_value, prior_value)
