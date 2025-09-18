@@ -611,7 +611,7 @@ def process_control_analysis(
     df: pd.DataFrame,
     date_col: str = "date",
     value_col: str = "value",
-    min_data_points: int = 10,
+    min_data_points: int = 6,
     control_limit_multiplier: float = 2.66,
     consecutive_run_length: int = 7,
     half_average_point: int = 9,
@@ -645,16 +645,33 @@ def process_control_analysis(
     # Ensure data is sorted by date
     df_sorted = validate_date_sorted(df, date_col)
 
-    # Check if we have enough data
+    # Check if we have enough data for full SPC, otherwise provide fallback analysis
     if len(df_sorted) < min_data_points:
         result_df = df_sorted.copy()
-        result_df["central_line"] = None
-        result_df["ucl"] = None
-        result_df["lcl"] = None
-        result_df["slope"] = None
-        result_df["slope_change"] = None
-        result_df["trend_signal_detected"] = False
-        result_df["trend_type"] = None
+
+        if len(df_sorted) >= 3:
+            # Provide simplified analysis for short series
+            rolling_mean = result_df[value_col].rolling(window=min(3, len(df_sorted)), center=True).mean()
+            rolling_std = result_df[value_col].rolling(window=min(3, len(df_sorted)), center=True).std()
+
+            # Simple slope calculation
+            result_df["central_line"] = rolling_mean
+            result_df["ucl"] = rolling_mean + 3 * rolling_std.fillna(rolling_std.mean())
+            result_df["lcl"] = rolling_mean - 3 * rolling_std.fillna(rolling_std.mean())
+
+            # Calculate simple slope between consecutive points
+            result_df["slope"] = result_df[value_col].diff().fillna(0)
+            result_df["slope_change"] = result_df["slope"].diff().fillna(0)
+            result_df["trend_signal_detected"] = False
+        else:
+            # Too little data for any analysis
+            result_df["central_line"] = None
+            result_df["ucl"] = None
+            result_df["lcl"] = None
+            result_df["slope"] = None
+            result_df["slope_change"] = None
+            result_df["trend_signal_detected"] = False
+
         return result_df
 
     # Create a copy for SPC analysis
@@ -1084,7 +1101,7 @@ def analyze_trend_using_spc_analysis(
         else:
             # If not plateaued, use slope and signals to determine trend
             slope = dff[slope_col].iloc[i] if slope_col in dff.columns else None
-            is_signal = dff[signal_col].iloc[i] if signal_col in dff.columns else False
+            _ = dff[signal_col].iloc[i] if signal_col in dff.columns else False
 
             # Use normalized slope comparison like in analyze_metric_trend
             if slope is not None and not pd.isna(slope):
@@ -1099,14 +1116,14 @@ def analyze_trend_using_spc_analysis(
                 else:
                     normalized_slope = 0 if slope == 0 else (100 if slope > 0 else -100)
 
-                # Use threshold for trend determination
-                if abs(normalized_slope) > slope_threshold:
-                    if slope > 0:
-                        dff.loc[dff.index[i], "trend_type"] = TrendType.UPWARD if is_signal else TrendType.STABLE
-                    else:
-                        dff.loc[dff.index[i], "trend_type"] = TrendType.DOWNWARD if is_signal else TrendType.STABLE
-                else:
+                # Use threshold for trend determination - SPC signal enhances confidence but doesn't gate classification
+                if abs(normalized_slope) <= slope_threshold:
                     dff.loc[dff.index[i], "trend_type"] = TrendType.STABLE
+                else:
+                    # Slope is significant enough - classify by direction regardless of SPC signal
+                    direction = TrendType.UPWARD if slope > 0 else TrendType.DOWNWARD
+                    dff.loc[dff.index[i], "trend_type"] = direction
+                    # Note: is_signal status is preserved in trend_signal_detected column for confidence scoring
             else:
                 dff.loc[dff.index[i], "trend_type"] = None
 

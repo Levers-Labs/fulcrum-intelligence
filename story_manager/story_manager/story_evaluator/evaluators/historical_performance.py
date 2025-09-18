@@ -3,8 +3,9 @@ Story evaluator for the historical performance pattern.
 """
 
 import logging
-from typing import Any
+from typing import Any, cast
 
+import numpy as np
 import pandas as pd
 
 from commons.models.enums import Granularity
@@ -49,11 +50,28 @@ class HistoricalPerformanceEvaluator(StoryEvaluatorBase[HistoricalPerformance]):
         grain = Granularity(pattern_result.analysis_window.grain)
 
         # Growth Stories
-        if pattern_result.growth_stats and pattern_result.growth_stats.current_growth_acceleration:
+        if pattern_result.growth_stats:
             if self._is_slowing_growth(pattern_result.growth_stats):
                 stories.append(self._create_slowing_growth_story(pattern_result, metric_id, metric, grain))
             elif self._is_accelerating_growth(pattern_result.growth_stats):
                 stories.append(self._create_accelerating_growth_story(pattern_result, metric_id, metric, grain))
+
+            # Improving/Worsening Performance
+            if (
+                pattern_result.current_trend
+                and pattern_result.current_trend.average_pop_growth
+                and pattern_result.growth_stats.overall_growth
+            ):
+                if (
+                    pattern_result.current_trend.average_pop_growth > 0
+                    and pattern_result.growth_stats.overall_growth > 0
+                ):
+                    stories.append(self._create_improving_performance_story(pattern_result, metric_id, metric, grain))
+                elif (
+                    pattern_result.current_trend.average_pop_growth < 0
+                    and pattern_result.growth_stats.overall_growth < 0
+                ):
+                    stories.append(self._create_worsening_performance_story(pattern_result, metric_id, metric, grain))
 
         # Trend Stories
         if pattern_result.current_trend:
@@ -67,13 +85,6 @@ class HistoricalPerformanceEvaluator(StoryEvaluatorBase[HistoricalPerformance]):
                     stories.append(self._create_new_downward_trend_story(pattern_result, metric_id, metric, grain))
             elif trend_type == TrendType.PLATEAU:
                 stories.append(self._create_performance_plateau_story(pattern_result, metric_id, metric, grain))
-
-        # Improving/Worsening Performance
-        if pattern_result.current_trend and pattern_result.current_trend.average_pop_growth:
-            if pattern_result.current_trend.average_pop_growth > 0:
-                stories.append(self._create_improving_performance_story(pattern_result, metric_id, metric, grain))
-            elif pattern_result.current_trend.average_pop_growth < 0:
-                stories.append(self._create_worsening_performance_story(pattern_result, metric_id, metric, grain))
 
         # Trend Exception Stories (Spikes & Drops)
         if pattern_result.trend_exception:
@@ -579,6 +590,8 @@ class HistoricalPerformanceEvaluator(StoryEvaluatorBase[HistoricalPerformance]):
         title = render_story_text(story_type, "title", context)
         detail = render_story_text(story_type, "detail", context)
 
+        series_data = self._prepare_record_values_series_data(context["high_duration"])
+
         return self.prepare_story_model(
             genre=StoryGenre.TRENDS,
             story_type=story_type,
@@ -588,6 +601,7 @@ class HistoricalPerformanceEvaluator(StoryEvaluatorBase[HistoricalPerformance]):
             title=title,
             detail=detail,
             grain=grain,  # type: ignore
+            series_data=series_data,
             **context,
         )
 
@@ -603,6 +617,8 @@ class HistoricalPerformanceEvaluator(StoryEvaluatorBase[HistoricalPerformance]):
         title = render_story_text(story_type, "title", context)
         detail = render_story_text(story_type, "detail", context)
 
+        series_data = self._prepare_record_values_series_data(context["low_duration"])
+
         return self.prepare_story_model(
             genre=StoryGenre.TRENDS,
             story_type=story_type,
@@ -612,6 +628,7 @@ class HistoricalPerformanceEvaluator(StoryEvaluatorBase[HistoricalPerformance]):
             title=title,
             detail=detail,
             grain=grain,  # type: ignore
+            series_data=series_data,
             **context,
         )
 
@@ -875,3 +892,22 @@ class HistoricalPerformanceEvaluator(StoryEvaluatorBase[HistoricalPerformance]):
         merged_df = pd.merge(series_df, df_to_merge, on="date", how="left").sort_values("date")
 
         return merged_df
+
+    def _prepare_record_values_series_data(self, min_series_length: int) -> list[dict[str, Any]]:
+        """
+        Prepare the series data for record values stories.
+        """
+
+        series = self.series_df if self.series_df is not None else pd.DataFrame()
+
+        # Get the last n rows
+        series = series.tail(min_series_length)
+        series["date"] = pd.to_datetime(series["date"])
+        series["date"] = series["date"].dt.date.apply(lambda d: d.isoformat())
+
+        # Final cleanup: Replace any remaining NaN/inf values before converting to dict
+        series = series.replace([float("inf"), float("-inf"), np.NaN], 0.0)
+
+        # Add the time series data to the result
+        data = series.to_dict(orient="records")
+        return cast(list[dict[str, Any]], data)

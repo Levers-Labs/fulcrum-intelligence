@@ -247,7 +247,8 @@ class DimensionAnalysisEvaluator(StoryEvaluatorBase[DimensionAnalysis]):
         # Determine gap trend
         gap_trend = "grown"
         if comparison.gap_change_percent is not None and comparison.performance_gap_percent is not None:
-            if abs(comparison.performance_gap_percent) < abs(comparison.gap_change_percent):
+            prev_gap = comparison.performance_gap_percent - comparison.gap_change_percent
+            if abs(comparison.performance_gap_percent) < abs(prev_gap):
                 gap_trend = "narrowed"
 
         # Calculate the gap change percentage

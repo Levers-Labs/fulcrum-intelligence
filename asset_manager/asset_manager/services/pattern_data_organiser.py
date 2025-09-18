@@ -243,7 +243,7 @@ class PatternDataOrganiser:
     ) -> list[dict[str, Any]]:
         """Fetch metric targets only."""
         targets = await self.semantic_manager.get_targets(
-            metric_id=metric_id, start_date=start_date, end_date=end_date, grain=grain  # type: ignore
+            metric_id=metric_id, start_date=start_date, end_date=end_date  # type: ignore
         )
         return [
             dict(

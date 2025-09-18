@@ -19,6 +19,7 @@ from levers.models import (
     AverageGrowthMethod,
     DataSource,
     DataSourceType,
+    Granularity,
     PatternConfig,
     WindowStrategy,
 )
@@ -43,6 +44,7 @@ from levers.primitives import (
     detect_record_low,
     detect_seasonality_pattern,
     detect_trend_exceptions_using_spc_analysis,
+    get_period_length_for_grain,
     process_control_analysis,
 )
 
@@ -139,7 +141,7 @@ class HistoricalPerformancePattern(Pattern[HistoricalPerformance]):
             growth_stats = self._calculate_growth_statistics(period_data, period_metrics)
 
             # Analyze trends using trend analysis data
-            trend_info = self._analyze_trends(trend_analysis_df, avg_pop_growth=growth_stats.average_pop_growth)
+            trend_info = self._analyze_trends(trend_analysis_df, grain, avg_pop_growth=growth_stats.average_pop_growth)
 
             # Detect record values
             value_rankings = self._detect_record_values(data_window)
@@ -354,12 +356,15 @@ class HistoricalPerformancePattern(Pattern[HistoricalPerformance]):
             overall_growth=overall_growth,
         )
 
-    def _analyze_trends(self, df: pd.DataFrame, avg_pop_growth: float | None) -> dict[str, TrendInfo | None]:
+    def _analyze_trends(
+        self, df: pd.DataFrame, grain: Granularity, avg_pop_growth: float | None
+    ) -> dict[str, TrendInfo | None]:
         """
         Analyze metric trends and classify current and previous trends using Trend Analysis data.
 
         Args:
             df: DataFrame containing time series data with Trend Analysis results
+            grain: Granularity object for grain information
             avg_pop_growth: Average growth rate over the analysis window
 
         Returns:
@@ -398,27 +403,36 @@ class HistoricalPerformancePattern(Pattern[HistoricalPerformance]):
         start_idx = len(analyzed_trend_df) - consecutive_duration
         trend_start_date = analyzed_trend_df["date"].iloc[start_idx].strftime("%Y-%m-%d")
 
+        # Calculate duration in actual grains (calendar-aware) instead of just row count
+        trend_start_dt = analyzed_trend_df["date"].iloc[start_idx]
+        trend_end_dt = analyzed_trend_df["date"].iloc[-1]
+        grain_days = get_period_length_for_grain(grain)
+        duration_grains = max(1, int((trend_end_dt - trend_start_dt).days / grain_days) + 1)
+
         # For "previous" trend info, analyze only the data before the current trend started
         previous_subset = analyzed_trend_df.iloc[:start_idx] if start_idx > 0 else pd.DataFrame()
-        previous_trend_info = self._analyze_previous_trend(previous_subset) if not previous_subset.empty else None
+        previous_trend_info = (
+            self._analyze_previous_trend(previous_subset, grain) if not previous_subset.empty else None
+        )
 
         return {
             "current_trend": TrendInfo(
                 trend_type=current_trend_type,
                 start_date=trend_start_date,
                 average_pop_growth=avg_pop_growth,
-                duration_grains=consecutive_duration,
+                duration_grains=duration_grains,
             ),
             "previous_trend": previous_trend_info,
         }
 
-    def _analyze_previous_trend(self, trend_analysis_df: pd.DataFrame) -> TrendInfo | None:
+    def _analyze_previous_trend(self, trend_analysis_df: pd.DataFrame, grain: Granularity) -> TrendInfo | None:
         """
         Analyze the previous trend from the subset of data before the current trend.
 
         Args:
             trend_analysis_df: DataFrame containing time series data with Trend Analysis results
                               (should be the subset before the current trend starts)
+            grain: Granularity object for grain information
 
         Returns:
             TrendInfo object containing previous trend information
@@ -439,6 +453,12 @@ class HistoricalPerformancePattern(Pattern[HistoricalPerformance]):
         start_idx = len(trend_analysis_df) - consecutive_duration
         previous_trend_start_date = trend_analysis_df["date"].iloc[start_idx].strftime("%Y-%m-%d")
 
+        # Calculate duration in actual grains (calendar-aware) instead of just row count
+        trend_start_dt = trend_analysis_df["date"].iloc[start_idx]
+        trend_end_dt = trend_analysis_df["date"].iloc[-1]
+        grain_days = get_period_length_for_grain(grain)
+        duration_grains = max(1, int((trend_end_dt - trend_start_dt).days / grain_days) + 1)
+
         # Calculate average growth for the previous trend subset
         prev_trend_subset = trend_analysis_df.iloc[start_idx:]
         prev_subset_growth_results = calculate_average_growth(
@@ -450,7 +470,7 @@ class HistoricalPerformancePattern(Pattern[HistoricalPerformance]):
             trend_type=previous_trend_type,
             start_date=previous_trend_start_date,
             average_pop_growth=previous_trend_average_pop_growth,
-            duration_grains=consecutive_duration,
+            duration_grains=duration_grains,
         )
 
     def _detect_record_values(self, data_window: pd.DataFrame) -> dict[str, RankSummary | None]:
