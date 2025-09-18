@@ -29,6 +29,8 @@ def mock_metric():
     """Fixture for mock metric."""
     return {
         "label": "Test Metric",
+        "metric_id": "test_metric",
+        "unit": "n",
         "value": 100.0,
         "target": 90.0,
         "trend": "up",

@@ -139,7 +139,7 @@ def mock_metric():
         "label": "Test Metric",  # Added required label field
         "higher_is_better": True,
         "metric_type": "revenue",
-        "unit": "USD",
+        "unit": "n",
     }
 
 
@@ -821,7 +821,7 @@ class TestForecastingEvaluator:
                     ),
                     analysis_date=date(2024, 1, 31),
                 ),
-                {"metric_id": "test_metric", "label": "Test Metric"},
+                {"metric_id": "test_metric", "label": "Test Metric", "unit": "n"},
                 Granularity.DAY,
                 forecast_stats=forecast_stats,
             )
