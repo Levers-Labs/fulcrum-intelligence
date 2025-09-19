@@ -56,22 +56,18 @@ class HistoricalPerformanceEvaluator(StoryEvaluatorBase[HistoricalPerformance]):
             elif self._is_accelerating_growth(pattern_result.growth_stats):
                 stories.append(self._create_accelerating_growth_story(pattern_result, metric_id, metric, grain))
 
-            # Improving/Worsening Performance
+        # Improving/Worsening Performance
+        if pattern_result.performance_trend and pattern_result.performance_trend.overall_growth:
             if (
-                pattern_result.current_trend
-                and pattern_result.current_trend.average_pop_growth
-                and pattern_result.growth_stats.overall_growth
+                pattern_result.performance_trend.num_periods_improving > 2
+                and pattern_result.performance_trend.overall_growth > 0
             ):
-                if (
-                    pattern_result.current_trend.average_pop_growth > 0
-                    and pattern_result.growth_stats.overall_growth > 0
-                ):
-                    stories.append(self._create_improving_performance_story(pattern_result, metric_id, metric, grain))
-                elif (
-                    pattern_result.current_trend.average_pop_growth < 0
-                    and pattern_result.growth_stats.overall_growth < 0
-                ):
-                    stories.append(self._create_worsening_performance_story(pattern_result, metric_id, metric, grain))
+                stories.append(self._create_improving_performance_story(pattern_result, metric_id, metric, grain))
+            elif (
+                pattern_result.performance_trend.num_periods_worsening > 2
+                and pattern_result.performance_trend.overall_growth < 0
+            ):
+                stories.append(self._create_worsening_performance_story(pattern_result, metric_id, metric, grain))
 
         # Trend Stories
         if pattern_result.current_trend:
@@ -215,7 +211,6 @@ class HistoricalPerformanceEvaluator(StoryEvaluatorBase[HistoricalPerformance]):
                         and pattern_result.current_trend.average_pop_growth > 0
                         else "decrease"
                     ),
-                    "overall_growth": pattern_result.growth_stats.overall_growth or 0,
                 }
             )
 
@@ -270,6 +265,19 @@ class HistoricalPerformanceEvaluator(StoryEvaluatorBase[HistoricalPerformance]):
         # Add benchmark info
         if "benchmark_comparison" in include and pattern_result.benchmark_comparison:
             context["benchmark"] = self._prepare_benchmark_context(grain, pattern_result.benchmark_comparison)
+
+        # Add performance metrics info
+        if "performance_trend" in include and pattern_result.performance_trend:
+            context.update(
+                {
+                    "num_periods_improving": pattern_result.performance_trend.num_periods_improving or 0,
+                    "num_periods_worsening": pattern_result.performance_trend.num_periods_worsening or 0,
+                    "start_date": pattern_result.performance_trend.start_date or "",
+                    "avg_growth": pattern_result.performance_trend.average_growth or 0,
+                    "overall_growth": pattern_result.performance_trend.overall_growth or 0,
+                }
+            )
+
         return context
 
     def _create_slowing_growth_story(
@@ -526,7 +534,9 @@ class HistoricalPerformanceEvaluator(StoryEvaluatorBase[HistoricalPerformance]):
         story_group = StoryGroup.LONG_RANGE
         story_type = StoryType.IMPROVING_PERFORMANCE
 
-        context = self._populate_template_context(pattern_result, metric, grain, include=["current_trend"])
+        context = self._populate_template_context(
+            pattern_result, metric, grain, include=["current_trend", "performance_trend"]
+        )
 
         title = render_story_text(story_type, "title", context)
         detail = render_story_text(story_type, "detail", context)
@@ -556,7 +566,9 @@ class HistoricalPerformanceEvaluator(StoryEvaluatorBase[HistoricalPerformance]):
         story_group = StoryGroup.LONG_RANGE
         story_type = StoryType.WORSENING_PERFORMANCE
 
-        context = self._populate_template_context(pattern_result, metric, grain, include=["current_trend"])
+        context = self._populate_template_context(
+            pattern_result, metric, grain, include=["current_trend", "performance_trend"]
+        )
 
         title = render_story_text(story_type, "title", context)
         detail = render_story_text(story_type, "detail", context)

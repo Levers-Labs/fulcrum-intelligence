@@ -123,30 +123,30 @@ STORY_TYPE_HEURISTIC_MAPPING_V2: dict[str, Any] = {
     # Long-Range - Improving Performance
     StoryType.IMPROVING_PERFORMANCE: {
         Granularity.DAY: {
-            "salient_expression": "({{trend_avg_growth}} >= 2) and ({{overall_growth}} >= 5)",
+            "salient_expression": "({{avg_growth}} >= 2) and ({{overall_growth}} >= 5)",
             "cool_off_duration": 7,
         },
         Granularity.WEEK: {
-            "salient_expression": "({{trend_avg_growth}} >= 2) and ({{overall_growth}} >= 5)",
+            "salient_expression": "({{avg_growth}} >= 2) and ({{overall_growth}} >= 5)",
             "cool_off_duration": 2,
         },
         Granularity.MONTH: {
-            "salient_expression": "({{trend_avg_growth}} >= 2) and ({{overall_growth}} >= 5)",
+            "salient_expression": "({{avg_growth}} >= 2) and ({{overall_growth}} >= 5)",
             "cool_off_duration": 2,
         },
     },
     # Long-Range - Worsening Performance
     StoryType.WORSENING_PERFORMANCE: {
         Granularity.DAY: {
-            "salient_expression": "({{trend_avg_growth}} <= -2) and ({{overall_growth}} <= -5)",
+            "salient_expression": "({{avg_growth}} <= -2) and ({{overall_growth}} <= -5)",
             "cool_off_duration": 7,
         },
         Granularity.WEEK: {
-            "salient_expression": "({{trend_avg_growth}} <= -2) and ({{overall_growth}} <= -5)",
+            "salient_expression": "({{avg_growth}} <= -2) and ({{overall_growth}} <= -5)",
             "cool_off_duration": 2,
         },
         Granularity.MONTH: {
-            "salient_expression": "({{trend_avg_growth}} <= -2) and ({{overall_growth}} <= -5)",
+            "salient_expression": "({{avg_growth}} <= -2) and ({{overall_growth}} <= -5)",
             "cool_off_duration": 2,
         },
     },

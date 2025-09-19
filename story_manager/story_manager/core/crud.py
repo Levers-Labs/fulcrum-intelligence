@@ -218,7 +218,7 @@ class CRUDStory(CRUDBase[Story, Story, Story, StoryFilter]):
 
             # step 2: Execute delete statements for each lookup_key
             for lookup_key in lookup_keys:
-                metric_id, grain, story_date, version, story_group, story_type, dimension_name = lookup_key
+                metric_id, grain, story_date, version, story_group, _, dimension_name = lookup_key
                 date_start, date_end = self._get_date_boundaries(story_date)
 
                 delete_statement = (
@@ -230,7 +230,8 @@ class CRUDStory(CRUDBase[Story, Story, Story, StoryFilter]):
                     .where(Story.version == version)
                     .where(Story.story_date >= date_start)  # type: ignore
                     .where(Story.story_date < date_end)  # type: ignore
-                    .where(Story.story_type == story_type)  # type: ignore
+                    # include story_type if we want to delete stories of a specific type
+                    # .where(Story.story_type == story_type)  # type: ignore
                 )
 
                 delete_statement = (

@@ -2,6 +2,8 @@
 Utility functions for story evaluators.
 """
 
+from datetime import datetime
+
 import pandas as pd
 from jinja2 import Environment, Template
 
@@ -100,6 +102,29 @@ def format_ordinal(value: int | None) -> str:
     return f"{value}{superscript_suffix}"
 
 
+def format_date(value: str | None, grain: str) -> str:
+    """
+    Format a date string to a readable string.
+    """
+    if value is None:
+        return "N/A"
+
+    dt = datetime.strptime(value, "%Y-%m-%d")
+
+    if grain == "day":
+        return dt.strftime("%b %d, %Y")
+    elif grain == "week":
+        return "Week of " + dt.strftime("%b %d, %Y")
+    elif grain == "month":
+        return dt.strftime("%b, %Y")
+    elif grain == "quarter":
+        return dt.strftime("Q%q, %Y")
+    elif grain == "year":
+        return dt.strftime("%Y")
+    else:
+        raise ValueError(f"Unsupported grain: {grain}")
+
+
 def get_template_env() -> Environment:
     """
     Get Jinja2 environment with custom filters.
@@ -112,6 +137,7 @@ def get_template_env() -> Environment:
     env.filters["format_percent"] = format_percent
     env.filters["format_with_unit"] = format_with_unit
     env.filters["format_ordinal"] = format_ordinal
+    env.filters["format_date"] = format_date
     env.filters["abs"] = abs
     return env
 

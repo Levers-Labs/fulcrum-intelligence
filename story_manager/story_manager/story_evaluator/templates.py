@@ -58,21 +58,24 @@ STORY_TEMPLATES = {
     },
     StoryType.NEW_UPWARD_TREND: {
         "title": "New upward trend",
-        "detail": "Since {{ trend_start_date }}, {{ metric.label }} has been following a new, upward trend line that "
+        "detail": "Since {{ trend_start_date|format_date(grain_label) }}, {{ metric.label }} has been following a "
+        "new, upward trend line that"
         "averages {{ trend_avg_growth|format_percent }}% {{ pop }} growth. The prior trend for this metric "
         "lasted {{ prev_trend_duration }} {{ grain_label }}s and averaged {{ "
         "prev_trend_avg_growth|format_percent }}% {{ pop }} growth.",
     },
     StoryType.NEW_DOWNWARD_TREND: {
         "title": "New downward trend",
-        "detail": "Since {{ trend_start_date }}, {{ metric.label }} has been following a new, downward trend line "
+        "detail": "Since {{ trend_start_date|format_date(grain_label) }}, {{ metric.label }} has been following a "
+        "new, downward trend line"
         "that averages {{ trend_avg_growth|format_percent }}% {{ pop }} decline. The prior trend for this "
         "metric lasted {{ prev_trend_duration }} {{ grain_label }}s and averaged {{ "
         "prev_trend_avg_growth|format_percent }}% {{ pop }} growth.",
     },
     StoryType.PERFORMANCE_PLATEAU: {
         "title": "Performance has leveled off",
-        "detail": "Since {{ trend_start_date }}, {{ metric.label }} growth has steadied into a new normal, hovering "
+        "detail": "Since {{ trend_start_date|format_date(grain_label) }}, {{ metric.label }} growth has steadied into "
+        "a new normal, hovering"
         "around a {{ grain_label }} average of {{ trend_avg_growth|format_percent }}%.",
     },
     StoryType.SPIKE: {
@@ -88,16 +91,18 @@ STORY_TEMPLATES = {
         "metric performs.",
     },
     StoryType.IMPROVING_PERFORMANCE: {
-        "title": "Improved performance over the past {{ trend_duration }} {{ grain_label }}s",
-        "detail": "Over the past {{ trend_duration }} {{ grain_label }}s, {{ metric.label }} has been averaging {{ "
-        "trend_avg_growth|format_percent }}% {{ pop }} growth and has grown {{ overall_growth|format_percent }}% "
-        "overall since {{ trend_start_date }}.",
+        "title": "Improved performance over the past {{ num_periods_improving }} {{ grain_label }}s",
+        "detail": "Over the past {{ num_periods_improving }} {{ grain_label }}s, {{ metric.label }} has been "
+        "averaging {{"
+        "avg_growth|format_percent }}% {{ pop }} growth and has grown {{ overall_growth|format_percent }}% "
+        "overall since {{ start_date|format_date(grain_label) }}.",
     },
     StoryType.WORSENING_PERFORMANCE: {
-        "title": "Worsening performance over the past {{ trend_duration }} {{ grain_label }}s",
-        "detail": "Over the past {{ trend_duration }} {{ grain_label }}s, {{ metric.label }} has been declining {{ "
-        "trend_avg_growth|format_percent }}% {{ pop }} and has fallen {{ overall_growth|format_percent }}% overall "
-        "since {{ trend_start_date }}.",
+        "title": "Worsening performance over the past {{ num_periods_worsening }} {{ grain_label }}s",
+        "detail": "Over the past {{ num_periods_worsening }} {{ grain_label }}s, {{ metric.label }} has been "
+        "declining {{"
+        "avg_growth|format_percent }}% {{ pop }} and has fallen {{ overall_growth|format_percent }}% overall "
+        "since {{ start_date|format_date(grain_label) }}.",
     },
     StoryType.SEASONAL_PATTERN_MATCH: {
         "title": "Expected seasonal behavior",

@@ -693,6 +693,36 @@ def process_control_analysis(
         seg_length = end_idx - start_idx
 
         if seg_length < 2:
+            # Handle remaining points by extending the last calculated values
+            if start_idx < n_points:
+                # Get the last valid slope and center line values
+                last_slope = None
+
+                # Find the most recent valid values
+                for i in range(start_idx - 1, -1, -1):
+                    if slope_array[i] is not None:
+                        last_slope = slope_array[i]
+                        break
+                if last_slope is None:
+                    # Fallback: use actual values as center line for remaining points
+                    for idx in range(start_idx, n_points):
+                        current_value = dff[value_col].iloc[idx]
+                        central_line_array[idx] = current_value
+                        slope_array[idx] = 0.0
+
+                        # Use a simple range for control limits
+                        if idx > 0:
+                            recent_values = dff[value_col].iloc[max(0, idx - 5) : idx + 1]
+                            std_val = recent_values.std()
+                            if pd.notna(std_val) and std_val > 0:
+                                ucl_array[idx] = current_value + 2 * std_val
+                                lcl_array[idx] = current_value - 2 * std_val
+                            else:
+                                ucl_array[idx] = current_value + abs(current_value) * 0.1
+                                lcl_array[idx] = current_value - abs(current_value) * 0.1
+                        else:
+                            ucl_array[idx] = current_value + abs(current_value) * 0.1
+                            lcl_array[idx] = current_value - abs(current_value) * 0.1
             break
 
         # Compute segment center line and slope
@@ -763,6 +793,7 @@ def process_control_analysis(
         if s_prev is not None and abs(s_prev) > 1e-9 and s_now is not None:
             dff.loc[dff.index[i], "slope_change"] = (s_now - s_prev) / abs(s_prev) * 100.0
 
+    dff = dff.fillna(0)
     return dff
 
 
