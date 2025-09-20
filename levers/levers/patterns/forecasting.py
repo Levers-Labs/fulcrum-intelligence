@@ -193,7 +193,6 @@ class ForecastingPattern(Pattern[Forecasting]):
             for period in periods:
                 # Get period start date instead of end date for target matching
                 pacing_grain = self._get_pacing_grain_for_period(period)
-                # TODO: kya krna hai iska dekh liyo
                 period_start_date, period_end_date = get_period_range_for_grain(
                     grain=pacing_grain, analysis_date=analysis_date
                 )
