@@ -473,8 +473,11 @@ def _compute_segment_center_line(
     seg = df[value_col].iloc[start_idx:end_idx].reset_index(drop=True)
     n = len(seg)
 
-    if n < 2:
-        return [None] * n, 0.0
+    if n < 1:
+        return [], 0.0
+    elif n == 1:
+        # For single points, use the actual value as center line with zero slope
+        return [float(seg.iloc[0])], 0.0
 
     # Adjust half point based on available data
     half_pt = min(half_average_point, n // 2)
@@ -538,7 +541,7 @@ def _detect_spc_signals(
     """
     n = len(df_segment)
     idx_start = offset
-    signals_idx = []
+    signals_idx: list = []
 
     # 1. Points outside control limits
     for i in range(n):
@@ -605,6 +608,93 @@ def _check_consecutive_signals(signal_idxes: list[int], threshold: int) -> int |
             consecutive_count = 1
 
     return None
+
+
+def _detect_signals_with_trends(
+    df_segment: pd.DataFrame,
+    offset: int,
+    central_line_array: list[float | None],
+    ucl_array: list[float | None],
+    lcl_array: list[float | None],
+    value_col: str,
+    consecutive_points: int = 9,
+) -> tuple[list, dict]:
+    """
+    Enhanced SPC signal detection using consecutive points for trend identification.
+
+    This function implements:
+    - Used Nelson Rule 2: N consecutive points above/below center line → UPWARD/DOWNWARD
+
+    Args:
+        df_segment: Segment of data to check
+        offset: Index offset for global array position
+        central_line_array, ucl_array, lcl_array: Arrays containing control values
+        value_col: Name of the value column
+        consecutive_points: Number of consecutive points required (default: 9)
+
+    Returns:
+        Tuple of (signal_indices_list, trend_types_dict)
+        - signal_indices_list: List of indices where signals detected
+        - trend_types_dict: Dict mapping index to trend_type string ("upward", "downward", "stable")
+    """
+    n = len(df_segment)
+    idx_start = offset
+    signals_idx: list = []
+    trend_types = {}  # Global index -> trend_type string
+
+    if n < consecutive_points:  # Need at least consecutive_points
+        # Initialize all points as STABLE
+        for i in range(n):
+            global_idx = idx_start + i
+            trend_types[global_idx] = TrendType.STABLE
+        return signals_idx, trend_types
+
+    values = df_segment[value_col].values
+
+    # Initialize all points as STABLE
+    for i in range(n):
+        global_idx = idx_start + i
+        trend_types[global_idx] = TrendType.STABLE
+
+    # Nelson Rule 2: N consecutive points above/below center line
+    if n >= consecutive_points:
+        for i in range(n - consecutive_points + 1):  # i = start index of N-point window
+            window_indices = list(range(i, i + consecutive_points))
+            all_above = True
+            all_below = True
+
+            # Check if all N points are above/below center
+            for j in window_indices:
+                check_idx = idx_start + j
+                if check_idx >= len(central_line_array) or central_line_array[check_idx] is None:
+                    all_above = all_below = False
+                    break
+
+                val = values[j]
+                cl = central_line_array[check_idx]
+
+                if val <= cl:
+                    all_above = False
+                if val >= cl:
+                    all_below = False
+
+            # If rule triggered, mark all points in window
+            if all_above:
+                for j in window_indices:
+                    global_idx = idx_start + j
+                    signals_idx.append(global_idx)
+                    trend_types[global_idx] = TrendType.UPWARD
+
+            elif all_below:
+                for j in window_indices:
+                    global_idx = idx_start + j
+                    signals_idx.append(global_idx)
+                    trend_types[global_idx] = TrendType.DOWNWARD
+
+    # Remove duplicates from signals_idx while preserving order
+    signals_idx = list(dict.fromkeys(signals_idx))
+
+    return signals_idx, trend_types
 
 
 def process_control_analysis(
@@ -684,6 +774,7 @@ def process_control_analysis(
     lcl_array = [None] * n_points
     signal_array = [False] * n_points
     slope_array: list[float | None] = [None] * n_points
+    trend_type_array: list[str] = [TrendType.STABLE] * n_points
 
     # Process data in segments for a more dynamic approach
     start_idx = 0
@@ -693,37 +784,16 @@ def process_control_analysis(
         seg_length = end_idx - start_idx
 
         if seg_length < 2:
-            # Handle remaining points by extending the last calculated values
-            if start_idx < n_points:
-                # Get the last valid slope and center line values
-                last_slope = None
-
-                # Find the most recent valid values
-                for i in range(start_idx - 1, -1, -1):
-                    if slope_array[i] is not None:
-                        last_slope = slope_array[i]
-                        break
-                if last_slope is None:
-                    # Fallback: use actual values as center line for remaining points
-                    for idx in range(start_idx, n_points):
-                        current_value = dff[value_col].iloc[idx]
-                        central_line_array[idx] = current_value
-                        slope_array[idx] = 0.0
-
-                        # Use a simple range for control limits
-                        if idx > 0:
-                            recent_values = dff[value_col].iloc[max(0, idx - 5) : idx + 1]
-                            std_val = recent_values.std()
-                            if pd.notna(std_val) and std_val > 0:
-                                ucl_array[idx] = current_value + 2 * std_val
-                                lcl_array[idx] = current_value - 2 * std_val
-                            else:
-                                ucl_array[idx] = current_value + abs(current_value) * 0.1
-                                lcl_array[idx] = current_value - abs(current_value) * 0.1
-                        else:
-                            ucl_array[idx] = current_value + abs(current_value) * 0.1
-                            lcl_array[idx] = current_value - abs(current_value) * 0.1
-            break
+            # Extend the last segment to include all remaining points
+            if start_idx > 0:
+                # Extend the previous segment to include remaining points
+                prev_segment_start = max(0, start_idx - half_average_point * 2)
+                end_idx = n_points  # Include all remaining points
+                seg_length = end_idx - prev_segment_start
+                start_idx = prev_segment_start
+            else:
+                # If we're at the beginning, just break
+                break
 
         # Compute segment center line and slope
         center_line, segment_slope = _compute_segment_center_line(
@@ -752,15 +822,15 @@ def process_control_analysis(
                     ucl_array[idx] = None
                     lcl_array[idx] = None
 
-        # Detect signals
-        signals_idx = _detect_spc_signals(
+        # Detect signals with Nelson Rules (returns signals and trend types)
+        signals_idx, segment_trend_types = _detect_signals_with_trends(
             df_segment=dff.iloc[start_idx:end_idx],
             offset=start_idx,
             central_line_array=central_line_array,  # type: ignore
             ucl_array=ucl_array,  # type: ignore
             lcl_array=lcl_array,  # type: ignore
             value_col=value_col,
-            consecutive_run_length=consecutive_run_length,
+            consecutive_points=consecutive_run_length,  # Use configurable parameter
         )
 
         # Mark signals in the global signal array
@@ -770,13 +840,11 @@ def process_control_analysis(
         for signal_idx in signals_idx:
             signal_array[signal_idx] = True
 
-        # Check for consecutive signals to trigger recalculation
-        recalc_idx = _check_consecutive_signals(signals_idx, consecutive_signal_threshold)
-
-        if recalc_idx is not None and recalc_idx < n_points:
-            start_idx = recalc_idx
-        else:
-            start_idx = end_idx
+        # Store trend types from Nelson Rules analysis
+        for idx, trend_type in segment_trend_types.items():
+            if idx < len(trend_type_array):
+                trend_type_array[idx] = trend_type
+        start_idx = end_idx
 
     # Prepare result DataFrame with SPC analysis
     dff["central_line"] = central_line_array
@@ -784,6 +852,7 @@ def process_control_analysis(
     dff["lcl"] = lcl_array
     dff["slope"] = slope_array
     dff["trend_signal_detected"] = signal_array
+    dff["trend_type"] = trend_type_array
 
     # Calculate slope changes
     dff["slope_change"] = None
@@ -992,7 +1061,6 @@ def detect_trend_exceptions_using_spc_analysis(
     df: pd.DataFrame,
     date_col: str = "date",
     value_col: str = "value",
-    window_size: int = 5,
 ) -> TrendException | None:
     """
     Detect spikes and drops in a time series using SPC analysis.
@@ -1004,7 +1072,6 @@ def detect_trend_exceptions_using_spc_analysis(
         df: DataFrame containing time series data
         date_col: Column name containing dates
         value_col: Column name containing values
-        window_size: Number of periods to include in normal range calculation
 
     Returns:
         TrendException object containing exception details,
@@ -1019,11 +1086,6 @@ def detect_trend_exceptions_using_spc_analysis(
 
     # Ensure data is sorted by date
     df_sorted = validate_date_sorted(df, date_col)
-
-    # Check if we have enough data
-    if len(df_sorted) < window_size:
-        logger.warning("Insufficient data for trend exceptions detection")
-        return None
 
     # Use SPC control limits for exception detection
     latest_row = df_sorted.iloc[-1]
@@ -1068,94 +1130,3 @@ def detect_trend_exceptions_using_spc_analysis(
         )
 
     return None
-
-
-def analyze_trend_using_spc_analysis(
-    df: pd.DataFrame,
-    date_col: str = "date",
-    value_col: str = "value",
-    slope_col: str = "slope",
-    signal_col: str = "trend_signal_detected",
-    slope_threshold: float = 0.5,
-    plateau_tolerance: float = 0.01,
-    plateau_window: int = 7,
-) -> pd.DataFrame:
-    """
-    Analyze trend types for each point in a time series with SPC data.
-
-    This is a post-processing primitive that determines trend types based on:
-    - Plateau detection using performance plateau analysis
-    - Slope analysis with normalized thresholds
-    - SPC signal detection results
-
-    Family: trend_analysis
-    Version: 1.0
-
-    Args:
-        df: DataFrame containing time series data with SPC analysis results
-        date_col: Column name containing dates
-        value_col: Column name containing values
-        slope_col: Column name containing slope values from SPC analysis
-        signal_col: Column name containing signal detection flags
-        slope_threshold: Threshold for normalized slope to determine trend direction (as percentage)
-        plateau_tolerance: Relative change threshold for plateau detection
-        plateau_window: Window size for plateau detection
-
-    Returns:
-        DataFrame with added 'trend_type' column containing trend classifications
-    """
-    # Ensure data is sorted by date
-    df_sorted = validate_date_sorted(df, date_col)
-
-    # Create working copy
-    dff = df_sorted.copy()
-
-    if len(dff) < 2:
-        return dff
-
-    n_points = len(dff)
-
-    # Determine trend type for each point using signals and slopes
-    for i in range(n_points):
-        # First check for plateau
-        window_size = min(plateau_window, len(dff))
-        start_window = max(0, i - window_size // 2)
-        end_window = min(len(dff), i + window_size // 2 + 1)
-        window_data = dff.iloc[start_window:end_window].copy()
-
-        plateau_result = detect_performance_plateau(
-            window_data, value_col=value_col, tolerance=plateau_tolerance, window=min(window_size, len(window_data))
-        )
-
-        if plateau_result.is_plateaued:
-            dff.loc[dff.index[i], "trend_type"] = TrendType.PLATEAU
-        else:
-            # If not plateaued, use slope and signals to determine trend
-            slope = dff[slope_col].iloc[i] if slope_col in dff.columns else None
-            _ = dff[signal_col].iloc[i] if signal_col in dff.columns else False
-
-            # Use normalized slope comparison like in analyze_metric_trend
-            if slope is not None and not pd.isna(slope):
-                # Get a window around current point to calculate mean for normalization
-                window_start = max(0, i - 3)
-                window_end = min(len(dff), i + 4)
-                window_values = dff[value_col].iloc[window_start:window_end]
-                mean_val = window_values.mean()
-
-                if mean_val != 0:
-                    normalized_slope = (slope / abs(mean_val)) * 100  # as percentage
-                else:
-                    normalized_slope = 0 if slope == 0 else (100 if slope > 0 else -100)
-
-                # Use threshold for trend determination - SPC signal enhances confidence but doesn't gate classification
-                if abs(normalized_slope) <= slope_threshold:
-                    dff.loc[dff.index[i], "trend_type"] = TrendType.STABLE
-                else:
-                    # Slope is significant enough - classify by direction regardless of SPC signal
-                    direction = TrendType.UPWARD if slope > 0 else TrendType.DOWNWARD
-                    dff.loc[dff.index[i], "trend_type"] = direction
-                    # Note: is_signal status is preserved in trend_signal_detected column for confidence scoring
-            else:
-                dff.loc[dff.index[i], "trend_type"] = None
-
-    return dff

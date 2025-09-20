@@ -59,7 +59,7 @@ STORY_TEMPLATES = {
     StoryType.NEW_UPWARD_TREND: {
         "title": "New upward trend",
         "detail": "Since {{ trend_start_date|format_date(grain_label) }}, {{ metric.label }} has been following a "
-        "new, upward trend line that"
+        "new, upward trend line that "
         "averages {{ trend_avg_growth|format_percent }}% {{ pop }} growth. The prior trend for this metric "
         "lasted {{ prev_trend_duration }} {{ grain_label }}s and averaged {{ "
         "prev_trend_avg_growth|format_percent }}% {{ pop }} growth.",

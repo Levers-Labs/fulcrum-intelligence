@@ -117,6 +117,7 @@ class StoryEvaluatorBase(Generic[T], ABC):
             "metadata": dict(pattern=pattern_result.pattern),
             "pattern_run_id": pattern_result.pattern_run_id,
             "dimension_name": getattr(pattern_result, "dimension_name", None),  # Extract dimension_name directly
+            "evaluation_pattern": self.pattern_name,  # Pattern that generated this story
         }
 
     def get_template_string(self, story_type: StoryType, field: str) -> str:

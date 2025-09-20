@@ -204,21 +204,23 @@ class CRUDStory(CRUDBase[Story, Story, Story, StoryFilter]):
                 # dimension_name should already be set directly by the evaluator
                 dimension_name = story_dict.get("dimension_name")
 
-                # Build context key for deletion (include dimension for proper isolation)
+                # evaluation_pattern should be set by the evaluator to identify which pattern generated the story
+                evaluation_pattern = story_dict.get("evaluation_pattern")
+
+                # Build context key for deletion (pattern-level isolation)
                 lookup_key = (
                     story_dict["metric_id"],
                     story_dict["grain"],
                     story_dict["story_date"],
                     story_dict.get("version", 2),
-                    story_dict["story_group"],
-                    story_dict["story_type"].value,
-                    dimension_name,  # Clean dimension-based isolation
+                    dimension_name,
+                    evaluation_pattern,
                 )
                 lookup_keys[lookup_key] = story_dict
 
             # step 2: Execute delete statements for each lookup_key
             for lookup_key in lookup_keys:
-                metric_id, grain, story_date, version, story_group, _, dimension_name = lookup_key
+                metric_id, grain, story_date, version, dimension_name, evaluation_pattern = lookup_key
                 date_start, date_end = self._get_date_boundaries(story_date)
 
                 delete_statement = (
@@ -226,18 +228,22 @@ class CRUDStory(CRUDBase[Story, Story, Story, StoryFilter]):
                     .where(Story.tenant_id == tenant_id)  # type: ignore
                     .where(Story.metric_id == metric_id)
                     .where(Story.grain == grain)
-                    .where(Story.story_group == story_group)
                     .where(Story.version == version)
                     .where(Story.story_date >= date_start)  # type: ignore
                     .where(Story.story_date < date_end)  # type: ignore
-                    # include story_type if we want to delete stories of a specific type
-                    # .where(Story.story_type == story_type)  # type: ignore
                 )
 
                 delete_statement = (
                     delete_statement.where(Story.dimension_name == dimension_name)
                     if dimension_name
                     else delete_statement.where(Story.dimension_name.is_(None))  # type: ignore
+                )
+
+                # Pattern isolation - only delete stories from the same pattern
+                delete_statement = (
+                    delete_statement.where(Story.evaluation_pattern == evaluation_pattern)
+                    if evaluation_pattern
+                    else delete_statement.where(Story.evaluation_pattern.is_(None))  # type: ignore
                 )
 
                 _ = await self.session.execute(delete_statement)

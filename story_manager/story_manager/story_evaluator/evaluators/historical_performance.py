@@ -12,6 +12,7 @@ from commons.models.enums import Granularity
 from levers.models import ComparisonType, TrendExceptionType, TrendType
 from levers.models.patterns import BenchmarkComparison, GrowthStats, HistoricalPerformance
 from levers.models.patterns.historical_performance import RankSummary
+from levers.primitives import calculate_pop_growth
 from story_manager.core.enums import StoryGenre, StoryGroup, StoryType
 from story_manager.story_evaluator import StoryEvaluatorBase, render_story_text
 
@@ -824,30 +825,41 @@ class HistoricalPerformanceEvaluator(StoryEvaluatorBase[HistoricalPerformance]):
         """
         Prepare the series data for trend changes stories.
 
-        This method extracts SPC-related fields from the trend_analysis results
-        (which are derived from process_control_analysis) and merges them
-        with the base series data for visualization and story generation.
+        This method enriches the base series with:
+        1. POP growth for every data point in the full series
+        2. SPC trend analysis data from the pattern
+        3. Simple trend_type classification based on slope
+        4. Filtering to current trend window to avoid misleading charts
 
         Args:
             pattern_result: Historical performance pattern result
 
         Returns:
-            DataFrame with series data and SPC metrics for trend changes stories ( stable, new upward, new downward,
-            performance plateau)
+            DataFrame with enriched series data for trend changes stories
         """
+        # 1) Start with the full base series that was passed to the evaluator
+        series_df = self.series_df.copy() if self.series_df is not None else pd.DataFrame()
+        if series_df.empty:
+            return series_df
 
-        pop_growth_df = self._prepare_series_data_with_pop_growth(pattern_result)
+        series_df["date"] = pd.to_datetime(series_df["date"])
 
-        # Extract data from trend_analysis results
-        # TrendAnalysis objects contain all necessary fields
+        # 2) Add POP growth for every data point in the series
+        series_df = calculate_pop_growth(
+            df=series_df,
+            date_col="date",
+            value_col="value",
+            growth_col_name="pop_growth_percent",
+        )
+
+        # 3) Extract SPC data from pattern's trend_analysis (no redundant calls)
         trend_analysis_data = [data.model_dump() for data in pattern_result.trend_analysis]
         trend_analysis_df = pd.DataFrame(trend_analysis_data)
+        trend_analysis_df["date"] = pd.to_datetime(trend_analysis_df["date"])
 
-        # Select columns that are expected by stories.
-        # These should align with fields in the TrendAnalysis model.
+        # 5) Merge base series with SPC trend data
         columns_to_merge = [
             "date",
-            "value",
             "central_line",
             "ucl",
             "lcl",
@@ -855,15 +867,11 @@ class HistoricalPerformanceEvaluator(StoryEvaluatorBase[HistoricalPerformance]):
             "slope_change_percent",
             "trend_signal_detected",
         ]
-
-        # Filter trend_analysis_df to only include necessary columns, ensure 'date' is present
         available_columns = [col for col in columns_to_merge if col in trend_analysis_df.columns]
-        df_to_merge = trend_analysis_df[available_columns].drop(columns=["value"], errors="ignore")
-        df_to_merge["date"] = pd.to_datetime(df_to_merge["date"])
 
-        merged_df = pd.merge(pop_growth_df, df_to_merge, on="date", how="left").sort_values("date")
+        merged_df = series_df.merge(trend_analysis_df[available_columns], on="date", how="left").sort_values("date")
 
-        return merged_df
+        return merged_df.reset_index(drop=True)
 
     def _prepare_spike_drop_series_data(self, pattern_result: HistoricalPerformance) -> pd.DataFrame:
         """

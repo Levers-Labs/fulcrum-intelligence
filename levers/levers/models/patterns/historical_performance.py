@@ -137,6 +137,7 @@ class TrendAnalysis(BaseModel):
     slope: float | None = None
     slope_change_percent: float | None = None
     trend_signal_detected: bool = False
+    trend_type: TrendType | None = None
 
 
 class PerformanceTrend(BaseModel):
