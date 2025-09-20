@@ -161,7 +161,7 @@ def safe_divide(
 
 def calculate_relative_change(
     current_value: float, reference_value: float, default_value: float | None = None
-) -> float | None:
+) -> float:
     """
     Calculate the relative change between two values.
 
@@ -192,7 +192,10 @@ def calculate_relative_change(
         ) from exc
 
     if reference_value == 0 or pd.isna(reference_value):
-        return default_value
+        raise ValidationError(
+            "Reference value cannot be zero or NaN",
+            {"current_value": current_value, "reference_value": reference_value},
+        )
 
     return (current_value - reference_value) / abs(reference_value)
 

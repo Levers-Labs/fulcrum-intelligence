@@ -665,6 +665,13 @@ class CRUDMetricTarget(CRUDSemantic[MetricTarget, TargetCreate, TargetUpdate, Ta
 
         return stats, count or 0
 
+    async def list_targets(self, filter_params: dict[str, Any]) -> list[MetricTarget]:
+        """Get targets with optional filtering."""
+        query = self.get_select_query()
+        query = self.filter_class.apply_filters(query, filter_params)
+        result = await self.session.execute(query)
+        return cast(list[MetricTarget], list(result.scalars().all()))
+
 
 class CRUDTenantSyncStatus(CRUDSemantic[TenantSyncStatus, BaseModel, BaseModel, TenantSyncStatusFilter]):
     """CRUD operations for TenantSyncStatus."""

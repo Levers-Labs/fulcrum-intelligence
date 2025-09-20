@@ -200,7 +200,11 @@ def detect_record_high(df: pd.DataFrame, value_col: str = "value") -> RecordHigh
         rank=int(rank),
         periods_compared=len(df),
         absolute_delta=calculate_difference(current_value, prior_max),
-        percentage_delta=calculate_percentage_difference(current_value, prior_max, handle_zero_reference=True),
+        percentage_delta=(
+            calculate_percentage_difference(current_value, prior_max, handle_zero_reference=True)
+            if prior_max != 0
+            else 0.0
+        ),
     )
 
 
@@ -252,7 +256,11 @@ def detect_record_low(df: pd.DataFrame, value_col: str = "value") -> RecordLow:
         rank=int(rank),
         periods_compared=len(df),
         absolute_delta=calculate_difference(current_value, prior_min),
-        percentage_delta=calculate_percentage_difference(current_value, prior_min, handle_zero_reference=True),
+        percentage_delta=(
+            calculate_percentage_difference(current_value, prior_min, handle_zero_reference=True)
+            if prior_min != 0
+            else 0.0
+        ),
     )
 
 
@@ -905,7 +913,11 @@ def detect_seasonality_pattern(
             ref_val = subset.iloc[-1][value_col]
             cur_val = df_sorted.iloc[i][value_col]
             try:
-                change = calculate_percentage_difference(cur_val, ref_val, handle_zero_reference=True)
+                change = (
+                    calculate_percentage_difference(cur_val, ref_val, handle_zero_reference=True)
+                    if ref_val != 0
+                    else None
+                )
                 if change is not None:
                     yoy_changes.append(change)
             except Exception as e:

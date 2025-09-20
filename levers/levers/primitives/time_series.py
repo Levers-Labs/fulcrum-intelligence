@@ -198,9 +198,14 @@ def calculate_average_growth(
     # Ensure data is sorted by date
     df_sorted = validate_date_sorted(df, date_col)
 
+    # Find the first non-zero & non-NaN value
+    mask = df_sorted[value_col].ne(0)
+    if not mask.any():  # Series is all zeros/NaNs
+        return AverageGrowth(average_growth=None, total_growth=None, periods=len(df_sorted))
+
     # Get first and last values
-    first_value = df_sorted[value_col].iloc[0]
-    last_value = df_sorted[value_col].iloc[-1]
+    first_value: float = df_sorted.at[mask.idxmax(), value_col]  # type: ignore
+    last_value: float = df_sorted[value_col].iloc[-1]
 
     # Calculate total growth
     total_growth = calculate_percentage_difference(last_value, first_value)
@@ -533,7 +538,11 @@ def _calculate_benchmark(
 
     # Calculate absolute and percentage change
     absolute_change = calculate_difference(current_value, reference_value)
-    change_percent = calculate_percentage_difference(current_value, reference_value, handle_zero_reference=True)
+    change_percent = (
+        calculate_percentage_difference(current_value, reference_value, handle_zero_reference=True)
+        if reference_value != 0
+        else None
+    )
 
     # Create the benchmark object
     return Benchmark(
@@ -660,4 +669,12 @@ def calculate_overall_growth(
     """Calculate the overall growth of a time series."""
     if len(df) < 2:
         return 0.0
-    return calculate_percentage_difference(df[value_col].iloc[-1], df[value_col].iloc[0])
+
+    # Find the first non-zero & non-NaN value
+    mask = df[value_col].ne(0)
+    if not mask.any():  # Series is all zeros/NaNs
+        return 0.0
+
+    reference_value: float = df.at[mask.idxmax(), value_col]  # type: ignore
+    current_value: float = df[value_col].iloc[-1]
+    return calculate_percentage_difference(current_value, reference_value)
