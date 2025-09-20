@@ -1,3 +1,4 @@
+import logging
 from datetime import (
     date,
     datetime,
@@ -9,6 +10,7 @@ from typing import Any
 from sqlalchemy import (
     Date as SQLDate,
     cast,
+    delete,
     desc,
     func,
     select,
@@ -16,10 +18,13 @@ from sqlalchemy import (
 
 from commons.db.crud import CRUDBase
 from commons.models.enums import Granularity
+from commons.utilities.context import get_tenant_id
 from story_manager.core.enums import StoryType
 from story_manager.core.filters import StoryConfigFilter, StoryFilter
 from story_manager.core.models import Story, StoryConfig
 from story_manager.core.schemas import StoryStatsResponse
+
+logger = logging.getLogger(__name__)
 
 
 class CRUDStory(CRUDBase[Story, Story, Story, StoryFilter]):
@@ -154,6 +159,118 @@ class CRUDStory(CRUDBase[Story, Story, Story, StoryFilter]):
         story.story_date = new_date
         self.session.add(story)
         return True
+
+    def _get_date_boundaries(self, story_date: date | datetime) -> tuple[datetime, datetime]:
+        """
+        Get start and end boundaries for a story date.
+        Reuses existing date handling logic from get_stories.
+        """
+        if isinstance(story_date, datetime):
+            date_start = datetime.combine(story_date.date(), time.min)
+        else:
+            date_start = datetime.combine(story_date, time.min)
+        date_end = date_start + timedelta(days=1)
+        return date_start, date_end
+
+    async def upsert_stories(self, stories: list[dict[str, Any]]) -> list[Story]:
+        """
+        Upsert stories using a two-phase approach: delete all existing stories
+        for each lookup_key, then insert all incoming stories.
+
+        This eliminates complex grouping logic and prevents deletion conflicts
+        where later stories might delete earlier ones within the same batch.
+
+        Args:
+            stories: List of story dictionaries to persist
+
+        Returns:
+            List of persisted Story objects
+        """
+        if not stories:
+            logger.info("No stories to persist")
+            return []
+
+        tenant_id = get_tenant_id()
+        logger.info(f"Upserting {len(stories)} stories for tenant {tenant_id}")
+
+        try:
+            # step 1: Extract dimension_name and group by lookup_key
+            lookup_keys: dict = {}
+
+            for story_dict in stories:
+                # Set tenant_id on each story
+                story_dict["tenant_id"] = tenant_id
+
+                # dimension_name should already be set directly by the evaluator
+                dimension_name = story_dict.get("dimension_name")
+
+                # evaluation_pattern should be set by the evaluator to identify which pattern generated the story
+                evaluation_pattern = story_dict.get("evaluation_pattern")
+
+                # Build context key for deletion (pattern-level isolation)
+                lookup_key = (
+                    story_dict["metric_id"],
+                    story_dict["grain"],
+                    story_dict["story_date"],
+                    story_dict.get("version", 2),
+                    dimension_name,
+                    evaluation_pattern,
+                )
+                lookup_keys[lookup_key] = story_dict
+
+            # step 2: Execute delete statements for each lookup_key
+            for lookup_key in lookup_keys:
+                metric_id, grain, story_date, version, dimension_name, evaluation_pattern = lookup_key
+                date_start, date_end = self._get_date_boundaries(story_date)
+
+                delete_statement = (
+                    delete(Story)
+                    .where(Story.tenant_id == tenant_id)  # type: ignore
+                    .where(Story.metric_id == metric_id)
+                    .where(Story.grain == grain)
+                    .where(Story.version == version)
+                    .where(Story.story_date >= date_start)  # type: ignore
+                    .where(Story.story_date < date_end)  # type: ignore
+                )
+
+                delete_statement = (
+                    delete_statement.where(Story.dimension_name == dimension_name)
+                    if dimension_name
+                    else delete_statement.where(Story.dimension_name.is_(None))  # type: ignore
+                )
+
+                # Pattern isolation - only delete stories from the same pattern
+                delete_statement = (
+                    delete_statement.where(Story.evaluation_pattern == evaluation_pattern)
+                    if evaluation_pattern
+                    else delete_statement.where(Story.evaluation_pattern.is_(None))  # type: ignore
+                )
+
+                _ = await self.session.execute(delete_statement)
+
+            # step 3: Insert all incoming stories
+            new_stories = [Story.model_validate(story) for story in stories]
+            self.session.add_all(new_stories)
+
+            # step 4: Flush all changes
+            await self.session.flush()
+
+            # Refresh objects to get database-generated fields
+            for story in new_stories:
+                await self.session.refresh(story)
+                await story.set_heuristics(self.session)
+                self.session.add(story)
+
+            # step 5: Commit all changes
+            await self.session.commit()
+
+            logger.info(f"Successfully upserted {len(new_stories)} stories")
+            return new_stories
+
+        except Exception as e:
+            logger.error(f"Error upserting stories: {str(e)}")
+            await self.session.rollback()
+            raise
 
     async def get_story_stats(self, filter_params: dict[str, Any]) -> list[StoryStatsResponse]:
         """

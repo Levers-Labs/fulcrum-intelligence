@@ -1493,3 +1493,198 @@ async def test_list_dimensions_with_filter_not_found(async_client: AsyncClient, 
         "pages": 0,
         "results": [],
     }
+
+
+@pytest.mark.asyncio
+async def test_list_metrics_with_pagination(async_client: AsyncClient, mocker, metric):
+    """Test listing metrics with custom pagination parameters."""
+    mock_list_metrics = AsyncMock(return_value=([Metric.parse_obj(metric)], 25))
+    mocker.patch.object(QueryClient, "list_metrics", mock_list_metrics)
+
+    response = await async_client.get("/v1/metrics?limit=5&offset=10")
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["count"] == 25
+    assert data["limit"] == 5
+    assert data["offset"] == 10
+    assert data["pages"] == 5
+    assert len(data["results"]) == 1
+
+
+@pytest.mark.asyncio
+async def test_list_metrics_with_filters(async_client: AsyncClient, mocker, metric):
+    """Test listing metrics with filters."""
+    mock_list_metrics = AsyncMock(return_value=([Metric.parse_obj(metric)], 1))
+    mocker.patch.object(QueryClient, "list_metrics", mock_list_metrics)
+
+    response = await async_client.get("/v1/metrics?metric_label=test&metric_ids=metric1,metric2")
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["count"] == 1
+    assert len(data["results"]) == 1
+
+    # Verify the mock was called with the correct parameters
+    args, kwargs = mock_list_metrics.call_args
+    assert kwargs["metric_label"] == "test"
+    assert kwargs["metric_ids"] == ["metric1,metric2"]
+
+
+@pytest.mark.asyncio
+async def test_update_metric_success(async_client: AsyncClient, mocker, metric):
+    """Test successful metric update."""
+    updated_metric = metric.copy()
+    updated_metric["label"] = "Updated Label"
+
+    mock_update_metric = AsyncMock(return_value=MetricDetail(**updated_metric))
+    mocker.patch.object(QueryClient, "update_metric", mock_update_metric)
+
+    update_data = {"label": "Updated Label", "definition": "Updated definition"}
+    response = await async_client.patch(f"/v1/metrics/{metric['metric_id']}", json=update_data)
+
+    assert response.status_code == 200
+    assert response.json()["label"] == "Updated Label"
+
+
+@pytest.mark.asyncio
+async def test_list_dimensions_with_ids_filter(async_client: AsyncClient, mocker, dimension):
+    """Test listing dimensions with dimension IDs filter."""
+    mock_list_dimensions = AsyncMock(return_value=([dimension], 1))
+    mocker.patch.object(QueryClient, "list_dimensions", mock_list_dimensions)
+
+    response = await async_client.get("/v1/dimensions?dimension_ids=dim1&dimension_ids=dim2")
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["count"] == 1
+    assert len(data["results"]) == 1
+
+    # Verify the mock was called with the correct parameters
+    args, kwargs = mock_list_dimensions.call_args
+    assert kwargs["dimension_ids"] == ["dim1", "dim2"]
+
+
+@pytest.mark.asyncio
+async def test_get_dimension_members_empty(async_client: AsyncClient, mocker):
+    """Test getting dimension members when there are none."""
+    mock_get_dimension_members = AsyncMock(return_value=[])
+    mocker.patch.object(QueryClient, "get_dimension_members", mock_get_dimension_members)
+
+    response = await async_client.get("/v1/dimensions/empty_dimension/members")
+    assert response.status_code == 200
+    assert response.json() == []
+
+
+@pytest.mark.asyncio
+async def test_get_cache_info_success(async_client: AsyncClient, mocker, app):
+    """Test getting cache info successfully."""
+    from query_manager.semantic_manager.dependencies import get_cache_manager
+
+    mock_cache_info = {
+        "table_name": "test_tenant_cache",
+        "tenant_id": 1,
+        "status": "active",
+        "metrics_cached": 50,
+        "available_grains": ["day", "week", "month"],
+        "date_range": {"start": "2023-01-01", "end": "2024-12-31"},
+        "last_sync": "2024-01-15T10:30:00Z",
+        "performance_metrics": {"size_mb": 1024.5, "avg_query_time_ms": 150, "cache_hit_ratio": 0.85},
+        "error": None,
+    }
+
+    mock_cache_manager = AsyncMock()
+    mock_cache_manager.get_comprehensive_cache_info = AsyncMock(return_value=mock_cache_info)
+    app.dependency_overrides[get_cache_manager] = lambda: mock_cache_manager
+
+    try:
+        response = await async_client.get("/v1/cache/info")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["table_name"] == "test_tenant_cache"
+    finally:
+        app.dependency_overrides.clear()
+
+
+@pytest.mark.asyncio
+async def test_update_grain_config_error(async_client: AsyncClient, mocker):
+    """Test updating grain config with server error."""
+    from query_manager.core.crud import CRUDMetricCacheGrainConfig
+
+    mock_update = AsyncMock(side_effect=Exception("Database error"))
+    mocker.patch.object(CRUDMetricCacheGrainConfig, "update_grain_config", mock_update)
+
+    update_data = {"is_enabled": True, "initial_sync_period": 365}
+    response = await async_client.put("/v1/grains/day/cache-config", json=update_data)
+
+    assert response.status_code == 500
+    assert "Failed to update grain configuration" in response.json()["detail"]
+
+
+@pytest.mark.asyncio
+async def test_enable_all_grain_caching_success(async_client: AsyncClient, mocker):
+    """Test enabling all grain caching successfully."""
+    from query_manager.core.crud import CRUDMetricCacheGrainConfig
+
+    mock_configs = [
+        {
+            "id": 1,
+            "grain": "day",
+            "is_enabled": True,
+            "initial_sync_period": 730,
+            "delta_sync_period": 90,
+            "tenant_id": 1,
+        },
+        {
+            "id": 2,
+            "grain": "week",
+            "is_enabled": True,
+            "initial_sync_period": 365,
+            "delta_sync_period": 30,
+            "tenant_id": 1,
+        },
+    ]
+
+    mock_create_default = AsyncMock(return_value=mock_configs)
+    mocker.patch.object(CRUDMetricCacheGrainConfig, "create_default_grain_configs", mock_create_default)
+
+    response = await async_client.post("/v1/grains/cache-config/enable-all")
+
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data) == 2
+    assert all(config["is_enabled"] for config in data)
+
+
+@pytest.mark.asyncio
+async def test_get_metric_cache_config_not_found(async_client: AsyncClient, mocker):
+    """Test getting metric cache config that doesn't exist."""
+    from query_manager.core.crud import CRUDMetricCacheConfig
+
+    mock_get_by_metric_id = AsyncMock(side_effect=NotFoundError("Config not found"))
+    mocker.patch.object(CRUDMetricCacheConfig, "get_by_metric_id", mock_get_by_metric_id)
+
+    response = await async_client.get("/v1/metrics/nonexistent_metric/cache-config")
+    assert response.status_code == 404
+    assert "not found" in response.json()["detail"].lower()
+
+
+@pytest.mark.asyncio
+async def test_enable_all_metric_caching_success(async_client: AsyncClient, mocker):
+    """Test enabling caching for all metrics."""
+    from query_manager.core.crud import CRUDMetricCacheConfig
+
+    mock_configs = [
+        {"id": 1, "metric_id": "metric1", "is_enabled": True, "last_sync_date": None, "sync_status": None},
+        {"id": 2, "metric_id": "metric2", "is_enabled": True, "last_sync_date": None, "sync_status": None},
+    ]
+
+    mock_enable_all = AsyncMock(return_value=mock_configs)
+    mocker.patch.object(CRUDMetricCacheConfig, "enable_all_metrics", mock_enable_all)
+
+    response = await async_client.post("/v1/metrics/cache-config/enable-all")
+
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data) == 2
+    assert all(config["is_enabled"] for config in data)

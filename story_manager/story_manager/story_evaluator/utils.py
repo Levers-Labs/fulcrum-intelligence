@@ -2,11 +2,13 @@
 Utility functions for story evaluators.
 """
 
+from datetime import datetime
+
 import pandas as pd
 from jinja2 import Environment, Template
 
 from story_manager.core.enums import StoryType
-from story_manager.story_evaluator.constants import STORY_TEMPLATES
+from story_manager.story_evaluator.templates import STORY_TEMPLATES
 
 
 def format_number(value: float | None, precision: int = 2) -> str:
@@ -41,6 +43,38 @@ def format_percent(value: float | None, precision: int = 1) -> str:
     return f"{value:.{precision}f}"
 
 
+def format_with_unit(value: float | None, unit: str | None = None, precision: int = 2) -> str:
+    """
+    Format a value with its appropriate unit formatting.
+
+    Args:
+        value: Value to format
+        unit: Unit type ($, %, days, n, etc.)
+        precision: Decimal precision
+
+    Returns:
+        Formatted value string with unit
+    """
+    if value is None:
+        return "N/A"
+
+    if unit is None or unit.lower() == "n":
+        # For "n" unit or no unit, just format as number
+        return f"{value:.{precision}f}"
+    elif unit == "$":
+        # For dollar amounts, add dollar sign prefix
+        return f"${value:,.{precision}f}"
+    elif unit == "%":
+        # For percentages, add percent sign suffix
+        return f"{value:.{precision}f}%"
+    elif unit.lower() == "days":
+        # For days, add "days" suffix and use whole numbers for precision
+        return f"{value:.0f} days" if value != 1 else f"{value:.0f} day"
+    else:
+        # For any other unit, append it as suffix
+        return f"{value:.{precision}f} {unit}"
+
+
 def format_ordinal(value: int | None) -> str:
     """
     Format an integer as an ordinal number with superscript suffix.
@@ -68,6 +102,29 @@ def format_ordinal(value: int | None) -> str:
     return f"{value}{superscript_suffix}"
 
 
+def format_date(value: str | None, grain: str) -> str:
+    """
+    Format a date string to a readable string.
+    """
+    if value is None:
+        return "N/A"
+
+    dt = datetime.strptime(value, "%Y-%m-%d")
+
+    if grain == "day":
+        return dt.strftime("%b %d, %Y")
+    elif grain == "week":
+        return "Week of " + dt.strftime("%b %d, %Y")
+    elif grain == "month":
+        return dt.strftime("%b, %Y")
+    elif grain == "quarter":
+        return dt.strftime("Q%q, %Y")
+    elif grain == "year":
+        return dt.strftime("%Y")
+    else:
+        raise ValueError(f"Unsupported grain: {grain}")
+
+
 def get_template_env() -> Environment:
     """
     Get Jinja2 environment with custom filters.
@@ -78,7 +135,9 @@ def get_template_env() -> Environment:
     env = Environment(autoescape=False, trim_blocks=True, lstrip_blocks=True)  # noqa
     env.filters["format_number"] = format_number
     env.filters["format_percent"] = format_percent
+    env.filters["format_with_unit"] = format_with_unit
     env.filters["format_ordinal"] = format_ordinal
+    env.filters["format_date"] = format_date
     env.filters["abs"] = abs
     return env
 

@@ -59,7 +59,7 @@ def mock_pattern():
 @pytest.fixture
 def mock_metric():
     """Fixture for mock metric."""
-    return {"label": "Test Metric", "metric_id": "test_metric"}
+    return {"label": "Test Metric", "metric_id": "test_metric", "unit": "n"}
 
 
 @pytest.fixture

@@ -60,11 +60,11 @@ def test_get_template_env():
 def test_get_story_template():
     """Test get_story_template function."""
     template = get_story_template(StoryType.ON_TRACK, "title")
-    assert "is on track" in template.render(metric={"label": "Test Metric"})
+    assert "is on track" in template.render(metric={"label": "Test Metric", "metric_id": "test_metric", "unit": "n"})
 
     template = get_story_template(StoryType.ON_TRACK, "detail")
     assert "is at" in template.render(
-        metric={"label": "Test Metric"},
+        metric={"label": "Test Metric", "metric_id": "test_metric", "unit": "n"},
         current_value=100.0,
         trend_direction="up",
         change_percent=5.0,
@@ -92,7 +92,7 @@ def test_get_story_template_invalid_field():
 def test_render_story_text():
     """Test render_story_text function."""
     context = {
-        "metric": {"label": "Test Metric"},
+        "metric": {"label": "Test Metric", "metric_id": "test_metric", "unit": "n"},
         "current_value": 100.0,
         "trend_direction": "up",
         "change_percent": 5.0,

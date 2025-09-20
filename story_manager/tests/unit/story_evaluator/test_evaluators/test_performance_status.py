@@ -43,7 +43,7 @@ def mock_metric_performance():
 @pytest.fixture
 def mock_metric():
     """Fixture for mock metric."""
-    return {"label": "Test Metric", "value": 100.0, "target": 90.0, "metric_id": "test_metric"}
+    return {"label": "Test Metric", "value": 100.0, "target": 90.0, "metric_id": "test_metric", "unit": "n"}
 
 
 @pytest.fixture

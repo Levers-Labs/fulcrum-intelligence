@@ -28,7 +28,6 @@ from .performance import (
 
 # Period Grains primitives
 from .period_grains import (
-    get_date_range_from_window,
     get_period_length_for_grain,
     get_period_range_for_grain,
     get_prev_period_start_date,
@@ -36,6 +35,8 @@ from .period_grains import (
     get_period_end_date,
     calculate_remaining_periods,
     get_dates_for_a_range,
+    get_analysis_period_range,
+    get_future_period_end_date,
 )
 
 # Time Series primitives
@@ -62,7 +63,7 @@ from .trend_analysis import (
     detect_trend_exceptions,
     process_control_analysis,
     detect_trend_exceptions_using_spc_analysis,
-    analyze_trend_using_spc_analysis,
+    # analyze_trend_using_spc_analysis,
 )
 
 # Dimensional Analysis primitives
@@ -116,11 +117,12 @@ _primitive_families = {
         get_period_range_for_grain,
         get_prior_period_range,
         get_prev_period_start_date,
-        get_date_range_from_window,
         get_period_length_for_grain,
         get_period_end_date,
         calculate_remaining_periods,
         get_dates_for_a_range,
+        get_analysis_period_range,
+        get_future_period_end_date,
     ],
     "time_series": [
         calculate_average_growth,
@@ -141,7 +143,7 @@ _primitive_families = {
         process_control_analysis,
         detect_seasonality_pattern,
         detect_trend_exceptions_using_spc_analysis,
-        analyze_trend_using_spc_analysis,
+        # analyze_trend_using_spc_analysis,
     ],
     "dimensional_analysis": [
         # Slice Metrics & Shares
@@ -244,10 +246,11 @@ __all__ = [
     "get_period_range_for_grain",
     "get_prior_period_range",
     "get_prev_period_start_date",
-    "get_date_range_from_window",
     "get_period_end_date",
     "calculate_remaining_periods",
     "get_dates_for_a_range",
+    "get_analysis_period_range",
+    "get_future_period_end_date",
     # Time Series primitives
     "calculate_average_growth",
     "calculate_benchmark_comparisons",
@@ -268,7 +271,7 @@ __all__ = [
     "process_control_analysis",
     "detect_seasonality_pattern",
     "detect_trend_exceptions_using_spc_analysis",
-    "analyze_trend_using_spc_analysis",
+    # "analyze_trend_using_spc_analysis",
     # Dimensional Analysis primitives
     "calculate_slice_metrics",
     "compute_slice_shares",

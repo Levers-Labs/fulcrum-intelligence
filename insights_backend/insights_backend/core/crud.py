@@ -93,6 +93,26 @@ class TenantCRUD(CRUDBase[Tenant, Tenant, Tenant, TenantConfigFilter]):  # type:
 
     filter_class = TenantConfigFilter
 
+    def get_select_query(self) -> Select:
+        """
+        Override base query to include TenantConfig join for filtering.
+        """
+        query = select(Tenant).outerjoin(TenantConfig, Tenant.id == TenantConfig.tenant_id)  # type: ignore
+        return query
+
+    async def get(self, id: int) -> Tenant:
+        """
+        Override get method to explicitly filter on Tenant.id to avoid column ambiguity with joins.
+        """
+        statement = self.get_select_query().where(Tenant.id == id)  # type: ignore
+        results = await self.session.execute(statement=statement)
+        instance: Tenant | None = results.unique().scalar_one_or_none()
+
+        if instance is None:
+            raise NotFoundError(id=id)
+
+        return instance
+
     async def get_tenant_config(self, tenant_id: int) -> TenantConfig:
         """
         Method to retrieve the config for a tenant.

@@ -71,8 +71,7 @@ custom_config = PatternConfig(
         strategy=WindowStrategy.FIXED_TIME,
         days=90,
         min_days=30,
-        max_days=180,
-        include_today=False
+        max_days=180
     ),
     settings={"threshold_ratio": 0.05}
 )
@@ -139,8 +138,7 @@ window_config = AnalysisWindowConfig(
     strategy=WindowStrategy.FIXED_TIME,
     days=90,
     min_days=30,
-    max_days=180,
-    include_today=False
+    max_days=180
 )
 
 # Grain-specific time windows
@@ -153,8 +151,7 @@ grain_specific_config = AnalysisWindowConfig(
         "quarter": 365
     },
     min_days=30,
-    max_days=365,
-    include_today=False
+    max_days=365
 )
 
 # Fixed number of data points
@@ -162,8 +159,7 @@ datapoints_config = AnalysisWindowConfig(
     strategy=WindowStrategy.FIXED_DATAPOINTS,
     datapoints=100,
     min_days=30,
-    max_days=365,
-    include_today=False
+    max_days=365
 )
 ```
 
@@ -276,8 +272,7 @@ def get_default_config() -> PatternConfig:
             strategy=WindowStrategy.FIXED_TIME,
             days=90,
             min_days=30,
-            max_days=180,
-            include_today=False
+            max_days=180
         ),
         settings={"some_setting": "default_value"}
     )

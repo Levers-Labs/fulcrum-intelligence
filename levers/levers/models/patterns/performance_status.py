@@ -36,6 +36,7 @@ class MetricPerformance(BasePattern):
     # Current vs. prior values
     current_value: float
     prior_value: float | None = None
+    prior_target_value: float | None = None
     absolute_delta_from_prior: float | None = None
     pop_change_percent: float | None = None
 

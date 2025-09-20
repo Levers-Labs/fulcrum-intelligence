@@ -2,6 +2,8 @@
 Tests for the story evaluator manager module.
 """
 
+from datetime import date
+
 import pytest
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -34,7 +36,7 @@ def mock_pattern():
 @pytest.fixture
 def mock_metric():
     """Fixture for mock metric."""
-    return {"label": "Test Metric", "value": 100.0}
+    return {"label": "Test Metric", "value": 100.0, "metric_id": "test_metric", "unit": "n"}
 
 
 @pytest.fixture
@@ -53,7 +55,7 @@ def mock_stories():
             "detail": "Test Detail",
             "title_template": "Test Title Template",
             "detail_template": "Test Detail Template",
-            "story_date": "2024-01-01",
+            "story_date": date(2024, 1, 1),
             "variables": {"test_var": "test_value"},
             "metadata": {"pattern": "test_pattern"},
             "pattern_run_id": 1,
@@ -67,14 +69,43 @@ def mock_db_session(mocker):
     session = mocker.Mock(spec=AsyncSession)
     session.commit = mocker.AsyncMock()
     session.refresh = mocker.AsyncMock()
+    session.add = mocker.Mock()
+
+    # Create a mock result that has scalar_one_or_none
+    mock_result = mocker.Mock()
+    mock_result.scalar_one_or_none = mocker.Mock(return_value=None)
+
+    # Make execute return the mock result
+    session.execute = mocker.AsyncMock(return_value=mock_result)
+
+    # Also mock scalar_one_or_none directly on session for compatibility
+    session.scalar_one_or_none = mocker.AsyncMock(return_value=None)
     return session
 
 
 @pytest.mark.asyncio
-async def test_persist_stories(mock_db_session, mock_stories, jwt_payload):
+async def test_persist_stories(mock_db_session, mock_stories, jwt_payload, mocker):
     """Test persist_stories method."""
     # Set up the mock JWT payload
     set_tenant_id(jwt_payload["tenant_id"])
+
+    # Create a mock Story object that would be returned by the CRUD layer
+    mock_story = Story(
+        id=1,
+        title="Test Title",
+        detail="Test Detail",
+        metric_id="test_metric",
+        pattern_run_id=1,
+        grain=Granularity.DAY,
+        tenant_id=jwt_payload["tenant_id"],
+    )
+
+    # Mock the CRUDStory.upsert_stories method directly instead of session operations
+    mock_crud_story = mocker.Mock()
+    mock_crud_story.upsert_stories = mocker.AsyncMock(return_value=[mock_story])
+
+    mocker.patch("story_manager.story_evaluator.manager.CRUDStory", return_value=mock_crud_story)
+
     manager = StoryEvaluatorManager()
     stories = await manager.persist_stories(mock_stories, mock_db_session)
 
@@ -85,10 +116,9 @@ async def test_persist_stories(mock_db_session, mock_stories, jwt_payload):
     assert stories[0].metric_id == "test_metric"
     assert stories[0].pattern_run_id == 1
     assert stories[0].grain == Granularity.DAY
-    # Verify database operations
-    mock_db_session.add.assert_called_once()
-    mock_db_session.commit.assert_called_once()
-    mock_db_session.refresh.assert_called_once()
+
+    # Verify the CRUD method was called
+    mock_crud_story.upsert_stories.assert_called_once_with(mock_stories)
 
 
 @pytest.mark.asyncio

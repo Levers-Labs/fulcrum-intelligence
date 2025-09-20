@@ -69,4 +69,7 @@ class PatternResult(AnalysisSchemaBaseModel, table=True):
         if "pattern" not in run_data:
             run_data["pattern"] = self.pattern
 
+        # Add pattern_run_id from database primary key
+        run_data["pattern_run_id"] = self.id
+
         return Levers.load_pattern_model(run_data)

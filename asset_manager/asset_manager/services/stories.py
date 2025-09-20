@@ -21,7 +21,7 @@ from story_manager.story_evaluator.manager import StoryEvaluatorManager
 
 logger = logging.getLogger(__name__)
 
-STORY_METADATA_KEYS = ["id", "genre", "story_group", "story_type", "title", "is_heuristic"]
+STORY_METADATA_KEYS = ["id", "genre", "story_group", "story_type", "title", "dimension_name", "is_heuristic"]
 
 
 async def generate_stories_for_pattern_run(

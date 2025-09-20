@@ -123,30 +123,30 @@ STORY_TYPE_HEURISTIC_MAPPING_V2: dict[str, Any] = {
     # Long-Range - Improving Performance
     StoryType.IMPROVING_PERFORMANCE: {
         Granularity.DAY: {
-            "salient_expression": "({{trend_avg_growth}} >= 2) and ({{overall_growth}} >= 5)",
+            "salient_expression": "({{avg_growth}} >= 2) and ({{overall_growth}} >= 5)",
             "cool_off_duration": 7,
         },
         Granularity.WEEK: {
-            "salient_expression": "({{trend_avg_growth}} >= 2) and ({{overall_growth}} >= 5)",
+            "salient_expression": "({{avg_growth}} >= 2) and ({{overall_growth}} >= 5)",
             "cool_off_duration": 2,
         },
         Granularity.MONTH: {
-            "salient_expression": "({{trend_avg_growth}} >= 2) and ({{overall_growth}} >= 5)",
+            "salient_expression": "({{avg_growth}} >= 2) and ({{overall_growth}} >= 5)",
             "cool_off_duration": 2,
         },
     },
     # Long-Range - Worsening Performance
     StoryType.WORSENING_PERFORMANCE: {
         Granularity.DAY: {
-            "salient_expression": "({{trend_avg_growth}} <= -2) and ({{overall_growth}} <= -5)",
+            "salient_expression": "({{avg_growth}} <= -2) and ({{overall_growth}} <= -5)",
             "cool_off_duration": 7,
         },
         Granularity.WEEK: {
-            "salient_expression": "({{trend_avg_growth}} <= -2) and ({{overall_growth}} <= -5)",
+            "salient_expression": "({{avg_growth}} <= -2) and ({{overall_growth}} <= -5)",
             "cool_off_duration": 2,
         },
         Granularity.MONTH: {
-            "salient_expression": "({{trend_avg_growth}} <= -2) and ({{overall_growth}} <= -5)",
+            "salient_expression": "({{avg_growth}} <= -2) and ({{overall_growth}} <= -5)",
             "cool_off_duration": 2,
         },
     },
@@ -242,9 +242,78 @@ STORY_TYPE_HEURISTIC_MAPPING_V2: dict[str, Any] = {
     },
     # Benchmark Comparisons
     StoryType.BENCHMARKS: {
-        # TODO: check if benchmark salient condition is correct
-        Granularity.DAY: {"salient_expression": None, "cool_off_duration": 3},
-        Granularity.WEEK: {"salient_expression": None, "cool_off_duration": 2},
-        Granularity.MONTH: {"salient_expression": None, "cool_off_duration": 1},
+        Granularity.DAY: {"salient_expression": "{{benchmark.deviation_percent}} >= 5", "cool_off_duration": 3},
+        Granularity.WEEK: {"salient_expression": "{{benchmark.deviation_percent}} >= 5", "cool_off_duration": 2},
+        Granularity.MONTH: {"salient_expression": "{{benchmark.deviation_percent}} >= 5", "cool_off_duration": 1},
+    },
+    StoryType.REQUIRED_PERFORMANCE: {
+        Granularity.DAY: {
+            "salient_expression": "{{required_growth}} >= 1",
+            "cool_off_duration": 3,  # 3 days
+        },
+        Granularity.WEEK: {
+            "salient_expression": "{{required_growth}} >= 2",
+            "cool_off_duration": 2,  # 2 weeks
+        },
+        Granularity.MONTH: {
+            "salient_expression": "{{required_growth}} >= 5",
+            "cool_off_duration": 2,  # 2 months
+        },
+    },
+    StoryType.FORECASTED_ON_TRACK: {
+        Granularity.DAY: {
+            "salient_expression": "{{gap_percent}} >= 5",
+            "cool_off_duration": 3,  # 3 days
+        },
+        Granularity.WEEK: {
+            "salient_expression": "{{gap_percent}} >= 5",
+            "cool_off_duration": 2,  # 2 weeks
+        },
+        Granularity.MONTH: {
+            "salient_expression": "{{gap_percent}} >= 5",
+            "cool_off_duration": 1,  # 1 month
+        },
+    },
+    StoryType.FORECASTED_OFF_TRACK: {
+        Granularity.DAY: {
+            "salient_expression": "{{gap_percent}} >= 5",
+            "cool_off_duration": 3,
+        },
+        Granularity.WEEK: {
+            "salient_expression": "{{gap_percent}} >= 5",
+            "cool_off_duration": 2,
+        },
+        Granularity.MONTH: {
+            "salient_expression": "{{gap_percent}} >= 5",
+            "cool_off_duration": 1,
+        },
+    },
+    StoryType.PACING_ON_TRACK: {
+        Granularity.DAY: {
+            "salient_expression": "({{gap_percent}} >= 3) and ({{percent_elapsed}} >= 20)",
+            "cool_off_duration": 2,
+        },
+        Granularity.WEEK: {
+            "salient_expression": "({{gap_percent}} >= 3) and ({{percent_elapsed}} >= 20)",
+            "cool_off_duration": 2,
+        },
+        Granularity.MONTH: {
+            "salient_expression": "({{gap_percent}} >= 3) and ({{percent_elapsed}} >= 20)",
+            "cool_off_duration": 1,
+        },
+    },
+    StoryType.PACING_OFF_TRACK: {
+        Granularity.DAY: {
+            "salient_expression": "({{gap_percent}} >= 3) and ({{percent_elapsed}} >= 20)",
+            "cool_off_duration": 2,
+        },
+        Granularity.WEEK: {
+            "salient_expression": "({{gap_percent}} >= 3) and ({{percent_elapsed}} >= 20)",
+            "cool_off_duration": 2,
+        },
+        Granularity.MONTH: {
+            "salient_expression": "({{gap_percent}} >= 3) and ({{percent_elapsed}} >= 20)",
+            "cool_off_duration": 1,
+        },
     },
 }
