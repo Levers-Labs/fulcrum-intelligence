@@ -19,8 +19,8 @@ from levers.models.patterns import MetricPerformance
 from levers.patterns import Pattern, PerformanceStatusPattern
 
 
-class TestOutputModel(BasePattern):
-    """Test output model for API testing."""
+class MockOutputModel(BasePattern):
+    """Mock output model for API testing."""
 
     result: str
     num_periods: int = 0  # Add default value
@@ -40,15 +40,15 @@ class TestLeversAPI:
         """Mock the pattern registry."""
 
         # Create test pattern
-        class TestPattern(Pattern[TestOutputModel]):
+        class TestPattern(Pattern[MockOutputModel]):
             name = "test_pattern"
             version = "1.0"
             description = "Test pattern"
             required_primitives = []
-            output_model = TestOutputModel
+            output_model = MockOutputModel
 
             def analyze(self, metric_id, data, analysis_window, **kwargs):
-                return TestOutputModel(
+                return MockOutputModel(
                     pattern_name=self.name,
                     version=self.version,
                     metric_id=metric_id,
@@ -234,7 +234,7 @@ class TestLeversAPI:
         mock_pattern_class.return_value = mock_pattern_instance
 
         # Mock analyze method to return a result
-        expected_result = TestOutputModel(
+        expected_result = MockOutputModel(
             pattern="test_pattern",
             pattern_name="test_pattern",
             version="1.0",

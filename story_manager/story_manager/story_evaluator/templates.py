@@ -75,7 +75,7 @@ STORY_TEMPLATES = {
     StoryType.PERFORMANCE_PLATEAU: {
         "title": "Performance has leveled off",
         "detail": "Since {{ trend_start_date|format_date(grain_label) }}, {{ metric.label }} growth has steadied into "
-        "a new normal, hovering"
+        "a new normal, hovering "
         "around a {{ grain_label }} average of {{ trend_avg_growth|format_percent }}%.",
     },
     StoryType.SPIKE: {

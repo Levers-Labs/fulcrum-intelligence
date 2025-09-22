@@ -3,9 +3,8 @@ Story evaluator for the historical performance pattern.
 """
 
 import logging
-from typing import Any, cast
+from typing import Any
 
-import numpy as np
 import pandas as pd
 
 from commons.models.enums import Granularity
@@ -295,7 +294,9 @@ class HistoricalPerformanceEvaluator(StoryEvaluatorBase[HistoricalPerformance]):
 
         # First prepare the series data with growth rates story-specific customizations
         series_df = self._prepare_series_data_with_pop_growth(pattern_result)
-        series_data = self.export_dataframe_as_story_series(series_df, story_type, story_group, grain)
+        series_data = self.export_dataframe_as_story_series(
+            series_df, story_type, story_group, grain, context.get("num_periods_slowing", 0)
+        )
 
         return self.prepare_story_model(
             genre=StoryGenre.GROWTH,
@@ -324,7 +325,9 @@ class HistoricalPerformanceEvaluator(StoryEvaluatorBase[HistoricalPerformance]):
 
         # First prepare the series data with growth rates story-specific customizations
         series_df = self._prepare_series_data_with_pop_growth(pattern_result)
-        series_data = self.export_dataframe_as_story_series(series_df, story_type, story_group, grain)
+        series_data = self.export_dataframe_as_story_series(
+            series_df, story_type, story_group, grain, context.get("num_periods_accelerating", 0)
+        )
 
         return self.prepare_story_model(
             genre=StoryGenre.GROWTH,
@@ -353,9 +356,12 @@ class HistoricalPerformanceEvaluator(StoryEvaluatorBase[HistoricalPerformance]):
         title = render_story_text(story_type, "title", context)
         detail = render_story_text(story_type, "detail", context)
 
+        # get the min series length for the story
+        series_length = context.get("trend_duration", 0) + context.get("prev_trend_duration", 0)
+
         # prepare series data with SPC data
         series_df = self._prepare_trend_changes_series_data(pattern_result)
-        series_data = self.export_dataframe_as_story_series(series_df, story_type, story_group, grain)
+        series_data = self.export_dataframe_as_story_series(series_df, story_type, story_group, grain, series_length)
 
         return self.prepare_story_model(
             genre=StoryGenre.TRENDS,
@@ -383,9 +389,12 @@ class HistoricalPerformanceEvaluator(StoryEvaluatorBase[HistoricalPerformance]):
         title = render_story_text(story_type, "title", context)
         detail = render_story_text(story_type, "detail", context)
 
+        # get the min series length for the story
+        series_length = context.get("trend_duration", 0) + context.get("prev_trend_duration", 0)
+
         # prepare series data with SPC data
         series_df = self._prepare_trend_changes_series_data(pattern_result)
-        series_data = self.export_dataframe_as_story_series(series_df, story_type, story_group, grain)
+        series_data = self.export_dataframe_as_story_series(series_df, story_type, story_group, grain, series_length)
 
         return self.prepare_story_model(
             genre=StoryGenre.TRENDS,
@@ -414,9 +423,12 @@ class HistoricalPerformanceEvaluator(StoryEvaluatorBase[HistoricalPerformance]):
         title = render_story_text(story_type, "title", context)
         detail = render_story_text(story_type, "detail", context)
 
+        # get the min series length for the story
+        series_length = context.get("trend_duration", 0) + context.get("prev_trend_duration", 0)
+
         # prepare series data with SPC data
         series_df = self._prepare_trend_changes_series_data(pattern_result)
-        series_data = self.export_dataframe_as_story_series(series_df, story_type, story_group, grain)
+        series_data = self.export_dataframe_as_story_series(series_df, story_type, story_group, grain, series_length)
 
         return self.prepare_story_model(
             genre=StoryGenre.TRENDS,
@@ -445,9 +457,12 @@ class HistoricalPerformanceEvaluator(StoryEvaluatorBase[HistoricalPerformance]):
         title = render_story_text(story_type, "title", context)
         detail = render_story_text(story_type, "detail", context)
 
+        # get the min series length for the story
+        series_length = context.get("trend_duration", 0) + context.get("prev_trend_duration", 0)
+
         # prepare series data with SPC data
         series_df = self._prepare_trend_changes_series_data(pattern_result)
-        series_data = self.export_dataframe_as_story_series(series_df, story_type, story_group, grain)
+        series_data = self.export_dataframe_as_story_series(series_df, story_type, story_group, grain, series_length)
 
         return self.prepare_story_model(
             genre=StoryGenre.TRENDS,
@@ -544,7 +559,9 @@ class HistoricalPerformanceEvaluator(StoryEvaluatorBase[HistoricalPerformance]):
 
         # First prepare the series data with growth rates story-specific customizations
         series_df = self._prepare_series_data_with_pop_growth(pattern_result)
-        series_data = self.export_dataframe_as_story_series(series_df, story_type, story_group, grain)
+        series_data = self.export_dataframe_as_story_series(
+            series_df, story_type, story_group, grain, context.get("num_periods_improving", 0)
+        )
 
         return self.prepare_story_model(
             genre=StoryGenre.TRENDS,
@@ -576,7 +593,9 @@ class HistoricalPerformanceEvaluator(StoryEvaluatorBase[HistoricalPerformance]):
 
         # First prepare the series data with growth rates story-specific customizations
         series_df = self._prepare_series_data_with_pop_growth(pattern_result)
-        series_data = self.export_dataframe_as_story_series(series_df, story_type, story_group, grain)
+        series_data = self.export_dataframe_as_story_series(
+            series_df, story_type, story_group, grain, context.get("num_periods_worsening", 0)
+        )
 
         return self.prepare_story_model(
             genre=StoryGenre.TRENDS,
@@ -603,7 +622,9 @@ class HistoricalPerformanceEvaluator(StoryEvaluatorBase[HistoricalPerformance]):
         title = render_story_text(story_type, "title", context)
         detail = render_story_text(story_type, "detail", context)
 
-        series_data = self._prepare_record_values_series_data(context["high_duration"])
+        series_data = self.export_dataframe_as_story_series(
+            self.series_df, story_type, story_group, grain, context.get("high_duration", 0)
+        )
 
         return self.prepare_story_model(
             genre=StoryGenre.TRENDS,
@@ -630,7 +651,9 @@ class HistoricalPerformanceEvaluator(StoryEvaluatorBase[HistoricalPerformance]):
         title = render_story_text(story_type, "title", context)
         detail = render_story_text(story_type, "detail", context)
 
-        series_data = self._prepare_record_values_series_data(context["low_duration"])
+        series_data = self.export_dataframe_as_story_series(
+            self.series_df, story_type, story_group, grain, context.get("low_duration", 0)
+        )
 
         return self.prepare_story_model(
             genre=StoryGenre.TRENDS,
@@ -912,22 +935,3 @@ class HistoricalPerformanceEvaluator(StoryEvaluatorBase[HistoricalPerformance]):
         merged_df = pd.merge(series_df, df_to_merge, on="date", how="left").sort_values("date")
 
         return merged_df
-
-    def _prepare_record_values_series_data(self, min_series_length: int) -> list[dict[str, Any]]:
-        """
-        Prepare the series data for record values stories.
-        """
-
-        series = self.series_df if self.series_df is not None else pd.DataFrame()
-
-        # Get the last n rows
-        series = series.tail(min_series_length)
-        series["date"] = pd.to_datetime(series["date"])
-        series["date"] = series["date"].dt.date.apply(lambda d: d.isoformat())
-
-        # Final cleanup: Replace any remaining NaN/inf values before converting to dict
-        series = series.replace([float("inf"), float("-inf"), np.NaN], 0.0)
-
-        # Add the time series data to the result
-        data = series.to_dict(orient="records")
-        return cast(list[dict[str, Any]], data)

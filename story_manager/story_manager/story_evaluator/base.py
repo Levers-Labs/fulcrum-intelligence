@@ -135,7 +135,12 @@ class StoryEvaluatorBase(Generic[T], ABC):
         return story_templates.get(field, "")
 
     def export_dataframe_as_story_series(
-        self, series_df: pd.DataFrame | None, story_type: StoryType, story_group: StoryGroup, grain: Granularity
+        self,
+        series_df: pd.DataFrame | None,
+        story_type: StoryType,
+        story_group: StoryGroup,
+        grain: Granularity,
+        series_length: int | None = None,
     ) -> list[dict[str, Any]]:
         """
         Format the time series data for story display.
@@ -153,7 +158,8 @@ class StoryEvaluatorBase(Generic[T], ABC):
             return []
 
         # Figure out the length of the series to export
-        series_length = self.get_output_length(story_type, story_group, grain)
+        default_series_length = self.get_output_length(story_type, story_group, grain)
+        series_length = max(series_length, default_series_length) if series_length and default_series_length else None
 
         # Convert the date column to datetime and then to ISO format strings
         if "date" in series_df.columns:

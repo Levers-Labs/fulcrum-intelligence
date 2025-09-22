@@ -46,12 +46,14 @@ def test_story_templates():
     assert "growth has slowed" in slowing_growth["detail"]
     assert "current_growth" in slowing_growth["detail"]
     assert "average_growth" in slowing_growth["detail"]
+    assert "num_periods_slowing" in slowing_growth["detail"]
 
     accelerating_growth = STORY_TEMPLATES[StoryType.ACCELERATING_GROWTH]
     assert "growth is speeding up" in accelerating_growth["title"]
     assert "growth has accelerated" in accelerating_growth["detail"]
     assert "current_growth" in accelerating_growth["detail"]
     assert "average_growth" in accelerating_growth["detail"]
+    assert "num_periods_accelerating" in accelerating_growth["detail"]
 
     # Test trend story templates
     stable_trend = STORY_TEMPLATES[StoryType.STABLE_TREND]
@@ -92,14 +94,18 @@ def test_story_templates():
     improving_performance = STORY_TEMPLATES[StoryType.IMPROVING_PERFORMANCE]
     assert "Improved performance" in improving_performance["title"]
     assert "has been averaging" in improving_performance["detail"]
-    assert "trend_duration" in improving_performance["detail"]
-    assert "trend_avg_growth" in improving_performance["detail"]
+    assert "num_periods_improving" in improving_performance["detail"]
+    assert "avg_growth" in improving_performance["detail"]
+    assert "overall_growth" in improving_performance["detail"]
+    assert "start_date" in improving_performance["detail"]
 
     worsening_performance = STORY_TEMPLATES[StoryType.WORSENING_PERFORMANCE]
     assert "Worsening performance" in worsening_performance["title"]
     assert "has been declining" in worsening_performance["detail"]
-    assert "trend_duration" in worsening_performance["detail"]
-    assert "trend_avg_growth" in worsening_performance["detail"]
+    assert "num_periods_worsening" in worsening_performance["detail"]
+    assert "avg_growth" in worsening_performance["detail"]
+    assert "overall_growth" in worsening_performance["detail"]
+    assert "start_date" in worsening_performance["detail"]
 
     # Test seasonality templates
     seasonal_pattern_match = STORY_TEMPLATES[StoryType.SEASONAL_PATTERN_MATCH]

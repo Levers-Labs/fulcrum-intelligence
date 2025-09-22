@@ -498,8 +498,13 @@ async def test_populate_template_context(evaluator, mock_dimension_analysis, moc
 async def test_create_top_segments_story(evaluator, mock_dimension_analysis, mock_metric, monkeypatch, mocker):
     """Test _create_top_segments_story method."""
     set_tenant_id(1)
-    # Mock the HTTP client to avoid Auth0 connection attempts
-    mocker.patch("commons.clients.base.HttpClient._make_request")
+    # Mock the query manager client to avoid HTTP calls
+    mock_query_manager = mocker.AsyncMock()
+    mock_query_manager.get_dimension.return_value = {"label": "Region"}
+    mocker.patch(
+        "story_manager.story_evaluator.evaluators.dimension_analysis.get_query_manager_client",
+        return_value=mock_query_manager,
+    )
 
     # Create a mock implementation that uses metric_value instead of current_value
     async def mock_create_top_segments(self, pattern_result, metric_id, metric, grain):
@@ -571,8 +576,13 @@ async def test_create_top_segments_story(evaluator, mock_dimension_analysis, moc
 async def test_create_bottom_segments_story(evaluator, mock_dimension_analysis, mock_metric, monkeypatch, mocker):
     """Test _create_bottom_segments_story method."""
     set_tenant_id(1)
-    # Mock the HTTP client to avoid Auth0 connection attempts
-    mocker.patch("commons.clients.base.HttpClient._make_request")
+    # Mock the query manager client to avoid HTTP calls
+    mock_query_manager = mocker.AsyncMock()
+    mock_query_manager.get_dimension.return_value = {"label": "Region"}
+    mocker.patch(
+        "story_manager.story_evaluator.evaluators.dimension_analysis.get_query_manager_client",
+        return_value=mock_query_manager,
+    )
 
     # Create a mock implementation that uses metric_value instead of current_value
     async def mock_create_bottom_segments(self, pattern_result, metric_id, metric, grain):
@@ -644,8 +654,13 @@ async def test_create_bottom_segments_story(evaluator, mock_dimension_analysis, 
 async def test_create_new_strongest_segment_story(evaluator, mock_dimension_analysis, mock_metric, monkeypatch, mocker):
     """Test _create_new_strongest_segment_story method."""
     set_tenant_id(1)
-    # Mock the HTTP client to avoid Auth0 connection attempts
-    mocker.patch("commons.clients.base.HttpClient._make_request")
+    # Mock the query manager client to avoid HTTP calls
+    mock_query_manager = mocker.AsyncMock()
+    mock_query_manager.get_dimension.return_value = {"label": "Region"}
+    mocker.patch(
+        "story_manager.story_evaluator.evaluators.dimension_analysis.get_query_manager_client",
+        return_value=mock_query_manager,
+    )
 
     # Create a mock implementation that handles null cases properly
     async def mock_create_strongest_segment(self, pattern_result, metric_id, metric, grain):
@@ -726,8 +741,13 @@ async def test_create_new_strongest_segment_story(evaluator, mock_dimension_anal
 async def test_create_new_weakest_segment_story(evaluator, mock_dimension_analysis, mock_metric, monkeypatch, mocker):
     """Test _create_new_weakest_segment_story method."""
     set_tenant_id(1)
-    # Mock the HTTP client to avoid Auth0 connection attempts
-    mocker.patch("commons.clients.base.HttpClient._make_request")
+    # Mock the query manager client to avoid HTTP calls
+    mock_query_manager = mocker.AsyncMock()
+    mock_query_manager.get_dimension.return_value = {"label": "Region"}
+    mocker.patch(
+        "story_manager.story_evaluator.evaluators.dimension_analysis.get_query_manager_client",
+        return_value=mock_query_manager,
+    )
 
     # Create a mock implementation that handles null cases properly
     async def mock_create_weakest_segment(self, pattern_result, metric_id, metric, grain):
@@ -806,8 +826,13 @@ async def test_create_new_weakest_segment_story(evaluator, mock_dimension_analys
 async def test_create_largest_segment_story(evaluator, mock_dimension_analysis, mock_metric, monkeypatch, mocker):
     """Test _create_largest_segment_story method."""
     set_tenant_id(1)
-    # Mock the HTTP client to avoid Auth0 connection attempts
-    mocker.patch("commons.clients.base.HttpClient._make_request")
+    # Mock the query manager client to avoid HTTP calls
+    mock_query_manager = mocker.AsyncMock()
+    mock_query_manager.get_dimension.return_value = {"label": "Region"}
+    mocker.patch(
+        "story_manager.story_evaluator.evaluators.dimension_analysis.get_query_manager_client",
+        return_value=mock_query_manager,
+    )
 
     # Create a mock implementation that handles null cases properly
     async def mock_create_largest_segment(self, pattern_result, metric_id, metric, grain):
@@ -882,8 +907,13 @@ async def test_create_largest_segment_story(evaluator, mock_dimension_analysis, 
 async def test_create_smallest_segment_story(evaluator, mock_dimension_analysis, mock_metric, monkeypatch, mocker):
     """Test _create_smallest_segment_story method."""
     set_tenant_id(1)
-    # Mock the HTTP client to avoid Auth0 connection attempts
-    mocker.patch("commons.clients.base.HttpClient._make_request")
+    # Mock the query manager client to avoid HTTP calls
+    mock_query_manager = mocker.AsyncMock()
+    mock_query_manager.get_dimension.return_value = {"label": "Region"}
+    mocker.patch(
+        "story_manager.story_evaluator.evaluators.dimension_analysis.get_query_manager_client",
+        return_value=mock_query_manager,
+    )
 
     # Create a mock implementation that handles null cases properly
     async def mock_create_smallest_segment(self, pattern_result, metric_id, metric, grain):
