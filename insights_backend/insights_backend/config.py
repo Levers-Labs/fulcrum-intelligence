@@ -65,6 +65,11 @@ class Settings(BaseSettings):
     # Sentry
     SENTRY_DSN: str | None = None
 
+    # Caching - centralized in commons/cache
+    CACHE_PREFIX: str = "ib-cache"  # insights-backend cache
+    CACHE_TTL_SECONDS: int = 300  # Default 5 minutes
+    REDIS_URL: str | None = None  # e.g. "redis://redis:6379" or "rediss://..."
+
     @field_validator("BACKEND_CORS_ORIGINS", mode="before")
     @classmethod
     def assemble_cors_origins(cls, v: str | list[str]) -> list[str] | str:
