@@ -764,6 +764,12 @@ def identify_largest_smallest_by_share(
     df_current_asc = df_current_filtered.sort_values(share_col, ascending=True).reset_index(drop=True)
     df_prior_asc = df_prior_filtered.sort_values(share_col, ascending=True).reset_index(drop=True)
 
+    # if both have the same current share of volume percent i.e 50% both having the same share, return None, None
+    if float(df_current_desc.iloc[0][share_col]) == 50.0:
+        return None, None
+    if float(df_current_asc.iloc[0][share_col]) == 50.0:
+        return None, None
+
     # Create largest slice
     largest_slice = SliceShare(
         slice_value=df_current_desc.iloc[0][slice_col],
@@ -834,6 +840,9 @@ def identify_strongest_weakest_changes(
     if curr_strongest != prior_strongest:
         # Get the row for the new strongest slice
         curr_strongest_row = df[df[slice_col] == curr_strongest].iloc[0]
+        if curr_strongest_row[current_val_col] == curr_strongest_row[prior_val_col]:
+            return None, None
+
         relative_change = (
             calculate_relative_change(curr_strongest_row[current_val_col], curr_strongest_row[prior_val_col])
             if curr_strongest_row[prior_val_col] != 0
@@ -928,6 +937,9 @@ def highlight_slice_comparisons(
         for j in range(i + 1, len(slices)):
             slice_a = slices[i]
             slice_b = slices[j]
+
+            if slice_a[current_val_col] == slice_b[current_val_col]:
+                continue
 
             # Calculate current gap
             gap_now = None

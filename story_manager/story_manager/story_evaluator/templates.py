@@ -67,7 +67,7 @@ STORY_TEMPLATES = {
     StoryType.NEW_DOWNWARD_TREND: {
         "title": "New downward trend",
         "detail": "Since {{ trend_start_date|format_date(grain_label) }}, {{ metric.label }} has been following a "
-        "new, downward trend line"
+        "new, downward trend line "
         "that averages {{ trend_avg_growth|format_percent }}% {{ pop }} decline. The prior trend for this "
         "metric lasted {{ prev_trend_duration }} {{ grain_label }}s and averaged {{ "
         "prev_trend_avg_growth|format_percent }}% {{ pop }} growth.",
@@ -166,7 +166,7 @@ STORY_TEMPLATES = {
         "title": "{{ segment_name }} is now the best-performing segment ({{ dimension_label }})",
         "detail": "{{ segment_name }} is now the strongest performing segment with an average {{ metric.label }} "
         "value of {{ current_value|format_with_unit(metric.unit) }} -- {{ diff_from_avg_percent|format_percent }}% "
-        "higher"
+        "higher "
         "than the average across all segments of {{ avg_value|format_with_unit(metric.unit) }}. Meanwhile, "
         "the previously"
         "strongest segment {{ previous_segment }} is {{ trend_direction }} {{ change_percent|format_percent "
@@ -231,7 +231,7 @@ STORY_TEMPLATES = {
         "detail": "{{ metric.label }} must average a {{ required_growth|format_percent }}% {{ pop }} growth rate over "
         "the next {{ remaining_periods }} {{ grain_label }}s to meet its end of {{ period }} target of {{ "
         "target_value|format_with_unit(metric.unit) }}. This is a {{ growth_difference|format_percent }}% {{ "
-        "trend_direction }} over"
+        "trend_direction }} over "
         "the {{ previous_growth|format_percent }}% {{ pop }} growth over the past {{ previous_periods }} {{ "
         "grain_label }}s.",
     },

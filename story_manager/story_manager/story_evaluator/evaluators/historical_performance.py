@@ -118,6 +118,7 @@ class HistoricalPerformanceEvaluator(StoryEvaluatorBase[HistoricalPerformance]):
         return (
             pattern_result.previous_trend is not None
             and pattern_result.current_trend.trend_type != pattern_result.previous_trend.trend_type  # type: ignore
+            and pattern_result.current_trend.average_pop_growth != pattern_result.previous_trend.average_pop_growth  # type: ignore
         )
 
     def _has_valid_benchmarks(self, benchmark_comparison) -> bool:

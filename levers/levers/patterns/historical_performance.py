@@ -119,8 +119,8 @@ class HistoricalPerformancePattern(Pattern[HistoricalPerformance]):
             # Filter to specified number of periods
             period_data = self._filter_to_periods(indexed_data, num_periods)
 
-            # If insufficient data after filtering, return minimal output
-            if len(period_data) < 2:
+            # If insufficient data or all values are 0 or NaN after filtering, return minimal output
+            if len(period_data) < 2 or all(period_data["value"].isna() | (period_data["value"] == 0)):
                 logger.info("Insufficient data after filtering for metric_id=%s. Returning minimal output.", metric_id)
                 return self.handle_empty_data(metric_id, analysis_window)
 

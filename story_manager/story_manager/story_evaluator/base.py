@@ -159,7 +159,10 @@ class StoryEvaluatorBase(Generic[T], ABC):
 
         # Figure out the length of the series to export
         default_series_length = self.get_output_length(story_type, story_group, grain)
-        series_length = max(series_length, default_series_length) if series_length and default_series_length else None
+        if series_length and default_series_length:
+            series_length = max(series_length, default_series_length)
+        else:
+            series_length = series_length or default_series_length or None
 
         # Convert the date column to datetime and then to ISO format strings
         if "date" in series_df.columns:

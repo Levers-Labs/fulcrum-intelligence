@@ -200,7 +200,11 @@ class TestForecastingEvaluator:
             assert (
                 story["story_group"] == StoryGroup.LIKELY_STATUS
                 if story["story_type"] != StoryType.REQUIRED_PERFORMANCE
-                else StoryGroup.REQUIRED_PERFORMANCE
+                else (
+                    StoryGroup.REQUIRED_PERFORMANCE
+                    if story["story_type"] != StoryType.REQUIRED_PERFORMANCE
+                    else StoryGroup.REQUIRED_PERFORMANCE
+                )
             )
             assert story["metric_id"] == "test_metric"
             assert story["grain"] == Granularity.DAY
@@ -406,7 +410,7 @@ class TestForecastingEvaluator:
         )
 
         assert story["story_type"] == StoryType.REQUIRED_PERFORMANCE
-        assert story["story_group"] == StoryGroup.LIKELY_STATUS
+        assert story["story_group"] == StoryGroup.REQUIRED_PERFORMANCE
         assert story["genre"] == StoryGenre.PERFORMANCE
 
     def test_calculate_cumulative_series_basic(self, evaluator):
