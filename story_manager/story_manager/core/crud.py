@@ -80,7 +80,7 @@ class CRUDStory(CRUDBase[Story, Story, Story, StoryFilter]):
         result = await self.session.execute(statement=statement)
 
         # Get the unique result or None if no result is found
-        instance: Story | None = result.unique().scalar_one_or_none()  # noqa
+        instance: Story | None = await result.unique().scalar_one_or_none()  # noqa
 
         return instance
 
@@ -217,7 +217,7 @@ class CRUDStoryConfig(CRUDBase[StoryConfig, StoryConfig, StoryConfig, StoryConfi
         results = await self.session.execute(statement=statement)
 
         # Get the unique result or None if no result is found
-        instance: StoryConfig | None = results.unique().scalar_one_or_none()  # noqa
+        instance: StoryConfig | None = await results.unique().scalar_one_or_none()  # noqa
 
         # Return the StoryConfig instance or None
         return instance
