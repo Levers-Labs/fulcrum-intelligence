@@ -14,8 +14,7 @@
       "strategy": "fixed_time",
       "days": 180,
       "min_days": 30,
-      "max_days": 365,
-      "include_today": true
+      "max_days": 365
     },
     "settings": {
       "threshold_ratio": 0.05
@@ -38,8 +37,7 @@
       "strategy": "fixed_time",
       "days": 180,
       "min_days": 30,
-      "max_days": 365,
-      "include_today": true
+      "max_days": 365
     },
     "settings": {},
     "meta": {}
@@ -60,8 +58,7 @@
       "strategy": "fixed_time",
       "days": 730,
       "min_days": 365,
-      "max_days": 730,
-      "include_today": true
+      "max_days": 730
     },
     "settings": {
       "dimension_name": "dimension",
@@ -92,8 +89,7 @@
       "strategy": "fixed_time",
       "days": 365,
       "min_days": 90,
-      "max_days": 730,
-      "include_today": true
+      "max_days": 730
     },
     "settings": {
       "confidence_level": 0.95,

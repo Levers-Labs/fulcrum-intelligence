@@ -33,10 +33,11 @@ logger = logging.getLogger(__name__)
     group_name="time_series",
     description="Daily metric time series data",
     metadata={"grain": "daily", "type": "time_series", "owner": "data-platform"},
+    output_required=False,
 )
-async def metric_time_series_daily(
+async def metric_time_series_daily(  # type: ignore
     context: AssetExecutionContext, app_config: AppConfigResource, db: DbResource
-) -> MaterializeResult:
+) -> MaterializeResult | None:
     """
     Captures daily metric data from cube.
     Idempotent - can be re-run safely for backfills.
@@ -74,13 +75,18 @@ async def metric_time_series_daily(
     if not response.success:
         raise Exception(f"Semantic sync failed: {response.error_message}")
 
+    # Skip materialization if no records were processed
+    if response.records_processed == 0:
+        context.log.warning(f"No records processed for {metric_context} on {date_str}, skipping materialization")
+        return
+
     context.log.info(
         f"Daily sync completed for {metric_context}: "
         f"{response.records_processed} records, "
         f"{response.dimensions_processed} dimensions, "
         f"{response.duration_seconds:.2f}s"
     )
-    return MaterializeResult(metadata=response.model_dump(mode="json"))
+    yield MaterializeResult(metadata=response.model_dump(mode="json"))
 
 
 # ============================================
@@ -91,10 +97,11 @@ async def metric_time_series_daily(
     group_name="time_series",
     description="Weekly metric time series data",
     metadata={"grain": "weekly", "type": "time_series", "owner": "data-platform"},
+    output_required=False,
 )
-async def metric_time_series_weekly(
+async def metric_time_series_weekly(  # type: ignore
     context: AssetExecutionContext, app_config: AppConfigResource, db: DbResource
-) -> MaterializeResult:
+) -> MaterializeResult | None:
     """
     Captures weekly metric data from cube.
     No aggregation - fetches directly from cube like daily.
@@ -134,6 +141,13 @@ async def metric_time_series_weekly(
     if not response.success:
         raise Exception(f"Semantic sync failed: {response.error_message}")
 
+    # Skip materialization if no records were processed
+    if response.records_processed == 0:
+        context.log.warning(
+            f"No records processed for {metric_context} for week starting {sync_date}, skipping materialization"
+        )
+        return
+
     context.log.info(
         f"Weekly sync completed for {metric_context}: "
         f"{response.records_processed} records, "
@@ -141,7 +155,7 @@ async def metric_time_series_weekly(
         f"{response.duration_seconds:.2f}s"
     )
 
-    return MaterializeResult(metadata=response.model_dump(mode="json"))
+    yield MaterializeResult(metadata=response.model_dump(mode="json"))
 
 
 # ============================================
@@ -152,10 +166,11 @@ async def metric_time_series_weekly(
     group_name="time_series",
     description="Monthly metric time series data",
     metadata={"grain": "monthly", "type": "time_series", "owner": "data-platform"},
+    output_required=False,
 )
-async def metric_time_series_monthly(
+async def metric_time_series_monthly(  # type: ignore
     context: AssetExecutionContext, app_config: AppConfigResource, db: DbResource
-) -> MaterializeResult:
+) -> MaterializeResult | None:
     """
     Captures monthly metric data from cube.
     No aggregation - fetches directly from cube like daily.
@@ -195,6 +210,13 @@ async def metric_time_series_monthly(
     if not response.success:
         raise Exception(f"Semantic sync failed: {response.error_message}")
 
+    # Skip materialization if no records were processed
+    if response.records_processed == 0:
+        context.log.warning(
+            f"No records processed for {metric_context} on {month_str} ({sync_date}), skipping materialization"
+        )
+        return
+
     context.log.info(
         f"Monthly sync completed for {metric_context}: "
         f"{response.records_processed} records, "
@@ -202,4 +224,4 @@ async def metric_time_series_monthly(
         f"{response.duration_seconds:.2f}s"
     )
 
-    return MaterializeResult(metadata=response.model_dump(mode="json"))
+    yield MaterializeResult(metadata=response.model_dump(mode="json"))

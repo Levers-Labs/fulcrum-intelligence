@@ -6,6 +6,7 @@ from levers.api import Levers
 from levers.exceptions import (
     CalculationError,
     DataError,
+    InsufficientDataError,
     LeversError,
     PatternError,
     ValidationError,
@@ -19,4 +20,5 @@ __all__ = [
     "DataError",
     "CalculationError",
     "PatternError",
+    "InsufficientDataError",
 ]

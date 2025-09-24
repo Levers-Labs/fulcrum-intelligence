@@ -166,20 +166,19 @@ async def get_targets_stats(
 
 @router.get(
     "/metrics/targets",
-    response_model=Page[TargetResponse],
+    response_model=list[TargetResponse],
     summary="Get targets for metrics",
     dependencies=[Security(oauth2_auth().verify, scopes=[QUERY_MANAGER_ALL])],
     tags=["targets"],
 )
 async def get_targets(
-    params: Annotated[PaginationParams, Depends(PaginationParams)],
     semantic_manager: SemanticManagerDep,
     metric_ids: Annotated[list[str] | None, Query(description="List of metric IDs")] = None,
     grain: Granularity | None = None,
     target_date: date | None = None,
     start_date: date | None = None,
     end_date: date | None = None,
-) -> Page[TargetResponse]:
+) -> list[TargetResponse]:
     """
     Get targets for metrics with optional filtering.
 
@@ -202,11 +201,10 @@ async def get_targets(
     )
 
     # Get database results
-    results, count = await semantic_manager.metric_target.paginate(
-        filter_params=targets_filter.model_dump(exclude_unset=True), params=params
+    results = await semantic_manager.metric_target.list_targets(
+        filter_params=targets_filter.model_dump(exclude_unset=True)
     )
-
-    return Page.create(items=results, total_count=count, params=params)
+    return [TargetResponse.model_validate(target) for target in results]
 
 
 @router.get(

@@ -775,6 +775,49 @@ async def test_delete_targets_no_tenant_id(metric_target_crud, monkeypatch):
         await metric_target_crud.delete_targets(metric_id="test_metric", grain=Granularity.DAY)
 
 
+async def test_list_targets(metric_target_crud, sample_targets):
+    """Test listing targets."""
+    set_tenant_id(1)
+    await metric_target_crud.bulk_upsert_targets(sample_targets)
+    filter_params = dict(metric_ids=["test_metric"])
+    targets = await metric_target_crud.list_targets(filter_params=filter_params)
+    assert len(targets) == 2
+    assert targets[0].target_date == date(2024, 1, 1)
+    assert targets[0].target_value == 100.0
+    assert targets[1].target_date == date(2024, 1, 2)
+    assert targets[1].target_value == 200.0
+
+
+async def test_list_targets_no_filters(metric_target_crud, sample_targets):
+    """Test listing targets with no metric ID."""
+    set_tenant_id(1)
+    await metric_target_crud.bulk_upsert_targets(sample_targets)
+    targets = await metric_target_crud.list_targets(filter_params=dict())
+    assert len(targets) == 2
+    assert targets[0].target_date == date(2024, 1, 1)
+    assert targets[0].target_value == 100.0
+    assert targets[1].target_date == date(2024, 1, 2)
+    assert targets[1].target_value == 200.0
+
+
+async def test_targets_stats(metric_target_crud, sample_targets):
+    """Test targets stats."""
+    set_tenant_id(1)
+    await metric_target_crud.bulk_upsert_targets(sample_targets)
+    stats = await metric_target_crud.get_metrics_targets_stats(
+        params=PaginationParams(limit=10, offset=0), metric_label="test_metric"
+    )
+    assert len(stats) == 2
+
+
+async def test_targets_stats_no_filters(metric_target_crud, sample_targets):
+    """Test targets stats with no filters."""
+    set_tenant_id(1)
+    await metric_target_crud.bulk_upsert_targets(sample_targets)
+    stats = await metric_target_crud.get_metrics_targets_stats(params=PaginationParams(limit=10, offset=0))
+    assert len(stats) == 2
+
+
 # Tests for SnowflakeSemanticCacheManager
 
 
