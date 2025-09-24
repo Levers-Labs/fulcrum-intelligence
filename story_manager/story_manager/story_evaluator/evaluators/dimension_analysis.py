@@ -5,15 +5,13 @@ Story evaluator for the dimension analysis pattern.
 import logging
 from typing import Any
 
-import numpy as np
-
 from commons.models.enums import Granularity
 from levers.models.dimensional_analysis import SliceShare, SliceStrength
 from levers.models.patterns.dimension_analysis import DimensionAnalysis
 from story_manager.core.dependencies import get_query_manager_client
 from story_manager.core.enums import StoryGenre, StoryGroup, StoryType
 from story_manager.story_evaluator import StoryEvaluatorBase, render_story_text
-from story_manager.story_evaluator.utils import format_date_column, format_segment_names
+from story_manager.story_evaluator.utils import format_segment_names
 
 logger = logging.getLogger(__name__)
 
@@ -491,7 +489,7 @@ class DimensionAnalysisEvaluator(StoryEvaluatorBase[DimensionAnalysis]):
         title = render_story_text(story_type, "title", context)
         detail = render_story_text(story_type, "detail", context)
 
-        series_data = self._prepare_comparison_series_data(pattern_result)
+        series_data = self._prepare_comparison_series_data(pattern_result, story_type, story_group, grain)
 
         # Prepare the story model
         return self.prepare_story_model(
@@ -532,7 +530,7 @@ class DimensionAnalysisEvaluator(StoryEvaluatorBase[DimensionAnalysis]):
         title = render_story_text(story_type, "title", context)
         detail = render_story_text(story_type, "detail", context)
 
-        series_data = self._prepare_strongest_weakest_series_data(pattern_result, story_type)
+        series_data = self._prepare_strongest_weakest_series_data(pattern_result, story_type, story_group, grain)
 
         # Prepare the story model
         return self.prepare_story_model(
@@ -574,7 +572,7 @@ class DimensionAnalysisEvaluator(StoryEvaluatorBase[DimensionAnalysis]):
         title = render_story_text(story_type, "title", context)
         detail = render_story_text(story_type, "detail", context)
 
-        series_data = self._prepare_strongest_weakest_series_data(pattern_result, story_type)
+        series_data = self._prepare_strongest_weakest_series_data(pattern_result, story_type, story_group, grain)
 
         # Prepare the story model
         return self.prepare_story_model(
@@ -616,7 +614,7 @@ class DimensionAnalysisEvaluator(StoryEvaluatorBase[DimensionAnalysis]):
         title = render_story_text(story_type, "title", context)
         detail = render_story_text(story_type, "detail", context)
 
-        series_data = self._prepare_largest_smallest_series_data(pattern_result, story_type)
+        series_data = self._prepare_largest_smallest_series_data(pattern_result, story_type, story_group, grain)
 
         # Prepare the story model
         return self.prepare_story_model(
@@ -658,7 +656,7 @@ class DimensionAnalysisEvaluator(StoryEvaluatorBase[DimensionAnalysis]):
         title = render_story_text(story_type, "title", context)
         detail = render_story_text(story_type, "detail", context)
 
-        series_data = self._prepare_largest_smallest_series_data(pattern_result, story_type)
+        series_data = self._prepare_largest_smallest_series_data(pattern_result, story_type, story_group, grain)
 
         # Prepare the story model
         return self.prepare_story_model(
@@ -674,12 +672,17 @@ class DimensionAnalysisEvaluator(StoryEvaluatorBase[DimensionAnalysis]):
             **context,
         )
 
-    def _prepare_comparison_series_data(self, pattern_result: DimensionAnalysis) -> list[dict[str, Any]]:
+    def _prepare_comparison_series_data(
+        self, pattern_result: DimensionAnalysis, story_type: StoryType, story_group: StoryGroup, grain: Granularity
+    ) -> list[dict[str, Any]]:
         """
         Prepare series data for comparison stories.
 
         Args:
             pattern_result: Dimension analysis pattern result
+            story_type: The type of story being generated
+            story_group: The group of story being generated
+            grain: The granularity of the analysis
 
         Returns:
             List containing dictionary with series data separated by segments
@@ -688,17 +691,12 @@ class DimensionAnalysisEvaluator(StoryEvaluatorBase[DimensionAnalysis]):
         comparison = max(pattern_result.comparison_highlights, key=lambda x: abs(x.performance_gap_percent or 0))
 
         segments = {"segment_a": comparison.slice_a, "segment_b": comparison.slice_b}
-
         result: dict = {key: [] for key in segments}
 
         if self.series_df is None or self.series_df.empty:
             return [result]  # Return list with empty result dictionary
 
         series_df = self.series_df.copy()
-
-        # Ensure date column is present and properly formatted
-        if "date" in series_df.columns:
-            series_df = format_date_column(series_df)
 
         # Filter for the current dimension only to avoid cross-dimension duplicates
         series_df = series_df[series_df["dimension_name"] == pattern_result.dimension_name]
@@ -708,21 +706,29 @@ class DimensionAnalysisEvaluator(StoryEvaluatorBase[DimensionAnalysis]):
         if filtered_df.empty:
             return [result]  # Return list with empty result dictionary
 
-        # Build segment-wise data
+        # Build segment-wise data using the base class method
         for key, segment in segments.items():
             segment_df = filtered_df[filtered_df["dimension_slice"] == segment]
             if not segment_df.empty:
-                # Final cleanup: Replace any remaining NaN/inf values
-                segment_df = segment_df.replace([float("inf"), float("-inf"), np.NaN], 0.0)
-                result[key] = segment_df[["date", "dimension_slice", "value"]].to_dict(orient="records")
+                # Use the base class method to get properly formatted series data
+                formatted_data = self.export_dataframe_as_story_series(
+                    segment_df[["date", "dimension_slice", "value"]], story_type, story_group, grain
+                )
+                result[key] = formatted_data
 
         return [result]
 
     def _prepare_strongest_weakest_series_data(
-        self, pattern_result: DimensionAnalysis, story_type: StoryType
+        self, pattern_result: DimensionAnalysis, story_type: StoryType, story_group: StoryGroup, grain: Granularity
     ) -> list[dict[str, Any]]:
         """
         Prepare series data for strongest / weakest stories.
+
+        Args:
+            pattern_result: Dimension analysis pattern result
+            story_type: The type of story being generated
+            story_group: The group of story being generated
+            grain: The granularity of the analysis
 
         Returns:
             Dictionary with 'current', 'prior', and 'average' series data.
@@ -742,9 +748,6 @@ class DimensionAnalysisEvaluator(StoryEvaluatorBase[DimensionAnalysis]):
             return [result]
 
         series_df = self.series_df.copy()
-        # Ensure date column is present and properly formatted
-        if "date" in series_df.columns:
-            series_df = format_date_column(series_df)
 
         # Filter for the current dimension only to avoid cross-dimension duplicates
         series_df = series_df[series_df["dimension_name"] == pattern_result.dimension_name]
@@ -755,21 +758,23 @@ class DimensionAnalysisEvaluator(StoryEvaluatorBase[DimensionAnalysis]):
         # Group to compute average value per date across all slices
         avg_df = series_df.groupby("date", as_index=False)["value"].mean()
 
-        # Build segment-wise data
+        # Build segment-wise data using base class method
         for key, segment in {"current": current_slice, "prior": previous_slice}.items():
             seg_df = filtered_df[filtered_df["dimension_slice"] == segment]
             if not seg_df.empty:
-                # Final cleanup: Replace any remaining NaN/inf values before converting to dict
-                seg_df = seg_df.replace([float("inf"), float("-inf"), np.NaN], 0.0)
-                result[key] = seg_df.rename(columns={"dimension_slice": "segment"})[
-                    ["date", "segment", "value"]
-                ].to_dict(orient="records")
+                # Use base class method to get properly formatted series data
+                formatted_data = self.export_dataframe_as_story_series(
+                    seg_df.rename(columns={"dimension_slice": "segment"})[["date", "segment", "value"]],
+                    story_type,
+                    story_group,
+                    grain,
+                )
+                result[key] = formatted_data
 
-        # Build average data
+        # Build average data using base class method
         if not avg_df.empty:
-            # Final cleanup: Replace any remaining NaN/inf values before converting to dict
-            avg_df = avg_df.replace([float("inf"), float("-inf"), np.NaN], 0.0)
-            result["average"] = avg_df.to_dict(orient="records")  # type: ignore
+            formatted_avg_data = self.export_dataframe_as_story_series(avg_df, story_type, story_group, grain)
+            result["average"] = formatted_avg_data
 
         return [result]
 
@@ -811,13 +816,19 @@ class DimensionAnalysisEvaluator(StoryEvaluatorBase[DimensionAnalysis]):
         return segments
 
     def _prepare_largest_smallest_series_data(
-        self, pattern_result: DimensionAnalysis, story_type: StoryType
+        self, pattern_result: DimensionAnalysis, story_type: StoryType, story_group: StoryGroup, grain: Granularity
     ) -> list[dict[str, Any]]:
         """
-        Prepare series data for segment comparison stories.
+        Prepare series data for largest/smallest segment stories.
+
+        Args:
+            pattern_result: Dimension analysis pattern result
+            story_type: The type of story being generated
+            story_group: The group of story being generated
+            grain: The granularity of the analysis
 
         Returns:
-            Dictionary with 'current', 'prior', and 'average' series data.
+            Dictionary with 'current' and 'prior' series data.
         """
         slice_obj = (
             pattern_result.largest_slice
@@ -838,24 +849,23 @@ class DimensionAnalysisEvaluator(StoryEvaluatorBase[DimensionAnalysis]):
 
         series_df = self.series_df.copy()
 
-        # Format dates using utility method
-        if "date" in series_df.columns:
-            series_df = format_date_column(series_df)
-
         # Filter for the current dimension only to avoid cross-dimension duplicates
         series_df = series_df[series_df["dimension_name"] == pattern_result.dimension_name]
 
         # Filter for current and previous segments
         filtered_df = series_df[series_df["dimension_slice"].isin([current_slice, previous_slice])]
 
-        # Build segment-wise data
+        # Build segment-wise data using base class method
         for key, segment in {"current": current_slice, "prior": previous_slice}.items():
             seg_df = filtered_df[filtered_df["dimension_slice"] == segment]
             if not seg_df.empty:
-                # Final cleanup: Replace any remaining NaN/inf values before converting to dict
-                seg_df = seg_df.replace([float("inf"), float("-inf"), np.NaN], 0.0)
-                result[key] = seg_df.rename(columns={"dimension_slice": "segment"})[
-                    ["date", "segment", "value"]
-                ].to_dict(orient="records")
+                # Use base class method to get properly formatted series data
+                formatted_data = self.export_dataframe_as_story_series(
+                    seg_df.rename(columns={"dimension_slice": "segment"})[["date", "segment", "value"]],
+                    story_type,
+                    story_group,
+                    grain,
+                )
+                result[key] = formatted_data
 
         return [result]
