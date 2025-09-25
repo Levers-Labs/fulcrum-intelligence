@@ -31,6 +31,10 @@ class DataSource(BaseModel):
         default=False,
         description="Whether this data source needs future period end dates " "instead of historical range",
     )
+    include_all_grains: bool = Field(
+        default=False,
+        description="Whether to fetch data for all grains instead of the specific requested grain",
+    )
     meta: dict[str, Any] = Field(default_factory=dict)
 
 

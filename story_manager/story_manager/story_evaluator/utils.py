@@ -11,20 +11,86 @@ from story_manager.core.enums import StoryType
 from story_manager.story_evaluator.templates import STORY_TEMPLATES
 
 
-def format_number(value: float | None, precision: int = 2) -> str:
+def format_number(value: float | None, precision: int = 2, compact: bool = True, smart_precision: bool = True) -> str:
     """
-    Format a number with specified precision.
+    Smart number formatter with magnitude-based precision and compact notation.
+
 
     Args:
         value: Number to format
-        precision: Decimal precision
+        precision: Maximum decimal precision (can be overridden by smart logic)
+        compact: Whether to use compact notation (K, M, B, T) for large numbers
+        smart_precision: Whether to use magnitude-based smart precision
 
     Returns:
-        Formatted number string
+        Formatted number string with intelligent precision and optional compact notation
+
+    Examples:
+        format_number(1500)              # "1.5K"
+        format_number(1500000)           # "1.5M"
+        format_number(123.45)            # "123"
+        format_number(12.345)            # "12.3"
+        format_number(1.2345)            # "1.23"
+        format_number(0.12345)           # "0.123"
+        format_number(1500, compact=False)  # "1,500"
     """
     if value is None:
         return "N/A"
-    return f"{value:.{precision}f}"
+
+    if not (isinstance(value, (int, float)) and abs(value) < float("inf")):
+        return "0"
+
+    abs_value = abs(value)
+
+    # Handle compact notation for large numbers
+    if compact and abs_value >= 1000:
+        # Determine suffix and abbreviated value
+        if abs_value >= 1_000_000_000_000:  # Trillion
+            abbreviated, suffix = value / 1_000_000_000_000, "T"
+        elif abs_value >= 1_000_000_000:  # Billion
+            abbreviated, suffix = value / 1_000_000_000, "B"
+        elif abs_value >= 1_000_000:  # Million
+            abbreviated, suffix = value / 1_000_000, "M"
+        else:  # Thousand
+            abbreviated, suffix = value / 1_000, "K"
+
+        # Smart decimals for abbreviated numbers
+        if smart_precision:
+            decimals = 1  # Consistent 1 decimal for all abbreviated numbers: "302.2K", "1.5K", "12.3M"
+        else:
+            decimals = precision
+
+        # Handle edge case first (e.g., 999.95K -> 1000.0K should be 1M)
+        formatted = f"{abbreviated:.{decimals}f}"
+        if float(formatted) >= 1000:
+            next_tier = {"K": "1M", "M": "1B", "B": "1T"}.get(suffix, formatted + suffix)
+            return next_tier
+
+        # Format with clean display
+        if decimals == 0 or abbreviated == int(abbreviated):
+            return f"{int(abbreviated)}{suffix}"
+        else:
+            return f"{formatted}{suffix}"
+
+    # Non-compact formatting with smart precision
+    if smart_precision:
+        if abs_value >= 100:
+            return f"{value:,.0f}"  # 100+ -> "1,234" (no decimals)
+        elif abs_value >= 10:
+            return f"{value:.1f}"  # 10-99 -> "12.3" (1 decimal)
+        elif abs_value >= 1:
+            return f"{value:.{min(precision, 2)}f}"  # 1-9 -> "1.23" (up to 2 decimals)
+        else:
+            # Small numbers get more precision but capped at 3
+            decimals = min(precision, 3)
+            formatted = f"{value:.{decimals}f}"
+            # Remove trailing zeros for cleaner display
+            return formatted.rstrip("0").rstrip(".")
+    else:
+        # Fallback to original behavior
+        if abs_value >= 1000 and not compact:
+            return f"{value:,.{precision}f}"  # Add comma separators for large numbers
+        return f"{value:.{precision}f}"
 
 
 def format_percent(value: float | None, precision: int = 1) -> str:
@@ -59,14 +125,23 @@ def format_with_unit(value: float | None, unit: str | None = None, precision: in
         return "N/A"
 
     if unit is None or unit.lower() == "n":
-        # For "n" unit or no unit, just format as number
-        return f"{value:.{precision}f}"
+        # For "n" unit or no unit, use smart number formatting
+        return format_number(value, precision=precision, compact=True, smart_precision=True)
     elif unit == "$":
-        # For dollar amounts, add dollar sign prefix
-        return f"${value:,.{precision}f}"
+        # For dollar amounts, add dollar sign prefix with smart formatting
+        smart_amount = format_number(value, precision=precision, compact=True, smart_precision=True)
+        return f"${smart_amount}"
     elif unit == "%":
-        # For percentages, add percent sign suffix
-        return f"{value:.{precision}f}%"
+        abs_value = abs(value)
+        # Smart precision for percentages
+        if abs_value >= 1000:
+            return f"{round(value)}%"
+        elif abs_value >= 100:
+            return f"{value:.1f}%"
+        elif abs_value >= 10:
+            return f"{value:.2f}%"
+        else:
+            return f"{value:.3f}%"
     elif unit.lower() == "days":
         # For days, add "days" suffix and use whole numbers for precision
         return f"{value:.0f} days" if value != 1 else f"{value:.0f} day"

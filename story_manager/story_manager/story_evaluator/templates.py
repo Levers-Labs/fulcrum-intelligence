@@ -135,7 +135,7 @@ STORY_TEMPLATES = {
     },
     StoryType.BENCHMARKS: {
         "title": "Performance Against Historical Benchmarks",
-        "detail": "This {{ grain_label }} marks the {% if high_rank == 1 %}highest-performing{% else %}{{ "
+        "detail": "This {{ grain_label }} marks the {% if high_rank == 1 %} highest-performing {% else %}{{ "
         "high_rank|format_ordinal }} highest-performing {% endif %}"
         "{{ grain_label }} in the past {{ high_duration }} {{ grain_label }}s, with the {{ benchmark.current_period }} "
         "performance of {{ metric.label }} at {{ benchmark.current_value|format_with_unit(metric.unit) }} coming in "

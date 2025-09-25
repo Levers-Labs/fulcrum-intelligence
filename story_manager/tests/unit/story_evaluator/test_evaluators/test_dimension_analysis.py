@@ -1282,7 +1282,9 @@ def test_prepare_comparison_series_data(dimension_analysis_evaluator, mock_dimen
             gap_change_percent=10.0,
         )
     ]
-    series_data = dimension_analysis_evaluator._prepare_comparison_series_data(mock_dimension_analysis)
+    series_data = dimension_analysis_evaluator._prepare_comparison_series_data(
+        mock_dimension_analysis, StoryType.SEGMENT_COMPARISONS, StoryGroup.SIGNIFICANT_SEGMENTS, Granularity.DAY
+    )
     assert len(series_data) > 0
     # Only check for keys that are actually present
     assert "segment_a" in series_data[0] or "segment_b" in series_data[0]
@@ -1292,7 +1294,7 @@ def test_prepare_strongest_weakest_series_data(dimension_analysis_evaluator, moc
     monkeypatch.setattr("story_manager.story_evaluator.utils.format_date_column", lambda df, col: df)
     # Ensure dimension_name is accessible in the pattern result (it should already be set in the fixture)
     series_data = dimension_analysis_evaluator._prepare_strongest_weakest_series_data(
-        mock_dimension_analysis, StoryType.NEW_STRONGEST_SEGMENT
+        mock_dimension_analysis, StoryType.NEW_STRONGEST_SEGMENT, StoryGroup.SIGNIFICANT_SEGMENTS, Granularity.DAY
     )
     assert len(series_data) > 0
     assert "current" in series_data[0]
@@ -1301,7 +1303,7 @@ def test_prepare_strongest_weakest_series_data(dimension_analysis_evaluator, moc
     # Test with weakest segment story type
     mock_dimension_analysis.weakest_slice.slice_value = "Antarctica"  # type: ignore
     series_data = dimension_analysis_evaluator._prepare_strongest_weakest_series_data(
-        mock_dimension_analysis, StoryType.NEW_WEAKEST_SEGMENT
+        mock_dimension_analysis, StoryType.NEW_WEAKEST_SEGMENT, StoryGroup.SIGNIFICANT_SEGMENTS, Granularity.DAY
     )
     assert len(series_data) > 0
     assert "current" in series_data[0]
@@ -1313,7 +1315,7 @@ def test_prepare_largest_smallest_series_data(dimension_analysis_evaluator, mock
     monkeypatch.setattr("story_manager.story_evaluator.utils.format_date_column", lambda df, col: df)
     # Ensure dimension_name is accessible in the pattern result (it should already be set in the fixture)
     series_data = dimension_analysis_evaluator._prepare_largest_smallest_series_data(
-        mock_dimension_analysis, StoryType.NEW_LARGEST_SEGMENT
+        mock_dimension_analysis, StoryType.NEW_LARGEST_SEGMENT, StoryGroup.SIGNIFICANT_SEGMENTS, Granularity.DAY
     )
     assert len(series_data) > 0
     assert "current" in series_data[0]
@@ -1321,7 +1323,7 @@ def test_prepare_largest_smallest_series_data(dimension_analysis_evaluator, mock
     # Test with smallest segment story type
     mock_dimension_analysis.smallest_slice.slice_value = "Antarctica"  # type: ignore
     series_data = dimension_analysis_evaluator._prepare_largest_smallest_series_data(
-        mock_dimension_analysis, StoryType.NEW_SMALLEST_SEGMENT
+        mock_dimension_analysis, StoryType.NEW_SMALLEST_SEGMENT, StoryGroup.SIGNIFICANT_SEGMENTS, Granularity.DAY
     )
     assert len(series_data) > 0
     assert "current" in series_data[0]

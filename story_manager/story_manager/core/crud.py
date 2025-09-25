@@ -9,6 +9,7 @@ from typing import Any
 
 from sqlalchemy import (
     Date as SQLDate,
+    and_,
     cast,
     delete,
     desc,
@@ -174,11 +175,7 @@ class CRUDStory(CRUDBase[Story, Story, Story, StoryFilter]):
 
     async def upsert_stories(self, stories: list[dict[str, Any]]) -> list[Story]:
         """
-        Upsert stories using a two-phase approach: delete all existing stories
-        for each lookup_key, then insert all incoming stories.
-
-        This eliminates complex grouping logic and prevents deletion conflicts
-        where later stories might delete earlier ones within the same batch.
+        Upsert stories: single-pass build -> one DELETE -> bulk INSERT.
 
         Args:
             stories: List of story dictionaries to persist
@@ -194,76 +191,53 @@ class CRUDStory(CRUDBase[Story, Story, Story, StoryFilter]):
         logger.info(f"Upserting {len(stories)} stories for tenant {tenant_id}")
 
         try:
-            # step 1: Extract dimension_name and group by lookup_key
-            lookup_keys: dict = {}
+            # Build OR-ed delete conditions
+            delete_conditions = []
 
             for story_dict in stories:
-                # Set tenant_id on each story
                 story_dict["tenant_id"] = tenant_id
 
-                # dimension_name should already be set directly by the evaluator
+                metric_id = story_dict["metric_id"]
+                grain = story_dict["grain"]
+                story_date = story_dict["story_date"]
+                version = story_dict.get("version", 2)
                 dimension_name = story_dict.get("dimension_name")
+                evaluation_pattern = story_dict["evaluation_pattern"]  # not optional
 
-                # evaluation_pattern should be set by the evaluator to identify which pattern generated the story
-                evaluation_pattern = story_dict.get("evaluation_pattern")
-
-                # Build context key for deletion (pattern-level isolation)
-                lookup_key = (
-                    story_dict["metric_id"],
-                    story_dict["grain"],
-                    story_dict["story_date"],
-                    story_dict.get("version", 2),
-                    dimension_name,
-                    evaluation_pattern,
-                )
-                lookup_keys[lookup_key] = story_dict
-
-            # step 2: Execute delete statements for each lookup_key
-            for lookup_key in lookup_keys:
-                metric_id, grain, story_date, version, dimension_name, evaluation_pattern = lookup_key
                 date_start, date_end = self._get_date_boundaries(story_date)
 
-                delete_statement = (
-                    delete(Story)
-                    .where(Story.tenant_id == tenant_id)  # type: ignore
-                    .where(Story.metric_id == metric_id)
-                    .where(Story.grain == grain)
-                    .where(Story.version == version)
-                    .where(Story.story_date >= date_start)  # type: ignore
-                    .where(Story.story_date < date_end)  # type: ignore
+                # Build one AND-group for this story
+                condition = and_(
+                    Story.metric_id == metric_id,
+                    Story.grain == grain,
+                    Story.version == version,
+                    Story.evaluation_pattern == evaluation_pattern,
+                    Story.story_date >= date_start,  # type: ignore
+                    Story.story_date < date_end,  # type: ignore
+                    (
+                        (Story.dimension_name == dimension_name)
+                        if dimension_name is not None
+                        else Story.dimension_name.is_(None)  # type: ignore
+                    ),  # type: ignore
                 )
+                delete_conditions.append(condition)
 
-                delete_statement = (
-                    delete_statement.where(Story.dimension_name == dimension_name)
-                    if dimension_name
-                    else delete_statement.where(Story.dimension_name.is_(None))  # type: ignore
-                )
+            # Combine with OR and execute a single delete
+            if delete_conditions:
+                delete_stmt = delete(Story).where(Story.tenant_id == tenant_id)  # type: ignore
+                await self.session.execute(delete_stmt.where(and_(*delete_conditions)))  # type: ignore
 
-                # Pattern isolation - only delete stories from the same pattern
-                delete_statement = (
-                    delete_statement.where(Story.evaluation_pattern == evaluation_pattern)
-                    if evaluation_pattern
-                    else delete_statement.where(Story.evaluation_pattern.is_(None))  # type: ignore
-                )
-
-                _ = await self.session.execute(delete_statement)
-
-            # step 3: Insert all incoming stories
+            # Bulk-insert new stories, flush, set heuristics, commit
             new_stories = [Story.model_validate(story) for story in stories]
             self.session.add_all(new_stories)
-
-            # step 4: Flush all changes
             await self.session.flush()
 
-            # Refresh objects to get database-generated fields
             for story in new_stories:
                 await self.session.refresh(story)
                 await story.set_heuristics(self.session)
                 self.session.add(story)
 
-            # step 5: Commit all changes
             await self.session.commit()
-
             logger.info(f"Successfully upserted {len(new_stories)} stories")
             return new_stories
 

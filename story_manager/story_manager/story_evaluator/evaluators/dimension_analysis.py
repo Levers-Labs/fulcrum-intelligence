@@ -756,7 +756,7 @@ class DimensionAnalysisEvaluator(StoryEvaluatorBase[DimensionAnalysis]):
         filtered_df = series_df[series_df["dimension_slice"].isin([current_slice, previous_slice])]
 
         # Group to compute average value per date across all slices
-        avg_df = series_df.groupby("date", as_index=False)["value"].mean()
+        avg_df = series_df.groupby("date", as_index=False).agg({"value": "mean"}).reset_index(drop=True)
 
         # Build segment-wise data using base class method
         for key, segment in {"current": current_slice, "prior": previous_slice}.items():

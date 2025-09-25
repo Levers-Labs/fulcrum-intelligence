@@ -52,6 +52,7 @@ def sample_stories():
             "metadata": {"pattern": "performance_status"},
             "pattern_run_id": 123,
             "series": [],
+            "evaluation_pattern": "performance_status",
         },
         {
             "version": 2,
@@ -69,6 +70,7 @@ def sample_stories():
             "metadata": {"pattern": "performance_status"},
             "pattern_run_id": 123,
             "series": [],
+            "evaluation_pattern": "performance_status",
         },
     ]
 
@@ -94,6 +96,7 @@ def segment_stories():
             "metadata": {"pattern": "significant_segments", "dimension": "region"},
             "pattern_run_id": 124,
             "series": [],
+            "evaluation_pattern": "dimension_analysis",
         },
         {
             "version": 2,
@@ -111,6 +114,7 @@ def segment_stories():
             "metadata": {"pattern": "significant_segments", "dimension": "region"},
             "pattern_run_id": 124,
             "series": [],
+            "evaluation_pattern": "dimension_analysis",
         },
     ]
 
@@ -218,6 +222,7 @@ async def test_upsert_stories_by_context_partial_overlap(story_crud, jwt_payload
             "metadata": {"pattern": "performance_status"},
             "pattern_run_id": 123,
             "series": [],
+            "evaluation_pattern": "performance_status",
         },
         {
             "version": 2,
@@ -235,6 +240,7 @@ async def test_upsert_stories_by_context_partial_overlap(story_crud, jwt_payload
             "metadata": {"pattern": "performance_status"},
             "pattern_run_id": 123,
             "series": [],
+            "evaluation_pattern": "performance_status",
         },
     ]
 
@@ -256,6 +262,7 @@ async def test_upsert_stories_by_context_partial_overlap(story_crud, jwt_payload
             "metadata": {"pattern": "performance_status"},
             "pattern_run_id": 456,
             "series": [],
+            "evaluation_pattern": "performance_status",
         },
     ]
 
@@ -311,6 +318,7 @@ async def test_upsert_stories_by_context_different_contexts_isolated(story_crud,
             "metadata": {"pattern": "performance_status"},
             "pattern_run_id": 123,
             "series": [],
+            "evaluation_pattern": "performance_status",
         }
     ]
 
@@ -331,6 +339,7 @@ async def test_upsert_stories_by_context_different_contexts_isolated(story_crud,
             "metadata": {"pattern": "performance_status"},
             "pattern_run_id": 124,
             "series": [],
+            "evaluation_pattern": "performance_status",
         }
     ]
 
@@ -381,6 +390,7 @@ async def test_upsert_stories_by_context_datetime_boundaries(story_crud, jwt_pay
             "metadata": {"pattern": "performance_status"},
             "pattern_run_id": 123,
             "series": [],
+            "evaluation_pattern": "performance_status",
         }
     ]
 
