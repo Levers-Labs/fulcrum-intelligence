@@ -9,8 +9,9 @@ import pandas as pd
 
 from commons.models.enums import Granularity
 from levers.models import ComparisonType, TrendExceptionType, TrendType
-from levers.models.patterns import BenchmarkComparison, HistoricalPerformance
+from levers.models.patterns import BenchmarkComparison, GrowthStats, HistoricalPerformance
 from levers.models.patterns.historical_performance import RankSummary
+from levers.primitives import calculate_pop_growth
 from story_manager.core.enums import StoryGenre, StoryGroup, StoryType
 from story_manager.story_evaluator import StoryEvaluatorBase, render_story_text
 
@@ -49,11 +50,24 @@ class HistoricalPerformanceEvaluator(StoryEvaluatorBase[HistoricalPerformance]):
         grain = Granularity(pattern_result.analysis_window.grain)
 
         # Growth Stories
-        if pattern_result.growth_stats and pattern_result.growth_stats.current_growth_acceleration:
-            if pattern_result.growth_stats.current_growth_acceleration < 0:
+        if pattern_result.growth_stats:
+            if self._is_slowing_growth(pattern_result.growth_stats):
                 stories.append(self._create_slowing_growth_story(pattern_result, metric_id, metric, grain))
-            elif pattern_result.growth_stats.current_growth_acceleration > 0:
+            elif self._is_accelerating_growth(pattern_result.growth_stats):
                 stories.append(self._create_accelerating_growth_story(pattern_result, metric_id, metric, grain))
+
+        # Improving/Worsening Performance
+        if pattern_result.performance_trend and pattern_result.performance_trend.overall_growth:
+            if (
+                pattern_result.performance_trend.num_periods_improving > 2
+                and pattern_result.performance_trend.overall_growth > 0
+            ):
+                stories.append(self._create_improving_performance_story(pattern_result, metric_id, metric, grain))
+            elif (
+                pattern_result.performance_trend.num_periods_worsening > 2
+                and pattern_result.performance_trend.overall_growth < 0
+            ):
+                stories.append(self._create_worsening_performance_story(pattern_result, metric_id, metric, grain))
 
         # Trend Stories
         if pattern_result.current_trend:
@@ -67,13 +81,6 @@ class HistoricalPerformanceEvaluator(StoryEvaluatorBase[HistoricalPerformance]):
                     stories.append(self._create_new_downward_trend_story(pattern_result, metric_id, metric, grain))
             elif trend_type == TrendType.PLATEAU:
                 stories.append(self._create_performance_plateau_story(pattern_result, metric_id, metric, grain))
-
-        # Improving/Worsening Performance
-        if pattern_result.current_trend and pattern_result.current_trend.average_pop_growth:
-            if pattern_result.current_trend.average_pop_growth > 0:
-                stories.append(self._create_improving_performance_story(pattern_result, metric_id, metric, grain))
-            elif pattern_result.current_trend.average_pop_growth < 0:
-                stories.append(self._create_worsening_performance_story(pattern_result, metric_id, metric, grain))
 
         # Trend Exception Stories (Spikes & Drops)
         if pattern_result.trend_exception:
@@ -111,6 +118,7 @@ class HistoricalPerformanceEvaluator(StoryEvaluatorBase[HistoricalPerformance]):
         return (
             pattern_result.previous_trend is not None
             and pattern_result.current_trend.trend_type != pattern_result.previous_trend.trend_type  # type: ignore
+            and pattern_result.current_trend.average_pop_growth != pattern_result.previous_trend.average_pop_growth  # type: ignore
         )
 
     def _has_valid_benchmarks(self, benchmark_comparison) -> bool:
@@ -132,6 +140,32 @@ class HistoricalPerformanceEvaluator(StoryEvaluatorBase[HistoricalPerformance]):
         """Check if the current value is a record value."""
 
         return record_value.value != record_value.prior_record_value
+
+    def _is_slowing_growth(self, growth_stats: GrowthStats) -> bool:
+        """Check if the current growth is slowing down."""
+        current_pop_growth = growth_stats.current_pop_growth
+        average_pop_growth = growth_stats.average_pop_growth
+        num_periods_slowing = growth_stats.num_periods_slowing
+
+        if not current_pop_growth or not average_pop_growth or not num_periods_slowing:
+            return False
+
+        # if the current growth is less than the average growth and the number of periods slowing is greater than at
+        # least 1, then it is slowing growth
+        return current_pop_growth < average_pop_growth and num_periods_slowing > 1
+
+    def _is_accelerating_growth(self, growth_stats: GrowthStats) -> bool:
+        """Check if the current growth is accelerating."""
+        current_pop_growth = growth_stats.current_pop_growth
+        average_pop_growth = growth_stats.average_pop_growth
+        num_periods_accelerating = growth_stats.num_periods_accelerating
+
+        if not current_pop_growth or not average_pop_growth or not num_periods_accelerating:
+            return False
+
+        # if the current growth is greater than the average growth and the number of periods accelerating is greater
+        # than at least 1, then it is accelerating growth
+        return current_pop_growth > average_pop_growth and num_periods_accelerating > 1
 
     def _populate_template_context(
         self, pattern_result: HistoricalPerformance, metric: dict, grain: Granularity, **kwargs
@@ -178,7 +212,6 @@ class HistoricalPerformanceEvaluator(StoryEvaluatorBase[HistoricalPerformance]):
                         and pattern_result.current_trend.average_pop_growth > 0
                         else "decrease"
                     ),
-                    "overall_growth": pattern_result.growth_stats.overall_growth or 0,
                 }
             )
 
@@ -233,6 +266,19 @@ class HistoricalPerformanceEvaluator(StoryEvaluatorBase[HistoricalPerformance]):
         # Add benchmark info
         if "benchmark_comparison" in include and pattern_result.benchmark_comparison:
             context["benchmark"] = self._prepare_benchmark_context(grain, pattern_result.benchmark_comparison)
+
+        # Add performance metrics info
+        if "performance_trend" in include and pattern_result.performance_trend:
+            context.update(
+                {
+                    "num_periods_improving": pattern_result.performance_trend.num_periods_improving or 0,
+                    "num_periods_worsening": pattern_result.performance_trend.num_periods_worsening or 0,
+                    "start_date": pattern_result.performance_trend.start_date or "",
+                    "avg_growth": pattern_result.performance_trend.average_growth or 0,
+                    "overall_growth": pattern_result.performance_trend.overall_growth or 0,
+                }
+            )
+
         return context
 
     def _create_slowing_growth_story(
@@ -249,7 +295,9 @@ class HistoricalPerformanceEvaluator(StoryEvaluatorBase[HistoricalPerformance]):
 
         # First prepare the series data with growth rates story-specific customizations
         series_df = self._prepare_series_data_with_pop_growth(pattern_result)
-        series_data = self.export_dataframe_as_story_series(series_df, story_type, story_group, grain)
+        series_data = self.export_dataframe_as_story_series(
+            series_df, story_type, story_group, grain, context.get("num_periods_slowing", 0)
+        )
 
         return self.prepare_story_model(
             genre=StoryGenre.GROWTH,
@@ -278,7 +326,9 @@ class HistoricalPerformanceEvaluator(StoryEvaluatorBase[HistoricalPerformance]):
 
         # First prepare the series data with growth rates story-specific customizations
         series_df = self._prepare_series_data_with_pop_growth(pattern_result)
-        series_data = self.export_dataframe_as_story_series(series_df, story_type, story_group, grain)
+        series_data = self.export_dataframe_as_story_series(
+            series_df, story_type, story_group, grain, context.get("num_periods_accelerating", 0)
+        )
 
         return self.prepare_story_model(
             genre=StoryGenre.GROWTH,
@@ -307,9 +357,12 @@ class HistoricalPerformanceEvaluator(StoryEvaluatorBase[HistoricalPerformance]):
         title = render_story_text(story_type, "title", context)
         detail = render_story_text(story_type, "detail", context)
 
+        # get the min series length for the story
+        series_length = context.get("trend_duration", 0) + context.get("prev_trend_duration", 0)
+
         # prepare series data with SPC data
         series_df = self._prepare_trend_changes_series_data(pattern_result)
-        series_data = self.export_dataframe_as_story_series(series_df, story_type, story_group, grain)
+        series_data = self.export_dataframe_as_story_series(series_df, story_type, story_group, grain, series_length)
 
         return self.prepare_story_model(
             genre=StoryGenre.TRENDS,
@@ -337,9 +390,12 @@ class HistoricalPerformanceEvaluator(StoryEvaluatorBase[HistoricalPerformance]):
         title = render_story_text(story_type, "title", context)
         detail = render_story_text(story_type, "detail", context)
 
+        # get the min series length for the story
+        series_length = context.get("trend_duration", 0) + context.get("prev_trend_duration", 0)
+
         # prepare series data with SPC data
         series_df = self._prepare_trend_changes_series_data(pattern_result)
-        series_data = self.export_dataframe_as_story_series(series_df, story_type, story_group, grain)
+        series_data = self.export_dataframe_as_story_series(series_df, story_type, story_group, grain, series_length)
 
         return self.prepare_story_model(
             genre=StoryGenre.TRENDS,
@@ -368,9 +424,12 @@ class HistoricalPerformanceEvaluator(StoryEvaluatorBase[HistoricalPerformance]):
         title = render_story_text(story_type, "title", context)
         detail = render_story_text(story_type, "detail", context)
 
+        # get the min series length for the story
+        series_length = context.get("trend_duration", 0) + context.get("prev_trend_duration", 0)
+
         # prepare series data with SPC data
         series_df = self._prepare_trend_changes_series_data(pattern_result)
-        series_data = self.export_dataframe_as_story_series(series_df, story_type, story_group, grain)
+        series_data = self.export_dataframe_as_story_series(series_df, story_type, story_group, grain, series_length)
 
         return self.prepare_story_model(
             genre=StoryGenre.TRENDS,
@@ -399,9 +458,12 @@ class HistoricalPerformanceEvaluator(StoryEvaluatorBase[HistoricalPerformance]):
         title = render_story_text(story_type, "title", context)
         detail = render_story_text(story_type, "detail", context)
 
+        # get the min series length for the story
+        series_length = context.get("trend_duration", 0) + context.get("prev_trend_duration", 0)
+
         # prepare series data with SPC data
         series_df = self._prepare_trend_changes_series_data(pattern_result)
-        series_data = self.export_dataframe_as_story_series(series_df, story_type, story_group, grain)
+        series_data = self.export_dataframe_as_story_series(series_df, story_type, story_group, grain, series_length)
 
         return self.prepare_story_model(
             genre=StoryGenre.TRENDS,
@@ -489,14 +551,18 @@ class HistoricalPerformanceEvaluator(StoryEvaluatorBase[HistoricalPerformance]):
         story_group = StoryGroup.LONG_RANGE
         story_type = StoryType.IMPROVING_PERFORMANCE
 
-        context = self._populate_template_context(pattern_result, metric, grain, include=["current_trend"])
+        context = self._populate_template_context(
+            pattern_result, metric, grain, include=["current_trend", "performance_trend"]
+        )
 
         title = render_story_text(story_type, "title", context)
         detail = render_story_text(story_type, "detail", context)
 
         # First prepare the series data with growth rates story-specific customizations
         series_df = self._prepare_series_data_with_pop_growth(pattern_result)
-        series_data = self.export_dataframe_as_story_series(series_df, story_type, story_group, grain)
+        series_data = self.export_dataframe_as_story_series(
+            series_df, story_type, story_group, grain, context.get("num_periods_improving", 0)
+        )
 
         return self.prepare_story_model(
             genre=StoryGenre.TRENDS,
@@ -519,14 +585,18 @@ class HistoricalPerformanceEvaluator(StoryEvaluatorBase[HistoricalPerformance]):
         story_group = StoryGroup.LONG_RANGE
         story_type = StoryType.WORSENING_PERFORMANCE
 
-        context = self._populate_template_context(pattern_result, metric, grain, include=["current_trend"])
+        context = self._populate_template_context(
+            pattern_result, metric, grain, include=["current_trend", "performance_trend"]
+        )
 
         title = render_story_text(story_type, "title", context)
         detail = render_story_text(story_type, "detail", context)
 
         # First prepare the series data with growth rates story-specific customizations
         series_df = self._prepare_series_data_with_pop_growth(pattern_result)
-        series_data = self.export_dataframe_as_story_series(series_df, story_type, story_group, grain)
+        series_data = self.export_dataframe_as_story_series(
+            series_df, story_type, story_group, grain, context.get("num_periods_worsening", 0)
+        )
 
         return self.prepare_story_model(
             genre=StoryGenre.TRENDS,
@@ -553,6 +623,10 @@ class HistoricalPerformanceEvaluator(StoryEvaluatorBase[HistoricalPerformance]):
         title = render_story_text(story_type, "title", context)
         detail = render_story_text(story_type, "detail", context)
 
+        series_data = self.export_dataframe_as_story_series(
+            self.series_df, story_type, story_group, grain, context.get("high_duration", 0)
+        )
+
         return self.prepare_story_model(
             genre=StoryGenre.TRENDS,
             story_type=story_type,
@@ -562,6 +636,7 @@ class HistoricalPerformanceEvaluator(StoryEvaluatorBase[HistoricalPerformance]):
             title=title,
             detail=detail,
             grain=grain,  # type: ignore
+            series_data=series_data,
             **context,
         )
 
@@ -577,6 +652,10 @@ class HistoricalPerformanceEvaluator(StoryEvaluatorBase[HistoricalPerformance]):
         title = render_story_text(story_type, "title", context)
         detail = render_story_text(story_type, "detail", context)
 
+        series_data = self.export_dataframe_as_story_series(
+            self.series_df, story_type, story_group, grain, context.get("low_duration", 0)
+        )
+
         return self.prepare_story_model(
             genre=StoryGenre.TRENDS,
             story_type=story_type,
@@ -586,6 +665,7 @@ class HistoricalPerformanceEvaluator(StoryEvaluatorBase[HistoricalPerformance]):
             title=title,
             detail=detail,
             grain=grain,  # type: ignore
+            series_data=series_data,
             **context,
         )
 
@@ -656,6 +736,25 @@ class HistoricalPerformanceEvaluator(StoryEvaluatorBase[HistoricalPerformance]):
         benchmark_context["comparison_details"] = comparison_details
         benchmark_context["comparison_summaries"] = comparison_summaries
         benchmark_context["num_comparisons"] = len(comparison_details)
+
+        # Calculate historical average deviation for heuristic evaluation
+        # CSV requirement: current value should be ≥5% off historical average
+        benchmark_deviation_percent = 0.0
+        if comparison_details:
+            # Calculate average of all historical benchmark values
+            historical_values = [
+                detail["reference_value"]
+                for detail in comparison_details
+                if detail["reference_value"] is not None and isinstance(detail["reference_value"], float)
+            ]
+            historical_average = sum(historical_values) / len(historical_values)
+
+            # Calculate percentage deviation of current value from historical average
+            current_value = benchmark_comparison.current_value
+            if historical_average != 0:
+                benchmark_deviation_percent = abs((current_value - historical_average) / historical_average * 100)
+
+        benchmark_context["deviation_percent"] = benchmark_deviation_percent
 
         return benchmark_context
 
@@ -750,30 +849,41 @@ class HistoricalPerformanceEvaluator(StoryEvaluatorBase[HistoricalPerformance]):
         """
         Prepare the series data for trend changes stories.
 
-        This method extracts SPC-related fields from the trend_analysis results
-        (which are derived from process_control_analysis) and merges them
-        with the base series data for visualization and story generation.
+        This method enriches the base series with:
+        1. POP growth for every data point in the full series
+        2. SPC trend analysis data from the pattern
+        3. Simple trend_type classification based on slope
+        4. Filtering to current trend window to avoid misleading charts
 
         Args:
             pattern_result: Historical performance pattern result
 
         Returns:
-            DataFrame with series data and SPC metrics for trend changes stories ( stable, new upward, new downward,
-            performance plateau)
+            DataFrame with enriched series data for trend changes stories
         """
+        # 1) Start with the full base series that was passed to the evaluator
+        series_df = self.series_df.copy() if self.series_df is not None else pd.DataFrame()
+        if series_df.empty:
+            return series_df
 
-        pop_growth_df = self._prepare_series_data_with_pop_growth(pattern_result)
+        series_df["date"] = pd.to_datetime(series_df["date"])
 
-        # Extract data from trend_analysis results
-        # TrendAnalysis objects contain all necessary fields
+        # 2) Add POP growth for every data point in the series
+        series_df = calculate_pop_growth(
+            df=series_df,
+            date_col="date",
+            value_col="value",
+            growth_col_name="pop_growth_percent",
+        )
+
+        # 3) Extract SPC data from pattern's trend_analysis (no redundant calls)
         trend_analysis_data = [data.model_dump() for data in pattern_result.trend_analysis]
         trend_analysis_df = pd.DataFrame(trend_analysis_data)
+        trend_analysis_df["date"] = pd.to_datetime(trend_analysis_df["date"])
 
-        # Select columns that are expected by stories.
-        # These should align with fields in the TrendAnalysis model.
+        # 5) Merge base series with SPC trend data
         columns_to_merge = [
             "date",
-            "value",
             "central_line",
             "ucl",
             "lcl",
@@ -781,15 +891,11 @@ class HistoricalPerformanceEvaluator(StoryEvaluatorBase[HistoricalPerformance]):
             "slope_change_percent",
             "trend_signal_detected",
         ]
-
-        # Filter trend_analysis_df to only include necessary columns, ensure 'date' is present
         available_columns = [col for col in columns_to_merge if col in trend_analysis_df.columns]
-        df_to_merge = trend_analysis_df[available_columns].drop(columns=["value"], errors="ignore")
-        df_to_merge["date"] = pd.to_datetime(df_to_merge["date"])
 
-        merged_df = pd.merge(pop_growth_df, df_to_merge, on="date", how="left").sort_values("date")
+        merged_df = series_df.merge(trend_analysis_df[available_columns], on="date", how="left").sort_values("date")
 
-        return merged_df
+        return merged_df.reset_index(drop=True)
 
     def _prepare_spike_drop_series_data(self, pattern_result: HistoricalPerformance) -> pd.DataFrame:
         """

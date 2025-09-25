@@ -52,6 +52,10 @@ class Story(StorySchemaBaseModel, table=True):  # type: ignore
     version: int = Field(default=1, sa_column=Column(Integer, default=1, server_default="1"))
     # For version 2, we need to add the pattern_run_id
     pattern_run_id: int | None = Field(default=None, sa_column=Column(Integer, nullable=True, index=True))
+    # Dimension name for proper story isolation (e.g., "customer_success_manager_region", "reseller_partner")
+    dimension_name: str | None = Field(default=None, max_length=255, index=True)
+    # Pattern name that generated this story (e.g., "historical_performance", "dimension_analysis")
+    evaluation_pattern: str | None = Field(default=None, max_length=255, index=True)
 
     # Composite index for common query patterns
     __table_args__ = (  # type: ignore

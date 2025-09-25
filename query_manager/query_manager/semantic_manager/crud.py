@@ -225,17 +225,22 @@ class CRUDMetricTimeSeries(CRUDSemantic[MetricTimeSeries, BaseModel, BaseModel, 
     async def get_time_series_query(
         self,
         metric_ids: list[str],
-        grain: Granularity,
+        grain: Granularity | None,
         start_date: date | None = None,
         end_date: date | None = None,
     ) -> Select:
-        """Get a query for time series data with optional date filtering."""
+        """Get a query for time series data with optional date and grain filtering."""
         query = self.get_select_query()
-        query = query.where(
-            and_(self.model.metric_id.in_(metric_ids), self.model.grain == grain)  # type: ignore
-        ).order_by(
+
+        # Build conditions
+        conditions = [self.model.metric_id.in_(metric_ids)]  # type: ignore
+        if grain is not None:
+            conditions.append(self.model.grain == grain)  # type: ignore
+
+        query = query.where(and_(*conditions)).order_by(  # type: ignore
             self.model.date.desc(), self.model.metric_id  # type: ignore
         )
+
         # Apply date filters only if they are provided
         if start_date:
             query = query.where(self.model.date >= start_date)  # type: ignore
@@ -246,7 +251,7 @@ class CRUDMetricTimeSeries(CRUDSemantic[MetricTimeSeries, BaseModel, BaseModel, 
     async def get_time_series(
         self,
         metric_id: str,
-        grain: Granularity,
+        grain: Granularity | None,
         start_date: date | None = None,
         end_date: date | None = None,
     ) -> list[MetricTimeSeries]:
@@ -261,7 +266,7 @@ class CRUDMetricTimeSeries(CRUDSemantic[MetricTimeSeries, BaseModel, BaseModel, 
     async def get_multi_metric_time_series(
         self,
         metric_ids: list[str],
-        grain: Granularity,
+        grain: Granularity | None,
         start_date: date | None = None,
         end_date: date | None = None,
     ) -> list[MetricTimeSeries]:
@@ -280,14 +285,20 @@ class CRUDMetricDimensionalTimeSeries(CRUDSemantic[MetricDimensionalTimeSeries, 
     async def get_dimensional_time_series_query(
         self,
         metric_id: str,
-        grain: Granularity,
+        grain: Granularity | None,
         start_date: date | None = None,
         end_date: date | None = None,
         dimension_names: list[str] | None = None,
     ) -> Select:
-        """Get a query for dimensional time series data with optional date and dimension filtering."""
+        """Get a query for dimensional time series data with optional date, grain and dimension filtering."""
         query = self.get_select_query()
-        query = query.where(and_(self.model.metric_id == metric_id, self.model.grain == grain))  # type: ignore
+
+        # Build conditions
+        conditions = [self.model.metric_id == metric_id]  # type: ignore
+        if grain is not None:
+            conditions.append(self.model.grain == grain)  # type: ignore
+
+        query = query.where(and_(*conditions))  # type: ignore
         if start_date:
             query = query.where(self.model.date >= start_date)  # type: ignore
         if end_date:
@@ -301,7 +312,7 @@ class CRUDMetricDimensionalTimeSeries(CRUDSemantic[MetricDimensionalTimeSeries, 
     async def get_dimensional_time_series(
         self,
         metric_id: str,
-        grain: Granularity,
+        grain: Granularity | None,
         start_date: date | None = None,
         end_date: date | None = None,
         dimension_names: list[str] | None = None,
@@ -903,12 +914,13 @@ class SemanticManager:
     async def get_metric_time_series(
         self,
         metric_id: str,
-        grain: Granularity,
+        grain: Granularity | None,
         start_date: date | None = None,
         end_date: date | None = None,
     ) -> list[MetricTimeSeries]:
         """
         Get time series data for a metric, grain, and optional date range.
+        If grain is None, returns data for all grains.
         """
         return await self.metric_time_series.get_time_series(
             metric_id=metric_id,
@@ -920,12 +932,13 @@ class SemanticManager:
     async def get_metric_time_series_with_targets(
         self,
         metric_id: str,
-        grain: Granularity,
+        grain: Granularity | None,
         start_date: date | None = None,
         end_date: date | None = None,
     ) -> list[dict[str, Any]]:
         """
         Get time series data for a metric, grain, and optional date range.
+        If grain is None, returns data for all grains.
         """
         time_series = await self.get_metric_time_series(metric_id, grain, start_date, end_date)
         targets = await self.get_targets(metric_id, grain, start_date, end_date)
@@ -945,12 +958,13 @@ class SemanticManager:
     async def get_multi_metric_time_series(
         self,
         metric_ids: list[str],
-        grain: Granularity,
+        grain: Granularity | None,
         start_date: date | None = None,
         end_date: date | None = None,
     ) -> list[MetricTimeSeries]:
         """
         Get time series data for multiple metrics with the same grain.
+        If grain is None, returns data for all grains.
         """
         return await self.metric_time_series.get_multi_metric_time_series(
             metric_ids=metric_ids,
@@ -962,7 +976,7 @@ class SemanticManager:
     async def stream_multi_metric_time_series(
         self,
         metric_ids: list[str],
-        grain: Granularity,
+        grain: Granularity | None,
         start_date: date | None = None,
         end_date: date | None = None,
         batch_size: int = 100,
@@ -990,13 +1004,14 @@ class SemanticManager:
     async def get_dimensional_time_series(
         self,
         metric_id: str,
-        grain: Granularity,
+        grain: Granularity | None,
         start_date: date | None = None,
         end_date: date | None = None,
         dimension_names: list[str] | None = None,
     ) -> list[MetricDimensionalTimeSeries]:
         """
         Get dimensional time series data for a metric, grain, and dimension.
+        If grain is None, returns data for all grains.
         """
         return await self.metric_dimensional_time_series.get_dimensional_time_series(
             metric_id=metric_id,

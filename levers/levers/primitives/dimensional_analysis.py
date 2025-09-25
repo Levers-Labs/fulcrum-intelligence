@@ -527,7 +527,14 @@ def compare_dimension_slices_over_time(
     )
 
     # Merge prior_start_date and current_start_date data
-    merged = pd.merge(agg_prior, agg_current, on=slice_col, how="outer").fillna(0)
+    merged = pd.merge(agg_prior, agg_current, on=slice_col, how="outer").dropna(subset=["val_prior", "val_current"])
+    if merged.empty:
+        # If nothing left after dropping nan values
+        if merged.empty:
+            raise ValidationError(
+                "No slices have data in both comparison periods",
+                {"prior_start_date": prior_start_date, "current_start_date": current_start_date},
+            )
 
     # Calculate differences
     merged["abs_diff"] = merged["val_current"] - merged["val_prior"]
@@ -648,12 +655,14 @@ def compute_top_bottom_slices(
                 {"column": col, "available_columns": list(df.columns)},
             )
 
-    # Sort for top/bottom
-    sorted_df = df.sort_values(by=value_col, ascending=False)
+    # We already have absolute_diff_percent_from_avg in the dataframe
+    # (added by difference_from_average() upstream). Rank slices by that
+    # relative performance instead of raw metric value. This prevents the
+    # same slice set showing up in both top and bottom lists.
+    criterion_col = "absolute_diff_percent_from_avg" if "absolute_diff_percent_from_avg" in df.columns else value_col
 
-    # Add relative comparison to average if requested
-    if include_avg_comparison:
-        sorted_df = compute_slice_vs_avg_others(sorted_df, value_col)
+    # Sort for strongest performers (largest positive diff from average)
+    sorted_df = df.sort_values(by=criterion_col, ascending=False)
 
     # Extract top slices
     top_slices = []
@@ -670,8 +679,15 @@ def compute_top_bottom_slices(
         )
         top_slices.append(slice_perf)
 
-    # Extract bottom slices
-    bottom_df = sorted_df.sort_values(by=value_col, ascending=True)
+    # Bottom slices = genuine under-performers (negative diff),
+    # sorted by most-negative first
+    bottom_df = df[df[criterion_col] < 0].sort_values(by=criterion_col, ascending=True)
+
+    # If we still have fewer than top_n rows (e.g. all positive diffs),
+    # fall back to lowest raw value just to return *something*.
+    if bottom_df.empty:
+        bottom_df = df.sort_values(by=value_col, ascending=True)
+
     bottom_slices = []
     for i in range(min(top_n, len(bottom_df))):
         row = bottom_df.iloc[i]
@@ -682,7 +698,7 @@ def compute_top_bottom_slices(
             avg_other_slices_value=float(row.get("avg_other_slices_value", 0.0)),
             absolute_diff_from_avg=float(row.get("absolute_diff_from_avg", 0.0)),
             absolute_diff_percent_from_avg=float(row.get("absolute_diff_percent_from_avg", 0.0)),
-            rank=len(bottom_df) - i,
+            rank=i + 1,
         )
         bottom_slices.append(slice_perf)
 
@@ -734,11 +750,25 @@ def identify_largest_smallest_by_share(
     if df_current.empty or df_prior.empty:
         return None, None
 
+    # Filter out 0% segments before sorting
+    df_current_filtered = df_current[df_current[share_col] != 0].copy()
+    df_prior_filtered = df_prior[df_prior[share_col] != 0].copy()
+
+    # If no valid segments, return None
+    if df_current_filtered.empty or df_prior_filtered.empty:
+        return None, None
+
     # Sort current and prior by share
-    df_current_desc = df_current.sort_values(share_col, ascending=False).reset_index(drop=True)
-    df_prior_desc = df_prior.sort_values(share_col, ascending=False).reset_index(drop=True)
-    df_current_asc = df_current.sort_values(share_col, ascending=True).reset_index(drop=True)
-    df_prior_asc = df_prior.sort_values(share_col, ascending=True).reset_index(drop=True)
+    df_current_desc = df_current_filtered.sort_values(share_col, ascending=False).reset_index(drop=True)
+    df_prior_desc = df_prior_filtered.sort_values(share_col, ascending=False).reset_index(drop=True)
+    df_current_asc = df_current_filtered.sort_values(share_col, ascending=True).reset_index(drop=True)
+    df_prior_asc = df_prior_filtered.sort_values(share_col, ascending=True).reset_index(drop=True)
+
+    # if both have the same current share of volume percent i.e 50% both having the same share, return None, None
+    if float(df_current_desc.iloc[0][share_col]) == 50.0:
+        return None, None
+    if float(df_current_asc.iloc[0][share_col]) == 50.0:
+        return None, None
 
     # Create largest slice
     largest_slice = SliceShare(
@@ -810,6 +840,9 @@ def identify_strongest_weakest_changes(
     if curr_strongest != prior_strongest:
         # Get the row for the new strongest slice
         curr_strongest_row = df[df[slice_col] == curr_strongest].iloc[0]
+        if curr_strongest_row[current_val_col] == curr_strongest_row[prior_val_col]:
+            return None, None
+
         relative_change = (
             calculate_relative_change(curr_strongest_row[current_val_col], curr_strongest_row[prior_val_col])
             if curr_strongest_row[prior_val_col] != 0
@@ -905,15 +938,18 @@ def highlight_slice_comparisons(
             slice_a = slices[i]
             slice_b = slices[j]
 
+            if slice_a[current_val_col] == slice_b[current_val_col]:
+                continue
+
             # Calculate current gap
             gap_now = None
             if slice_b[current_val_col] != 0:
-                gap_now = (slice_a[current_val_col] - slice_b[current_val_col]) / slice_b[current_val_col] * 100
+                gap_now = (slice_a[current_val_col] - slice_b[current_val_col]) / abs(slice_b[current_val_col]) * 100
 
             # Calculate prior gap
             gap_prior = None
             if slice_b[prior_val_col] != 0:
-                gap_prior = (slice_a[prior_val_col] - slice_b[prior_val_col]) / slice_b[prior_val_col] * 100
+                gap_prior = (slice_a[prior_val_col] - slice_b[prior_val_col]) / abs(slice_b[prior_val_col]) * 100
 
             # Calculate gap change
             gap_change = None

@@ -82,7 +82,8 @@
         "source_type": "targets",
         "is_required": true,
         "data_key": "target",
-        "look_forward": true
+        "look_forward": true,
+        "include_all_grains": true
       }
     ],
     "analysis_window": {

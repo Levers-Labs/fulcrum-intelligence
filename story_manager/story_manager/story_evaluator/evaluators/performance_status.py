@@ -95,9 +95,11 @@ class PerformanceStatusEvaluator(StoryEvaluatorBase[MetricPerformance]):
         gap_trend = (
             "is narrowing"
             if pattern_result.prior_value is not None
+            and pattern_result.prior_target_value is not None
             and pattern_result.target_value is not None
+            and pattern_result.current_value is not None
             and abs(pattern_result.current_value - pattern_result.target_value)
-            < abs(pattern_result.prior_value - pattern_result.target_value)
+            < abs(pattern_result.prior_value - pattern_result.prior_target_value)
             else "is widening"
         )
 
@@ -234,6 +236,11 @@ class PerformanceStatusEvaluator(StoryEvaluatorBase[MetricPerformance]):
         title = render_story_text(story_type, "title", context)
         detail = render_story_text(story_type, "detail", context)
 
+        # Prepare series data
+        series_data = self.export_dataframe_as_story_series(
+            self.series_df, story_type, story_group, grain, context.get("old_status_duration", 0)
+        )
+
         # Prepare the story model
         return self.prepare_story_model(
             genre=StoryGenre.PERFORMANCE,
@@ -244,6 +251,7 @@ class PerformanceStatusEvaluator(StoryEvaluatorBase[MetricPerformance]):
             title=title,
             detail=detail,
             grain=grain,  # type: ignore
+            series_data=series_data,
             **context,
         )
 
@@ -273,6 +281,11 @@ class PerformanceStatusEvaluator(StoryEvaluatorBase[MetricPerformance]):
         title = render_story_text(story_type, "title", context)
         detail = render_story_text(story_type, "detail", context)
 
+        # Prepare series data
+        series_data = self.export_dataframe_as_story_series(
+            self.series_df, story_type, story_group, grain, context.get("old_status_duration", 0)
+        )
+
         # Prepare the story model
         return self.prepare_story_model(
             genre=StoryGenre.PERFORMANCE,
@@ -283,6 +296,7 @@ class PerformanceStatusEvaluator(StoryEvaluatorBase[MetricPerformance]):
             title=title,
             detail=detail,
             grain=grain,  # type: ignore
+            series_data=series_data,
             **context,
         )
 

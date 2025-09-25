@@ -20,7 +20,9 @@ DataDict = dict[str, DataFrame]
 class DataFetcher(Protocol):
     """Protocol for data fetching functions."""
 
-    async def __call__(self, metric_id: str, grain: Granularity, start_date: date, end_date: date, **kwargs) -> Any:
+    async def __call__(
+        self, metric_id: str, grain: Granularity | None, start_date: date, end_date: date, **kwargs
+    ) -> Any:
         """Fetch data with the given parameters."""
         ...
 
@@ -79,7 +81,7 @@ class PatternDataOrganiser:
         return await self._fetch_data_sources(
             config=config,
             metric_id=metric_id,
-            grain=grain,
+            grain=grain,  # type: ignore
             metric_definition=metric_definition,
             analysis_date=analysis_date,
             **fetch_kwargs,
@@ -118,9 +120,13 @@ class PatternDataOrganiser:
                 grain=grain, analysis_date=analysis_date, look_forward=data_source.look_forward
             )
 
+            # Determine grain for this source - use None if include_all_grains is True
+            source_grain = None if data_source.include_all_grains else grain
+
             logger.debug(
-                "Fetching %s data for pattern %s, date range %s to %s",
+                "Fetching %s data (%s) for pattern %s, date range %s to %s",
                 source_type,
+                "ALL_GRAINS" if source_grain is None else source_grain,
                 config.pattern_name,
                 start_date,
                 end_date,
@@ -141,7 +147,7 @@ class PatternDataOrganiser:
                 data = await self._handle_multi_metric_fetch(
                     fetcher=fetcher,
                     metric_id=metric_id,
-                    grain=grain,
+                    grain=source_grain,
                     start_date=start_date,
                     end_date=end_date,
                     metric_definition=metric_definition,
@@ -150,7 +156,7 @@ class PatternDataOrganiser:
             else:
                 # Fetch data for this source type
                 data = await fetcher(
-                    metric_id=metric_id, grain=grain, start_date=start_date, end_date=end_date, **fetch_kwargs
+                    metric_id=metric_id, grain=source_grain, start_date=start_date, end_date=end_date, **fetch_kwargs
                 )
             df = self._convert_to_dataframe(data, source_type)
 
@@ -170,7 +176,7 @@ class PatternDataOrganiser:
         return result
 
     async def _fetch_metric_time_series(
-        self, metric_id: str, grain: Granularity, start_date: date, end_date: date, **kwargs
+        self, metric_id: str, grain: Granularity | None, start_date: date, end_date: date, **kwargs
     ) -> list[dict[str, Any]]:
         """Fetch metric time series data."""
         series = await self.semantic_manager.get_metric_time_series(
@@ -182,7 +188,7 @@ class PatternDataOrganiser:
         return [dict(date=item.date, value=item.value) for item in series]
 
     async def _fetch_metric_with_targets(
-        self, metric_id: str, grain: Granularity, start_date: date, end_date: date, **kwargs
+        self, metric_id: str, grain: Granularity | None, start_date: date, end_date: date, **kwargs
     ) -> list[dict[str, Any]]:
         """Fetch metric time series data with targets."""
         return await self.semantic_manager.get_metric_time_series_with_targets(
@@ -195,7 +201,7 @@ class PatternDataOrganiser:
     async def _fetch_dimensional_time_series(
         self,
         metric_id: str,
-        grain: Granularity,
+        grain: Granularity | None,
         start_date: date,
         end_date: date,
         dimension_name: str | None = None,
@@ -222,7 +228,7 @@ class PatternDataOrganiser:
     async def _fetch_multi_metric(
         self,
         metric_id: str,
-        grain: Granularity,
+        grain: Granularity | None,
         start_date: date,
         end_date: date,
         metric_ids: list[str] | None = None,
@@ -239,11 +245,11 @@ class PatternDataOrganiser:
         return [dict(date=item.date, value=item.value, metric_id=item.metric_id) for item in result]
 
     async def _fetch_targets(
-        self, metric_id: str, grain: Granularity, start_date: date, end_date: date, **kwargs
+        self, metric_id: str, grain: Granularity | None, start_date: date, end_date: date, **kwargs
     ) -> list[dict[str, Any]]:
-        """Fetch metric targets only."""
+        """Fetch metric targets. If grain is None, fetch targets for all grains."""
         targets = await self.semantic_manager.get_targets(
-            metric_id=metric_id, start_date=start_date, end_date=end_date, grain=grain  # type: ignore
+            metric_id=metric_id, grain=grain, start_date=start_date, end_date=end_date  # type: ignore
         )
         return [
             dict(
@@ -259,7 +265,7 @@ class PatternDataOrganiser:
         self,
         fetcher: DataFetcher,
         metric_id: str,
-        grain: Granularity,
+        grain: Granularity | None,
         start_date: date,
         end_date: date,
         metric_definition: MetricDetail | None = None,
@@ -288,7 +294,7 @@ class PatternDataOrganiser:
 
         data = await fetcher(
             metric_id=metric_id,
-            grain=grain,
+            grain=grain,  # type: ignore
             start_date=start_date,
             end_date=end_date,
             metric_ids=all_metrics,
@@ -382,7 +388,7 @@ class PatternDataOrganiser:
         # Fetch data for this source type
         data = await fetcher(
             metric_id=metric_id,
-            grain=grain,
+            grain=grain,  # type: ignore
             start_date=start_date,
             end_date=end_date,
         )

@@ -20,11 +20,8 @@ from commons.models.enums import Granularity
 from commons.utilities.grain_utils import GRAIN_META
 from levers.models.common import BasePattern
 from story_manager.core.enums import StoryGenre, StoryGroup, StoryType
-from story_manager.story_evaluator.constants import (
-    STORY_GROUP_TIME_DURATIONS,
-    STORY_TEMPLATES,
-    STORY_TYPE_TIME_DURATIONS,
-)
+from story_manager.story_evaluator.constants import STORY_GROUP_TIME_DURATIONS, STORY_TYPE_TIME_DURATIONS
+from story_manager.story_evaluator.templates import STORY_TEMPLATES
 from story_manager.story_evaluator.utils import format_date_column
 
 T = TypeVar("T", bound=BasePattern)
@@ -119,6 +116,8 @@ class StoryEvaluatorBase(Generic[T], ABC):
             "series": series_data,
             "metadata": dict(pattern=pattern_result.pattern),
             "pattern_run_id": pattern_result.pattern_run_id,
+            "dimension_name": getattr(pattern_result, "dimension_name", None),  # Extract dimension_name directly
+            "evaluation_pattern": self.pattern_name,  # Pattern that generated this story
         }
 
     def get_template_string(self, story_type: StoryType, field: str) -> str:
@@ -136,7 +135,12 @@ class StoryEvaluatorBase(Generic[T], ABC):
         return story_templates.get(field, "")
 
     def export_dataframe_as_story_series(
-        self, series_df: pd.DataFrame | None, story_type: StoryType, story_group: StoryGroup, grain: Granularity
+        self,
+        series_df: pd.DataFrame | None,
+        story_type: StoryType,
+        story_group: StoryGroup,
+        grain: Granularity,
+        series_length: int | None = None,
     ) -> list[dict[str, Any]]:
         """
         Format the time series data for story display.
@@ -154,7 +158,11 @@ class StoryEvaluatorBase(Generic[T], ABC):
             return []
 
         # Figure out the length of the series to export
-        series_length = self.get_output_length(story_type, story_group, grain)
+        default_series_length = self.get_output_length(story_type, story_group, grain)
+        if series_length and default_series_length:
+            series_length = max(series_length, default_series_length)
+        else:
+            series_length = series_length or default_series_length or None
 
         # Convert the date column to datetime and then to ISO format strings
         if "date" in series_df.columns:
@@ -178,15 +186,17 @@ class StoryEvaluatorBase(Generic[T], ABC):
         metric_info = {
             "label": metric["label"],
             "metric_id": metric["metric_id"],
+            "unit": metric["unit"],
         }
         return {"metric": metric_info, "grain_label": grain_info["label"], "pop": grain_info["pop"]}
 
     def get_output_length(self, story_type: StoryType, story_group: StoryGroup, grain: Granularity) -> int | None:
         """
-        Get the output length for the given grain.
+        Get the output length for the given grain, story type and story group.
 
         Args:
             story_type: The story type for which the time durations are retrieved
+            story_group: The story group for which the time durations are retrieved
             grain: The grain for which the time durations are retrieved
 
         Returns:

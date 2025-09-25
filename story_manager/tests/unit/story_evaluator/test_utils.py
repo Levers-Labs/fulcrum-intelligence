@@ -20,8 +20,19 @@ from story_manager.story_evaluator.utils import (
 
 def test_format_number():
     """Test format_number function."""
-    assert format_number(123.4567) == "123.46"
-    assert format_number(123.4567, precision=3) == "123.457"
+    # Test smart precision behavior (new default)
+    assert format_number(123.4567) == "123"  # Smart: no decimals for >= 100
+    assert format_number(12.3456) == "12.3"  # Smart: 1 decimal for 10-99
+    assert format_number(1.2345) == "1.23"  # Smart: 2 decimals for 1-9
+
+    # Test backward compatibility with smart_precision=False
+    assert format_number(123.4567, precision=2, smart_precision=False) == "123.46"
+    assert format_number(123.4567, precision=3, smart_precision=False) == "123.457"
+
+    # Test compact notation
+    assert format_number(1500) == "1.5K"
+    assert format_number(1500, compact=False) == "1,500"
+
     assert format_number(None) == "N/A"
 
 
@@ -47,8 +58,8 @@ def test_get_template_env():
     """Test get_template_env function."""
     env = get_template_env()
 
-    # Test format_number filter
-    assert env.filters["format_number"](123.4567) == "123.46"
+    # Test format_number filter with new smart behavior
+    assert env.filters["format_number"](123.4567) == "123"  # Smart precision: no decimals for >= 100
 
     # Test format_percent filter
     assert env.filters["format_percent"](12.3456) == "12.3"
@@ -60,11 +71,11 @@ def test_get_template_env():
 def test_get_story_template():
     """Test get_story_template function."""
     template = get_story_template(StoryType.ON_TRACK, "title")
-    assert "is on track" in template.render(metric={"label": "Test Metric"})
+    assert "is on track" in template.render(metric={"label": "Test Metric", "metric_id": "test_metric", "unit": "n"})
 
     template = get_story_template(StoryType.ON_TRACK, "detail")
     assert "is at" in template.render(
-        metric={"label": "Test Metric"},
+        metric={"label": "Test Metric", "metric_id": "test_metric", "unit": "n"},
         current_value=100.0,
         trend_direction="up",
         change_percent=5.0,
@@ -92,7 +103,7 @@ def test_get_story_template_invalid_field():
 def test_render_story_text():
     """Test render_story_text function."""
     context = {
-        "metric": {"label": "Test Metric"},
+        "metric": {"label": "Test Metric", "metric_id": "test_metric", "unit": "n"},
         "current_value": 100.0,
         "trend_direction": "up",
         "change_percent": 5.0,
@@ -108,9 +119,9 @@ def test_render_story_text():
     assert "Test Metric is on track" in title
 
     detail = render_story_text(StoryType.ON_TRACK, "detail", context)
-    assert "Test Metric is at 100.00" in detail
+    assert "Test Metric is at 100" in detail  # Smart precision: no decimals for >= 100
     assert "up 5.0% m/m" in detail
-    assert "beating its target of 90.00" in detail
+    assert "beating its target of 90" in detail  # Smart precision: no decimals for >= 100
     assert "by 10.0%" in detail
     assert "3-month streak" in detail
     assert "improving by 5.0% over this period" in detail

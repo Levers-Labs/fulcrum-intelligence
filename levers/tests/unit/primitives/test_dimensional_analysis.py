@@ -214,13 +214,21 @@ class TestCompareDimensionSlicesOverTime:
 
     def test_normal_comparison(self, sample_time_series_data):
         """Test basic time comparison with two dates."""
-        # Arrange
+        # Arrange - Create test data with overlapping slices in both periods
         prior_date = "2023-01-01"
         current_date = "2023-01-10"
 
+        test_data = pd.DataFrame(
+            {
+                "date": [prior_date, prior_date, prior_date, current_date, current_date, current_date],
+                "slice_value": ["North America", "Europe", "APAC", "North America", "Europe", "APAC"],
+                "value": [100, 110, 120, 200, 210, 220],
+            }
+        )
+
         # Act
         result = compare_dimension_slices_over_time(
-            sample_time_series_data,
+            test_data,
             slice_col="slice_value",
             date_col="date",
             value_col="value",

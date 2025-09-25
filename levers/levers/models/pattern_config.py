@@ -31,6 +31,10 @@ class DataSource(BaseModel):
         default=False,
         description="Whether this data source needs future period end dates " "instead of historical range",
     )
+    include_all_grains: bool = Field(
+        default=False,
+        description="Whether to fetch data for all grains instead of the specific requested grain",
+    )
     meta: dict[str, Any] = Field(default_factory=dict)
 
 
@@ -177,11 +181,11 @@ class AnalysisWindowConfig(BaseModel):
 
             if self.strategy == WindowStrategy.FIXED_TIME:
                 # Same time window for all grains
-                end_date = analysis_date + timedelta(days=self.days or 90)
+                end_date = start_date + timedelta(days=self.days or 90)
             elif self.strategy == WindowStrategy.GRAIN_SPECIFIC_TIME:
                 # Different time windows for different grains
                 days = self.grain_days.get(grain) if self.grain_days and grain in self.grain_days else self.days
-                end_date = analysis_date + timedelta(days=days or 180)
+                end_date = start_date + timedelta(days=days or 180)
             elif self.strategy == WindowStrategy.FIXED_DATAPOINTS:
                 # For fixed datapoints, calculate forward periods from today
                 datapoints = self.datapoints or 30

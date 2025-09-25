@@ -184,11 +184,22 @@ class Pattern(ABC, Generic[T]):
             InsufficientDataError: If no data is available
             MissingDataError: If any required column is missing
         """
+        # if data is empty, raise insufficient data error
         if data.empty:
             raise InsufficientDataError("No data available for pattern analysis")
+
         missing_columns = [col for col in required_columns if col not in data.columns]
+        # if any required column is missing, raise missing data error
         if missing_columns:
             raise MissingDataError(f"Missing required columns: {missing_columns}", missing_columns)
+
+        # Only check if the "value" column is all 0 or NaN
+        if "value" in data.columns:
+            value_col = data["value"]
+            # Check if all values are 0 or all are NaN
+            if value_col.isna().all() or (value_col == 0).all():
+                raise InsufficientDataError("All data in 'value' column is 0 or NaN")
+
         return True
 
     def validate_analysis_window(self, analysis_window: AnalysisWindow) -> AnalysisWindow:

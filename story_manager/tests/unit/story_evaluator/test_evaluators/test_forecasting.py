@@ -139,7 +139,7 @@ def mock_metric():
         "label": "Test Metric",  # Added required label field
         "higher_is_better": True,
         "metric_type": "revenue",
-        "unit": "USD",
+        "unit": "n",
     }
 
 
@@ -200,7 +200,11 @@ class TestForecastingEvaluator:
             assert (
                 story["story_group"] == StoryGroup.LIKELY_STATUS
                 if story["story_type"] != StoryType.REQUIRED_PERFORMANCE
-                else StoryGroup.REQUIRED_PERFORMANCE
+                else (
+                    StoryGroup.REQUIRED_PERFORMANCE
+                    if story["story_type"] != StoryType.REQUIRED_PERFORMANCE
+                    else StoryGroup.REQUIRED_PERFORMANCE
+                )
             )
             assert story["metric_id"] == "test_metric"
             assert story["grain"] == Granularity.DAY
@@ -406,7 +410,7 @@ class TestForecastingEvaluator:
         )
 
         assert story["story_type"] == StoryType.REQUIRED_PERFORMANCE
-        assert story["story_group"] == StoryGroup.LIKELY_STATUS
+        assert story["story_group"] == StoryGroup.REQUIRED_PERFORMANCE
         assert story["genre"] == StoryGenre.PERFORMANCE
 
     def test_calculate_cumulative_series_basic(self, evaluator):
@@ -821,7 +825,7 @@ class TestForecastingEvaluator:
                     ),
                     analysis_date=date(2024, 1, 31),
                 ),
-                {"metric_id": "test_metric", "label": "Test Metric"},
+                {"metric_id": "test_metric", "label": "Test Metric", "unit": "n"},
                 Granularity.DAY,
                 forecast_stats=forecast_stats,
             )

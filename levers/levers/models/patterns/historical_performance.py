@@ -38,6 +38,7 @@ class GrowthStats(BaseModel):
     current_growth_acceleration: float | None = None
     num_periods_accelerating: int = 0
     num_periods_slowing: int = 0
+
     overall_growth: float | None = None
 
 
@@ -136,6 +137,22 @@ class TrendAnalysis(BaseModel):
     slope: float | None = None
     slope_change_percent: float | None = None
     trend_signal_detected: bool = False
+    trend_type: TrendType | None = None
+
+
+class PerformanceTrend(BaseModel):
+    """Performance trend analysis tracking consecutive periods of improvement/worsening."""
+
+    num_periods_improving: int = 0
+    num_periods_worsening: int = 0
+
+    start_date: str | None = None
+
+    # Average growth rate for the current trend (improving or worsening)
+    average_growth: float | None = None
+
+    # Overall growth from start to end of current trend
+    overall_growth: float | None = None
 
 
 class HistoricalPerformance(BasePattern):
@@ -165,3 +182,6 @@ class HistoricalPerformance(BasePattern):
 
     # Trend exceptions (spike/drop)
     trend_exception: TrendException | None = None
+
+    # Performance metrics
+    performance_trend: PerformanceTrend | None = None

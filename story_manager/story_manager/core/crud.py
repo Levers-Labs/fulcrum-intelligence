@@ -1,3 +1,4 @@
+import logging
 from datetime import (
     date,
     datetime,
@@ -8,7 +9,9 @@ from typing import Any
 
 from sqlalchemy import (
     Date as SQLDate,
+    and_,
     cast,
+    delete,
     desc,
     func,
     select,
@@ -16,10 +19,13 @@ from sqlalchemy import (
 
 from commons.db.crud import CRUDBase
 from commons.models.enums import Granularity
+from commons.utilities.context import get_tenant_id
 from story_manager.core.enums import StoryType
 from story_manager.core.filters import StoryConfigFilter, StoryFilter
 from story_manager.core.models import Story, StoryConfig
 from story_manager.core.schemas import StoryStatsResponse
+
+logger = logging.getLogger(__name__)
 
 
 class CRUDStory(CRUDBase[Story, Story, Story, StoryFilter]):
@@ -154,6 +160,91 @@ class CRUDStory(CRUDBase[Story, Story, Story, StoryFilter]):
         story.story_date = new_date
         self.session.add(story)
         return True
+
+    def _get_date_boundaries(self, story_date: date | datetime) -> tuple[datetime, datetime]:
+        """
+        Get start and end boundaries for a story date.
+        Reuses existing date handling logic from get_stories.
+        """
+        if isinstance(story_date, datetime):
+            date_start = datetime.combine(story_date.date(), time.min)
+        else:
+            date_start = datetime.combine(story_date, time.min)
+        date_end = date_start + timedelta(days=1)
+        return date_start, date_end
+
+    async def upsert_stories(self, stories: list[dict[str, Any]]) -> list[Story]:
+        """
+        Upsert stories: single-pass build -> one DELETE -> bulk INSERT.
+
+        Args:
+            stories: List of story dictionaries to persist
+
+        Returns:
+            List of persisted Story objects
+        """
+        if not stories:
+            logger.info("No stories to persist")
+            return []
+
+        tenant_id = get_tenant_id()
+        logger.info(f"Upserting {len(stories)} stories for tenant {tenant_id}")
+
+        try:
+            # Build OR-ed delete conditions
+            delete_conditions = []
+
+            for story_dict in stories:
+                story_dict["tenant_id"] = tenant_id
+
+                metric_id = story_dict["metric_id"]
+                grain = story_dict["grain"]
+                story_date = story_dict["story_date"]
+                version = story_dict.get("version", 2)
+                dimension_name = story_dict.get("dimension_name")
+                evaluation_pattern = story_dict["evaluation_pattern"]  # not optional
+
+                date_start, date_end = self._get_date_boundaries(story_date)
+
+                # Build one AND-group for this story
+                condition = and_(
+                    Story.metric_id == metric_id,
+                    Story.grain == grain,
+                    Story.version == version,
+                    Story.evaluation_pattern == evaluation_pattern,
+                    Story.story_date >= date_start,  # type: ignore
+                    Story.story_date < date_end,  # type: ignore
+                    (
+                        (Story.dimension_name == dimension_name)
+                        if dimension_name is not None
+                        else Story.dimension_name.is_(None)  # type: ignore
+                    ),  # type: ignore
+                )
+                delete_conditions.append(condition)
+
+            # Combine with OR and execute a single delete
+            if delete_conditions:
+                delete_stmt = delete(Story).where(Story.tenant_id == tenant_id)  # type: ignore
+                await self.session.execute(delete_stmt.where(and_(*delete_conditions)))  # type: ignore
+
+            # Bulk-insert new stories, flush, set heuristics, commit
+            new_stories = [Story.model_validate(story) for story in stories]
+            self.session.add_all(new_stories)
+            await self.session.flush()
+
+            for story in new_stories:
+                await self.session.refresh(story)
+                await story.set_heuristics(self.session)
+                self.session.add(story)
+
+            await self.session.commit()
+            logger.info(f"Successfully upserted {len(new_stories)} stories")
+            return new_stories
+
+        except Exception as e:
+            logger.error(f"Error upserting stories: {str(e)}")
+            await self.session.rollback()
+            raise
 
     async def get_story_stats(self, filter_params: dict[str, Any]) -> list[StoryStatsResponse]:
         """

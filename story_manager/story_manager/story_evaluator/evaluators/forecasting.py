@@ -382,7 +382,7 @@ class ForecastingEvaluator(StoryEvaluatorBase[Forecasting]):
         Returns:
             Story dictionary
         """
-        story_group = StoryGroup.LIKELY_STATUS
+        story_group = StoryGroup.REQUIRED_PERFORMANCE
         story_type = StoryType.REQUIRED_PERFORMANCE
 
         # Prepare context for template rendering

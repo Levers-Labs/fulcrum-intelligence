@@ -142,7 +142,10 @@ class DimensionAnalysisPattern(Pattern[DimensionAnalysis]):
             # Check if we have enough data points for analysis
             if len(data) < num_periods:
                 logger.info("Insufficient data for metric_id=%s")
-                raise InsufficientDataError("Insufficient data to perform Dimensional Analysis")
+                raise InsufficientDataError(
+                    f"Insufficient data to perform Dimensional Analysis for dimension:{dimension_name}."
+                    f"Required data points: {num_periods}"
+                )
 
             # Pre Process data
             # renames columns to dimension, slice_value

@@ -396,7 +396,7 @@ class TestPerformanceStatusPattern:
 
         mocker.patch("levers.patterns.performance_status.monitor_threshold_proximity", return_value=True)
         mocker.patch(
-            "levers.patterns.performance_status.calculate_gap_to_target",
+            "levers.patterns.performance_status.calculate_percentage_difference",
             side_effect=Exception("Calculation error"),
         )
 
