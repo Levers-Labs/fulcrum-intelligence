@@ -10,9 +10,14 @@ from dagster import (
 from asset_manager.jobs import snowflake_cache_job
 from asset_manager.partitions import cache_tenant_grain_metric_partition, parse_tenant_grain_metric_key
 
-DAILY_CRON_SCHEDULE = "0 3 * * *"  # every day at 3 am
-WEEKLY_CRON_SCHEDULE = "0 6 * * 1"  # 6 AM on Monday
-MONTHLY_CRON_SCHEDULE = "0 8 1 * *"  # 8 AM on the first day of the month
+# Daily at 2:00 AM PST (10:00 UTC, 3:30 PM IST)
+DAILY_CRON_SCHEDULE = "0 10 * * *"
+
+# Weekly Monday at 2:30 AM PST (10:30 UTC, 4:00 PM IST)
+WEEKLY_CRON_SCHEDULE = "30 10 * * 1"
+
+# Monthly 1st at 3:00 AM PST (11:00 UTC, 4:30 PM IST)
+MONTHLY_CRON_SCHEDULE = "0 11 1 * *"
 
 
 def _date_str(context: ScheduleEvaluationContext) -> str:
